@@ -8,6 +8,9 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
+import '../../media/domain/models.dart';
+import '../../media/providers/media_providers.dart';
+import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
 import '../../../shared/widgets/widgets.dart';
 
@@ -96,7 +99,25 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   AppSpacing.heightLg,
 
                   // Library Categories Grid (3-row, 2-column flex layout)
-                  _buildCategoryGrid(),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final localSongs = ref.watch(songsProvider);
+                      final localAlbums = ref.watch(albumsProvider);
+                      final localArtists = ref.watch(artistsProvider);
+                      final localGenres = ref.watch(genresProvider);
+                      final localPlaylists = ref.watch(playlistsProvider);
+                      final localFolders = ref.watch(foldersProvider);
+
+                      return _buildCategoryGrid(
+                        localSongs.length,
+                        localAlbums.length,
+                        localArtists.length,
+                        localPlaylists.length,
+                        localGenres.length,
+                        localFolders.length,
+                      );
+                    },
+                  ),
                   AppSpacing.heightLg,
 
                   // Recently Added Section
@@ -104,7 +125,12 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     title: 'Recently Added',
                   ),
                   AppSpacing.heightMd,
-                  _buildRecentlyAddedList(),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final localAlbums = ref.watch(albumsProvider);
+                      return _buildRecentlyAddedList(localAlbums);
+                    },
+                  ),
                   AppSpacing.heightLg,
 
                   // Favorites Section
@@ -112,7 +138,12 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     title: 'Favorites',
                   ),
                   AppSpacing.heightMd,
-                  _buildFavoritesList(context),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final localSongs = ref.watch(songsProvider);
+                      return _buildFavoritesList(context, localSongs);
+                    },
+                  ),
 
                   // Bottom padding safety offset for floating overlays
                   SizedBox(height: 160.0 + bottomInset),
@@ -224,7 +255,21 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
-  Widget _buildCategoryGrid() {
+  Widget _buildCategoryGrid(
+    int songsCount,
+    int albumsCount,
+    int artistsCount,
+    int playlistsCount,
+    int genresCount,
+    int foldersCount,
+  ) {
+    final songsLabel = songsCount > 0 ? '$songsCount Songs' : '328 Songs';
+    final albumsLabel = albumsCount > 0 ? '$albumsCount Albums' : '45 Albums';
+    final artistsLabel = artistsCount > 0 ? '$artistsCount Artists' : '12 Artists';
+    final playlistsLabel = playlistsCount > 0 ? '$playlistsCount Playlists' : '8 Playlists';
+    final genresLabel = genresCount > 0 ? '$genresCount Genres' : '15 Genres';
+    final foldersLabel = foldersCount > 0 ? '$foldersCount Folders' : '4 Folders';
+
     return Column(
       children: [
         Row(
@@ -233,7 +278,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: CategoryCard(
                 icon: Icons.music_note,
                 title: 'Songs',
-                subtitle: '328 Songs',
+                subtitle: songsLabel,
                 onTap: () {},
               ),
             ),
@@ -242,7 +287,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: CategoryCard(
                 icon: Icons.album,
                 title: 'Albums',
-                subtitle: '45 Albums',
+                subtitle: albumsLabel,
                 onTap: () {},
               ),
             ),
@@ -255,7 +300,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: CategoryCard(
                 icon: Icons.mic_none,
                 title: 'Artists',
-                subtitle: '12 Artists',
+                subtitle: artistsLabel,
                 onTap: () {},
               ),
             ),
@@ -264,7 +309,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: CategoryCard(
                 icon: Icons.queue_music,
                 title: 'Playlists',
-                subtitle: '8 Playlists',
+                subtitle: playlistsLabel,
                 onTap: () {},
               ),
             ),
@@ -277,7 +322,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: CategoryCard(
                 icon: Icons.category_outlined,
                 title: 'Genres',
-                subtitle: '15 Genres',
+                subtitle: genresLabel,
                 onTap: () {},
               ),
             ),
@@ -286,7 +331,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               child: CategoryCard(
                 icon: Icons.folder_open,
                 title: 'Folders',
-                subtitle: '4 Folders',
+                subtitle: foldersLabel,
                 onTap: () {},
               ),
             ),
@@ -296,21 +341,27 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
-  Widget _buildRecentlyAddedList() {
+  Widget _buildRecentlyAddedList(List<MediaAlbum> localAlbums) {
+    final hasLocal = localAlbums.isNotEmpty;
+    final itemCount = hasLocal ? localAlbums.length : MockData.recentlyAdded.length;
+
     return SizedBox(
       height: 190.0, // Restrain height to wrap standard AlbumCards comfortably
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: MockData.recentlyAdded.length,
+        itemCount: itemCount,
         separatorBuilder: (context, index) => AppSpacing.widthMd,
         itemBuilder: (context, index) {
-          final album = MockData.recentlyAdded[index];
+          final imageUrl = hasLocal ? localAlbums[index].artworkPath : MockData.recentlyAdded[index].imageUrl;
+          final title = hasLocal ? localAlbums[index].title : MockData.recentlyAdded[index].title;
+          final subtitle = hasLocal ? '${localAlbums[index].trackCount} Songs' : MockData.recentlyAdded[index].subtitle;
+
           return AlbumCard(
-            imageUrl: album.imageUrl,
-            title: album.title,
-            subtitle: album.subtitle,
+            imageUrl: imageUrl,
+            title: title,
+            subtitle: subtitle,
             variant: AlbumCardVariant.standard,
             onTap: () => context.push('/player'),
           );
@@ -319,10 +370,47 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
-  Widget _buildFavoritesList(BuildContext context) {
+  Widget _buildFavoritesList(BuildContext context, List<MediaSong> localSongs) {
+    final hasLocal = localSongs.isNotEmpty;
+
+    if (hasLocal) {
+      final displaySongs = localSongs.take(5).toList();
+      final trackList = localSongs.map((song) => Track(
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        imageUrl: song.artworkPath,
+        duration: song.duration,
+        filePath: song.filePath,
+      )).toList();
+
+      return Column(
+        children: List.generate(displaySongs.length, (index) {
+          final song = displaySongs[index];
+          final track = trackList[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: SongTile(
+              title: song.title,
+              artist: song.artist,
+              duration: song.duration,
+              imageUrl: song.artworkPath,
+              isPlaying: false,
+              onTap: () {
+                ref.read(playerControllerProvider.notifier).selectTrack(track, trackList);
+                context.push('/player');
+              },
+            ),
+          );
+        }),
+      );
+    }
+
+    final trackList = MockData.favoriteSongs;
+
     return Column(
-      children: List.generate(MockData.favoriteSongs.length, (index) {
-        final track = MockData.favoriteSongs[index];
+      children: List.generate(trackList.length, (index) {
+        final track = trackList[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: SongTile(
@@ -331,7 +419,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             duration: track.duration,
             imageUrl: track.imageUrl,
             isPlaying: false,
-            onTap: () => context.push('/player'),
+            onTap: () {
+              ref.read(playerControllerProvider.notifier).selectTrack(track, trackList);
+              context.push('/player');
+            },
           ),
         );
       }),

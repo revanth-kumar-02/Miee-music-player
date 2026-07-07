@@ -42,10 +42,14 @@ class AudioPlayerService {
   /// Seek to target offset.
   Future<void> seek(Duration position) async => await _player.seek(position);
 
-  /// Load track from web URL source.
-  Future<void> setUrlSource(String url) async {
+  /// Load track from either a web URL or a local file path source.
+  Future<void> setSource(String path) async {
     try {
-      await _player.setUrl(url);
+      if (path.startsWith('http')) {
+        await _player.setUrl(path);
+      } else {
+        await _player.setAudioSource(AudioSource.file(path));
+      }
     } catch (e) {
       rethrow;
     }

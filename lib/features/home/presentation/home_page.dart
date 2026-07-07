@@ -8,6 +8,9 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
+import '../../media/domain/models.dart';
+import '../../media/providers/media_providers.dart';
+import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
 import '../../../shared/widgets/widgets.dart';
 
@@ -54,6 +57,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    // Listen to real device music providers
+    final localSongs = ref.watch(songsProvider);
+    final localAlbums = ref.watch(albumsProvider);
+    final localArtists = ref.watch(artistsProvider);
 
     return Scaffold(
       extendBody: true,
@@ -103,7 +111,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     isUppercase: true,
                   ),
                   AppSpacing.heightMd,
-                  _buildContinueListeningCard(context),
+                  _buildContinueListeningCard(context, localSongs),
                   AppSpacing.heightLg,
 
                   // Recently Played Section
@@ -112,7 +120,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     isUppercase: true,
                   ),
                   AppSpacing.heightMd,
-                  _buildRecentlyPlayedList(),
+                  _buildRecentlyPlayedList(localAlbums),
                   AppSpacing.heightLg,
 
                   // Albums Section (Bento Grid)
@@ -121,7 +129,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     isUppercase: true,
                   ),
                   AppSpacing.heightMd,
-                  _buildBentoAlbumsGrid(context),
+                  _buildBentoAlbumsGrid(context, localAlbums),
                   AppSpacing.heightLg,
 
                   // Favorite Artists Section
@@ -130,7 +138,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     isUppercase: true,
                   ),
                   AppSpacing.heightMd,
-                  _buildFavoriteArtistsList(),
+                  _buildFavoriteArtistsList(localArtists),
 
                   // Bottom padding to ensure items scroll completely above floating players
                   SizedBox(height: 160.0 + bottomInset),
@@ -213,9 +221,39 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildContinueListeningCard(BuildContext context) {
+  Widget _buildContinueListeningCard(BuildContext context, List<MediaSong> localSongs) {
+    final hasLocal = localSongs.isNotEmpty;
+    final displayTitle = hasLocal ? localSongs.first.title : MockData.featuredTrack.title;
+    final displayArtist = hasLocal ? localSongs.first.artist : MockData.featuredTrack.artist;
+    final displayArtwork = hasLocal ? localSongs.first.artworkPath : MockData.featuredTrack.imageUrl;
+
+    final targetTrack = hasLocal
+        ? Track(
+            id: localSongs.first.id,
+            title: localSongs.first.title,
+            artist: localSongs.first.artist,
+            imageUrl: localSongs.first.artworkPath,
+            duration: localSongs.first.duration,
+            filePath: localSongs.first.filePath,
+          )
+        : MockData.featuredTrack;
+
+    final trackList = hasLocal
+        ? localSongs.map((song) => Track(
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            imageUrl: song.artworkPath,
+            duration: song.duration,
+            filePath: song.filePath,
+          )).toList()
+        : [MockData.featuredTrack, ...MockData.favoriteSongs];
+
     return GestureDetector(
-      onTap: () => context.push('/player'),
+      onTap: () {
+        ref.read(playerControllerProvider.notifier).selectTrack(targetTrack, trackList);
+        context.push('/player');
+      },
       child: Container(
         padding: AppSpacing.paddingAllSm,
         decoration: BoxDecoration(
@@ -230,10 +268,13 @@ class _HomePageState extends ConsumerState<HomePage> {
               builder: (context, constraints) {
                 final cardWidth = constraints.maxWidth;
                 return AlbumArtwork(
-                  imageUrl: MockData.featuredTrack.imageUrl,
+                  imageUrl: displayArtwork,
                   size: cardWidth,
                   showPlayButton: true,
-                  onPlayTap: () => context.push('/player'),
+                  onPlayTap: () {
+                    ref.read(playerControllerProvider.notifier).selectTrack(targetTrack, trackList);
+                    context.push('/player');
+                  },
                 );
               },
             ),
@@ -247,7 +288,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    MockData.featuredTrack.title,
+                    displayTitle,
                     style: AppTypography.headlineMedium.copyWith(
                       color: AppColors.onSurface,
                     ),
@@ -256,7 +297,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   AppSpacing.heightXs,
                   Text(
-                    MockData.featuredTrack.artist,
+                    displayArtist,
                     style: AppTypography.labelMedium.copyWith(
                       color: AppColors.onSurfaceVariant,
                     ),
@@ -272,21 +313,27 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildRecentlyPlayedList() {
+  Widget _buildRecentlyPlayedList(List<MediaAlbum> localAlbums) {
+    final hasLocal = localAlbums.isNotEmpty;
+    final itemCount = hasLocal ? localAlbums.length : MockData.recentlyPlayed.length;
+
     return SizedBox(
       height: 190.0, // Restrain height to wrap standard AlbumCards comfortably
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: MockData.recentlyPlayed.length,
+        itemCount: itemCount,
         separatorBuilder: (context, index) => AppSpacing.widthMd,
         itemBuilder: (context, index) {
-          final album = MockData.recentlyPlayed[index];
+          final imageUrl = hasLocal ? localAlbums[index].artworkPath : MockData.recentlyPlayed[index].imageUrl;
+          final title = hasLocal ? localAlbums[index].title : MockData.recentlyPlayed[index].title;
+          final subtitle = hasLocal ? '${localAlbums[index].trackCount} Songs' : MockData.recentlyPlayed[index].subtitle;
+
           return AlbumCard(
-            imageUrl: album.imageUrl,
-            title: album.title,
-            subtitle: album.subtitle,
+            imageUrl: imageUrl,
+            title: title,
+            subtitle: subtitle,
             variant: AlbumCardVariant.standard,
             onTap: () => context.push('/player'),
           );
@@ -295,13 +342,25 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildBentoAlbumsGrid(BuildContext context) {
+  Widget _buildBentoAlbumsGrid(BuildContext context, List<MediaAlbum> localAlbums) {
+    final hasLocal = localAlbums.length >= 3;
+
+    final heroImageUrl = hasLocal ? localAlbums[0].artworkPath : MockData.bentoHeroAlbum.imageUrl;
+    final heroTitle = hasLocal ? localAlbums[0].title : MockData.bentoHeroAlbum.title;
+    final heroSubtitle = hasLocal ? '${localAlbums[0].trackCount} Songs' : MockData.bentoHeroAlbum.subtitle;
+
+    final sub1ImageUrl = hasLocal ? localAlbums[1].artworkPath : MockData.bentoSubAlbums[0].imageUrl;
+    final sub1Title = hasLocal ? localAlbums[1].title : MockData.bentoSubAlbums[0].title;
+
+    final sub2ImageUrl = hasLocal ? localAlbums[2].artworkPath : MockData.bentoSubAlbums[1].imageUrl;
+    final sub2Title = hasLocal ? localAlbums[2].title : MockData.bentoSubAlbums[1].title;
+
     return Column(
       children: [
         AlbumCard(
-          imageUrl: MockData.bentoHeroAlbum.imageUrl,
-          title: MockData.bentoHeroAlbum.title,
-          subtitle: MockData.bentoHeroAlbum.subtitle,
+          imageUrl: heroImageUrl,
+          title: heroTitle,
+          subtitle: heroSubtitle,
           variant: AlbumCardVariant.bentoHero,
           onTap: () => context.push('/player'),
         ),
@@ -310,8 +369,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           children: [
             Expanded(
               child: AlbumCard(
-                imageUrl: MockData.bentoSubAlbums[0].imageUrl,
-                title: MockData.bentoSubAlbums[0].title,
+                imageUrl: sub1ImageUrl,
+                title: sub1Title,
                 variant: AlbumCardVariant.bentoSub,
                 onTap: () => context.push('/player'),
               ),
@@ -319,8 +378,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             AppSpacing.widthMd,
             Expanded(
               child: AlbumCard(
-                imageUrl: MockData.bentoSubAlbums[1].imageUrl,
-                title: MockData.bentoSubAlbums[1].title,
+                imageUrl: sub2ImageUrl,
+                title: sub2Title,
                 variant: AlbumCardVariant.bentoSub,
                 onTap: () => context.push('/player'),
               ),
@@ -331,28 +390,33 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildFavoriteArtistsList() {
+  Widget _buildFavoriteArtistsList(List<MediaArtist> localArtists) {
+    final hasLocal = localArtists.isNotEmpty;
+    final itemCount = hasLocal ? localArtists.length : MockData.favoriteArtists.length;
+
     return SizedBox(
       height: 110.0, // Restrain height for avatar + space + text label
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: MockData.favoriteArtists.length,
+        itemCount: itemCount,
         separatorBuilder: (context, index) => AppSpacing.widthLg,
         itemBuilder: (context, index) {
-          final artist = MockData.favoriteArtists[index];
+          final imageUrl = hasLocal ? '' : MockData.favoriteArtists[index].imageUrl;
+          final name = hasLocal ? localArtists[index].name : MockData.favoriteArtists[index].name;
+
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ProfileAvatar(
-                imageUrl: artist.imageUrl,
+                imageUrl: imageUrl.isEmpty ? null : imageUrl,
                 size: 72.0,
                 onTap: () {},
               ),
               AppSpacing.heightSm,
               Text(
-                artist.name,
+                name,
                 style: AppTypography.labelSmall.copyWith(
                   color: AppColors.onSurface,
                 ),

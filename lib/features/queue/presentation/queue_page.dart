@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,12 +56,29 @@ class QueuePage extends ConsumerWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12.0),
-                        child: Image.network(
-                          simulatedCoverUrl,
-                          width: 256.0,
-                          height: 256.0,
-                          fit: BoxFit.cover,
-                        ),
+                        child: simulatedCoverUrl.startsWith('http')
+                            ? Image.network(
+                                simulatedCoverUrl,
+                                width: 256.0,
+                                height: 256.0,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.file(
+                                File(simulatedCoverUrl),
+                                width: 256.0,
+                                height: 256.0,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  width: 256.0,
+                                  height: 256.0,
+                                  color: AppColors.surfaceContainerHigh,
+                                  child: const Icon(
+                                    Icons.music_note,
+                                    color: AppColors.onSurfaceVariant,
+                                    size: 64.0,
+                                  ),
+                                ),
+                              ),
                       ),
                       AppSpacing.heightLg,
                       Text(

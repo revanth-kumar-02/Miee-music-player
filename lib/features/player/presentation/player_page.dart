@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,9 +49,7 @@ class PlayerPage extends ConsumerWidget {
         ? currentPosition.inMilliseconds / totalDuration.inMilliseconds
         : 0.0;
 
-    // Standard blur background image asset from Stitch design
-    const blurBackingUrl =
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuDsvbTq_rvOYIWQHTtwfGgGxpSZUZm8kO3nvN7lfYVNfk-cGWM35yMOPkW6OEk9D1s62CepfmQ02pQqARysXN_1Kc2-qQePzedelwZgVzymBXk3Sof3e55AiIhH_Wg-FSM8Sp6WxlNkJTPieV_Kc54vLGXXnklt9AKy0joAhjONkgM2k1t_k13bqt5IFJSmNQJTp0aj0lpYGJeKRO0bgUGRc-Ho-YIYphLW6mER7-7yU5hCJu5nx9qHgIe-vLlm6vPiTN7QNCotu1dv';
+    final blurBackingUrl = currentTrack.imageUrl;
 
     return Scaffold(
       body: Stack(
@@ -60,9 +59,11 @@ class PlayerPage extends ConsumerWidget {
             child: Opacity(
               opacity: 0.4,
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   image: DecorationImage(
-                    image: NetworkImage(blurBackingUrl),
+                    image: blurBackingUrl.startsWith('http')
+                        ? NetworkImage(blurBackingUrl) as ImageProvider
+                        : FileImage(File(blurBackingUrl)),
                     fit: BoxFit.cover,
                   ),
                 ),

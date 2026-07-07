@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_radius.dart';
@@ -51,18 +52,31 @@ class AlbumArtwork extends StatelessWidget {
           Positioned.fill(
             child: ClipRRect(
               borderRadius: effectiveRadius,
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: AppColors.surfaceContainerHigh,
-                  child: const Icon(
-                    Icons.music_note,
-                    color: AppColors.onSurfaceVariant,
-                    size: 32.0,
-                  ),
-                ),
-              ),
+              child: imageUrl.startsWith('http')
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.surfaceContainerHigh,
+                        child: const Icon(
+                          Icons.music_note,
+                          color: AppColors.onSurfaceVariant,
+                          size: 32.0,
+                        ),
+                      ),
+                    )
+                  : Image.file(
+                      File(imageUrl),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.surfaceContainerHigh,
+                        child: const Icon(
+                          Icons.music_note,
+                          color: AppColors.onSurfaceVariant,
+                          size: 32.0,
+                        ),
+                      ),
+                    ),
             ),
           ),
           // Play Button Overlay

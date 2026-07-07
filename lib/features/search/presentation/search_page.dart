@@ -8,6 +8,9 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
+import '../../media/domain/models.dart';
+import '../../media/providers/media_providers.dart';
+import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -80,6 +83,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final isSearching = _searchQuery.isNotEmpty;
 
+    // Listen to real device music providers
+    final localSongs = ref.watch(songsProvider);
+    final localAlbums = ref.watch(albumsProvider);
+    final localArtists = ref.watch(artistsProvider);
+    final localGenres = ref.watch(genresProvider);
+    final localPlaylists = ref.watch(playlistsProvider);
+
     return Scaffold(
       extendBody: true,
       appBar: AppHeader(
@@ -141,7 +151,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       actionLabel: 'Clear',
                     ),
                     AppSpacing.heightMd,
-                    _buildBentoRecentSearches(),
+                    _buildBentoRecentSearches(localArtists, localAlbums),
                     AppSpacing.heightLg,
 
                     // Trending Now Section
@@ -149,7 +159,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       title: 'Trending Now',
                     ),
                     AppSpacing.heightMd,
-                    _buildTrendingSongsList(context),
+                    _buildTrendingSongsList(context, localSongs),
                     AppSpacing.heightLg,
 
                     // Browse Categories Grid
@@ -157,7 +167,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       title: 'Browse Categories',
                     ),
                     AppSpacing.heightMd,
-                    _buildBrowseCategoriesGrid(),
+                    _buildBrowseCategoriesGrid(
+                      localAlbums.length,
+                      localArtists.length,
+                      localPlaylists.length,
+                      localGenres.length,
+                    ),
                   ],
 
                   // Bottom padding offset for MiniPlayer & BottomNavigation
@@ -286,13 +301,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _buildBentoRecentSearches() {
+  Widget _buildBentoRecentSearches(List<MediaArtist> localArtists, List<MediaAlbum> localAlbums) {
+    final hasArtist = localArtists.isNotEmpty;
+    final artistName = hasArtist ? localArtists.first.name : 'Brambles';
+
+    final hasAlbum = localAlbums.isNotEmpty;
+    final albumTitle = hasAlbum ? localAlbums.first.title : 'Charcoal';
+    final albumArtwork = hasAlbum ? localAlbums.first.artworkPath : MockData.recentlyPlayed[0].imageUrl;
+
     return Row(
       children: [
         // Bento Search Item 1: Artist
         Expanded(
           child: _buildRecentSearchCard(
-            title: 'Brambles',
+            title: artistName,
             subtitle: 'Artist',
             topWidget: Container(
               width: 40.0,
@@ -313,21 +335,33 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         // Bento Search Item 2: Album
         Expanded(
           child: _buildRecentSearchCard(
-            title: 'Charcoal',
+            title: albumTitle,
             subtitle: 'Album',
             topWidget: ClipRRect(
               borderRadius: BorderRadius.circular(20.0), // circular avatar size 40
-              child: Image.network(
-                MockData.recentlyPlayed[0].imageUrl,
-                width: 40.0,
-                height: 40.0,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 40.0,
-                  height: 40.0,
-                  color: AppColors.surfaceContainerHigh,
-                ),
-              ),
+              child: albumArtwork.startsWith('http')
+                  ? Image.network(
+                      albumArtwork,
+                      width: 40.0,
+                      height: 40.0,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 40.0,
+                        height: 40.0,
+                        color: AppColors.surfaceContainerHigh,
+                      ),
+                    )
+                  : Image.file(
+                      File(albumArtwork),
+                      width: 40.0,
+                      height: 40.0,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 40.0,
+                        height: 40.0,
+                        color: AppColors.surfaceContainerHigh,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -378,8 +412,43 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _buildTrendingSongsList(BuildContext context) {
-    // Show top 3 tracks from mock data as trending tracks
+  Widget _buildTrendingSongsList(BuildContext context, List<MediaSong> localSongs) {
+    final hasLocal = localSongs.isNotEmpty;
+
+    if (hasLocal) {
+      final displaySongs = localSongs.take(3).toList();
+      final trackList = localSongs.map((song) => Track(
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        imageUrl: song.artworkPath,
+        duration: song.duration,
+        filePath: song.filePath,
+      )).toList();
+
+      return Column(
+        children: List.generate(displaySongs.length, (index) {
+          final song = displaySongs[index];
+          final track = trackList[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: SongTile(
+              title: song.title,
+              artist: song.artist,
+              duration: song.duration,
+              imageUrl: song.artworkPath,
+              isPlaying: false,
+              onTap: () {
+                ref.read(playerControllerProvider.notifier).selectTrack(track, trackList);
+                context.push('/player');
+              },
+            ),
+          );
+        }),
+      );
+    }
+
+    // Show top 3 tracks from mock data as trending tracks fallback
     final tracks = MockData.recentlyPlayed;
 
     return Column(
@@ -393,14 +462,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             duration: '3:24',
             imageUrl: track.imageUrl,
             isPlaying: false,
-            onTap: () => context.push('/player'),
+            onTap: () {
+              ref.read(playerControllerProvider.notifier).selectTrack(track, tracks);
+              context.push('/player');
+            },
           ),
         );
       }),
     );
   }
 
-  Widget _buildBrowseCategoriesGrid() {
+  Widget _buildBrowseCategoriesGrid(int albumsCount, int artistsCount, int playlistsCount, int genresCount) {
+    final albumsLabel = albumsCount > 0 ? '$albumsCount Albums' : '24 Albums';
+    final artistsLabel = artistsCount > 0 ? '$artistsCount Artists' : '12 Artists';
+    final playlistsLabel = playlistsCount > 0 ? '$playlistsCount Playlists' : '8 Playlists';
+    final genresLabel = genresCount > 0 ? '$genresCount Genres' : '6 Genres';
+
     return Column(
       children: [
         Row(
@@ -409,7 +486,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: CategoryCard(
                 icon: Icons.album_outlined,
                 title: 'Albums',
-                subtitle: '24 Albums',
+                subtitle: albumsLabel,
                 onTap: () {},
               ),
             ),
@@ -418,7 +495,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: CategoryCard(
                 icon: Icons.person_outline,
                 title: 'Artists',
-                subtitle: '12 Artists',
+                subtitle: artistsLabel,
                 onTap: () {},
               ),
             ),
@@ -431,7 +508,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: CategoryCard(
                 icon: Icons.playlist_play,
                 title: 'Playlists',
-                subtitle: '8 Playlists',
+                subtitle: playlistsLabel,
                 onTap: () {},
               ),
             ),
@@ -440,7 +517,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: CategoryCard(
                 icon: Icons.music_note_outlined,
                 title: 'Genres',
-                subtitle: '6 Genres',
+                subtitle: genresLabel,
                 onTap: () {},
               ),
             ),

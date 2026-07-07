@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_radius.dart';
@@ -127,22 +128,39 @@ class MiniPlayer extends StatelessWidget {
                   // Cover Artwork Thumbnail
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.network(
-                      imageUrl,
-                      width: 48.0,
-                      height: 48.0,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 48.0,
-                        height: 48.0,
-                        color: AppColors.surfaceContainerHigh,
-                        child: const Icon(
-                          Icons.music_note,
-                          color: AppColors.onSurfaceVariant,
-                          size: 20.0,
-                        ),
-                      ),
-                    ),
+                    child: imageUrl.startsWith('http')
+                        ? Image.network(
+                            imageUrl,
+                            width: 48.0,
+                            height: 48.0,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 48.0,
+                              height: 48.0,
+                              color: AppColors.surfaceContainerHigh,
+                              child: const Icon(
+                                Icons.music_note,
+                                color: AppColors.onSurfaceVariant,
+                                size: 20.0,
+                              ),
+                            ),
+                          )
+                        : Image.file(
+                            File(imageUrl),
+                            width: 48.0,
+                            height: 48.0,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 48.0,
+                              height: 48.0,
+                              color: AppColors.surfaceContainerHigh,
+                              child: const Icon(
+                                Icons.music_note,
+                                color: AppColors.onSurfaceVariant,
+                                size: 20.0,
+                              ),
+                            ),
+                          ),
                   ),
                   AppSpacing.widthMd,
                   // Track Metadata Stack

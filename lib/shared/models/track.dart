@@ -5,6 +5,7 @@ class Track {
   final String artist;
   final String imageUrl;
   final String duration;
+  final String? filePath;
   final double progress;
   final bool isPlaying;
   final bool isFavorited;
@@ -15,6 +16,7 @@ class Track {
     required this.artist,
     required this.imageUrl,
     required this.duration,
+    this.filePath,
     this.progress = 0.0,
     this.isPlaying = false,
     this.isFavorited = false,
