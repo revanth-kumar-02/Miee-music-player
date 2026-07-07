@@ -37,7 +37,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   bool _isScrolled = false;
   String _selectedFilter = 'All';
   String _searchQuery = '';
-  int _currentTab = 0; // 0 = Local, 1 = YouTube
 
 
   final List<String> _filters = [
@@ -84,23 +83,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     setState(() {
       _searchQuery = _searchController.text;
     });
-    if (_currentTab == 0) {
-      ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
-    } else {
-      ref.read(youtubeSearchProvider.notifier).searchDebounced(_searchController.text);
-    }
+    ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
+    ref.read(youtubeSearchProvider.notifier).searchDebounced(_searchController.text);
   }
 
   /// Called when user submits the search (keyboard done / enter).
   void _handleSearchSubmit(String query) {
     if (query.trim().isEmpty) return;
-    if (_currentTab == 0) {
-      ref.read(searchHistoryProvider.notifier).addSearch(query.trim());
-      ref.read(searchNotifierProvider.notifier).searchNow(query);
-    } else {
-      ref.read(youtubeSearchHistoryProvider.notifier).addSearch(query.trim());
-      ref.read(youtubeSearchProvider.notifier).searchNow(query);
-    }
+    ref.read(searchHistoryProvider.notifier).addSearch(query.trim());
+    ref.read(searchNotifierProvider.notifier).searchNow(query);
+    ref.read(youtubeSearchProvider.notifier).searchNow(query);
   }
 
   /// Populates the search bar with [query] and triggers a search.
@@ -110,12 +102,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       TextPosition(offset: query.length),
     );
     setState(() => _searchQuery = query);
-    if (_currentTab == 0) {
-      ref.read(searchNotifierProvider.notifier).searchNow(query);
-    } else {
-      ref.read(youtubeSearchProvider.notifier).searchNow(query);
-    }
+    ref.read(searchNotifierProvider.notifier).searchNow(query);
+    ref.read(youtubeSearchProvider.notifier).searchNow(query);
   }
+
 
 
   @override
@@ -166,62 +156,52 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   // Search Bar Input widget
                   AppSearchBar(
                     controller: _searchController,
-                    placeholder: _currentTab == 0 ? 'Artists, songs, or podcasts' : 'Search YouTube videos...',
+                    placeholder: 'Artists, songs, or online videos',
                     onSubmitted: _handleSearchSubmit,
                   ),
-                  AppSpacing.heightMd,
-
-                  // Sliding Tab Selector
-                  _buildTabSelector(),
                   AppSpacing.heightLg,
 
                   // Live search results when a query is active
                   if (isSearching) ...[
-                    if (_currentTab == 0)
-                      _SearchResultsSection(query: _searchQuery)
-                    else
-                      _YouTubeSearchResultsSection(query: _searchQuery),
+                    _SearchResultsSection(query: _searchQuery),
                   ] else ...[
-                    if (_currentTab == 0) ...[
-                      // Filter Chips horizontal row
-                      _buildFilterChips(),
-                      AppSpacing.heightLg,
+                    // Filter Chips horizontal row
+                    _buildFilterChips(),
+                    AppSpacing.heightLg,
 
-                      // Recent Searches Section (Bento Grid)
-                      SectionHeader(
-                        title: 'Recent',
-                        actionLabel: 'Clear',
-                        onActionTap: () {
-                          ref.read(searchHistoryProvider.notifier).clearAll();
-                        },
-                      ),
-                      AppSpacing.heightMd,
-                      _buildBentoRecentSearches(localArtists, localAlbums),
-                      AppSpacing.heightLg,
+                    // Recent Searches Section (Bento Grid)
+                    SectionHeader(
+                      title: 'Recent',
+                      actionLabel: 'Clear',
+                      onActionTap: () {
+                        ref.read(searchHistoryProvider.notifier).clearAll();
+                      },
+                    ),
+                    AppSpacing.heightMd,
+                    _buildBentoRecentSearches(localArtists, localAlbums),
+                    AppSpacing.heightLg,
 
-                      // Trending Now Section
-                      const SectionHeader(
-                        title: 'Trending Now',
-                      ),
-                      AppSpacing.heightMd,
-                      _buildTrendingSongsList(context, localSongs),
-                      AppSpacing.heightLg,
+                    // Trending Now Section
+                    const SectionHeader(
+                      title: 'Trending Now',
+                    ),
+                    AppSpacing.heightMd,
+                    _buildTrendingSongsList(context, localSongs),
+                    AppSpacing.heightLg,
 
-                      // Browse Categories Grid
-                      const SectionHeader(
-                        title: 'Browse Categories',
-                      ),
-                      AppSpacing.heightMd,
-                      _buildBrowseCategoriesGrid(
-                        localAlbums.length,
-                        localArtists.length,
-                        localPlaylists.length,
-                        localGenres.length,
-                      ),
-                    ] else ...[
-                      _buildYouTubeRecentSection(),
-                    ]
+                    // Browse Categories Grid
+                    const SectionHeader(
+                      title: 'Browse Categories',
+                    ),
+                    AppSpacing.heightMd,
+                    _buildBrowseCategoriesGrid(
+                      localAlbums.length,
+                      localArtists.length,
+                      localPlaylists.length,
+                      localGenres.length,
+                    ),
                   ],
+
 
 
                   // Bottom padding offset for MiniPlayer & BottomNavigation
@@ -588,7 +568,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 }
-
 // ── Search Results Section ────────────────────────────────────────────────────
 
 /// Displays grouped live search results when a query is active.
@@ -602,60 +581,63 @@ class _SearchResultsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final searchState = ref.watch(searchNotifierProvider);
+    final localState = ref.watch(searchNotifierProvider);
+    final youtubeState = ref.watch(youtubeSearchProvider);
     final library = ref.watch(mediaLibraryServiceProvider);
 
-    // ── Loading ──────────────────────────────────────────────────────────────
-    if (searchState.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 48.0),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
+    final showLocalLoading = localState.isLoading;
+    final showYoutubeLoading = youtubeState.isLoading;
 
-    // ── Permission denied / library not available ────────────────────────────
-    if (!library.hasPermission && !library.isLoading) {
-      return EmptyState(
-        title: 'Library Unavailable',
-        message: 'Grant storage permission to search your music.',
-        icon: Icons.lock_outline,
-      );
-    }
+    final localResults = localState.results;
+    final hasLocalResults = localResults.songs.isNotEmpty ||
+        localResults.albums.isNotEmpty ||
+        localResults.artists.isNotEmpty ||
+        localResults.genres.isNotEmpty;
 
-    // ── Empty results ────────────────────────────────────────────────────────
-    final results = searchState.results;
-    if (results.isEmpty) {
+    final hasYoutubeResults = youtubeState.results.isNotEmpty;
+
+    // Check if both sources are completely empty and finished loading
+    final isBothEmpty = !showLocalLoading &&
+        !showYoutubeLoading &&
+        !hasLocalResults &&
+        !hasYoutubeResults &&
+        youtubeState.error == null;
+
+    if (isBothEmpty) {
       return EmptyState(
         title: 'No results',
-        message: 'Nothing found for "$query".',
+        message: 'Nothing found for "$query" in local music or YouTube.',
         icon: Icons.search_off,
       );
     }
 
-    // ── Grouped results ──────────────────────────────────────────────────────
-    // Convert local songs to Track list for the player controller.
-    final allSongTracks = results.songs.map((s) => Track(
-          id: s.id,
-          title: s.title,
-          artist: s.artist,
-          imageUrl: s.artworkPath,
-          duration: s.duration,
-          filePath: s.filePath,
-        )).toList();
+    // Convert local songs to Track list for playback queue controller
+    final allSongTracks = localResults.songs
+        .map((s) => Track(
+              id: s.id,
+              title: s.title,
+              artist: s.artist,
+              imageUrl: s.artworkPath,
+              duration: s.duration,
+              filePath: s.filePath,
+            ))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppSpacing.heightSm,
 
-        // ── Songs ────────────────────────────────────────────────────────────
-        if (results.songs.isNotEmpty) ...[
+        // ── 1. Local Songs Section ───────────────────────────────────────────
+        if (showLocalLoading)
+          _buildLoadingSection('Songs')
+        else if (localResults.songs.isNotEmpty) ...[
           SectionHeader(
             title: 'Songs',
-            actionLabel: results.songs.length > 5 ? 'See all' : null,
+            actionLabel: localResults.songs.length > 5 ? 'See all' : null,
           ),
           AppSpacing.heightMd,
-          ...results.songs.take(5).map((song) {
+          ...localResults.songs.take(5).map((song) {
             final track = Track(
               id: song.id,
               title: song.title,
@@ -684,11 +666,13 @@ class _SearchResultsSection extends ConsumerWidget {
           AppSpacing.heightMd,
         ],
 
-        // ── Albums ───────────────────────────────────────────────────────────
-        if (results.albums.isNotEmpty) ...[
+        // ── 2. Local Albums Section ──────────────────────────────────────────
+        if (showLocalLoading)
+          _buildLoadingSection('Albums')
+        else if (localResults.albums.isNotEmpty) ...[
           const SectionHeader(title: 'Albums'),
           AppSpacing.heightMd,
-          ...results.albums.take(4).map((album) => Padding(
+          ...localResults.albums.take(4).map((album) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: _ResultListTile(
                   imageUrl: album.artworkPath,
@@ -701,11 +685,13 @@ class _SearchResultsSection extends ConsumerWidget {
           AppSpacing.heightMd,
         ],
 
-        // ── Artists ──────────────────────────────────────────────────────────
-        if (results.artists.isNotEmpty) ...[
+        // ── 3. Local Artists Section ─────────────────────────────────────────
+        if (showLocalLoading)
+          _buildLoadingSection('Artists')
+        else if (localResults.artists.isNotEmpty) ...[
           const SectionHeader(title: 'Artists'),
           AppSpacing.heightMd,
-          ...results.artists.take(4).map((artist) => Padding(
+          ...localResults.artists.take(4).map((artist) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: _ResultListTile(
                   imageUrl: null,
@@ -719,14 +705,14 @@ class _SearchResultsSection extends ConsumerWidget {
           AppSpacing.heightMd,
         ],
 
-        // ── Genres ───────────────────────────────────────────────────────────
-        if (results.genres.isNotEmpty) ...[
+        // ── 4. Local Genres Section ──────────────────────────────────────────
+        if (!showLocalLoading && localResults.genres.isNotEmpty) ...[
           const SectionHeader(title: 'Genres'),
           AppSpacing.heightMd,
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: results.genres.take(6).map((genre) {
+            children: localResults.genres.take(6).map((genre) {
               return Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
@@ -748,28 +734,87 @@ class _SearchResultsSection extends ConsumerWidget {
           AppSpacing.heightMd,
         ],
 
-        // ── Playlists ────────────────────────────────────────────────────────
-        if (results.playlists.isNotEmpty) ...[
-          const SectionHeader(title: 'Playlists'),
+        // ── 5. YouTube Section (Online) ──────────────────────────────────────
+        if (showYoutubeLoading) ...[
+          const SectionHeader(title: 'YouTube'),
           AppSpacing.heightMd,
-          ...results.playlists.take(4).map((playlist) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _ResultListTile(
-                  imageUrl: null,
-                  title: playlist.name,
-                  subtitle: '${playlist.trackCount} songs',
-                  icon: Icons.playlist_play,
-                  onTap: () {},
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24.0),
+            child: Center(
+              child: SizedBox(
+                width: 24.0,
+                height: 24.0,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            ),
+          ),
+          AppSpacing.heightMd,
+        ] else if (youtubeState.error != null) ...[
+          const SectionHeader(title: 'YouTube'),
+          AppSpacing.heightMd,
+          Container(
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerHigh,
+              borderRadius: AppRadius.radiusMd,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.wifi_off, color: AppColors.error),
+                AppSpacing.widthMd,
+                Expanded(
+                  child: Text(
+                    'YouTube offline or unavailable: ${youtubeState.error}',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-              )),
+              ],
+            ),
+          ),
+          AppSpacing.heightMd,
+        ] else if (hasYoutubeResults) ...[
+          SectionHeader(
+            title: 'YouTube',
+            actionLabel: '${youtubeState.results.length} found',
+          ),
+          AppSpacing.heightMd,
+          ...youtubeState.results.take(6).map((video) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: YouTubeResultTile(video: video),
+            );
+          }),
           AppSpacing.heightMd,
         ],
       ],
     );
   }
+
+  Widget _buildLoadingSection(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(title: title),
+        AppSpacing.heightMd,
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12.0),
+          child: Center(
+            child: SizedBox(
+              width: 18.0,
+              height: 18.0,
+              child: CircularProgressIndicator(strokeWidth: 2.0),
+            ),
+          ),
+        ),
+        AppSpacing.heightMd,
+      ],
+    );
+  }
 }
 
-/// Compact list tile for albums, artists, playlists in search results.
+/// Helper tile used to display local Albums and Artists in search list.
 class _ResultListTile extends StatelessWidget {
   final String? imageUrl;
   final String title;
@@ -783,39 +828,34 @@ class _ResultListTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.onTap,
     this.isCircle = false,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    final borderRadius =
-        isCircle ? BorderRadius.circular(24.0) : AppRadius.radiusMd;
+    final radius = isCircle ? BorderRadius.circular(24.0) : AppRadius.radiusMd;
 
-    Widget thumbnail;
-    if (hasImage) {
-      thumbnail = ClipRRect(
-        borderRadius: borderRadius,
-        child: imageUrl!.startsWith('http')
-            ? Image.network(
-                imageUrl!,
-                width: 48.0,
-                height: 48.0,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _iconFallback(borderRadius),
-              )
-            : Image.file(
-                File(imageUrl!),
-                width: 48.0,
-                height: 48.0,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _iconFallback(borderRadius),
-              ),
-      );
-    } else {
-      thumbnail = _iconFallback(borderRadius);
-    }
+    final Widget thumbnail = imageUrl != null && imageUrl!.isNotEmpty
+        ? ClipRRect(
+            borderRadius: radius,
+            child: imageUrl!.startsWith('http')
+                ? Image.network(
+                    imageUrl!,
+                    width: 48.0,
+                    height: 48.0,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _iconFallback(radius),
+                  )
+                : Image.file(
+                    File(imageUrl!),
+                    width: 48.0,
+                    height: 48.0,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _iconFallback(radius),
+                  ),
+          )
+        : _iconFallback(radius);
 
     return GestureDetector(
       onTap: onTap,
@@ -869,196 +909,4 @@ class _ResultListTile extends StatelessWidget {
   }
 }
 
-// ── YouTube Specific Sections and Tabs ────────────────────────────────────────
-
-extension _YouTubeSearchPageExtensions on _SearchPageState {
-  Widget _buildTabSelector() {
-    return Container(
-      height: 44.0,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerHighest,
-        borderRadius: AppRadius.radiusMd,
-      ),
-      padding: const EdgeInsets.all(4.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentTab = 0;
-                  _searchController.text = _searchQuery;
-                });
-                ref.read(searchNotifierProvider.notifier).updateQuery(_searchQuery);
-              },
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _currentTab == 0
-                      ? AppColors.surfaceContainerLowest
-                      : Colors.transparent,
-                  borderRadius: AppRadius.radiusMd,
-                  boxShadow: _currentTab == 0 ? AppShadows.shadowLow : null,
-                ),
-                child: Text(
-                  'Local Music',
-                  style: AppTypography.labelMedium.copyWith(
-                    color: _currentTab == 0
-                        ? AppColors.primary
-                        : AppColors.onSurfaceVariant,
-                    fontWeight: _currentTab == 0 ? FontWeight.bold : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentTab = 1;
-                  _searchController.text = _searchQuery;
-                });
-                ref.read(youtubeSearchProvider.notifier).searchDebounced(_searchQuery);
-              },
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _currentTab == 1
-                      ? AppColors.surfaceContainerLowest
-                      : Colors.transparent,
-                  borderRadius: AppRadius.radiusMd,
-                  boxShadow: _currentTab == 1 ? AppShadows.shadowLow : null,
-                ),
-                child: Text(
-                  'YouTube',
-                  style: AppTypography.labelMedium.copyWith(
-                    color: _currentTab == 1
-                        ? AppColors.primary
-                        : AppColors.onSurfaceVariant,
-                    fontWeight: _currentTab == 1 ? FontWeight.bold : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildYouTubeRecentSection() {
-    final history = ref.watch(youtubeSearchHistoryProvider);
-    if (history.isEmpty) {
-      return SizedBox(
-        height: MediaQuery.of(context).size.height * 0.45,
-        child: EmptyState(
-          title: 'Search YouTube',
-          message: 'Find songs, artists, or albums online to stream immediately.',
-          icon: Icons.youtube_searched_for,
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Recent Searches',
-          actionLabel: 'Clear',
-          onActionTap: () {
-            ref.read(youtubeSearchHistoryProvider.notifier).clearAll();
-          },
-        ),
-        AppSpacing.heightMd,
-        Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.md,
-          children: history.take(4).map((query) {
-            return SizedBox(
-              width: (MediaQuery.of(context).size.width - AppSpacing.marginMobile * 2 - AppSpacing.md) / 2,
-              child: _buildRecentSearchCard(
-                title: query,
-                subtitle: 'YouTube',
-                onTap: () => _applyHistoryQuery(query),
-                topWidget: Container(
-                  width: 40.0,
-                  height: 40.0,
-                  decoration: const BoxDecoration(
-                    color: AppColors.surfaceContainerHigh,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.history, color: AppColors.onSurfaceVariant, size: 20.0),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}
-
-/// Displays YouTube search results dynamically.
-class _YouTubeSearchResultsSection extends ConsumerWidget {
-  final String query;
-
-  const _YouTubeSearchResultsSection({required this.query});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final searchState = ref.watch(youtubeSearchProvider);
-
-    // 1. Loading State
-    if (searchState.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 48.0),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    // 2. Error State
-    if (searchState.error != null) {
-      return EmptyState(
-        title: 'Search Error',
-        message: searchState.error!,
-        icon: Icons.wifi_off,
-      );
-    }
-
-    // 3. Empty Results State
-    if (searchState.isEmpty) {
-      return EmptyState(
-        title: 'No results found',
-        message: 'Could not find any videos matching "$query".',
-        icon: Icons.search_off,
-      );
-    }
-
-    // 4. Results List
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'YouTube Results',
-          actionLabel: '${searchState.results.length} found',
-        ),
-        AppSpacing.heightMd,
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: searchState.results.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8.0),
-          itemBuilder: (context, index) {
-            final video = searchState.results[index];
-            return YouTubeResultTile(video: video);
-          },
-        ),
-        const SizedBox(height: 24.0),
-      ],
-    );
-  }
-}
 
