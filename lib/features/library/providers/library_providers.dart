@@ -53,6 +53,24 @@ final preferencesRepositoryProvider = Provider<PreferencesRepository>(
   (ref) => PreferencesRepository(),
 );
 
+/// Reactive source selection preference.
+final sourceSelectionProvider = StateNotifierProvider<SourceSelectionNotifier, String>((ref) {
+  final repo = ref.watch(preferencesRepositoryProvider);
+  return SourceSelectionNotifier(repo);
+});
+
+class SourceSelectionNotifier extends StateNotifier<String> {
+  final PreferencesRepository _repo;
+
+  SourceSelectionNotifier(this._repo) : super(_repo.getSourceSelectionMode());
+
+  Future<void> setMode(String mode) async {
+    await _repo.setSourceSelectionMode(mode);
+    state = mode;
+  }
+}
+
+
 // ── State providers ───────────────────────────────────────────────────────────
 
 /// Reactive list of favorited [Track] objects.

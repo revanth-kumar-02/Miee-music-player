@@ -93,6 +93,13 @@ class QueueManager {
     }
   }
 
+  /// Replaces the track at [index] with [newTrack].
+  void replaceTrackAt(int index, MusicItem newTrack) {
+    if (index >= 0 && index < _queue.length) {
+      _queue[index] = newTrack;
+    }
+  }
+
   /// Removes an item from the queue by index.
   void removeTrackAt(int index) {
     if (index < 0 || index >= _queue.length) return;

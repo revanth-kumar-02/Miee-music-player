@@ -1,4 +1,4 @@
-﻿/// Central registry of all Hive box names used in Miee.
+/// Central registry of all Hive box names used in Miee.
 ///
 /// Using constants prevents typos and makes renaming boxes a single-line change.
 abstract class HiveBoxes {
@@ -38,4 +38,5 @@ abstract class PreferenceKeys {
   static const String shuffle = 'shuffle';
   static const String sleepTimerMinutes = 'sleep_timer_minutes';
   static const String audioQuality = 'audio_quality';
+  static const String sourceSelection = 'source_selection';
 }

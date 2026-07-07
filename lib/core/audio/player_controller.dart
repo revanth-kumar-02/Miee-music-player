@@ -11,25 +11,34 @@ import '../../shared/models/music_item.dart';
 import 'audio_handler.dart';
 import 'playback_state.dart';
 import 'queue_manager.dart';
+import '../../features/media/providers/media_providers.dart';
+import '../../features/media/domain/models.dart';
+import '../../features/youtube/providers/youtube_providers.dart';
+import '../../features/library/providers/library_providers.dart';
+
 
 /// Single orchestrator that bridges [MieeAudioHandler] with Riverpod state.
 ///
 /// [PlayerController] is the single source of truth for the UI layer.
 /// It delegates all actual playback operations to [MieeAudioHandler], which
 /// manages the background service, OS media session, and audio focus.
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 class PlayerController extends StateNotifier<PlaybackState> {
   final MieeAudioHandler _handler;
   final QueueManager _queueManager;
+  final Ref _ref;
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<Duration>? _bufferedSub;
   StreamSubscription<PlayerState>? _playerStateSub;
 
-  PlayerController(this._handler, this._queueManager)
+  PlayerController(this._handler, this._queueManager, this._ref)
       : super(PlaybackState.initial()) {
     _init();
   }
+
 
   void _init() {
     // Bootstrap with mock featured track for initial UI display.
@@ -121,10 +130,21 @@ class PlayerController extends StateNotifier<PlaybackState> {
     );
 
     try {
+      final resolvedTrack = await _resolveSource(track);
+      
+      // Update the queue manager to store the resolved track source
+      final index = _queueManager.currentIndex;
+      if (index >= 0 && index < _queueManager.queue.length) {
+        _queueManager.replaceTrackAt(index, resolvedTrack);
+      }
+
+      state = state.copyWith(
+        currentTrack: resolvedTrack,
+      );
+
       // Load queue into handler so it has the full list for skip operations.
       final queue = _queueManager.queue;
-      final index = _queueManager.currentIndex;
-      await _handler.loadQueue(queue, startIndex: index);
+      await _handler.loadQueue(queue, startIndex: index >= 0 ? index : 0);
       await _handler.play();
     } catch (e) {
       state = state.copyWith(
@@ -133,6 +153,70 @@ class PlayerController extends StateNotifier<PlaybackState> {
       );
     }
   }
+
+  Future<MusicItem> _resolveSource(MusicItem track) async {
+    final mode = _ref.read(sourceSelectionProvider);
+
+    if (mode == 'alwaysLocal') {
+      if (!track.isYoutube) {
+        return track; // Already local
+      }
+      final localMatch = _findLocalVersion(track.title, track.artist);
+      if (localMatch != null) {
+        return localMatch;
+      }
+      return track; // Fallback
+    }
+
+    if (mode == 'alwaysYouTube') {
+      if (track.isYoutube) {
+        return track; // Already YouTube
+      }
+      final ytMatch = await _findYouTubeVersion(track.title, track.artist);
+      if (ytMatch != null) {
+        return ytMatch;
+      }
+      return track; // Fallback
+    }
+
+    // mode == 'smart' (default)
+    if (track.isYoutube) {
+      final localMatch = _findLocalVersion(track.title, track.artist);
+      if (localMatch != null) {
+        return localMatch;
+      }
+    }
+    return track;
+  }
+
+  MediaSong? _findLocalVersion(String title, String artist) {
+    try {
+      final localSongs = _ref.read(songsProvider);
+      final cleanTitle = title.trim().toLowerCase();
+      final cleanArtist = artist.trim().toLowerCase();
+
+      for (final song in localSongs) {
+        if (song.title.trim().toLowerCase() == cleanTitle &&
+            song.artist.trim().toLowerCase() == cleanArtist) {
+          return song;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<MusicItem?> _findYouTubeVersion(String title, String artist) async {
+    try {
+      final repo = _ref.read(youtubeRepositoryProvider);
+      final query = '$title $artist';
+      final results = await repo.searchVideos(query);
+      if (results.isNotEmpty) {
+        return results.first;
+      }
+    } catch (_) {}
+    return null;
+  }
+
 
   /// Resume or restart playback.
   Future<void> play() async {

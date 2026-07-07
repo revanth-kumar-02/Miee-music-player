@@ -1,4 +1,4 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 
 import '../../../core/storage/hive_boxes.dart';
 
@@ -59,8 +59,18 @@ class PreferencesRepository {
   Future<void> setAudioQuality(String quality) async =>
       _box.put(PreferenceKeys.audioQuality, quality);
 
+  // ── Source Selection ─────────────────────────────────────────────────────────
+
+  /// Returns source selection: 'smart' | 'alwaysLocal' | 'alwaysYouTube'.
+  String getSourceSelectionMode() =>
+      _box.get(PreferenceKeys.sourceSelection, defaultValue: 'smart') as String;
+
+  Future<void> setSourceSelectionMode(String mode) async =>
+      _box.put(PreferenceKeys.sourceSelection, mode);
+
   // ── Watch stream ────────────────────────────────────────────────────────────
 
   /// Emits a [BoxEvent] whenever any preference changes.
   Stream<BoxEvent> watchAll() => _box.watch();
 }
+

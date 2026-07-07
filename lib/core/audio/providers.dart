@@ -24,5 +24,5 @@ final playerControllerProvider =
     StateNotifierProvider<PlayerController, PlaybackState>((ref) {
   final handler = ref.watch(audioHandlerProvider);
   final queue = ref.watch(queueManagerProvider);
-  return PlayerController(handler, queue);
+  return PlayerController(handler, queue, ref);
 });
