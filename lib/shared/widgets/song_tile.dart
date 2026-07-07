@@ -74,6 +74,8 @@ class SongTile extends StatelessWidget {
                 width: 48.0,
                 height: 48.0,
                 fit: BoxFit.cover,
+                cacheWidth: 120,
+                cacheHeight: 120,
                 errorBuilder: (context, error, stackTrace) => Container(
                   width: 48.0,
                   height: 48.0,
@@ -90,6 +92,8 @@ class SongTile extends StatelessWidget {
                 width: 48.0,
                 height: 48.0,
                 fit: BoxFit.cover,
+                cacheWidth: 120,
+                cacheHeight: 120,
                 errorBuilder: (context, error, stackTrace) => Container(
                   width: 48.0,
                   height: 48.0,

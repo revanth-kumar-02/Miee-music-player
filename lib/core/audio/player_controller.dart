@@ -209,7 +209,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     try {
       final repo = _ref.read(youtubeRepositoryProvider);
       final query = '$title $artist';
-      final results = await repo.searchVideos(query);
+      final results = await repo.search(query);
       if (results.isNotEmpty) {
         return results.first;
       }

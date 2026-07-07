@@ -155,9 +155,9 @@ class YouTubeSearchNotifier extends StateNotifier<YouTubeSearchState> {
 }
 
 final youtubeSearchProvider =
-    StateNotifierProvider<YouTubeSearchNotifier, YouTubeSearchState>((ref) {
+    StateNotifierProvider.autoDispose<YouTubeSearchNotifier, YouTubeSearchState>((ref) {
   final repo = ref.watch(youtubeRepositoryProvider);
   return YouTubeSearchNotifier(repo);
 });
 
-final youtubeSearchQueryProvider = StateProvider<String>((ref) => '');
+final youtubeSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');

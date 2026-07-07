@@ -827,6 +827,8 @@ class _ResultListTile extends StatelessWidget {
                     width: 48.0,
                     height: 48.0,
                     fit: BoxFit.cover,
+                    cacheWidth: 120,
+                    cacheHeight: 120,
                     errorBuilder: (_, __, ___) => _iconFallback(radius),
                   )
                 : Image.file(
@@ -834,6 +836,8 @@ class _ResultListTile extends StatelessWidget {
                     width: 48.0,
                     height: 48.0,
                     fit: BoxFit.cover,
+                    cacheWidth: 120,
+                    cacheHeight: 120,
                     errorBuilder: (_, __, ___) => _iconFallback(radius),
                   ),
           )

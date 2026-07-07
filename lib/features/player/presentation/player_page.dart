@@ -19,10 +19,12 @@ class PlayerPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playbackState = ref.watch(playerControllerProvider);
+    final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final isPlaying = ref.watch(playerControllerProvider.select((s) => s.status == PlaybackStatus.playing));
+    final isShuffleEnabled = ref.watch(playerControllerProvider.select((s) => s.isShuffleEnabled));
+    final repeatMode = ref.watch(playerControllerProvider.select((s) => s.repeatMode));
     final controller = ref.read(playerControllerProvider.notifier);
 
-    final currentTrack = playbackState.currentTrack;
     if (currentTrack == null) {
       return const Scaffold(
         body: Center(
@@ -30,10 +32,6 @@ class PlayerPage extends ConsumerWidget {
         ),
       );
     }
-
-    final isPlaying = playbackState.status == PlaybackStatus.playing;
-    final totalDuration = playbackState.duration;
-    final currentPosition = playbackState.position;
 
     // Format Duration Helper
     String formatDuration(Duration duration) {
@@ -43,12 +41,6 @@ class PlayerPage extends ConsumerWidget {
       return "$minutes:${twoDigits(seconds)}";
     }
 
-    final totalDurationStr = formatDuration(totalDuration);
-    final currentPositionStr = formatDuration(currentPosition);
-
-    final progress = totalDuration.inMilliseconds > 0
-        ? currentPosition.inMilliseconds / totalDuration.inMilliseconds
-        : 0.0;
 
     final blurBackingUrl = currentTrack.imageUrl;
 
@@ -188,41 +180,55 @@ class PlayerPage extends ConsumerWidget {
                             ],
                           ),
 
-                          // Symmetrical Waveform & Progress display
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Waveform progress tracker
-                              FractionallySizedBox(
-                                widthFactor: 0.85,
-                                child: WaveformWidget(
-                                  activeProgress: progress,
-                                  onScrub: (newProgress) {
-                                    final seekPosition = Duration(
-                                      milliseconds: (newProgress *
-                                              totalDuration.inMilliseconds)
-                                          .toInt(),
-                                    );
-                                    controller.seek(seekPosition);
-                                  },
-                                ),
-                              ),
-                              AppSpacing.heightSm,
-                              // Duration stamps
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.lg),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.between,
-                                  children: [
-                                    Text(currentPositionStr,
-                                        style: AppTypography.labelSmall),
-                                    Text(totalDurationStr,
-                                        style: AppTypography.labelSmall),
-                                  ],
-                                ),
-                              ),
-                            ],
+                           // Symmetrical Waveform & Progress display
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final currentPosition = ref.watch(playerControllerProvider.select((s) => s.position));
+                              final totalDuration = ref.watch(playerControllerProvider.select((s) => s.duration));
+
+                              final progress = totalDuration.inMilliseconds > 0
+                                  ? currentPosition.inMilliseconds / totalDuration.inMilliseconds
+                                  : 0.0;
+
+                              final currentPositionStr = formatDuration(currentPosition);
+                              final totalDurationStr = formatDuration(totalDuration);
+
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Waveform progress tracker
+                                  FractionallySizedBox(
+                                    widthFactor: 0.85,
+                                    child: WaveformWidget(
+                                      activeProgress: progress,
+                                      onScrub: (newProgress) {
+                                        final seekPosition = Duration(
+                                          milliseconds: (newProgress *
+                                                  totalDuration.inMilliseconds)
+                                              .toInt(),
+                                        );
+                                        controller.seek(seekPosition);
+                                      },
+                                    ),
+                                  ),
+                                  AppSpacing.heightSm,
+                                  // Duration stamps
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: AppSpacing.lg),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.between,
+                                      children: [
+                                        Text(currentPositionStr,
+                                            style: AppTypography.labelSmall),
+                                        Text(totalDurationStr,
+                                            style: AppTypography.labelSmall),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
 
                           // Playback circular control rows
@@ -231,9 +237,8 @@ class PlayerPage extends ConsumerWidget {
                                 horizontal: AppSpacing.sm),
                             child: PlaybackControls(
                               isPlaying: isPlaying,
-                              isShuffleActive: playbackState.isShuffleEnabled,
-                              isRepeatActive:
-                                  playbackState.repeatMode != RepeatMode.off,
+                              isShuffleActive: isShuffleEnabled,
+                              isRepeatActive: repeatMode != RepeatMode.off,
                               onPlayPauseTap: () {
                                 if (isPlaying) {
                                   controller.pause();

@@ -30,8 +30,8 @@ class YouTubeResultTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playbackState = ref.watch(playerControllerProvider);
-    final isCurrentTrack = playbackState.currentTrack?.id == video.id;
+    final currentTrackId = ref.watch(playerControllerProvider.select((s) => s.currentTrack?.id));
+    final isCurrentTrack = currentTrackId == video.id;
 
     return Semantics(
       label: 'YouTube video: ${video.title} by ${video.channelTitle}, duration ${video.duration}',
@@ -59,6 +59,8 @@ class YouTubeResultTile extends ConsumerWidget {
                       width: 80.0,
                       height: 56.0,
                       fit: BoxFit.cover,
+                      cacheWidth: 160,
+                      cacheHeight: 112,
                       errorBuilder: (_, __, ___) => Container(
                         width: 80.0,
                         height: 56.0,

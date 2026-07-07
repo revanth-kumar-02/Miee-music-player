@@ -4,10 +4,11 @@ import '../../shared/models/music_item.dart';
 /// active index pointers, and playlist reorder/remove events.
 class QueueManager {
   final List<MusicItem> _queue = [];
+  List<MusicItem>? _cachedUnmodifiableQueue;
   int _currentIndex = -1;
 
   /// Returns the current play queue list.
-  List<MusicItem> get queue => List.unmodifiable(_queue);
+  List<MusicItem> get queue => _cachedUnmodifiableQueue ??= List.unmodifiable(_queue);
 
   /// Returns the currently active index.
   int get currentIndex => _currentIndex;
@@ -22,6 +23,7 @@ class QueueManager {
 
   /// Sets the play queue and resets the active index pointer.
   void setQueue(List<MusicItem> tracks, {int startIndex = 0}) {
+    _cachedUnmodifiableQueue = null;
     _queue.clear();
     _queue.addAll(tracks);
     _currentIndex = (startIndex >= 0 && startIndex < _queue.length) ? startIndex : 0;
@@ -29,6 +31,7 @@ class QueueManager {
 
   /// Appends a track to the end of the queue.
   void addTrack(MusicItem track) {
+    _cachedUnmodifiableQueue = null;
     _queue.add(track);
     if (_currentIndex == -1) {
       _currentIndex = 0;
@@ -37,6 +40,7 @@ class QueueManager {
 
   /// Appends a list of tracks to the end of the queue.
   void addTracks(List<MusicItem> tracks) {
+    _cachedUnmodifiableQueue = null;
     _queue.addAll(tracks);
     if (_currentIndex == -1 && _queue.isNotEmpty) {
       _currentIndex = 0;
@@ -75,6 +79,7 @@ class QueueManager {
     if (oldIndex < 0 || oldIndex >= _queue.length) return;
     if (newIndex < 0 || newIndex > _queue.length) return;
 
+    _cachedUnmodifiableQueue = null;
     var actualNewIndex = newIndex;
     if (oldIndex < actualNewIndex) {
       actualNewIndex -= 1;
@@ -96,6 +101,7 @@ class QueueManager {
   /// Replaces the track at [index] with [newTrack].
   void replaceTrackAt(int index, MusicItem newTrack) {
     if (index >= 0 && index < _queue.length) {
+      _cachedUnmodifiableQueue = null;
       _queue[index] = newTrack;
     }
   }
@@ -103,6 +109,7 @@ class QueueManager {
   /// Removes an item from the queue by index.
   void removeTrackAt(int index) {
     if (index < 0 || index >= _queue.length) return;
+    _cachedUnmodifiableQueue = null;
     _queue.removeAt(index);
 
     if (_queue.isEmpty) {
@@ -116,6 +123,7 @@ class QueueManager {
 
   /// Empties the play queue.
   void clear() {
+    _cachedUnmodifiableQueue = null;
     _queue.clear();
     _currentIndex = -1;
   }
