@@ -18,6 +18,8 @@ import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../providers/search_providers.dart';
 import '../../../features/library/providers/library_providers.dart';
+import '../../youtube/providers/youtube_providers.dart';
+import '../../youtube/presentation/widgets/youtube_result_tile.dart';
 
 /// Miee Search Screen.
 /// Combines dynamic search toggles, filter chip selectors, bento-grid search history,
@@ -35,6 +37,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   bool _isScrolled = false;
   String _selectedFilter = 'All';
   String _searchQuery = '';
+  int _currentTab = 0; // 0 = Local, 1 = YouTube
+
 
   final List<String> _filters = [
     'All',
@@ -80,17 +84,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     setState(() {
       _searchQuery = _searchController.text;
     });
-    // Push the query into the search notifier (triggers debounced search).
-    ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
+    if (_currentTab == 0) {
+      ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
+    } else {
+      ref.read(youtubeSearchProvider.notifier).searchDebounced(_searchController.text);
+    }
   }
 
   /// Called when user submits the search (keyboard done / enter).
   void _handleSearchSubmit(String query) {
     if (query.trim().isEmpty) return;
-    // Persist to search history.
-    ref.read(searchHistoryProvider.notifier).addSearch(query.trim());
-    // Run the search immediately without waiting for debounce.
-    ref.read(searchNotifierProvider.notifier).searchNow(query);
+    if (_currentTab == 0) {
+      ref.read(searchHistoryProvider.notifier).addSearch(query.trim());
+      ref.read(searchNotifierProvider.notifier).searchNow(query);
+    } else {
+      ref.read(youtubeSearchHistoryProvider.notifier).addSearch(query.trim());
+      ref.read(youtubeSearchProvider.notifier).searchNow(query);
+    }
   }
 
   /// Populates the search bar with [query] and triggers a search.
@@ -100,8 +110,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       TextPosition(offset: query.length),
     );
     setState(() => _searchQuery = query);
-    ref.read(searchNotifierProvider.notifier).searchNow(query);
+    if (_currentTab == 0) {
+      ref.read(searchNotifierProvider.notifier).searchNow(query);
+    } else {
+      ref.read(youtubeSearchProvider.notifier).searchNow(query);
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -151,51 +166,63 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   // Search Bar Input widget
                   AppSearchBar(
                     controller: _searchController,
-                    placeholder: 'Artists, songs, or podcasts',
+                    placeholder: _currentTab == 0 ? 'Artists, songs, or podcasts' : 'Search YouTube videos...',
                     onSubmitted: _handleSearchSubmit,
                   ),
+                  AppSpacing.heightMd,
+
+                  // Sliding Tab Selector
+                  _buildTabSelector(),
                   AppSpacing.heightLg,
 
                   // Live search results when a query is active
                   if (isSearching) ...[
-                    _SearchResultsSection(query: _searchQuery),
+                    if (_currentTab == 0)
+                      _SearchResultsSection(query: _searchQuery)
+                    else
+                      _YouTubeSearchResultsSection(query: _searchQuery),
                   ] else ...[
-                    // Filter Chips horizontal row
-                    _buildFilterChips(),
-                    AppSpacing.heightLg,
+                    if (_currentTab == 0) ...[
+                      // Filter Chips horizontal row
+                      _buildFilterChips(),
+                      AppSpacing.heightLg,
 
-                    // Recent Searches Section (Bento Grid)
-                    SectionHeader(
-                      title: 'Recent',
-                      actionLabel: 'Clear',
-                      onActionTap: () {
-                        ref.read(searchHistoryProvider.notifier).clearAll();
-                      },
-                    ),
-                    AppSpacing.heightMd,
-                    _buildBentoRecentSearches(localArtists, localAlbums),
-                    AppSpacing.heightLg,
+                      // Recent Searches Section (Bento Grid)
+                      SectionHeader(
+                        title: 'Recent',
+                        actionLabel: 'Clear',
+                        onActionTap: () {
+                          ref.read(searchHistoryProvider.notifier).clearAll();
+                        },
+                      ),
+                      AppSpacing.heightMd,
+                      _buildBentoRecentSearches(localArtists, localAlbums),
+                      AppSpacing.heightLg,
 
-                    // Trending Now Section
-                    const SectionHeader(
-                      title: 'Trending Now',
-                    ),
-                    AppSpacing.heightMd,
-                    _buildTrendingSongsList(context, localSongs),
-                    AppSpacing.heightLg,
+                      // Trending Now Section
+                      const SectionHeader(
+                        title: 'Trending Now',
+                      ),
+                      AppSpacing.heightMd,
+                      _buildTrendingSongsList(context, localSongs),
+                      AppSpacing.heightLg,
 
-                    // Browse Categories Grid
-                    const SectionHeader(
-                      title: 'Browse Categories',
-                    ),
-                    AppSpacing.heightMd,
-                    _buildBrowseCategoriesGrid(
-                      localAlbums.length,
-                      localArtists.length,
-                      localPlaylists.length,
-                      localGenres.length,
-                    ),
+                      // Browse Categories Grid
+                      const SectionHeader(
+                        title: 'Browse Categories',
+                      ),
+                      AppSpacing.heightMd,
+                      _buildBrowseCategoriesGrid(
+                        localAlbums.length,
+                        localArtists.length,
+                        localPlaylists.length,
+                        localGenres.length,
+                      ),
+                    ] else ...[
+                      _buildYouTubeRecentSection(),
+                    ]
                   ],
+
 
                   // Bottom padding offset for MiniPlayer & BottomNavigation
                   SizedBox(height: 160.0 + bottomInset),
@@ -841,3 +868,197 @@ class _ResultListTile extends StatelessWidget {
     );
   }
 }
+
+// ── YouTube Specific Sections and Tabs ────────────────────────────────────────
+
+extension _YouTubeSearchPageExtensions on _SearchPageState {
+  Widget _buildTabSelector() {
+    return Container(
+      height: 44.0,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHighest,
+        borderRadius: AppRadius.radiusMd,
+      ),
+      padding: const EdgeInsets.all(4.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _currentTab = 0;
+                  _searchController.text = _searchQuery;
+                });
+                ref.read(searchNotifierProvider.notifier).updateQuery(_searchQuery);
+              },
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _currentTab == 0
+                      ? AppColors.surfaceContainerLowest
+                      : Colors.transparent,
+                  borderRadius: AppRadius.radiusMd,
+                  boxShadow: _currentTab == 0 ? AppShadows.shadowLow : null,
+                ),
+                child: Text(
+                  'Local Music',
+                  style: AppTypography.labelMedium.copyWith(
+                    color: _currentTab == 0
+                        ? AppColors.primary
+                        : AppColors.onSurfaceVariant,
+                    fontWeight: _currentTab == 0 ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _currentTab = 1;
+                  _searchController.text = _searchQuery;
+                });
+                ref.read(youtubeSearchProvider.notifier).searchDebounced(_searchQuery);
+              },
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _currentTab == 1
+                      ? AppColors.surfaceContainerLowest
+                      : Colors.transparent,
+                  borderRadius: AppRadius.radiusMd,
+                  boxShadow: _currentTab == 1 ? AppShadows.shadowLow : null,
+                ),
+                child: Text(
+                  'YouTube',
+                  style: AppTypography.labelMedium.copyWith(
+                    color: _currentTab == 1
+                        ? AppColors.primary
+                        : AppColors.onSurfaceVariant,
+                    fontWeight: _currentTab == 1 ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildYouTubeRecentSection() {
+    final history = ref.watch(youtubeSearchHistoryProvider);
+    if (history.isEmpty) {
+      return SizedBox(
+        height: MediaQuery.of(context).size.height * 0.45,
+        child: EmptyState(
+          title: 'Search YouTube',
+          message: 'Find songs, artists, or albums online to stream immediately.',
+          icon: Icons.youtube_searched_for,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Recent Searches',
+          actionLabel: 'Clear',
+          onActionTap: () {
+            ref.read(youtubeSearchHistoryProvider.notifier).clearAll();
+          },
+        ),
+        AppSpacing.heightMd,
+        Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.md,
+          children: history.take(4).map((query) {
+            return SizedBox(
+              width: (MediaQuery.of(context).size.width - AppSpacing.marginMobile * 2 - AppSpacing.md) / 2,
+              child: _buildRecentSearchCard(
+                title: query,
+                subtitle: 'YouTube',
+                onTap: () => _applyHistoryQuery(query),
+                topWidget: Container(
+                  width: 40.0,
+                  height: 40.0,
+                  decoration: const BoxDecoration(
+                    color: AppColors.surfaceContainerHigh,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.history, color: AppColors.onSurfaceVariant, size: 20.0),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+/// Displays YouTube search results dynamically.
+class _YouTubeSearchResultsSection extends ConsumerWidget {
+  final String query;
+
+  const _YouTubeSearchResultsSection({required this.query});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final searchState = ref.watch(youtubeSearchProvider);
+
+    // 1. Loading State
+    if (searchState.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48.0),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // 2. Error State
+    if (searchState.error != null) {
+      return EmptyState(
+        title: 'Search Error',
+        message: searchState.error!,
+        icon: Icons.wifi_off,
+      );
+    }
+
+    // 3. Empty Results State
+    if (searchState.isEmpty) {
+      return EmptyState(
+        title: 'No results found',
+        message: 'Could not find any videos matching "$query".',
+        icon: Icons.search_off,
+      );
+    }
+
+    // 4. Results List
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'YouTube Results',
+          actionLabel: '${searchState.results.length} found',
+        ),
+        AppSpacing.heightMd,
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: searchState.results.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8.0),
+          itemBuilder: (context, index) {
+            final video = searchState.results[index];
+            return YouTubeResultTile(video: video);
+          },
+        ),
+        const SizedBox(height: 24.0),
+      ],
+    );
+  }
+}
+

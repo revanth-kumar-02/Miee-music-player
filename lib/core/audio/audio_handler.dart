@@ -141,6 +141,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     await _loadCurrentTrack();
   }
 
+  Future<void> appendTrack(Track track) async {
+    _queue.add(track);
+    queue.add(_queue.map(_trackToMediaItem).toList());
+  }
+
+  Future<void> removeTrackAt(int index) async {
+    if (index >= 0 && index < _queue.length) {
+      _queue.removeAt(index);
+      if (_currentIndex >= _queue.length) {
+        _currentIndex = _queue.length - 1;
+      }
+      queue.add(_queue.map(_trackToMediaItem).toList());
+    }
+  }
+
   Future<void> _loadCurrentTrack() async {
     if (_queue.isEmpty || _currentIndex < 0) return;
     final track = _queue[_currentIndex];

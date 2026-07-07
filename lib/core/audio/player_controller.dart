@@ -257,6 +257,29 @@ class PlayerController extends StateNotifier<PlaybackState> {
     await _handler.setRepeatMode(serviceMode);
   }
 
+  /// Appends [track] to the end of the queue.
+  Future<void> addTrackToQueue(Track track) async {
+    _queueManager.addTrack(track);
+    await _handler.appendTrack(track);
+    if (state.currentTrack == null) {
+      await playTrack(track);
+    }
+  }
+
+  /// Removes a track from the queue by index.
+  Future<void> removeTrackFromQueue(int index) async {
+    _queueManager.removeTrackAt(index);
+    await _handler.removeTrackAt(index);
+    if (_queueManager.queue.isEmpty) {
+      clearQueue();
+    } else {
+      final current = _queueManager.currentTrack;
+      if (state.currentTrack != current) {
+        state = state.copyWith(currentTrack: current);
+      }
+    }
+  }
+
   /// Clears the active queue.
   void clearQueue() {
     _queueManager.clear();
