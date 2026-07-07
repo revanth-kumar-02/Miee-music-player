@@ -9,6 +9,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   /// Header title text.
   final String title;
 
+  /// Optional custom title widget. If provided, replaces the standard title text.
+  final Widget? titleWidget;
+
   /// Optional widget on the left side (typically drawer menu or back arrow).
   final Widget? leading;
 
@@ -24,6 +27,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   const AppHeader({
     super.key,
     required this.title,
+    this.titleWidget,
     this.leading,
     this.actions,
     this.isScrolled = false,
@@ -38,7 +42,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
 
     final Widget appBarBody = AppBar(
-      title: Text(
+      title: titleWidget ?? Text(
         title,
         style: theme.textTheme.displayLarge?.copyWith(
           fontSize: 24.0, // Restrain displayLarge size for header title

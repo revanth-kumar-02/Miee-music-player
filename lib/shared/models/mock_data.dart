@@ -108,4 +108,73 @@ abstract class MockData {
       imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC5cAQzC3d3DwfJwtmoQbF8wiUzv76pZsZI-o-g4n_Kq72qgB2k1GLUTuPmcqrF4REhvk_JIIW_jzpFcNPzo2a832PRpAkCFRhqU6rmvWQ9rOHFVt33CVanMLi0e33-Bo9W4ejDdhFXElGMQhuJQShAlR0DdI71XuudIJmjUFSjwA8wy9bG2679oqgZ9tujbzMKmBmRCwRioG7hgaWuDJ571OS0gEpuOp_TKvZ0gFL-_LtsBDV26-HAYuBJ0Vo8lpqsfErHNmYZZ58C',
     ),
   ];
+
+  /// Recently added albums list for Library page.
+  static const List<Album> recentlyAdded = [
+    Album(
+      id: 'added_1',
+      title: 'Echoes of Silence',
+      artist: 'Luna Drift',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAs5SahYKlskYkHIGW8pNgRL5b6ybv0X9GtjYXf8zbmk8SmolhIP1-la75BRVa4OZmcn5jJHHCxwg2C_Q1iA_67xU2L2D-p-KJNkpczPEy2mSPYW3T00zFMpgv70lA3hc6c5CwFVPPWwx99BY74keJEwZJ8GbYHlC8lNlxAsHOxMXDe_-QFOydeocziVVwOLR2_5vwcZ29KfNnghXDmchcJocpMwejjUqk8p2eGspz-xaUiIGNhxh4JGB3KaiZ8u07RgWIHUbkuRcCw',
+      subtitle: 'Luna Drift',
+    ),
+    Album(
+      id: 'added_2',
+      title: 'Concrete Patterns',
+      artist: 'The Architects',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDLa5Lkw-maiBfve1U_DLKUlzs_7MoKIJk2vtffegQlUPcJgWBzc_n8tbdd94jcl3i2-StXVdgRsgp-Uf2mjC49RIg7ArYLO3JAa4Et1D6K409YfxYQyHm0TBxxarlakO4VHWJZow6o960V3MXrvU6RZHOvrwG1pNoenHF00VG3w23Rg1l2mel1nGO71WM_fVqnPZj4wKtK9aHZmU7ZqUlUbRJJvuI4D6vvUumQ1h91BzFcQSrbO-wX_sAlvl8YBHMXUjASpJAd87-3',
+      subtitle: 'The Architects',
+    ),
+    Album(
+      id: 'added_3',
+      title: 'Morning Haze',
+      artist: 'Aura',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA896rnVYCaIo5h12WKyclRAofgORTPjw3UfINRdb-ihChzwnXBizSe8xk55et7PV-_sn_kiCTov4mjsGKiqcrcXskIMch4wuEQfIwJbqlngMpvf5H-NG0m5DhUt0tgcaT-ilxjOqEWCVz57ZPiRozqxb7dLvd2di038GCzMarJ5b0zrbTKPxLn1a97X_j2QlWod_OPpE2tX6ssx7NeQn54jL6y1V4beUzHOlB4QEa37g6_f8Dpfjzxi3tUDOVsDnZPsSQojU11zEPv',
+      subtitle: 'Aura',
+    ),
+    Album(
+      id: 'added_4',
+      title: 'Indigo Drops',
+      artist: 'Synesthesia',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC3cQh250bjWOijwQnlc-F0Xw3MaZigYZFiYvlqoS_3yJ8KLSVS-ESD_Rm-PupB2deeZ9j6XIrJC-HU_6VF_Oh2ps75NUdHKQlpsaP9UG_V7KbvxxaEld4X3LCukQ1WII4FS6sHpKR6x6d9CSR_v2jVVZvbwmALOgYFKzb7y1tVKkBGAFXDIUFVg65TxJTAq21j2mf8nvSwr3wdmwhfvowN_vBF7NvOUNUUTSAIDQIGZOvXMLMpecYVWpwjyogJvE-FNV586U8Rs0nb',
+      subtitle: 'Synesthesia',
+    ),
+  ];
+
+  /// Favorite tracks list for Library page.
+  static const List<Track> favoriteSongs = [
+    Track(
+      id: 'fav_1',
+      title: 'Glass House',
+      artist: 'Fractal Beats',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC0_uUNMdfAIyQ3JbVr21xsUKeC9NoN81NvKrXGbCisn9J1Tqcl18-pQ1CVloM2Qnw_nxI_2rKfV4AfFwlGjkX26ebMW9JpLZ5DNPEFR3UidQb0XTERth6X7rBNmWzsBZ0Z9VQd5llY_mqla01b1-k0Y4E1RxqXRp0j0US8PfrF2_Ys216sT2fXMCJy0N3quYvq7bkyLCIhN1R-B77xy9tjk1NMNL0vi01BGbY02_rKalSSGOrTY69vVdb29ck-1vgsQVTsYthMRDAM',
+      duration: '3:42',
+    ),
+    Track(
+      id: 'fav_2',
+      title: 'Wireframe Dreams',
+      artist: 'Nova',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDJrQyhWnZN1McbotaaKMeVlz_JBHXmToUyv48eGVk4V7EO8M02-BFp7Alb4FsVXFMGPsGaWu_iyN5Yavew6BAUKB9uqE4HVjzE9vzn4onmZNSbBQbG-zzVgSLYCRV6YkMHjx0wVfNyg7neyQEaa-SB2OoR5Fb6BNZap3vqmR7qv4oONKgsnrhMIyRbbQdEDmGFuCpWzOvLtSgfSXgd78j92gSrq1bJaT-8fjBFCK2HjTt7HaryAiYY6y2U8CFIYmaoN229tGxpGcEK',
+      duration: '4:15',
+    ),
+    Track(
+      id: 'fav_3',
+      title: 'Zenith',
+      artist: 'Solitude',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDUkygHk9ZNP9nHvwIcfpLpBUUGgqZ88OtGy8grYd7RLhBpsVKDXkSJdNkXKmMa_NWCDV8JdG-a7Pu0ZSUPPxTcFy5moufuh5d6hs7fBeIBnxdeKgWWV7O6y6xrvO55Oac0GsiJ11q_zoAHLwt1QOLq7R49lHps10TVJbJHfebEhWa3lF2ZA0joi4yJ2Mjyg835c5sX9FU_Kaj2hWP1RU9xfXHUuPZfd3zZcBlZex6ZkbO1HkS5KiIqb2VR-had9uq02KLpgmQ5y6Zc',
+      duration: '2:58',
+    ),
+  ];
+
+  /// Track details for Library mini player.
+  static const Track libraryTrack = Track(
+    id: 'library_mini_1',
+    title: 'Midnight City',
+    artist: 'M83',
+    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDEJL3-a_CVAEiwUCarY6vixWZXzScM8QhPMF7ZY4XGaIv1NFVj0VZGDHYCfP_qaHjCWPY0LrlnToZbyPGRmKL4HD9-Y6kUMzd0a7nYauV-uqs1XdO_SZLFI-NqOVf2Ro5j3EqCVw9NyTY8Alju2aiWpQDcwrpZANtW3tz_woC2e_vRtxkW5QETA4MXSpKCz_ajBxyFKlAOrpGLRriJk0M4AnSANJXmzCgYg4VdSlIX5Gr3W4TpuyR4KM_twIqdXy4q-njOrzCTW-WY',
+    duration: '4:03',
+    progress: 0.45,
+    isPlaying: false,
+    isFavorited: false,
+  );
 }
