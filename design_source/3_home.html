@@ -1,0 +1,265 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<title>Miee - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "surface-dim": "#ddd9d9",
+                        "on-secondary-fixed-variant": "#454747",
+                        "tertiary": "#5d5f5f",
+                        "inverse-surface": "#313030",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#444748",
+                        "surface-variant": "#e5e2e1",
+                        "secondary-container": "#dcdddd",
+                        "on-secondary-container": "#5f6161",
+                        "surface-container-high": "#ebe7e7",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "background": "#fcf8f8",
+                        "surface-tint": "#5d5f5f",
+                        "surface-container-low": "#f6f3f2",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container": "#f1edec",
+                        "on-primary-fixed-variant": "#454747",
+                        "on-error": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#fcf8f8",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#ffffff",
+                        "on-background": "#1c1b1b",
+                        "primary-container": "#ffffff",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-error-container": "#93000a",
+                        "primary": "#5d5f5f",
+                        "inverse-primary": "#c6c6c7",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-primary-container": "#747676",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-surface": "#1c1b1b",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "secondary": "#5d5f5f",
+                        "on-primary": "#ffffff",
+                        "outline": "#747878",
+                        "inverse-on-surface": "#f4f0ef",
+                        "surface": "#fcf8f8",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "outline-variant": "#c4c7c8",
+                        "on-tertiary-container": "#747676",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "margin-mobile": "20px",
+                        "sm": "8px",
+                        "gutter-mobile": "12px",
+                        "xxl": "48px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "body-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "label-md": ["Inter"],
+                        "headline-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "30px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "34px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+                        "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased pb-32">
+<!-- TopAppBar -->
+<header class="bg-background dark:bg-background text-on-background dark:text-on-background full-width top-0 pt-safe flex justify-between items-center px-margin-mobile h-20 w-full sticky z-40">
+  <button class="material-symbols-outlined text-[24px] hover:opacity-80 transition-opacity active:scale-90 duration-200 w-10 flex justify-start">menu</button>
+  <h1 class="font-display-lg text-display-lg tracking-tight text-center flex-1">Miee</h1>
+  <div class="w-10 flex justify-end">
+    <div class="w-8 h-8 rounded-full overflow-hidden hover:opacity-80 transition-opacity active:scale-90 duration-200 bg-surface-variant flex items-center justify-center">
+      <span class="material-symbols-outlined text-[20px] text-on-surface-variant">person</span>
+    </div>
+  </div>
+</header>
+<main class="px-margin-mobile pt-sm pb-xxl flex flex-col gap-md">
+<!-- Greeting -->
+<section>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-xs">Good morning</h2>
+</section>
+<!-- Continue Listening (Large Card) -->
+<section>
+<h3 class="font-label-md text-label-md text-on-surface-variant mb-md uppercase tracking-wider">Continue Listening</h3>
+<div class="bg-primary-container rounded-xl shadow-[0px_4px_20px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col hover:opacity-95 transition-opacity active:scale-[0.98] cursor-pointer mx-auto w-full p-sm">
+  <div class="w-full aspect-square relative bg-surface-variant rounded-lg overflow-hidden mb-sm">
+    <img class="w-full h-full object-cover" data-alt="A striking black and white macro photograph of a textured tree stump cross-section, revealing concentric age rings and radial cracks against a dark, moody, out-of-focus background. High contrast, minimalist composition, reflecting a quiet premium aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQKldsJeEKwl2bDD2ObwcnJtHISxVlsLARTFkQTXrcTHlgVAOJolapm6AYGzwRT2fsmLpu8xryqPhXL4AVD6niG11_DVrcrKIj6DI16rzn_yI9XFyTjt3f7DqO7F467OoV1-l7cM4AJJQ-KQ2gESt_iBUWWwU5AJiia9iHG4hIqQSsI5z93Gtdn6FeokiNOTU4z1VGeZrd-7pGW6itiZ8tl4inegR-LIvpAtaCbp72Q2uiRhxTWbrNkGn5KYNGB2jdJvXPB4sQz5RA">
+    <button class="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-on-background text-on-primary flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+      <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+    </button>
+  </div>
+  <div class="px-xs pb-xs flex justify-between items-center">
+    <div class="min-w-0">
+      <h4 class="font-headline-md text-headline-md text-on-background truncate">Unsayable</h4>
+      <p class="font-label-md text-label-md text-on-surface-variant truncate">Brambles</p>
+    </div>
+  </div>
+</div>
+</section>
+<!-- Recently Played (Horizontal Scroll) -->
+<section>
+<h3 class="font-label-md text-label-md text-on-surface-variant mb-md uppercase tracking-wider">Recently Played</h3>
+<div class="flex overflow-x-auto hide-scrollbar gap-gutter-mobile -mx-margin-mobile px-margin-mobile snap-x snap-mandatory">
+<!-- Item 1 -->
+<div class="w-[140px] flex-none snap-start group cursor-pointer">
+<div class="w-[140px] h-[140px] rounded-lg overflow-hidden bg-surface-variant mb-sm shadow-[0px_4px_20px_rgba(0,0,0,0.04)] group-active:scale-95 transition-transform">
+<img class="w-full h-full object-cover" data-alt="A minimalist abstract album cover featuring soft, flowing shapes in pale grey and muted indigo on a pristine white background. High fidelity, clean editorial layout style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpRPle_hzLpc9-dokX1N2xDQ23Qe7AHZ584N1ELrDbQArSHXX6VoNEMWCe5TxpjGxIo6NPCtGKLQxHzDh-ZJVmc-KlpkDOdki0bvj5OrSxQk4dNR50ZeTCvN2FOZ7qMRSR4vWLNRM3_9uE-Er-7kShVruqUakwvVemPz45UaQLsYkOy4CC5iOOUvjlICzmjHSZ0luVKJky8iXKUxf615eAioFac6WRRH0TL3D9JBHU02KCKTHrJ0-xKEjQyLbUzj2u5hjuGR_r4V58">
+</div>
+<h4 class="font-body-md text-body-md text-on-background truncate">Charcoal</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<!-- Item 2 -->
+<div class="w-[140px] flex-none snap-start group cursor-pointer">
+<div class="w-[140px] h-[140px] rounded-lg overflow-hidden bg-surface-variant mb-sm shadow-[0px_4px_20px_rgba(0,0,0,0.04)] group-active:scale-95 transition-transform">
+<img class="w-full h-full object-cover" data-alt="A tranquil, high-end photography shot of misty mountains fading into the distance, monochromatic with subtle deep blue undertones. Quiet premium aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkcA_dAwGKnW0yAObcg5TAKNAef1F7BP-N6Oee0rl8NW0d-hVqjgqT9toXDedIA6NRrylvPc6JNeKyS7dIaXynxmYB63vSGDvcWsdoz8NwaPeYeybSEd6abOTRalXPIUgYwkB0jAh8i8ZmDqfGcIyo1u83yfIoFyOg5lmHciU06KLavHIzxR77oQsK-LJNvb2nRF7_9tomuFBuEQAiSPevwpXMBTGRw09F0Bu-C0fAs96precULvGoRzZqLPAfCXyRDrYl5KiAcj9E">
+</div>
+<h4 class="font-body-md text-body-md text-on-background truncate">To Speak Of Solitude</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<!-- Item 3 -->
+<div class="w-[140px] flex-none snap-start group cursor-pointer">
+<div class="w-[140px] h-[140px] rounded-lg overflow-hidden bg-surface-variant mb-sm shadow-[0px_4px_20px_rgba(0,0,0,0.04)] group-active:scale-95 transition-transform">
+<img class="w-full h-full object-cover" data-alt="A crisp, modern macro shot of a single droplet of water on a pale grey leaf. Extremely high resolution, shallow depth of field, elegant simplicity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5cAQzC3d3DwfJwtmoQbF8wiUzv76pZsZI-o-g4n_Kq72qgB2k1GLUTuPmcqrF4REhvk_JIIW_jzpFcNPzo2a832PRpAkCFRhqU6rmvWQ9rOHFVt33CVanMLi0e33-Bo9W4ejDdhFXElGMQhuJQShAlR0DdI71XuudIJmjUFSjwA8wy9bG2679oqgZ9tujbzMKmBmRCwRioG7hgaWuDJ571OS0gEpuOp_TKvZ0gFL-_LtsBDV26-HAYuBJ0Vo8lpqsfErHNmYZZ58C">
+</div>
+<h4 class="font-body-md text-body-md text-on-background truncate">Salt Photographs</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+</div>
+</section>
+<!-- Albums (Bento Grid) -->
+<section>
+<h3 class="font-label-md text-label-md text-on-surface-variant mb-md uppercase tracking-wider">Albums</h3>
+<div class="grid grid-cols-2 gap-gutter-mobile">
+<!-- Large Item -->
+<div class="col-span-2 row-span-2 relative rounded-xl overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.04)] cursor-pointer group">
+<div class="aspect-[2/1] w-full bg-surface-variant">
+<img class="w-full h-full object-cover" data-alt="A wide, cinematic landscape photograph of a vast, empty salt flat under a clear, pale sky. Minimalist, expansive sense of space, light mode color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPPkrB1pB9VQvy0FhwZeWN_67GM5blRn-inNaethL-YLP0n-jsX-GdjQ55u3j1IxTKVV6xeiyg3DuWbWJGclN_MAOliD7awUhjZarOqe9uA0_WN_JPayq7InA7Uv3ICAQxAkWwz5wmhVoGl4krqwGpZmEqK57fl8IYZbyGA8HDU9kg10A_ZLbOgg6dExEd-26DtJc0salicuDgH4ixEv7tL4aalPLmqkQPcH92FzxWo_Yeds3_PSflHG1zsFElu7AYHAjVbZWj1k9T">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-md">
+<h4 class="font-headline-md text-headline-md text-white truncate">Ambient Collection</h4>
+<p class="font-label-md text-label-md text-white/80 truncate">Various Artists</p>
+</div>
+</div>
+<!-- Small Item 1 -->
+<div class="relative rounded-lg overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.04)] cursor-pointer group">
+<div class="aspect-square w-full bg-surface-variant">
+<img class="w-full h-full object-cover" data-alt="Abstract geometric art, minimalist arrangement of overlapping translucent circles in pale white and muted grey. Premium editorial feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEVcaZWEhuCXvnnpu30w2NniMmRhSBJkGX-ZKEYhvTAdzpX8dGltpxWIccW7lRB0Fil0HkP36brcaD4XphTliCPd8IbdJ43uRjt4xx7PBV5Nw9q-ztPn0tHhw5O2f1Vt97XTIML-FVwwRBeaQJRPEhbzAV85ql0seIkeZsmzxBoy2VSNZwPYK2jOIfZVVU1VQPDY--XMB4rk175Res2iwLNYVr32IFGBt8UUIENG5ZXxb2j_RZfXf2LMcKNg6jydAInQqTmb93SW8d">
+</div>
+<div class="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm p-sm">
+<h4 class="font-label-md text-label-md text-on-surface truncate">Focus</h4>
+</div>
+</div>
+<!-- Small Item 2 -->
+<div class="relative rounded-lg overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.04)] cursor-pointer group">
+<div class="aspect-square w-full bg-surface-variant">
+<img class="w-full h-full object-cover" data-alt="A close-up of soft, white folded fabric catching natural light, creating gentle shadows. Calm, relaxing aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_fOoQ1bRzcqe4ygeBEHpzonLGIFy3VdYh3utVVhRKYrcStLXBtYiBc1zBGa86c8ak9hrhzK4kjxI2LqiFmho8j02QqAc43dVWCMyIl-5P4vs14enuReddVTsBxp4vEqG_cWWG1Eyk6L7bnNI3hWnKzhryx_LsEkFr3lDrmoP8J7ssP2RflECf6GVUst-WSxbT9PaIzEbawLbycFWiqvEYp9KXb8EW3XYLP68mxT8HC0MGZVaY7vw_IcC2P0l08THg8Ut5I3qVmvom">
+</div>
+<div class="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm p-sm">
+<h4 class="font-label-md text-label-md text-on-surface truncate">Relax</h4>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Mini Player -->
+<div class="fixed bottom-[80px] left-margin-mobile right-margin-mobile z-40 bg-on-background rounded-xl shadow-[0px_8px_30px_rgba(0,0,0,0.08)] flex items-center p-sm gap-md cursor-pointer active:scale-[0.98] transition-transform overflow-hidden">
+<!-- Progress Bar (Thin line at top) -->
+<div class="absolute top-0 left-0 h-[2px] bg-white/20 w-full">
+<div class="h-full bg-white w-1/3 rounded-r-full"></div>
+</div>
+<div class="w-12 h-12 rounded-lg overflow-hidden bg-surface-variant flex-none">
+<img class="w-full h-full object-cover" data-alt="A striking black and white macro photograph of a textured tree stump cross-section, revealing concentric age rings and radial cracks against a dark, moody, out-of-focus background. High contrast, minimalist composition, reflecting a quiet premium aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIjpfrPKeoUjUp5uRqk8k1114EHph2anQSaTXYgr8jzfOm39tjNsO-25WIBF98o1p9Uy_NINd7aSfaEej0FLAsyWdK7ThVfifkNFPYx5TZhuutQhoyqWAaF8lCiff6CrTIcYXUsVi71Vs--2AijwvyLqa3d3WPSAE8w2WGDhG0CUP0Py88vb0Ghk75tEEWKGftzE5cRX1t1terO5tYn7mIT70Ee_HbCD2X4bzcsb5zEbG1wmHtKPf2f34VfCs_B8JAJPEy5y_hcCsh">
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-label-md text-label-md text-on-primary truncate">Unsayable</h4>
+<p class="font-label-sm text-label-sm text-on-primary/70 truncate">Brambles</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-primary hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-[24px]">favorite</span>
+</button>
+<button class="w-10 h-10 rounded-full bg-white text-on-background flex items-center justify-center mr-xs active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: &quot;FILL&quot; 1;">pause</span>
+</button>
+</div>
+<!-- BottomNavBar -->
+<nav class="bg-surface dark:bg-surface text-primary dark:text-primary Labels: font-label-sm text-label-sm font-headline-md text-headline-md fixed bottom-0 w-full z-50 rounded-t-xl pb-safe bg-surface dark:bg-surface shadow-[0_-4px_20px_rgba(0,0,0,0.04)] shadow-lg hover:text-primary transition-colors tap-highlight-transparent active:scale-90 fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-4 bg-surface/90 backdrop-blur-md md:hidden">
+<button class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed-dim font-bold tap-highlight-transparent active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: &quot;FILL&quot; 1;">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-secondary-fixed-variant tap-highlight-transparent active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1">search</span>
+<span class="font-label-sm text-label-sm">Search</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-secondary-fixed-variant tap-highlight-transparent active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1">library_music</span>
+<span class="font-label-sm text-label-sm">Library</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-secondary-fixed-variant tap-highlight-transparent active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1">queue_music</span>
+<span class="font-label-sm text-label-sm">Playlists</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container dark:text-on-secondary-fixed-variant tap-highlight-transparent active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</button>
+</nav>
+
+
+
+
+</body></html>

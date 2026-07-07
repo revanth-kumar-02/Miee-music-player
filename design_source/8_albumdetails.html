@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Miee - Album Details</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "background": "#fcf8f8",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "surface-variant": "#e5e2e1",
+                        "surface-container-high": "#ebe7e7",
+                        "primary-container": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#e2e2e2",
+                        "inverse-primary": "#c6c6c7",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-surface": "#1c1b1b",
+                        "on-secondary-fixed-variant": "#454747",
+                        "surface-dim": "#ddd9d9",
+                        "on-background": "#1c1b1b",
+                        "tertiary-container": "#ffffff",
+                        "on-primary-container": "#747676",
+                        "surface-tint": "#5d5f5f",
+                        "surface-container-low": "#f6f3f2",
+                        "surface-container-highest": "#e5e2e1",
+                        "outline-variant": "#c4c7c8",
+                        "secondary-fixed": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "primary-fixed": "#e2e2e2",
+                        "inverse-on-surface": "#f4f0ef",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#5d5f5f",
+                        "surface-container": "#f1edec",
+                        "on-error": "#ffffff",
+                        "secondary": "#5d5f5f",
+                        "inverse-surface": "#313030",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-primary-fixed-variant": "#454747",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "secondary-container": "#dcdddd",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "outline": "#747878",
+                        "on-surface-variant": "#444748",
+                        "surface": "#fcf8f8",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "on-tertiary-container": "#747676",
+                        "on-secondary-container": "#5f6161",
+                        "on-primary-fixed": "#1a1c1c",
+                        "surface-bright": "#fcf8f8",
+                        "primary": "#5d5f5f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "margin-mobile": "20px",
+                        "xxl": "48px",
+                        "gutter-mobile": "12px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "30px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "34px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .eq-bar {
+            width: 3px;
+            background-color: #5d5f5f; /* primary color */
+            border-radius: 1px;
+            animation: eq 1s ease-in-out infinite alternate;
+        }
+        .eq-bar:nth-child(1) { animation-delay: 0.1s; height: 8px; }
+        .eq-bar:nth-child(2) { animation-delay: 0.3s; height: 16px; }
+        .eq-bar:nth-child(3) { animation-delay: 0.5s; height: 12px; }
+        @keyframes eq {
+            0% { transform: scaleY(0.5); }
+            100% { transform: scaleY(1); }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md antialiased pb-32">
+<!-- Header -->
+<header class="flex justify-between items-center px-margin-mobile h-16 w-full max-w-full bg-surface/80 backdrop-blur-md sticky top-0 z-40">
+<button class="text-on-surface hover:opacity-80 transition-opacity duration-200 p-2 -ml-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<button class="text-on-surface hover:opacity-80 transition-opacity duration-200 p-2 -mr-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+</header>
+<main class="px-margin-mobile pt-sm pb-xxl flex flex-col max-w-3xl mx-auto">
+<!-- Album Artwork & Info -->
+<section class="flex flex-col items-center mb-xl">
+<div class="w-64 h-64 md:w-80 md:h-80 rounded-2xl overflow-hidden shadow-[0px_8px_30px_rgba(0,0,0,0.08)] mb-lg relative">
+<img class="w-full h-full object-cover" data-alt="A minimalist, high-fidelity album cover featuring a delicate, abstract cross-section of a tree trunk, showcasing fine, intricate concentric rings. The artwork is presented in a muted, monochromatic palette of charcoal greys and soft whites, evoking a calm, organic, and sophisticated aesthetic. The background is a clean, bright studio white." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPbPVS7TmWoAGCM-QfMpidvefsQfhAb5dzW2bxrJnf5mDA-qfRg2LR5ueX6dMtc4am3MBywKMSixftF8w98b6hgcwvAa-DrstlGDCB0oGvBDSQwUr8YBJ-PxNQ8ntDhfq20MKkYVeTtHm6fonZaZxGZ4O2jKMNnnwq9taxabBWraG6vrr-vseYofwF67Au72onoMlYK_rjifn62kVGYxakLOmhWUpIciCMiWwKHWFTTPG3jqKHL2uYkaUuPtP0B5CRkPBXZAOYzp5v"/>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs text-center">Charcoal</h1>
+<h2 class="font-body-lg text-body-lg text-on-surface-variant mb-sm text-center">Brambles</h2>
+<p class="font-label-sm text-label-sm text-on-surface-variant/80 text-center uppercase tracking-wider">2012 • 8 Songs • 38 min</p>
+</section>
+<!-- Action Buttons -->
+<section class="flex gap-md mb-xxl justify-center w-full">
+<button class="flex-1 max-w-[200px] flex items-center justify-center gap-sm bg-primary text-on-primary py-3 px-xl rounded-full font-label-md text-label-md hover:opacity-90 transition-opacity shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
+<span class="material-symbols-outlined" data-icon="play_arrow" data-weight="fill">play_arrow</span>
+                Play
+            </button>
+<button class="flex-1 max-w-[200px] flex items-center justify-center gap-sm bg-surface-container-high text-on-surface py-3 px-xl rounded-full font-label-md text-label-md hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined" data-icon="shuffle">shuffle</span>
+                Shuffle
+            </button>
+</section>
+<!-- Track List -->
+<section class="flex flex-col gap-1 w-full">
+<!-- Track 1 -->
+<div class="flex items-center w-full h-16 group hover:bg-surface-container-low transition-colors rounded-lg px-2 -mx-2">
+<span class="w-8 text-center font-label-sm text-label-sm text-on-surface-variant mr-sm">01</span>
+<div class="flex-1 min-w-0">
+<p class="font-body-md text-body-md text-on-surface truncate">To Speak of Solitude</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-md">4:52</span>
+<button class="p-2 ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<!-- Track 2 (Currently Playing) -->
+<div class="flex items-center w-full h-16 bg-surface-container-low rounded-lg px-2 -mx-2">
+<div class="w-8 flex justify-center items-end h-4 gap-[2px] mr-sm">
+<div class="eq-bar"></div>
+<div class="eq-bar"></div>
+<div class="eq-bar"></div>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-md text-body-md text-primary font-medium truncate">Unsayable</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<span class="font-label-sm text-label-sm text-primary ml-md">3:45</span>
+<button class="p-2 ml-sm text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<!-- Track 3 -->
+<div class="flex items-center w-full h-16 group hover:bg-surface-container-low transition-colors rounded-lg px-2 -mx-2">
+<span class="w-8 text-center font-label-sm text-label-sm text-on-surface-variant mr-sm">03</span>
+<div class="flex-1 min-w-0">
+<p class="font-body-md text-body-md text-on-surface truncate">In the Androgynous Dark</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-md">5:12</span>
+<button class="p-2 ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<!-- Track 4 -->
+<div class="flex items-center w-full h-16 group hover:bg-surface-container-low transition-colors rounded-lg px-2 -mx-2">
+<span class="w-8 text-center font-label-sm text-label-sm text-on-surface-variant mr-sm">04</span>
+<div class="flex-1 min-w-0">
+<p class="font-body-md text-body-md text-on-surface truncate">Salt Water Tingles</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-md">4:08</span>
+<button class="p-2 ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<!-- Track 5 -->
+<div class="flex items-center w-full h-16 group hover:bg-surface-container-low transition-colors rounded-lg px-2 -mx-2">
+<span class="w-8 text-center font-label-sm text-label-sm text-on-surface-variant mr-sm">05</span>
+<div class="flex-1 min-w-0">
+<p class="font-body-md text-body-md text-on-surface truncate">Half-Gramme Holiday</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-md">4:31</span>
+<button class="p-2 ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Mini Player (Floating) -->
+<div class="fixed bottom-[88px] left-0 w-full px-margin-mobile z-40 pointer-events-none md:max-w-3xl md:left-1/2 md:-translate-x-1/2">
+<div class="pointer-events-auto bg-surface rounded-xl shadow-[0px_8px_30px_rgba(0,0,0,0.08)] flex items-center p-2 pr-4 relative overflow-hidden">
+<!-- Progress Line -->
+<div class="absolute top-0 left-0 h-[2px] bg-primary w-1/3"></div>
+<div class="w-12 h-12 rounded-lg overflow-hidden mr-sm bg-surface-container-high flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Thumbnail of the Charcoal album cover, a minimal tree ring cross section in greyscale." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhipD-JSwdmBUyBZyXkQ4Tpu6jtlOZJyfq-vF6fdx8KKr_5smiJ29rON09gjoLlAYGZc-N03aGCWmEm2se3fOaNmZW6d7nYOWSk5bu5nSvt35kAiXA-mljpohVCvwhIoyKjAFnnNqXZwdgjrS6JF43M2lfh71VIMB1lk21ggNTjqQKZgX7UoYKupZdMaVolumlPba-K86W2YzDg31mMnAZt26WKgwG7tEz9Gkq_nUKtKs5NozlhgBf4PIsvybuZzZZmsqI_RsoyKnO"/>
+</div>
+<div class="flex-1 min-w-0 mr-sm">
+<p class="font-label-md text-label-md text-on-surface truncate">Unsayable</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">Brambles</p>
+</div>
+<div class="flex items-center gap-xs flex-shrink-0">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full">
+<span class="material-symbols-outlined text-[20px]" data-icon="favorite_border">favorite_border</span>
+</button>
+<button class="p-2 text-on-surface hover:text-primary transition-colors rounded-full">
+<span class="material-symbols-outlined text-[28px]" data-icon="pause" data-weight="fill">pause</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Bottom Nav Bar (Mobile Only per Shell Logic) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-surface-container-lowest dark:bg-surface-container-low rounded-t-xl shadow-[0px_-8px_30px_rgba(0,0,0,0.04)] md:hidden">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:bg-surface-container-high transition-colors p-2 rounded-lg min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</a>
+<!-- Search (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:bg-surface-container-high transition-colors p-2 rounded-lg min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="search">search</span>
+<span class="font-label-sm text-label-sm">Search</span>
+</a>
+<!-- Library (Active based on context of viewing an album) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed-dim font-bold hover:bg-surface-container-high transition-colors p-2 rounded-lg min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="library_music" data-weight="fill">library_music</span>
+<span class="font-label-sm text-label-sm">Library</span>
+</a>
+<!-- Playlists (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:bg-surface-container-high transition-colors p-2 rounded-lg min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="queue_music">queue_music</span>
+<span class="font-label-sm text-label-sm">Playlists</span>
+</a>
+<!-- Settings (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:bg-surface-container-high transition-colors p-2 rounded-lg min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+</nav>
+</body></html>

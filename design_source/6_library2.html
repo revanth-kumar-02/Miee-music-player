@@ -1,0 +1,314 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Miee - Library</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "surface-dim": "#ddd9d9",
+                      "on-secondary-fixed-variant": "#454747",
+                      "tertiary": "#5d5f5f",
+                      "inverse-surface": "#313030",
+                      "on-secondary-fixed": "#1a1c1c",
+                      "on-tertiary": "#ffffff",
+                      "on-surface-variant": "#444748",
+                      "surface-variant": "#e5e2e1",
+                      "secondary-container": "#dcdddd",
+                      "on-secondary-container": "#5f6161",
+                      "surface-container-high": "#ebe7e7",
+                      "secondary-fixed-dim": "#c6c6c7",
+                      "background": "#fcf8f8",
+                      "surface-tint": "#5d5f5f",
+                      "surface-container-low": "#f6f3f2",
+                      "secondary-fixed": "#e2e2e2",
+                      "surface-container": "#f1edec",
+                      "on-primary-fixed-variant": "#454747",
+                      "on-error": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-bright": "#fcf8f8",
+                      "error": "#ba1a1a",
+                      "tertiary-container": "#ffffff",
+                      "on-background": "#1c1b1b",
+                      "primary-container": "#ffffff",
+                      "on-primary-fixed": "#1a1c1c",
+                      "on-error-container": "#93000a",
+                      "primary": "#5d5f5f",
+                      "inverse-primary": "#c6c6c7",
+                      "surface-container-highest": "#e5e2e1",
+                      "on-primary-container": "#747676",
+                      "tertiary-fixed": "#e2e2e2",
+                      "on-surface": "#1c1b1b",
+                      "primary-fixed": "#e2e2e2",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "secondary": "#5d5f5f",
+                      "on-primary": "#ffffff",
+                      "outline": "#747878",
+                      "inverse-on-surface": "#f4f0ef",
+                      "surface": "#fcf8f8",
+                      "on-tertiary-fixed-variant": "#454747",
+                      "outline-variant": "#c4c7c8",
+                      "on-tertiary-container": "#747676",
+                      "on-secondary": "#ffffff",
+                      "primary-fixed-dim": "#c6c6c7",
+                      "error-container": "#ffdad6"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "margin-mobile": "20px",
+                      "sm": "8px",
+                      "gutter-mobile": "12px",
+                      "xxl": "48px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "xl": "32px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "30px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "34px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.04em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "40px",
+                              {
+                                      "lineHeight": "48px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "label-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        /* Hide scrollbar for horizontal scrolling areas */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md antialiased pb-[100px]">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-margin-mobile h-16 w-full full-width top-0 pt-safe bg-background flat no shadows relative"><button class="w-10 h-10 flex items-center justify-center rounded-full hover:opacity-80 transition-opacity scale-95 duration-200 text-on-surface-variant">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-display-lg text-display-lg tracking-tight text-center flex-1">Miee</h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-variant overflow-hidden hover:opacity-80 transition-opacity scale-95 duration-200">
+<span class="material-symbols-outlined text-on-surface-variant">person</span>
+</button></header>
+<main class="px-margin-mobile flex flex-col gap-xxl pt-md">
+<!-- Large Favorites Card -->
+<section>
+<div class="relative w-full rounded-[24px] overflow-hidden bg-surface shadow-[0_4px_20px_rgba(0,0,0,0.04)] h-48 flex items-end p-md group cursor-pointer hover:opacity-95 transition-opacity">
+<!-- Abstract dark texture background representing favorites in a premium way -->
+<div class="absolute inset-0 bg-cover bg-center z-0 mix-blend-multiply opacity-80" data-alt="A moody, high-contrast minimalist digital artwork featuring subtle, flowing dark charcoal textures against a slightly lighter grey background. The image has a calm, quiet premium aesthetic, suitable as a sophisticated background for a favorite music playlist card in a light-mode mobile application, conveying a sense of depth and tactile emotion." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBuqdraECmdA1bPlayDs0eZdzdkdnK0SG8gcDb9Lp5XsPDYAkA96OThLh141nB2WAePClnlZxNYrXiiVeR9XEcLxRtfcJoWROagXxe4yGSqNhN-JunpX0smC-NhDeLMB9XMDqCoOFUmSGO8TyNNI48Cbje7qqUNJyzHXNnkxUm1IaTj3mvzHsyMtyI2XssIxVrlcdE0IDsoh4bQfRad9mgjST96J3EPXD4oA2IzJwsow0YERN_oAixMXpfpErkdclfrH1gf5r9Hl5QA')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
+<div class="relative z-20 w-full flex justify-between items-end">
+<div class="text-white">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile mb-xs">Favorites</h2>
+<p class="font-label-md text-label-md opacity-80">248 Songs</p>
+</div>
+<button class="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Filter Chips -->
+<section class="-mx-margin-mobile px-margin-mobile">
+<div class="flex gap-sm overflow-x-auto pb-sm no-scrollbar">
+<button class="bg-inverse-surface text-on-tertiary rounded-full px-md py-sm font-label-md whitespace-nowrap shadow-sm">Playlists</button>
+<button class="bg-surface-variant text-on-surface-variant rounded-full px-md py-sm font-label-md whitespace-nowrap hover:bg-surface-dim transition-colors">Albums</button>
+<button class="bg-surface-variant text-on-surface-variant rounded-full px-md py-sm font-label-md whitespace-nowrap hover:bg-surface-dim transition-colors">Artists</button>
+<button class="bg-surface-variant text-on-surface-variant rounded-full px-md py-sm font-label-md whitespace-nowrap hover:bg-surface-dim transition-colors">Downloaded</button>
+</div>
+</section>
+<!-- Recently Added List -->
+<section class="flex flex-col gap-sm">
+<div class="flex justify-between items-center mb-sm">
+<h3 class="font-headline-md text-headline-md">Recently Added</h3>
+<button class="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[20px]">sort</span>
+</button>
+</div>
+<!-- List Item 1 -->
+<div class="flex items-center gap-md h-[64px] group cursor-pointer">
+<img class="w-14 h-14 rounded-lg object-cover shadow-[0_2px_8px_rgba(0,0,0,0.06)]" data-alt="A stark, minimalist black and white photograph of a cross-section of a wooden log. The texture is rough and natural, resembling charcoal or ash, set against a pure white background. The lighting is soft but creates deep contrasts, perfect for a modern, quiet premium music album cover thumbnail." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQ0ii4dJuT5YQUV8JQlUtCrsi4xwdPbxccp0YJMc0nVNXctoO88dw2U4dMttuOHC8yEfh8yyGYjlyb14SFUWGz5I9MWj1mfe8yeU6AZMlNrjSpLTdXR4bXKhSGL9onhfQtKkZalJEKyr-o6xMjbvAZBZNHA1NI3kPZ2dAQnJWNV-KZbaVRugc_BivNQxb6hgj_2v0z-hz0yoB69fAI90AbCHQcaR21F_HW_hCPYI805UBk4yYYK_8bRV1jsmrCxjrJUsEhW6dPclL5">
+<div class="flex-1 flex flex-col justify-center">
+<h4 class="font-body-md text-body-md text-on-background line-clamp-1">Charcoal Notes</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Album • Brambles</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<!-- List Item 2 -->
+<div class="flex items-center gap-md h-[64px] group cursor-pointer">
+<div class="w-14 h-14 rounded-lg bg-cover bg-center shadow-[0_2px_8px_rgba(0,0,0,0.06)]" data-alt="An abstract, muted composition featuring soft, blurred organic shapes in shades of light grey and off-white. The aesthetic is extremely minimalist, calm, and editorial, resembling a blurred photograph of frosted glass or mist. It serves as a subtle, premium playlist cover thumbnail." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCIWk4AweC6CoU1D6OrUn_xgpW1KLioDUJ3-kk3rJuB5OmicRVlrbwyEbr2r7vc2Ks8gttS4snPjE5lPvhz2lCWoKzf1wpzSxszF-wBkuN-4k9NJFte7gpeF1KVApdspfD9_UudtIyAtINZSpavEcWhNHplPe93PqJlS7xayhmUNHVmzyZMGHY6DwYtrVktUCEB3Tt9JHbnrgT3pyCEv1Kp1m1nJFiPEDNScZVOW_Q6SJLYe6iHyoIJYVwPaWpQDtPWzr0XOvPAN6qx')"></div>
+<div class="flex-1 flex flex-col justify-center">
+<h4 class="font-body-md text-body-md text-on-background line-clamp-1">Deep Focus</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Playlist • Miee Curated</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<!-- List Item 3 -->
+<div class="flex items-center gap-md h-[64px] group cursor-pointer">
+<img class="w-14 h-14 rounded-lg object-cover shadow-[0_2px_8px_rgba(0,0,0,0.06)]" data-alt="A macro shot of dark, rippling water or dark stone textures, rendered in a very high fidelity monochromatic style. The image exudes a sense of quiet luxury and solitude, with soft highlights defining the gentle curves of the texture. Suitable for a premium music artist profile or album art." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAyc0gly0rrG86ZMD7b3Yx6l6WfveuyIKcuAHecLMMiNk4E0OSpZe6MuRBuk23ytG0glxmLM5zYgpzlWdHTB_hzuYusvAJkm_OdEx3QcxOjzrf_X1IzbvbF8Kjb9fWDfaAJK5JR0VV3OyPUYvw11AxeGvns3tniFRKNkKD_ztXcdAal7hy-kaWoz91sO7LrA8MWNzIpAGpac-twy-y9tR9vTFsIwI45ChIePtTGpN73uOnNghlyxA639jCMsRITK2jd3B_b8qeQ8UC">
+<div class="flex-1 flex flex-col justify-center">
+<h4 class="font-body-md text-body-md text-on-background line-clamp-1">Unsayable EP</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Album • Brambles</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<!-- List Item 4 -->
+<div class="flex items-center gap-md h-[64px] group cursor-pointer">
+<div class="w-14 h-14 rounded-full bg-surface-variant flex items-center justify-center border border-outline-variant shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+<span class="material-symbols-outlined text-on-surface-variant text-[28px]">mic</span>
+</div>
+<div class="flex-1 flex flex-col justify-center">
+<h4 class="font-body-md text-body-md text-on-background line-clamp-1">Nils Frahm</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Artist</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-4 bg-surface/90 backdrop-blur-md z-50 rounded-t-xl pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-container font-label-sm text-label-sm hover:text-primary transition-colors tap-highlight-transparent active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+<span class="">Home</span>
+</a>
+<!-- Search (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-container font-label-sm text-label-sm hover:text-primary transition-colors tap-highlight-transparent active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1">search</span>
+<span class="">Search</span>
+</a>
+<!-- Library (Active) -->
+<a class="flex flex-col items-center justify-center text-primary font-bold font-label-sm text-label-sm hover:text-primary transition-colors tap-highlight-transparent active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">library_music</span>
+<span class="">Library</span>
+</a>
+<!-- Playlists (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-container font-label-sm text-label-sm hover:text-primary transition-colors tap-highlight-transparent active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1">queue_music</span>
+<span class="">Playlists</span>
+</a>
+<!-- Settings (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-secondary-container font-label-sm text-label-sm hover:text-primary transition-colors tap-highlight-transparent active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1">settings</span>
+<span class="">Settings</span>
+</a>
+</nav>
+
+
+
+
+</body></html>

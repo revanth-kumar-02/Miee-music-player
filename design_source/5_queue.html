@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Miee - Playing Queue</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#5d5f5f",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#c6c6c7",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "tertiary-fixed": "#e2e2e2",
+                        "inverse-surface": "#313030",
+                        "background": "#fcf8f8",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-variant": "#e5e2e1",
+                        "inverse-on-surface": "#f4f0ef",
+                        "surface-bright": "#fcf8f8",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "on-tertiary-container": "#747676",
+                        "surface": "#fcf8f8",
+                        "secondary": "#5d5f5f",
+                        "on-secondary-container": "#5f6161",
+                        "surface-container": "#f1edec",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#dcdddd",
+                        "tertiary": "#5d5f5f",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-secondary": "#ffffff",
+                        "outline": "#747878",
+                        "outline-variant": "#c4c7c8",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-error-container": "#93000a",
+                        "on-background": "#1c1b1b",
+                        "primary-container": "#ffffff",
+                        "primary-fixed": "#e2e2e2",
+                        "tertiary-container": "#ffffff",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-surface-variant": "#444748",
+                        "on-primary-container": "#747676",
+                        "primary": "#5d5f5f",
+                        "on-secondary-fixed-variant": "#454747",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "on-surface": "#1c1b1b",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-error": "#ffffff",
+                        "surface-container-low": "#f6f3f2",
+                        "surface-container-high": "#ebe7e7",
+                        "surface-dim": "#ddd9d9",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xxl": "48px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "gutter-mobile": "12px",
+                        "xs": "4px",
+                        "margin-mobile": "20px",
+                        "md": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "30px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "34px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "800" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .bottom-sheet-enter {
+            transform: translateY(100%);
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideUp {
+            to { transform: translateY(0); }
+        }
+        .dim-overlay {
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background h-full overflow-hidden flex flex-col font-body-md antialiased selection:bg-surface-variant">
+<!-- Mock Background (Dimmed Now Playing Screen) -->
+<div class="fixed inset-0 z-0 select-none pointer-events-none">
+<div class="absolute inset-0 bg-surface-container-high flex flex-col">
+<!-- Simulated Now Playing UI Content -->
+<div class="flex-1 flex flex-col items-center justify-center p-8 opacity-40">
+<div class="w-64 h-64 bg-cover bg-center rounded-xl shadow-lg mb-8" data-alt="A large, square album artwork featuring a minimalist, high-contrast black and white architectural photograph of a modern glass building. Soft lighting creates deep shadows. The overall aesthetic is calm, premium, and sophisticated, perfectly suited for a high-end music player interface." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDAC6tJm3nZhSGqIOKjl0S003HV0Gn0UHctE2JMK_FEyKgZQX7CFOVHTG2cB9YFtr1yCUcSOirzoTdENtI5zCzxWKkmrIiZo7yqJAWYmHDpYTbnHm538CqwSvnSa7bJb2DpfFRNfKh317H4LJT4Z0DHjPVfR7ENuErZAQe577iwgx8sVRSQzdr5Xn5RJR6bNhNItA9sGOkN1gGzrnLECKATtkuGvxKDY0I4OZ4rMwJX_KtVETCA6xW7-QIRueuaXtsKb0ge6IZumSYY')"></div>
+<div class="text-center w-full max-w-xs">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-2 truncate">Structural Integrity</h2>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">The Architects</p>
+</div>
+<div class="w-full max-w-sm mt-12">
+<div class="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary w-1/3"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Dim Overlay -->
+<div class="absolute inset-0 dim-overlay"></div>
+</div>
+<!-- Bottom Sheet Container -->
+<div class="fixed inset-x-0 bottom-0 z-50 h-[751px] flex flex-col bottom-sheet-enter">
+<!-- Sheet Content -->
+<div class="flex-1 bg-surface-container-lowest rounded-t-[32px] shadow-[0px_-8px_30px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden">
+<!-- Drag Indicator -->
+<div class="w-full flex justify-center pt-4 pb-2 shrink-0">
+<div class="w-12 h-1.5 bg-surface-variant rounded-full"></div>
+</div>
+<!-- Header -->
+<div class="px-margin-mobile pb-md pt-sm shrink-0 flex items-center justify-between">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-background">Playing Queue</h1>
+<button aria-label="Close Queue" class="p-2 rounded-full hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-on-surface">close</span>
+</button>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto px-margin-mobile pb-[120px]">
+<!-- Now Playing Section -->
+<section class="mb-xl">
+<h2 class="font-label-md text-label-md text-on-surface-variant mb-md uppercase tracking-wider">Now Playing</h2>
+<!-- Now Playing Item (Highlighted) -->
+<div class="flex items-center gap-md p-md bg-surface-container-low rounded-xl relative group">
+<!-- Animated Equalizer Indicator -->
+<div class="absolute -left-2 top-1/2 -translate-y-1/2 flex items-end gap-0.5 h-4 opacity-80">
+<div class="w-1 bg-primary rounded-t-sm h-full animate-[pulse_0.8s_ease-in-out_infinite]"></div>
+<div class="w-1 bg-primary rounded-t-sm h-2/3 animate-[pulse_1.2s_ease-in-out_infinite_0.2s]"></div>
+<div class="w-1 bg-primary rounded-t-sm h-1/2 animate-[pulse_0.9s_ease-in-out_infinite_0.4s]"></div>
+</div>
+<img alt="Album Art" class="w-16 h-16 object-cover rounded-lg shadow-sm" data-alt="A crisp, high-resolution square album cover art. It features an abstract composition of soft, floating geometric spheres in pristine white and pale grey tones, set against a stark black background. The lighting is ethereal and studio-quality. The style is modern minimalist, evoking a sense of quiet premium audio." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4fYLqn-6To-l1k4eqoqyTlulZJ-HNPJz8qA07njEVIKoFxlvX8Ozy33dQOgB2oOkbMqCFgenk8y-Fi2gCWQEUVTQo7EdLt8S81x5eKulXBHspYIa59-XS4nHEk2hlTxHa7bSMyZS5FnQDJzsb0yQExekmLHTAT9902oKwHjdKxJ52MUak8VMX3IU1FbSjw3K36OproYhLR--GoqIidX4wGu6TFy3RPqPtV-7AmXuJeUq-ZAJF3Kmd8Mb_XXu_a1SHZmQKGWcVNIQS"/>
+<div class="flex-1 min-w-0">
+<h3 class="font-label-md text-label-md text-on-background truncate">Structural Integrity</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate mt-xs">The Architects</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant tabular-nums">3:42</span>
+<div class="flex items-center gap-xs ml-sm opacity-60">
+<button aria-label="More options" class="p-1.5 rounded-full hover:bg-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Next Up Section -->
+<section>
+<h2 class="font-label-md text-label-md text-on-surface-variant mb-md uppercase tracking-wider">Next Up</h2>
+<div class="flex flex-col gap-sm">
+<!-- Queue Item 1 -->
+<div class="flex items-center gap-md p-sm hover:bg-surface-container-low rounded-xl transition-colors group cursor-grab active:cursor-grabbing">
+<div class="text-on-surface-variant opacity-50 group-hover:opacity-100 transition-opacity cursor-grab">
+<span class="material-symbols-outlined text-xl">drag_indicator</span>
+</div>
+<img alt="Album Art" class="w-12 h-12 object-cover rounded-lg shadow-sm" data-alt="Square album artwork displaying a close-up macro photograph of a perfectly smooth, polished pebble resting on pristine white sand. The lighting is soft and natural, casting a gentle shadow. The overall composition is extremely clean, minimalist, and editorial, suitable for a sophisticated music app UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUpT1mOaOj29YyPr74fB3hUz2-pIWjRP3CZgHTE5L9c1pqPkU1rBT1IUWvnMG1JiAFDfIovz29AYbcGhgRpdojOvHy12Yr1BpdbQuxgLIPi-Yw0H_MssHVEOiVR8T2ql_4gZR_bkrFOzDV_lhehTuLnZEZ3NUb5pfHglUqSZHdKcsq5oKLyKTycNvZ1YwDZ6x2nY_A2Yiwd_DgdNB31Tu0N9ZeUc2_Sfxyb0l4gCINFgNYL7DCT2mSNo9pXZsQ9e2tLxqrcTVX5xRt"/>
+<div class="flex-1 min-w-0">
+<h3 class="font-body-md text-body-md text-on-background truncate">Oceanic Drift</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate mt-xs">Luna Tides</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant tabular-nums">4:15</span>
+<div class="flex items-center gap-xs ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<button aria-label="More options" class="p-1.5 rounded-full hover:bg-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Queue Item 2 -->
+<div class="flex items-center gap-md p-sm hover:bg-surface-container-low rounded-xl transition-colors group cursor-grab active:cursor-grabbing">
+<div class="text-on-surface-variant opacity-50 group-hover:opacity-100 transition-opacity cursor-grab">
+<span class="material-symbols-outlined text-xl">drag_indicator</span>
+</div>
+<img alt="Album Art" class="w-12 h-12 object-cover rounded-lg shadow-sm" data-alt="Minimalist square album cover featuring a striking typography design. The word 'SILENCE' is subtly debossed in elegant, thin sans-serif font onto a textured, matte white surface. The lighting is directional, highlighting the texture and depth of the debossed letters. A pure, clean, and high-end aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtYvknao4SnvPArPCpWyU50eQCT18JTHPV_Wmi4VElthrWcbp4ZxikFlIu1-Tk75rqfvxXtQI_bPd3GR18qVJog3wM5ajS--aKpZcm98MrbeT-g-Wuv-YrmKDhehyZX6qnJGG1_BDTq8SxKaiqoW_hZ07pALtuoOyEWTayEcykrqMEHzwE2-v3YyADmxzgRg2B0wgHe45TUt2LGVh_NC0Koz2ndLGXpypDF7W0T-6KtoX6jYyPpQdpFjMGF-ux6Y5t-peTR0xHRFto"/>
+<div class="flex-1 min-w-0">
+<h3 class="font-body-md text-body-md text-on-background truncate">White Noise Symphony</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate mt-xs">Static Waves</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant tabular-nums">2:58</span>
+<div class="flex items-center gap-xs ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<button aria-label="More options" class="p-1.5 rounded-full hover:bg-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Queue Item 3 -->
+<div class="flex items-center gap-md p-sm hover:bg-surface-container-low rounded-xl transition-colors group cursor-grab active:cursor-grabbing">
+<div class="text-on-surface-variant opacity-50 group-hover:opacity-100 transition-opacity cursor-grab">
+<span class="material-symbols-outlined text-xl">drag_indicator</span>
+</div>
+<img alt="Album Art" class="w-12 h-12 object-cover rounded-lg shadow-sm" data-alt="Album art showing a stylized, monochromatic illustration of a leafless tree branch extending into an empty, soft grey sky. The line work is delicate and precise. The image conveys a sense of stillness, solitude, and elegant simplicity, fitting perfectly within a quiet premium design system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrj3Kpbvy5j9TuNbwjb8nsQMqZlWplMpa22fjvHqio6Ckrf7gKMCx04x89hvg4JSMj-tnK3ofB149MAuzsaywRreZHPWUOL7qhRaK9KaSd360DMGvHmQdQwVjyd1dUESURNyYlXq6ZDSwGaN2wsZ9qsux3ik9GH3tMMrcr1CgDinUdWCL3FT-3ZYADvsEgyxpdZu6H23qxhoAQbiNcYNQHwTCn5AKBGQ3yQep0zItNDbqoVgoU4-ZpT7Dy4L0AAbGL9b26Vh4lp3b9"/>
+<div class="flex-1 min-w-0">
+<h3 class="font-body-md text-body-md text-on-background truncate">Winter Branch</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate mt-xs">The Hollows</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant tabular-nums">5:02</span>
+<div class="flex items-center gap-xs ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<button aria-label="More options" class="p-1.5 rounded-full hover:bg-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Queue Item 4 -->
+<div class="flex items-center gap-md p-sm hover:bg-surface-container-low rounded-xl transition-colors group cursor-grab active:cursor-grabbing">
+<div class="text-on-surface-variant opacity-50 group-hover:opacity-100 transition-opacity cursor-grab">
+<span class="material-symbols-outlined text-xl">drag_indicator</span>
+</div>
+<img alt="Album Art" class="w-12 h-12 object-cover rounded-lg shadow-sm" data-alt="A square, high-fidelity image serving as album art. It depicts a single, stark white ceramic bowl on a dark charcoal surface, illuminated by a single spotlight from directly above. The contrast is sharp, the composition is centered and perfectly balanced, embodying a quiet, sophisticated, premium visual language." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPic8221mcwlSwHx77lUjDDquQWfjt_6fCD1jQd9ClUHP_VPipLN-zEIyTpY_FC-6o2_7c0BxZ6AIbCIrQP7Qcb-9iCCwVEQlf84hSIbrdk8Xv5g9vV_54PjUgm4QUwylqm-Bl6UO7fZtqJaXBVKV3cBdNvceo21BpJaYj3EPZS6CoVeAfAa9vDMLia98qqWHDwEcFkp00KfPp20Tfv9rDylmFMnbvSj4D3H5zUlaqlsj1AupTV5xLOu5--VyU3vlL6cTL6DUeCPQG"/>
+<div class="flex-1 min-w-0">
+<h3 class="font-body-md text-body-md text-on-background truncate">Ceramic Beats</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate mt-xs">Studio 4</p>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant tabular-nums">3:18</span>
+<div class="flex items-center gap-xs ml-sm text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+<button aria-label="More options" class="p-1.5 rounded-full hover:bg-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Bottom Actions (Sticky) -->
+<div class="absolute bottom-0 left-0 right-0 p-margin-mobile bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest to-transparent flex justify-center pb-xl">
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-on-background transition-colors px-6 py-3 rounded-full hover:bg-surface-variant">
+                    Clear Queue
+                </button>
+</div>
+</div>
+</div>
+</body></html>
