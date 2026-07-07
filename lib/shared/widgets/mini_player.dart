@@ -5,18 +5,13 @@ import '../../app/theme/app_radius.dart';
 import '../../app/theme/app_shadows.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
+import '../models/music_item.dart';
 
 /// Reusable persistent floating Mini Player bar.
 /// Supports both light and dark color contexts and maps progress percentages.
 class MiniPlayer extends StatelessWidget {
-  /// The image URL of the album artwork.
-  final String imageUrl;
-
-  /// Main title of the playing track.
-  final String title;
-
-  /// Name of the artist.
-  final String artist;
+  /// The unified playable music item.
+  final MusicItem musicItem;
 
   /// Playback progress fraction from 0.0 to 1.0.
   final double progress;
@@ -41,9 +36,7 @@ class MiniPlayer extends StatelessWidget {
 
   const MiniPlayer({
     super.key,
-    required this.imageUrl,
-    required this.title,
-    required this.artist,
+    required this.musicItem,
     required this.progress,
     required this.isPlaying,
     this.isFavorited = false,
@@ -79,6 +72,8 @@ class MiniPlayer extends StatelessWidget {
 
     final Color playBtnBg = isDark ? Colors.white : AppColors.primary;
     final Color playBtnIconColor = isDark ? AppColors.onSurface : Colors.white;
+
+    final imageUrl = musicItem.imageUrl;
 
     return GestureDetector(
       onTap: onTap,
@@ -170,7 +165,7 @@ class MiniPlayer extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          title,
+                          musicItem.title,
                           style: AppTypography.labelMedium.copyWith(
                             color: primaryTextColor,
                             fontWeight: FontWeight.bold,
@@ -179,13 +174,21 @@ class MiniPlayer extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         AppSpacing.heightXs,
-                        Text(
-                          artist,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: secondaryTextColor,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                musicItem.artist,
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: secondaryTextColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8.0),
+                            _SourceBadge(isYoutube: musicItem.isYoutube, isDark: isDark),
+                          ],
                         ),
                       ],
                     ),
@@ -227,6 +230,55 @@ class MiniPlayer extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SourceBadge extends StatelessWidget {
+  final bool isYoutube;
+  final bool isDark;
+
+  const _SourceBadge({required this.isYoutube, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isYoutube ? 'YouTube' : 'Local';
+    final icon = isYoutube ? Icons.language : Icons.phone_android;
+
+    final bgColor = isYoutube
+        ? (isDark ? const Color(0xFF6B2020) : const Color(0xFFFFEBEE))
+        : (isDark ? const Color(0xFF2E4030) : const Color(0xFFE8F5E9));
+
+    final textColor = isYoutube
+        ? (isDark ? const Color(0xFFFF8A80) : const Color(0xFFC62828))
+        : (isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4.0),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 10.0,
+            color: textColor,
+          ),
+          const SizedBox(width: 4.0),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 8.0,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }

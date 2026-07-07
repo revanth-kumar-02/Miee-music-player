@@ -187,9 +187,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 final progress = total > 0 ? pos / total : 0.0;
 
                 return MiniPlayer(
-                  imageUrl: currentTrack.imageUrl,
-                  title: currentTrack.title,
-                  artist: currentTrack.artist,
+                  musicItem: currentTrack,
                   progress: progress,
                   isPlaying: isPlaying,
                   isDark: false, // Light mode matches the surface container background

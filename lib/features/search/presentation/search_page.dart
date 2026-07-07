@@ -232,9 +232,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 final progress = total > 0 ? pos / total : 0.0;
 
                 return MiniPlayer(
-                  imageUrl: currentTrack.imageUrl,
-                  title: currentTrack.title,
-                  artist: currentTrack.artist,
+                  musicItem: currentTrack,
                   progress: progress,
                   isPlaying: isPlaying,
                   isFavorited: currentTrack.isFavorited,
