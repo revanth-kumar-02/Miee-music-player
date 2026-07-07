@@ -177,4 +177,48 @@ abstract class MockData {
     isPlaying: false,
     isFavorited: false,
   );
+
+  /// Current playing song details in Queue.
+  static const Track queueTrack = Track(
+    id: 'queue_playing_1',
+    title: 'Structural Integrity',
+    artist: 'The Architects',
+    imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD4fYLqn-6To-l1k4eqoqyTlulZJ-HNPJz8qA07njEVIKoFxlvX8Ozy33dQOgB2oOkbMqCFgenk8y-Fi2gCWQEUVTQo7EdLt8S81x5eKulXBHspYIa59-XS4nHEk2hlTxHa7bSMyZS5FnQDJzsb0yQExekmLHTAT9902oKwHjdKxJ52MUak8VMX3IU1FbSjw3K36OproYhLR--GoqIidX4wGu6TFy3RPqPtV-7AmXuJeUq-ZAJF3Kmd8Mb_XXu_a1SHZmQKGWcVNIQS',
+    duration: '3:42',
+    progress: 0.0,
+    isPlaying: true,
+    isFavorited: false,
+  );
+
+  /// Upcoming songs list in Queue.
+  static const List<Track> upcomingQueue = [
+    Track(
+      id: 'queue_up_1',
+      title: 'Oceanic Drift',
+      artist: 'Luna Tides',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUpT1mOaOj29YyPr74fB3hUz2-pIWjRP3CZgHTE5L9c1pqPkU1rBT1IUWvnMG1JiAFDfIovz29AYbcGhgRpdojOvHy12Yr1BpdbQuxgLIPi-Yw0H_MssHVEOiVR8T2ql_4gZR_bkrFOzDV_lhehTuLnZEZ3NUb5pfHglUqSZHdKcsq5oKLyKTycNvZ1YwDZ6x2nY_A2Yiwd_DgdNB31Tu0N9ZeUc2_Sfxyb0l4gCINFgNYL7DCT2mSNo9pXZsQ9e2tLxqrcTVX5xRt',
+      duration: '4:15',
+    ),
+    Track(
+      id: 'queue_up_2',
+      title: 'White Noise Symphony',
+      artist: 'Static Waves',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCtYvknao4SnvPArPCpWyU50eQCT18JTHPV_Wmi4VElthrWcbp4ZxikFlIu1-Tk75rqfvxXtQI_bPd3GR18qVJog3wM5ajS--aKpZcm98MrbeT-g-Wuv-YrmKDhehyZX6qnJGG1_BDTq8SxKaiqoW_hZ07pALtuoOyEWTayEcykrqMEHzwE2-v3YyADmxzgRg2B0wgHe45TUt2LGVh_NC0Koz2ndLGXpypDF7W0T-6KtoX6jYyPpQdpFjMGF-ux6Y5t-peTR0xHRFto',
+      duration: '2:58',
+    ),
+    Track(
+      id: 'queue_up_3',
+      title: 'Winter Branch',
+      artist: 'The Hollows',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBrj3Kpbvy5j9TuNbwjb8nsQMqZlWplMpa22fjvHqio6Ckrf7gKMCx04x89hvg4JSMj-tnK3ofB149MAuzsaywRreZHPWUOL7qhRaK9KaSd360DMGvHmQdQwVjyd1dUESURNyYlXq6ZDSwGaN2wsZ9qsux3ik9GH3tMMrcr1CgDinUdWCL3FT-3ZYADvsEgyxpdZu6H23qxhoAQbiNcYNQHwTCn5AKBGQ3yQep0zItNDbqoVgoU4-ZpT7Dy4L0AAbGL9b26Vh4lp3b9',
+      duration: '5:02',
+    ),
+    Track(
+      id: 'queue_up_4',
+      title: 'Ceramic Beats',
+      artist: 'Studio 4',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAPic8221mcwlSwHx77lUjDDquQWfjt_6fCD1jQd9ClUHP_VPipLN-zEIyTpY_FC-6o2_7c0BxZ6AIbCIrQP7Qcb-9iCCwVEQlf84hSIbrdk8Xv5g9vV_54PjUgm4QUwylqm-Bl6UO7fZtqJaXBVKV3cBdNvceo21BpJaYj3EPZS6CoVeAfAa9vDMLia98qqWHDwEcFkp00KfPp20Tfv9rDylmFMnbvSj4D3H5zUlaqlsj1AupTV5xLOu5--VyU3vlL6cTL6DUeCPQG',
+      duration: '3:18',
+    ),
+  ];
 }

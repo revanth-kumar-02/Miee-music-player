@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_shadows.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/audio/playback_state.dart';
+import '../../../core/audio/providers.dart';
 import '../../../shared/models/mock_data.dart';
 import '../../../shared/widgets/widgets.dart';
 
 /// Miee Home Screen.
 /// Arranges continue listening spotlight, scroll lists for recently played,
 /// bento grid albums, favorite artists, mini player overlays, and bottom nav shells.
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> {
   late final ScrollController _scrollController;
   bool _isScrolled = false;
 
@@ -141,17 +144,40 @@ class _HomePageState extends State<HomePage> {
             left: AppSpacing.marginMobile,
             right: AppSpacing.marginMobile,
             bottom: 80.0 + bottomInset + AppSpacing.sm,
-            child: MiniPlayer(
-              imageUrl: MockData.featuredTrack.imageUrl,
-              title: MockData.featuredTrack.title,
-              artist: MockData.featuredTrack.artist,
-              progress: MockData.featuredTrack.progress,
-              isPlaying: MockData.featuredTrack.isPlaying,
-              isFavorited: MockData.featuredTrack.isFavorited,
-              isDark: true, // Black backing color matches Stitch HTML design
-              onTap: () => context.push('/player'),
-              onPlayPauseTap: () {},
-              onFavoriteTap: () {},
+            child: Consumer(
+              builder: (context, ref, child) {
+                final playbackState = ref.watch(playerControllerProvider);
+                final controller = ref.read(playerControllerProvider.notifier);
+                final currentTrack = playbackState.currentTrack;
+
+                if (currentTrack == null) {
+                  return const SizedBox.shrink();
+                }
+
+                final isPlaying = playbackState.status == PlaybackStatus.playing;
+                final total = playbackState.duration.inMilliseconds;
+                final pos = playbackState.position.inMilliseconds;
+                final progress = total > 0 ? pos / total : 0.0;
+
+                return MiniPlayer(
+                  imageUrl: currentTrack.imageUrl,
+                  title: currentTrack.title,
+                  artist: currentTrack.artist,
+                  progress: progress,
+                  isPlaying: isPlaying,
+                  isFavorited: currentTrack.isFavorited,
+                  isDark: true, // Black backing color matches Stitch HTML design
+                  onTap: () => context.push('/player'),
+                  onPlayPauseTap: () {
+                    if (isPlaying) {
+                      controller.pause();
+                    } else {
+                      controller.play();
+                    }
+                  },
+                  onFavoriteTap: () {},
+                );
+              },
             ),
           ),
 
