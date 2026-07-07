@@ -1,17 +1,23 @@
 import 'dart:async';
 import 'dart:math';
+
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+
 import '../../shared/models/mock_data.dart';
 import '../../shared/models/track.dart';
-import 'audio_player_service.dart';
+import 'audio_handler.dart';
 import 'playback_state.dart';
 import 'queue_manager.dart';
 
-/// Single orchestrator class managing playback state notifications,
-/// routing events between [AudioPlayerService] streams and [QueueManager] queues.
+/// Single orchestrator that bridges [MieeAudioHandler] with Riverpod state.
+///
+/// [PlayerController] is the single source of truth for the UI layer.
+/// It delegates all actual playback operations to [MieeAudioHandler], which
+/// manages the background service, OS media session, and audio focus.
 class PlayerController extends StateNotifier<PlaybackState> {
-  final AudioPlayerService _service;
+  final MieeAudioHandler _handler;
   final QueueManager _queueManager;
 
   StreamSubscription<Duration>? _positionSub;
@@ -19,12 +25,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
   StreamSubscription<Duration>? _bufferedSub;
   StreamSubscription<PlayerState>? _playerStateSub;
 
-  PlayerController(this._service, this._queueManager) : super(PlaybackState.initial()) {
+  PlayerController(this._handler, this._queueManager)
+      : super(PlaybackState.initial()) {
     _init();
   }
 
   void _init() {
-    // Bootstrap the player controller with the mock featured track
+    // Bootstrap with mock featured track for initial UI display.
     _queueManager.setQueue([
       MockData.featuredTrack,
       ...MockData.favoriteSongs,
@@ -33,30 +40,27 @@ class PlayerController extends StateNotifier<PlaybackState> {
     state = PlaybackState(
       status: PlaybackStatus.paused,
       currentTrack: MockData.featuredTrack,
-      duration: const Duration(minutes: 2, seconds: 52), // matching mock duration
+      duration: const Duration(minutes: 2, seconds: 52),
     );
 
-    // Listen to positions, durations, and status updates
-    _positionSub = _service.positionStream.listen((pos) {
+    // Mirror handler streams into Riverpod state.
+    _positionSub = _handler.positionStream.listen((pos) {
       state = state.copyWith(position: pos);
     });
 
-    _durationSub = _service.durationStream.listen((dur) {
-      if (dur != null) {
-        state = state.copyWith(duration: dur);
-      }
+    _durationSub = _handler.durationStream.listen((dur) {
+      if (dur != null) state = state.copyWith(duration: dur);
     });
 
-    _bufferedSub = _service.bufferedPositionStream.listen((buf) {
+    _bufferedSub = _handler.bufferedPositionStream.listen((buf) {
       state = state.copyWith(bufferedPosition: buf);
     });
 
-    _playerStateSub = _service.playerStateStream.listen((playerState) {
+    _playerStateSub = _handler.playerStateStream.listen((playerState) {
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
 
-      PlaybackStatus status = PlaybackStatus.idle;
-
+      PlaybackStatus status;
       switch (processingState) {
         case ProcessingState.idle:
           status = PlaybackStatus.idle;
@@ -77,19 +81,20 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
       state = state.copyWith(status: status);
 
-      // Handle auto-advance on playback completion
+      // Auto-advance is handled inside MieeAudioHandler.skipToNext().
+      // Here we only handle repeat-one restart.
       if (status == PlaybackStatus.completed) {
         if (state.repeatMode == RepeatMode.one) {
           seek(Duration.zero);
           play();
-        } else {
-          next();
         }
       }
     });
   }
 
-  /// Sets the active queue.
+  // -- Queue management --------------------------------------------------------
+
+  /// Sets the active queue and starts playback from [startIndex].
   void setQueue(List<Track> tracks, {int startIndex = 0}) {
     _queueManager.setQueue(tracks, startIndex: startIndex);
     final track = _queueManager.currentTrack;
@@ -98,13 +103,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
   }
 
-  /// Selects a track from a list, updates the queue, and begins playback.
+  /// Selects a track from a list, sets it as the queue start point, and plays.
   void selectTrack(Track track, List<Track> currentList) {
     final index = currentList.indexWhere((t) => t.id == track.id);
     setQueue(currentList, startIndex: index >= 0 ? index : 0);
   }
 
-  /// Plays a specific track. If filePath is not available, streams a fallback audio test link.
+  // -- Playback ----------------------------------------------------------------
+
+  /// Loads and plays a specific [Track]. Updates Riverpod state immediately.
   Future<void> playTrack(Track track) async {
     state = state.copyWith(
       status: PlaybackStatus.loading,
@@ -113,9 +120,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     );
 
     try {
-      final source = track.filePath ?? 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
-      await _service.setSource(source);
-      await _service.play();
+      // Load queue into handler so it has the full list for skip operations.
+      final queue = _queueManager.queue;
+      final index = _queueManager.currentIndex;
+      await _handler.loadQueue(queue, startIndex: index);
+      await _handler.play();
     } catch (e) {
       state = state.copyWith(
         status: PlaybackStatus.error,
@@ -124,35 +133,30 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
   }
 
-  /// Play current track.
+  /// Resume or restart playback.
   Future<void> play() async {
     if (state.status == PlaybackStatus.idle && state.currentTrack != null) {
       await playTrack(state.currentTrack!);
     } else {
-      await _service.play();
+      await _handler.play();
     }
   }
 
-  /// Pause current track.
-  Future<void> pause() async {
-    await _service.pause();
-  }
+  /// Pause playback.
+  Future<void> pause() async => _handler.pause();
 
-  /// Stop playback.
+  /// Stop playback and reset position.
   Future<void> stop() async {
-    await _service.stop();
-    state = state.copyWith(
-      status: PlaybackStatus.idle,
-      position: Duration.zero,
-    );
+    await _handler.stop();
+    state = state.copyWith(status: PlaybackStatus.idle, position: Duration.zero);
   }
 
-  /// Seek to custom timestamp.
-  Future<void> seek(Duration position) async {
-    await _service.seek(position);
-  }
+  /// Seek to [position].
+  Future<void> seek(Duration position) async => _handler.seek(position);
 
-  /// Skips to the next track.
+  // -- Navigation --------------------------------------------------------------
+
+  /// Skip to the next track, respecting shuffle mode.
   Future<void> next() async {
     if (state.isShuffleEnabled) {
       final queue = _queueManager.queue;
@@ -163,32 +167,27 @@ class PlayerController extends StateNotifier<PlaybackState> {
           nextIndex = random.nextInt(queue.length);
         }
         _queueManager.setIndex(nextIndex);
+        _handler.jumpToIndex(nextIndex);
         final nextTrack = _queueManager.currentTrack;
-        if (nextTrack != null) {
-          await playTrack(nextTrack);
-        }
+        if (nextTrack != null) await playTrack(nextTrack);
         return;
       }
     }
 
     final nextTrack = _queueManager.next();
     if (nextTrack != null) {
+      _handler.jumpToIndex(_queueManager.currentIndex);
       await playTrack(nextTrack);
-    } else {
-      // Loop back to index 0 if RepeatMode.all is active
-      if (state.repeatMode == RepeatMode.all && _queueManager.queue.isNotEmpty) {
-        _queueManager.setIndex(0);
-        final firstTrack = _queueManager.currentTrack;
-        if (firstTrack != null) {
-          await playTrack(firstTrack);
-        }
-      }
+    } else if (state.repeatMode == RepeatMode.all && _queueManager.queue.isNotEmpty) {
+      _queueManager.setIndex(0);
+      _handler.jumpToIndex(0);
+      final firstTrack = _queueManager.currentTrack;
+      if (firstTrack != null) await playTrack(firstTrack);
     }
   }
 
-  /// Skips to the previous track.
+  /// Skip to the previous track, respecting shuffle and position rules.
   Future<void> previous() async {
-    // Restart song if played for more than 3 seconds
     if (state.position.inSeconds > 3) {
       await seek(Duration.zero);
       return;
@@ -203,50 +202,59 @@ class PlayerController extends StateNotifier<PlaybackState> {
           prevIndex = random.nextInt(queue.length);
         }
         _queueManager.setIndex(prevIndex);
+        _handler.jumpToIndex(prevIndex);
         final prevTrack = _queueManager.currentTrack;
-        if (prevTrack != null) {
-          await playTrack(prevTrack);
-        }
+        if (prevTrack != null) await playTrack(prevTrack);
         return;
       }
     }
 
     final prevTrack = _queueManager.previous();
     if (prevTrack != null) {
+      _handler.jumpToIndex(_queueManager.currentIndex);
       await playTrack(prevTrack);
-    } else {
-      // Wrap around to end if RepeatMode.all is active
-      if (state.repeatMode == RepeatMode.all && _queueManager.queue.isNotEmpty) {
-        _queueManager.setIndex(_queueManager.queue.length - 1);
-        final lastTrack = _queueManager.currentTrack;
-        if (lastTrack != null) {
-          await playTrack(lastTrack);
-        }
-      }
+    } else if (state.repeatMode == RepeatMode.all && _queueManager.queue.isNotEmpty) {
+      final lastIdx = _queueManager.queue.length - 1;
+      _queueManager.setIndex(lastIdx);
+      _handler.jumpToIndex(lastIdx);
+      final lastTrack = _queueManager.currentTrack;
+      if (lastTrack != null) await playTrack(lastTrack);
     }
   }
 
+  // -- Modes -------------------------------------------------------------------
+
   /// Toggles shuffle mode.
-  void toggleShuffle() {
+  Future<void> toggleShuffle() async {
     final isShuffle = !state.isShuffleEnabled;
     state = state.copyWith(isShuffleEnabled: isShuffle);
+    await _handler.setShuffleMode(
+      isShuffle ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
+    );
   }
 
-  /// Toggles repeat mode.
-  void toggleRepeatMode() {
+  /// Cycles through repeat modes: off ? all ? one ? off.
+  Future<void> toggleRepeatMode() async {
     RepeatMode nextMode;
+    AudioServiceRepeatMode serviceMode;
+
     switch (state.repeatMode) {
       case RepeatMode.off:
         nextMode = RepeatMode.all;
+        serviceMode = AudioServiceRepeatMode.all;
         break;
       case RepeatMode.all:
         nextMode = RepeatMode.one;
+        serviceMode = AudioServiceRepeatMode.one;
         break;
       case RepeatMode.one:
         nextMode = RepeatMode.off;
+        serviceMode = AudioServiceRepeatMode.none;
         break;
     }
+
     state = state.copyWith(repeatMode: nextMode);
+    await _handler.setRepeatMode(serviceMode);
   }
 
   /// Clears the active queue.
