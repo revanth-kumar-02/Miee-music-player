@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/adapters/playlist_hive_model.dart';
 import '../../../shared/models/track.dart';
@@ -128,7 +128,7 @@ class PlaylistsNotifier extends StateNotifier<List<PlaylistHiveModel>> {
   }
 }
 
-final playlistsProvider =
+final userPlaylistsProvider =
     StateNotifierProvider<PlaylistsNotifier, List<PlaylistHiveModel>>((ref) {
   final repo = ref.watch(playlistsRepositoryProvider);
   return PlaylistsNotifier(repo);

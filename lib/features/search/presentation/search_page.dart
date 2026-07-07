@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +16,8 @@ import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../providers/search_providers.dart';
+import '../../../features/library/providers/library_providers.dart';
 
 /// Miee Search Screen.
 /// Combines dynamic search toggles, filter chip selectors, bento-grid search history,
@@ -76,6 +80,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     setState(() {
       _searchQuery = _searchController.text;
     });
+    // Push the query into the search notifier (triggers debounced search).
+    ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
+  }
+
+  /// Called when user submits the search (keyboard done / enter).
+  void _handleSearchSubmit(String query) {
+    if (query.trim().isEmpty) return;
+    // Persist to search history.
+    ref.read(searchHistoryProvider.notifier).addSearch(query.trim());
+    // Run the search immediately without waiting for debounce.
+    ref.read(searchNotifierProvider.notifier).searchNow(query);
+  }
+
+  /// Populates the search bar with [query] and triggers a search.
+  void _applyHistoryQuery(String query) {
+    _searchController.text = query;
+    _searchController.selection = TextSelection.fromPosition(
+      TextPosition(offset: query.length),
+    );
+    setState(() => _searchQuery = query);
+    ref.read(searchNotifierProvider.notifier).searchNow(query);
   }
 
   @override
@@ -127,28 +152,25 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   AppSearchBar(
                     controller: _searchController,
                     placeholder: 'Artists, songs, or podcasts',
+                    onSubmitted: _handleSearchSubmit,
                   ),
                   AppSpacing.heightLg,
 
-                  // Show EmptyState placeholder if search query is active
+                  // Live search results when a query is active
                   if (isSearching) ...[
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.45,
-                      child: EmptyState(
-                        title: 'Search results',
-                        message: 'Results for "$_searchQuery" will appear here once connected to the music engine.',
-                        icon: Icons.search,
-                      ),
-                    ),
+                    _SearchResultsSection(query: _searchQuery),
                   ] else ...[
                     // Filter Chips horizontal row
                     _buildFilterChips(),
                     AppSpacing.heightLg,
 
                     // Recent Searches Section (Bento Grid)
-                    const SectionHeader(
+                    SectionHeader(
                       title: 'Recent',
                       actionLabel: 'Clear',
+                      onActionTap: () {
+                        ref.read(searchHistoryProvider.notifier).clearAll();
+                      },
                     ),
                     AppSpacing.heightMd,
                     _buildBentoRecentSearches(localArtists, localAlbums),
@@ -302,20 +324,66 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildBentoRecentSearches(List<MediaArtist> localArtists, List<MediaAlbum> localAlbums) {
-    final hasArtist = localArtists.isNotEmpty;
-    final artistName = hasArtist ? localArtists.first.name : 'Brambles';
+    final history = ref.watch(searchHistoryProvider);
 
-    final hasAlbum = localAlbums.isNotEmpty;
-    final albumTitle = hasAlbum ? localAlbums.first.title : 'Charcoal';
-    final albumArtwork = hasAlbum ? localAlbums.first.artworkPath : MockData.recentlyPlayed[0].imageUrl;
+    // When no persisted history yet, fall back to device library context as before.
+    if (history.isEmpty) {
+      final hasArtist = localArtists.isNotEmpty;
+      final artistName = hasArtist ? localArtists.first.name : 'Brambles';
+      final hasAlbum = localAlbums.isNotEmpty;
+      final albumTitle = hasAlbum ? localAlbums.first.title : 'Charcoal';
+      final albumArtwork = hasAlbum ? localAlbums.first.artworkPath : MockData.recentlyPlayed[0].imageUrl;
 
-    return Row(
-      children: [
-        // Bento Search Item 1: Artist
-        Expanded(
+      return Row(
+        children: [
+          Expanded(
+            child: _buildRecentSearchCard(
+              title: artistName,
+              subtitle: 'Artist',
+              onTap: () => _applyHistoryQuery(artistName),
+              topWidget: Container(
+                width: 40.0,
+                height: 40.0,
+                decoration: const BoxDecoration(
+                  color: AppColors.surfaceContainerHigh,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.history, color: AppColors.onSurfaceVariant, size: 20.0),
+              ),
+            ),
+          ),
+          AppSpacing.widthMd,
+          Expanded(
+            child: _buildRecentSearchCard(
+              title: albumTitle,
+              subtitle: 'Album',
+              onTap: () => _applyHistoryQuery(albumTitle),
+              topWidget: ClipRRect(
+                borderRadius: BorderRadius.circular(20.0),
+                child: albumArtwork.startsWith('http')
+                    ? Image.network(albumArtwork, width: 40.0, height: 40.0, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(width: 40.0, height: 40.0, color: AppColors.surfaceContainerHigh))
+                    : Image.file(File(albumArtwork), width: 40.0, height: 40.0, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(width: 40.0, height: 40.0, color: AppColors.surfaceContainerHigh)),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Show persisted search history as tappable bento cards (up to 4).
+    final displayed = history.take(4).toList();
+    return Wrap(
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.md,
+      children: displayed.map((query) {
+        return SizedBox(
+          width: (MediaQuery.of(context).size.width - AppSpacing.marginMobile * 2 - AppSpacing.md) / 2,
           child: _buildRecentSearchCard(
-            title: artistName,
-            subtitle: 'Artist',
+            title: query,
+            subtitle: 'Search',
+            onTap: () => _applyHistoryQuery(query),
             topWidget: Container(
               width: 40.0,
               height: 40.0,
@@ -323,49 +391,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 color: AppColors.surfaceContainerHigh,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.history,
-                color: AppColors.onSurfaceVariant,
-                size: 20.0,
-              ),
+              child: const Icon(Icons.history, color: AppColors.onSurfaceVariant, size: 20.0),
             ),
           ),
-        ),
-        AppSpacing.widthMd,
-        // Bento Search Item 2: Album
-        Expanded(
-          child: _buildRecentSearchCard(
-            title: albumTitle,
-            subtitle: 'Album',
-            topWidget: ClipRRect(
-              borderRadius: BorderRadius.circular(20.0), // circular avatar size 40
-              child: albumArtwork.startsWith('http')
-                  ? Image.network(
-                      albumArtwork,
-                      width: 40.0,
-                      height: 40.0,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 40.0,
-                        height: 40.0,
-                        color: AppColors.surfaceContainerHigh,
-                      ),
-                    )
-                  : Image.file(
-                      File(albumArtwork),
-                      width: 40.0,
-                      height: 40.0,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 40.0,
-                        height: 40.0,
-                        color: AppColors.surfaceContainerHigh,
-                      ),
-                    ),
-            ),
-          ),
-        ),
-      ],
+        );
+      }).toList(),
     );
   }
 
@@ -373,11 +403,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     required String title,
     required String subtitle,
     required Widget topWidget,
+    required VoidCallback onTap,
   }) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: AppSpacing.paddingAllMd,
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest, // `#ffffff`
+        color: AppColors.surfaceContainerLowest,
         borderRadius: AppRadius.radiusXl,
         boxShadow: AppShadows.shadowLow,
         border: Border.all(
@@ -408,6 +441,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
       ),
     );
   }
@@ -524,6 +558,286 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ],
         ),
       ],
+    );
+  }
+}
+
+// ── Search Results Section ────────────────────────────────────────────────────
+
+/// Displays grouped live search results when a query is active.
+///
+/// Uses only existing shared widgets ([SongTile], [CategoryCard], [SectionHeader]).
+/// Reads from [searchNotifierProvider] — never touches device storage directly.
+class _SearchResultsSection extends ConsumerWidget {
+  final String query;
+
+  const _SearchResultsSection({required this.query});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final searchState = ref.watch(searchNotifierProvider);
+    final library = ref.watch(mediaLibraryServiceProvider);
+
+    // ── Loading ──────────────────────────────────────────────────────────────
+    if (searchState.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // ── Permission denied / library not available ────────────────────────────
+    if (!library.hasPermission && !library.isLoading) {
+      return EmptyState(
+        title: 'Library Unavailable',
+        message: 'Grant storage permission to search your music.',
+        icon: Icons.lock_outline,
+      );
+    }
+
+    // ── Empty results ────────────────────────────────────────────────────────
+    final results = searchState.results;
+    if (results.isEmpty) {
+      return EmptyState(
+        title: 'No results',
+        message: 'Nothing found for "$query".',
+        icon: Icons.search_off,
+      );
+    }
+
+    // ── Grouped results ──────────────────────────────────────────────────────
+    // Convert local songs to Track list for the player controller.
+    final allSongTracks = results.songs.map((s) => Track(
+          id: s.id,
+          title: s.title,
+          artist: s.artist,
+          imageUrl: s.artworkPath,
+          duration: s.duration,
+          filePath: s.filePath,
+        )).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppSpacing.heightSm,
+
+        // ── Songs ────────────────────────────────────────────────────────────
+        if (results.songs.isNotEmpty) ...[
+          SectionHeader(
+            title: 'Songs',
+            actionLabel: results.songs.length > 5 ? 'See all' : null,
+          ),
+          AppSpacing.heightMd,
+          ...results.songs.take(5).map((song) {
+            final track = Track(
+              id: song.id,
+              title: song.title,
+              artist: song.artist,
+              imageUrl: song.artworkPath,
+              duration: song.duration,
+              filePath: song.filePath,
+            );
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: SongTile(
+                title: song.title,
+                artist: song.artist,
+                duration: song.duration,
+                imageUrl: song.artworkPath,
+                isPlaying: false,
+                onTap: () {
+                  ref
+                      .read(playerControllerProvider.notifier)
+                      .selectTrack(track, allSongTracks);
+                  context.push('/player');
+                },
+              ),
+            );
+          }),
+          AppSpacing.heightMd,
+        ],
+
+        // ── Albums ───────────────────────────────────────────────────────────
+        if (results.albums.isNotEmpty) ...[
+          const SectionHeader(title: 'Albums'),
+          AppSpacing.heightMd,
+          ...results.albums.take(4).map((album) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _ResultListTile(
+                  imageUrl: album.artworkPath,
+                  title: album.title,
+                  subtitle: '${album.artist} · ${album.trackCount} songs',
+                  icon: Icons.album_outlined,
+                  onTap: () {},
+                ),
+              )),
+          AppSpacing.heightMd,
+        ],
+
+        // ── Artists ──────────────────────────────────────────────────────────
+        if (results.artists.isNotEmpty) ...[
+          const SectionHeader(title: 'Artists'),
+          AppSpacing.heightMd,
+          ...results.artists.take(4).map((artist) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _ResultListTile(
+                  imageUrl: null,
+                  title: artist.name,
+                  subtitle: '${artist.trackCount} songs · ${artist.albumCount} albums',
+                  icon: Icons.person_outline,
+                  isCircle: true,
+                  onTap: () {},
+                ),
+              )),
+          AppSpacing.heightMd,
+        ],
+
+        // ── Genres ───────────────────────────────────────────────────────────
+        if (results.genres.isNotEmpty) ...[
+          const SectionHeader(title: 'Genres'),
+          AppSpacing.heightMd,
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: results.genres.take(6).map((genre) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHighest,
+                  borderRadius: AppRadius.radiusFull,
+                ),
+                child: Text(
+                  genre.name,
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.onSurface,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          AppSpacing.heightMd,
+        ],
+
+        // ── Playlists ────────────────────────────────────────────────────────
+        if (results.playlists.isNotEmpty) ...[
+          const SectionHeader(title: 'Playlists'),
+          AppSpacing.heightMd,
+          ...results.playlists.take(4).map((playlist) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _ResultListTile(
+                  imageUrl: null,
+                  title: playlist.name,
+                  subtitle: '${playlist.trackCount} songs',
+                  icon: Icons.playlist_play,
+                  onTap: () {},
+                ),
+              )),
+          AppSpacing.heightMd,
+        ],
+      ],
+    );
+  }
+}
+
+/// Compact list tile for albums, artists, playlists in search results.
+class _ResultListTile extends StatelessWidget {
+  final String? imageUrl;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool isCircle;
+  final VoidCallback onTap;
+
+  const _ResultListTile({
+    required this.imageUrl,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+    this.isCircle = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    final borderRadius =
+        isCircle ? BorderRadius.circular(24.0) : AppRadius.radiusMd;
+
+    Widget thumbnail;
+    if (hasImage) {
+      thumbnail = ClipRRect(
+        borderRadius: borderRadius,
+        child: imageUrl!.startsWith('http')
+            ? Image.network(
+                imageUrl!,
+                width: 48.0,
+                height: 48.0,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _iconFallback(borderRadius),
+              )
+            : Image.file(
+                File(imageUrl!),
+                width: 48.0,
+                height: 48.0,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _iconFallback(borderRadius),
+              ),
+      );
+    } else {
+      thumbnail = _iconFallback(borderRadius);
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Row(
+          children: [
+            thumbnail,
+            AppSpacing.widthMd,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _iconFallback(BorderRadius radius) {
+    return Container(
+      width: 48.0,
+      height: 48.0,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHigh,
+        borderRadius: radius,
+      ),
+      child: Icon(icon, color: AppColors.onSurfaceVariant, size: 22.0),
     );
   }
 }

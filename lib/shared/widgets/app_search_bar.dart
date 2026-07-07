@@ -23,6 +23,9 @@ class AppSearchBar extends StatefulWidget {
   /// Optional focus node.
   final FocusNode? focusNode;
 
+  /// Callback when the user submits the search (keyboard done / enter).
+  final ValueChanged<String>? onSubmitted;
+
   const AppSearchBar({
     super.key,
     this.controller,
@@ -30,6 +33,7 @@ class AppSearchBar extends StatefulWidget {
     this.placeholder = 'Artists, songs, or podcasts',
     this.onTap,
     this.focusNode,
+    this.onSubmitted,
   });
 
   @override
@@ -93,6 +97,8 @@ class _AppSearchBarState extends State<AppSearchBar> {
               focusNode: _effectiveFocusNode,
               onChanged: widget.onChanged,
               onTap: widget.onTap,
+              onSubmitted: widget.onSubmitted,
+              textInputAction: TextInputAction.search,
               style: AppTypography.bodyMedium.copyWith(
                 color: AppColors.onSurface,
               ),
