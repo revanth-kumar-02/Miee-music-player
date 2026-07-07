@@ -1,4 +1,4 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 import 'track_hive_model.dart';
 
 /// Hive-persisted user playlist containing an ordered list of tracks.
@@ -9,13 +9,15 @@ class PlaylistHiveModel extends HiveObject {
   String name;
   List<TrackHiveModel> tracks;
   DateTime createdAt;
+  DateTime lastModified;
 
   PlaylistHiveModel({
     required this.id,
     required this.name,
     required this.tracks,
     required this.createdAt,
-  });
+    DateTime? lastModified,
+  }) : lastModified = lastModified ?? createdAt;
 }
 
 /// Manual [TypeAdapter] for [PlaylistHiveModel].
@@ -29,18 +31,21 @@ class PlaylistHiveModelAdapter extends TypeAdapter<PlaylistHiveModel> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+    final createdAt = fields[3] as DateTime;
     return PlaylistHiveModel(
       id: fields[0] as String,
       name: fields[1] as String,
       tracks: (fields[2] as List).cast<TrackHiveModel>(),
-      createdAt: fields[3] as DateTime,
+      createdAt: createdAt,
+      // Field 4 is lastModified — falls back to createdAt for old data.
+      lastModified: fields[4] as DateTime? ?? createdAt,
     );
   }
 
   @override
   void write(BinaryWriter writer, PlaylistHiveModel obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -48,6 +53,9 @@ class PlaylistHiveModelAdapter extends TypeAdapter<PlaylistHiveModel> {
       ..writeByte(2)
       ..write(obj.tracks)
       ..writeByte(3)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(4)
+      ..write(obj.lastModified);
   }
 }
+

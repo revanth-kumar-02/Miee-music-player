@@ -7,6 +7,7 @@ import '../../features/library/presentation/library_page.dart';
 import '../../features/player/presentation/player_page.dart';
 import '../../features/queue/presentation/queue_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
+import '../../features/playlists/presentation/playlist_detail_page.dart';
 
 /// App router configuration using go_router.
 /// Registers all major feature screens as placeholder routes.
@@ -53,6 +54,13 @@ final GoRouter appRouter = GoRouter(
       path: '/settings',
       builder: (BuildContext context, GoRouterState state) {
         return const SettingsPage();
+      },
+    ),
+    GoRoute(
+      path: '/playlist/:id',
+      builder: (BuildContext context, GoRouterState state) {
+        final id = state.pathParameters['id']!;
+        return PlaylistDetailPage(playlistId: id);
       },
     ),
   ],

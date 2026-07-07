@@ -13,6 +13,9 @@ import '../../media/providers/media_providers.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../playlists/domain/playlist_model.dart';
+import '../../playlists/providers/playlist_providers.dart';
+import '../../playlists/presentation/widgets/create_playlist_dialog.dart';
 
 /// Miee Library Screen.
 /// Arranges category grids (Songs, Albums, Artists, Playlists, Genres, Folders),
@@ -131,6 +134,16 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                       return _buildRecentlyAddedList(localAlbums);
                     },
                   ),
+                  AppSpacing.heightLg,
+
+                  // My Playlists Section
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final playlists = ref.watch(allPlaylistsProvider);
+                      return _buildMyPlaylistsSection(context, ref, playlists);
+                    },
+                  ),
+
                   AppSpacing.heightLg,
 
                   // Favorites Section
@@ -310,7 +323,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 icon: Icons.queue_music,
                 title: 'Playlists',
                 subtitle: playlistsLabel,
-                onTap: () {},
+                onTap: () => _showPlaylistsSheet(context),
               ),
             ),
           ],
@@ -426,6 +439,192 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildMyPlaylistsSection(
+      BuildContext context, WidgetRef ref, List<PlaylistModel> playlists) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'My Playlists',
+          actionLabel: 'New',
+          onActionTap: () async {
+            await showCreatePlaylistDialog(context);
+          },
+        ),
+        if (playlists.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Text(
+              'No playlists yet. Tap "New" to create one.',
+              style: AppTypography.bodyMedium
+                  .copyWith(color: AppColors.onSurfaceVariant),
+            ),
+          )
+        else ...[
+          AppSpacing.heightMd,
+          SizedBox(
+            height: 100.0,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              clipBehavior: Clip.none,
+              itemCount: playlists.length,
+              separatorBuilder: (_, __) => AppSpacing.widthMd,
+              itemBuilder: (context, index) {
+                final playlist = playlists[index];
+                return _PlaylistCard(playlist: playlist);
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showPlaylistsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (_) => Consumer(
+        builder: (context, ref, _) {
+          final playlists = ref.watch(allPlaylistsProvider);
+          return DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (context, scrollController) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
+                  child: Container(
+                    width: 36.0, height: 4.0,
+                    decoration: BoxDecoration(
+                      color: AppColors.outlineVariant,
+                      borderRadius: BorderRadius.circular(2.0),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.marginMobile, vertical: 8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text('Playlists',
+                            style: AppTypography.headlineMedium
+                                .copyWith(color: AppColors.onSurface)),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18.0),
+                        label: const Text('New'),
+                        onPressed: () async {
+                          await showCreatePlaylistDialog(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: playlists.isEmpty
+                      ? Center(
+                          child: Text('No playlists yet',
+                              style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.onSurfaceVariant)))
+                      : ListView.builder(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          itemCount: playlists.length,
+                          itemBuilder: (context, index) {
+                            final p = playlists[index];
+                            return ListTile(
+                              leading: Container(
+                                width: 48.0, height: 48.0,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceContainerHighest,
+                                  borderRadius: AppRadius.radiusMd,
+                                ),
+                                child: const Icon(Icons.queue_music,
+                                    color: AppColors.onSurfaceVariant),
+                              ),
+                              title: Text(p.name,
+                                  style: AppTypography.labelMedium
+                                      .copyWith(color: AppColors.onSurface)),
+                              subtitle: Text(
+                                  '${p.songCount} songs · ${p.totalDurationFormatted}',
+                                  style: AppTypography.labelSmall.copyWith(
+                                      color: AppColors.onSurfaceVariant)),
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                context.push('/playlist/${p.id}');
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Small horizontal-scroll playlist card used in My Playlists row.
+class _PlaylistCard extends StatelessWidget {
+  final PlaylistModel playlist;
+  const _PlaylistCard({required this.playlist});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/playlist/${playlist.id}'),
+      child: Container(
+        width: 90.0,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: AppRadius.radiusLg,
+          boxShadow: AppShadows.shadowLow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.lg)),
+              child: Container(
+                width: 90.0,
+                height: 60.0,
+                color: AppColors.surfaceContainerHighest,
+                child: const Icon(Icons.queue_music,
+                    color: AppColors.onSurfaceVariant, size: 28.0),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6.0, vertical: 4.0),
+                child: Text(
+                  playlist.name,
+                  style: AppTypography.labelSmall
+                      .copyWith(color: AppColors.onSurface),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

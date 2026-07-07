@@ -32,6 +32,9 @@ class SongTile extends StatelessWidget {
   /// Callback when the more options icon button is tapped.
   final VoidCallback? onMoreTap;
 
+  /// Callback when the tile is long-pressed (e.g. show Add to Playlist).
+  final VoidCallback? onLongPress;
+
   const SongTile({
     super.key,
     required this.title,
@@ -42,6 +45,7 @@ class SongTile extends StatelessWidget {
     this.isPlaying = false,
     this.onTap,
     this.onMoreTap,
+    this.onLongPress,
   });
 
   @override
@@ -112,6 +116,7 @@ class SongTile extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(8.0),
       child: Container(
         height: 64.0,

@@ -9,6 +9,7 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 
 /// Miee Now Playing Screen.
 /// Observes active states (track details, position progress, buffering, playing status, and mode changes)
@@ -178,7 +179,10 @@ class PlayerPage extends ConsumerWidget {
                               IconButton(
                                 icon: const Icon(Icons.more_horiz),
                                 color: AppColors.onSurfaceVariant,
-                                onPressed: () {},
+                                onPressed: () => showAddToPlaylistSheet(
+                                  context,
+                                  currentTrack,
+                                ),
                                 splashRadius: 20.0,
                               ),
                             ],
