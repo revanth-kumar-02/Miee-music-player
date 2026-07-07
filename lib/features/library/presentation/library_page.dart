@@ -12,6 +12,7 @@ import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
+import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../playlists/domain/playlist_model.dart';
 import '../../playlists/providers/playlist_providers.dart';
@@ -388,19 +389,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 
     if (hasLocal) {
       final displaySongs = localSongs.take(5).toList();
-      final trackList = localSongs.map((song) => Track(
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        imageUrl: song.artworkPath,
-        duration: song.duration,
-        filePath: song.filePath,
-      )).toList();
+      final trackList = localSongs;
 
       return Column(
         children: List.generate(displaySongs.length, (index) {
           final song = displaySongs[index];
-          final track = trackList[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: SongTile(
@@ -410,7 +403,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
               imageUrl: song.artworkPath,
               isPlaying: false,
               onTap: () {
-                ref.read(playerControllerProvider.notifier).selectTrack(track, trackList);
+                ref.read(playerControllerProvider.notifier).selectTrack(song, trackList);
                 context.push('/player');
               },
             ),

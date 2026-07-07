@@ -1,19 +1,19 @@
-import '../../shared/models/track.dart';
+import '../../shared/models/music_item.dart';
 
 /// Reusable manager responsible for maintaining the track play queue list,
 /// active index pointers, and playlist reorder/remove events.
 class QueueManager {
-  final List<Track> _queue = [];
+  final List<MusicItem> _queue = [];
   int _currentIndex = -1;
 
   /// Returns the current play queue list.
-  List<Track> get queue => List.unmodifiable(_queue);
+  List<MusicItem> get queue => List.unmodifiable(_queue);
 
   /// Returns the currently active index.
   int get currentIndex => _currentIndex;
 
   /// Returns the active track if a queue exists and is loaded.
-  Track? get currentTrack {
+  MusicItem? get currentTrack {
     if (_currentIndex >= 0 && _currentIndex < _queue.length) {
       return _queue[_currentIndex];
     }
@@ -21,14 +21,14 @@ class QueueManager {
   }
 
   /// Sets the play queue and resets the active index pointer.
-  void setQueue(List<Track> tracks, {int startIndex = 0}) {
+  void setQueue(List<MusicItem> tracks, {int startIndex = 0}) {
     _queue.clear();
     _queue.addAll(tracks);
     _currentIndex = (startIndex >= 0 && startIndex < _queue.length) ? startIndex : 0;
   }
 
   /// Appends a track to the end of the queue.
-  void addTrack(Track track) {
+  void addTrack(MusicItem track) {
     _queue.add(track);
     if (_currentIndex == -1) {
       _currentIndex = 0;
@@ -36,7 +36,7 @@ class QueueManager {
   }
 
   /// Appends a list of tracks to the end of the queue.
-  void addTracks(List<Track> tracks) {
+  void addTracks(List<MusicItem> tracks) {
     _queue.addAll(tracks);
     if (_currentIndex == -1 && _queue.isNotEmpty) {
       _currentIndex = 0;
@@ -44,7 +44,7 @@ class QueueManager {
   }
 
   /// Selects the next index. Returns the track if successful.
-  Track? next() {
+  MusicItem? next() {
     if (_queue.isEmpty) return null;
     if (_currentIndex < _queue.length - 1) {
       _currentIndex++;
@@ -54,7 +54,7 @@ class QueueManager {
   }
 
   /// Selects the previous index. Returns the track if successful.
-  Track? previous() {
+  MusicItem? previous() {
     if (_queue.isEmpty) return null;
     if (_currentIndex > 0) {
       _currentIndex--;
@@ -113,3 +113,4 @@ class QueueManager {
     _currentIndex = -1;
   }
 }
+

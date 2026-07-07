@@ -1,4 +1,5 @@
 import '../../shared/models/track.dart';
+import '../../shared/models/music_item.dart';
 
 /// Strongly typed playback status.
 enum PlaybackStatus {
@@ -25,7 +26,7 @@ class PlaybackState {
   final Duration position;
   final Duration duration;
   final Duration bufferedPosition;
-  final Track? currentTrack;
+  final MusicItem? currentTrack;
   final bool isShuffleEnabled;
   final RepeatMode repeatMode;
   final String? errorMessage;
@@ -51,7 +52,7 @@ class PlaybackState {
     Duration? position,
     Duration? duration,
     Duration? bufferedPosition,
-    Track? currentTrack,
+    MusicItem? currentTrack,
     bool? isShuffleEnabled,
     RepeatMode? repeatMode,
     String? errorMessage,
@@ -68,3 +69,4 @@ class PlaybackState {
     );
   }
 }
+

@@ -1,8 +1,8 @@
 import 'package:hive/hive.dart';
-
 import '../../../core/storage/adapters/playlist_hive_model.dart';
 import '../../../core/storage/adapters/track_hive_model.dart';
 import '../../../core/storage/hive_boxes.dart';
+import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 
 /// Manages user-created playlists persisted in Hive.
@@ -80,7 +80,7 @@ class PlaylistsRepository {
   }
 
   /// Appends [track] to playlist [playlistId]. No-op if already present.
-  Future<void> addTrackToPlaylist(String playlistId, Track track) async {
+  Future<void> addTrackToPlaylist(String playlistId, MusicItem track) async {
     final playlist = _box.get(playlistId);
     if (playlist == null) return;
     final alreadyIn = playlist.tracks.any((t) => t.id == track.id);
@@ -90,6 +90,7 @@ class PlaylistsRepository {
       await playlist.save();
     }
   }
+
 
   /// Removes the track with [trackId] from playlist [playlistId].
   Future<void> removeTrackFromPlaylist(String playlistId, String trackId) async {

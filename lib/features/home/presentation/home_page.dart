@@ -12,6 +12,7 @@ import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
+import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
 
 /// Miee Home Screen.
@@ -227,26 +228,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final displayArtist = hasLocal ? localSongs.first.artist : MockData.featuredTrack.artist;
     final displayArtwork = hasLocal ? localSongs.first.artworkPath : MockData.featuredTrack.imageUrl;
 
-    final targetTrack = hasLocal
-        ? Track(
-            id: localSongs.first.id,
-            title: localSongs.first.title,
-            artist: localSongs.first.artist,
-            imageUrl: localSongs.first.artworkPath,
-            duration: localSongs.first.duration,
-            filePath: localSongs.first.filePath,
-          )
+    final MusicItem targetTrack = hasLocal
+        ? localSongs.first
         : MockData.featuredTrack;
 
-    final trackList = hasLocal
-        ? localSongs.map((song) => Track(
-            id: song.id,
-            title: song.title,
-            artist: song.artist,
-            imageUrl: song.artworkPath,
-            duration: song.duration,
-            filePath: song.filePath,
-          )).toList()
+    final List<MusicItem> trackList = hasLocal
+        ? localSongs
         : [MockData.featuredTrack, ...MockData.favoriteSongs];
 
     return GestureDetector(

@@ -10,6 +10,7 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/models/track.dart';
+import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
 
 /// Miee Playing Queue screen.
@@ -213,6 +214,7 @@ class QueuePage extends ConsumerWidget {
                                   isPlaying: isPlaying, // Activates EQ animation
                                   onTap: () {},
                                   onMoreTap: () {},
+                                  sourceBadge: _SourceBadge(isYoutube: currentTrack.isYoutube),
                                 ),
                               ),
                               AppSpacing.heightLg,
@@ -293,7 +295,7 @@ class QueuePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildUpcomingQueueList(List<Track> upcomingList, PlayerController controller) {
+  Widget _buildUpcomingQueueList(List<MusicItem> upcomingList, PlayerController controller) {
     return Column(
       children: List.generate(upcomingList.length, (index) {
         final track = upcomingList[index];
@@ -318,6 +320,7 @@ class QueuePage extends ConsumerWidget {
                   isPlaying: false,
                   onTap: () => controller.playTrack(track),
                   onMoreTap: () {},
+                  sourceBadge: _SourceBadge(isYoutube: track.isYoutube),
                 ),
               ),
             ],
@@ -327,3 +330,53 @@ class QueuePage extends ConsumerWidget {
     );
   }
 }
+
+class _SourceBadge extends StatelessWidget {
+  final bool isYoutube;
+
+  const _SourceBadge({required this.isYoutube});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final label = isYoutube ? 'YouTube' : 'Local';
+    final icon = isYoutube ? Icons.language : Icons.phone_android;
+
+    final bgColor = isYoutube
+        ? (isDark ? const Color(0xFF5D1D1D) : const Color(0xFFFFEBEE))
+        : (isDark ? const Color(0xFF2E3B2E) : const Color(0xFFE8F5E9));
+
+    final textColor = isYoutube
+        ? (isDark ? const Color(0xFFFF8A80) : const Color(0xFFC62828))
+        : (isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4.0),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 10.0,
+            color: textColor,
+          ),
+          const SizedBox(width: 4.0),
+          Text(
+            label,
+            style: AppTypography.labelSmall.copyWith(
+              fontSize: 8.0,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

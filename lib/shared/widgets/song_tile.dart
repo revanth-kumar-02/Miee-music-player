@@ -35,6 +35,9 @@ class SongTile extends StatelessWidget {
   /// Callback when the tile is long-pressed (e.g. show Add to Playlist).
   final VoidCallback? onLongPress;
 
+  /// Optional source badge widget (e.g. Local vs YouTube indicator).
+  final Widget? sourceBadge;
+
   const SongTile({
     super.key,
     required this.title,
@@ -46,6 +49,7 @@ class SongTile extends StatelessWidget {
     this.onTap,
     this.onMoreTap,
     this.onLongPress,
+    this.sourceBadge,
   });
 
   @override
@@ -145,13 +149,23 @@ class SongTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   AppSpacing.heightXs,
-                  Text(
-                    artist,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          artist,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (sourceBadge != null) ...[
+                        AppSpacing.widthSm,
+                        sourceBadge!,
+                      ],
+                    ],
                   ),
                 ],
               ),

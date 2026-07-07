@@ -1,5 +1,6 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 import '../../../shared/models/track.dart';
+import '../../../shared/models/music_item.dart';
 
 /// Hive-persisted representation of a [Track].
 ///
@@ -22,8 +23,8 @@ class TrackHiveModel extends HiveObject {
     this.filePath,
   });
 
-  /// Converts a domain [Track] into a [TrackHiveModel].
-  factory TrackHiveModel.fromTrack(Track track) => TrackHiveModel(
+  /// Converts a domain [MusicItem] into a [TrackHiveModel].
+  factory TrackHiveModel.fromTrack(MusicItem track) => TrackHiveModel(
         id: track.id,
         title: track.title,
         artist: track.artist,
@@ -31,6 +32,7 @@ class TrackHiveModel extends HiveObject {
         duration: track.duration,
         filePath: track.filePath,
       );
+
 
   /// Converts back to the domain [Track] model.
   Track toTrack() => Track(

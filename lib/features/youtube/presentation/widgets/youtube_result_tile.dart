@@ -31,8 +31,7 @@ class YouTubeResultTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playbackState = ref.watch(playerControllerProvider);
-    final track = video.toTrack();
-    final isCurrentTrack = playbackState.currentTrack?.id == track.id;
+    final isCurrentTrack = playbackState.currentTrack?.id == video.id;
 
     return Semantics(
       label: 'YouTube video: ${video.title} by ${video.channelTitle}, duration ${video.duration}',
@@ -40,9 +39,10 @@ class YouTubeResultTile extends ConsumerWidget {
       child: InkWell(
         onTap: () {
           // Play the selected YouTube video immediately
-          ref.read(playerControllerProvider.notifier).selectTrack(track, [track]);
+          ref.read(playerControllerProvider.notifier).selectTrack(video, [video]);
           context.push('/player');
         },
+
         borderRadius: BorderRadius.circular(8.0),
         child: Container(
           height: 72.0,

@@ -1,11 +1,18 @@
+import '../../../shared/models/music_item.dart';
+
 /// Strongly typed application domain model for a local song/track discovered on the device.
-class MediaSong {
+class MediaSong implements MusicItem {
+  @override
   final String id;
+  @override
   final String title;
+  @override
   final String artist;
   final String album;
+  @override
   final String duration; // e.g. "3:42"
   final int durationMs;
+  @override
   final String filePath;
   final String artworkPath; // Local temporary file path for artwork bytes
 
@@ -19,7 +26,14 @@ class MediaSong {
     required this.filePath,
     required this.artworkPath,
   });
+
+  @override
+  String get imageUrl => artworkPath;
+
+  @override
+  bool get isYoutube => false;
 }
+
 
 /// Strongly typed application domain model for an album.
 class MediaAlbum {

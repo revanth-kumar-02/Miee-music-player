@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/providers.dart';
 import '../../../features/library/data/playlists_repository.dart';
@@ -6,6 +6,8 @@ import '../../../features/library/providers/library_providers.dart';
 import '../../../shared/models/track.dart';
 import '../data/playlist_repository.dart';
 import '../domain/playlist_model.dart';
+
+import '../../../shared/models/music_item.dart';
 
 // ── Repository providers ──────────────────────────────────────────────────────
 
@@ -94,7 +96,7 @@ class PlaylistController extends StateNotifier<PlaylistsState> {
 
   // ── Track operations ───────────────────────────────────────────────────────
 
-  Future<void> addTrack(String playlistId, Track track) async {
+  Future<void> addTrack(String playlistId, MusicItem track) async {
     await _repo.addTrack(playlistId, track);
     _refresh();
   }
@@ -120,10 +122,11 @@ class PlaylistController extends StateNotifier<PlaylistsState> {
 
   /// Loads playlist tracks shuffled into [PlayerController].
   void shufflePlaylist(String playlistId) {
-    final tracks = List<Track>.from(_repo.getPlaylistTracks(playlistId))..shuffle();
+    final tracks = List<MusicItem>.from(_repo.getPlaylistTracks(playlistId))..shuffle();
     if (tracks.isEmpty) return;
     _ref.read(playerControllerProvider.notifier).selectTrack(tracks.first, tracks);
   }
+
 
   // ── Validation helper ──────────────────────────────────────────────────────
 

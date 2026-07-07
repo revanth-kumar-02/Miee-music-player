@@ -38,8 +38,6 @@ class YouTubeOptionsMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final track = video.toTrack();
-
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -101,7 +99,7 @@ class YouTubeOptionsMenu extends ConsumerWidget {
             title: const Text('Add to Queue'),
             onTap: () {
               Navigator.of(context).pop();
-              ref.read(playerControllerProvider.notifier).addTrackToQueue(track);
+              ref.read(playerControllerProvider.notifier).addTrackToQueue(video);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Added "${video.title}" to queue'),
@@ -115,9 +113,10 @@ class YouTubeOptionsMenu extends ConsumerWidget {
             title: const Text('Save to Playlist'),
             onTap: () {
               Navigator.of(context).pop();
-              showAddToPlaylistSheet(context, track);
+              showAddToPlaylistSheet(context, video);
             },
           ),
+
           ListTile(
             leading: const Icon(Icons.open_in_new, color: AppColors.onSurfaceVariant),
             title: const Text('Open in YouTube'),

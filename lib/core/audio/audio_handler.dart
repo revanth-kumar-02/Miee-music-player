@@ -1,10 +1,9 @@
 import 'dart:async';
-
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
-
 import '../../shared/models/track.dart';
+import '../../shared/models/music_item.dart';
 
 /// Duration for fast-forward and rewind operations.
 const _kSkipDuration = Duration(seconds: 10);
@@ -23,7 +22,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   final AudioPlayer _player = AudioPlayer();
 
   /// Current ordered queue of tracks.
-  final List<Track> _queue = [];
+  final List<MusicItem> _queue = [];
   int _currentIndex = -1;
 
   // Stream subscriptions
@@ -133,7 +132,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     );
   }
 
-  Future<void> loadQueue(List<Track> tracks, {int startIndex = 0}) async {
+  Future<void> loadQueue(List<MusicItem> tracks, {int startIndex = 0}) async {
     _queue.clear();
     _queue.addAll(tracks);
     _currentIndex = startIndex.clamp(0, tracks.length - 1);
@@ -141,7 +140,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     await _loadCurrentTrack();
   }
 
-  Future<void> appendTrack(Track track) async {
+  Future<void> appendTrack(MusicItem track) async {
     _queue.add(track);
     queue.add(_queue.map(_trackToMediaItem).toList());
   }
@@ -174,7 +173,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  MediaItem _trackToMediaItem(Track track) {
+  MediaItem _trackToMediaItem(MusicItem track) {
     Uri? artUri;
     if (track.imageUrl.isNotEmpty) {
       if (track.imageUrl.startsWith('http')) {
@@ -183,7 +182,13 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         artUri = Uri.file(track.imageUrl);
       }
     }
-    return MediaItem(id: track.id, title: track.title, artist: track.artist, artUri: artUri);
+    return MediaItem(
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      artUri: artUri,
+      extras: {'filePath': track.filePath},
+    );
   }
 
   @override
@@ -283,7 +288,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   bool get isPlaying => _player.playing;
   Duration get position => _player.position;
   int get currentIndex => _currentIndex;
-  List<Track> get currentQueue => List.unmodifiable(_queue);
+  List<MusicItem> get currentQueue => List.unmodifiable(_queue);
 
   void jumpToIndex(int index) {
     if (index >= 0 && index < _queue.length) {

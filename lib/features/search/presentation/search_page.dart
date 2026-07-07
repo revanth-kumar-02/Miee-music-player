@@ -611,17 +611,8 @@ class _SearchResultsSection extends ConsumerWidget {
       );
     }
 
-    // Convert local songs to Track list for playback queue controller
-    final allSongTracks = localResults.songs
-        .map((s) => Track(
-              id: s.id,
-              title: s.title,
-              artist: s.artist,
-              imageUrl: s.artworkPath,
-              duration: s.duration,
-              filePath: s.filePath,
-            ))
-        .toList();
+    // Using local songs list directly as they implement MusicItem
+    final allSongTracks = localResults.songs;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,14 +629,6 @@ class _SearchResultsSection extends ConsumerWidget {
           ),
           AppSpacing.heightMd,
           ...localResults.songs.take(5).map((song) {
-            final track = Track(
-              id: song.id,
-              title: song.title,
-              artist: song.artist,
-              imageUrl: song.artworkPath,
-              duration: song.duration,
-              filePath: song.filePath,
-            );
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: SongTile(
@@ -657,12 +640,13 @@ class _SearchResultsSection extends ConsumerWidget {
                 onTap: () {
                   ref
                       .read(playerControllerProvider.notifier)
-                      .selectTrack(track, allSongTracks);
+                      .selectTrack(song, allSongTracks);
                   context.push('/player');
                 },
               ),
             );
           }),
+
           AppSpacing.heightMd,
         ],
 

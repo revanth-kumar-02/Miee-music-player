@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
@@ -6,11 +6,12 @@ import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/models/track.dart';
+import '../../../../shared/models/music_item.dart';
 import '../../providers/playlist_providers.dart';
 import 'create_playlist_dialog.dart';
 
 /// Shows the "Add to Playlist" bottom sheet for [track].
-void showAddToPlaylistSheet(BuildContext context, Track track) {
+void showAddToPlaylistSheet(BuildContext context, MusicItem track) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -20,8 +21,9 @@ void showAddToPlaylistSheet(BuildContext context, Track track) {
 }
 
 class _AddToPlaylistSheet extends ConsumerWidget {
-  final Track track;
+  final MusicItem track;
   const _AddToPlaylistSheet({required this.track});
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

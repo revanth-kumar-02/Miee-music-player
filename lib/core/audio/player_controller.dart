@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../shared/models/mock_data.dart';
 import '../../shared/models/track.dart';
+import '../../shared/models/music_item.dart';
 import 'audio_handler.dart';
 import 'playback_state.dart';
 import 'queue_manager.dart';
@@ -95,7 +96,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   // -- Queue management --------------------------------------------------------
 
   /// Sets the active queue and starts playback from [startIndex].
-  void setQueue(List<Track> tracks, {int startIndex = 0}) {
+  void setQueue(List<MusicItem> tracks, {int startIndex = 0}) {
     _queueManager.setQueue(tracks, startIndex: startIndex);
     final track = _queueManager.currentTrack;
     if (track != null) {
@@ -104,15 +105,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   /// Selects a track from a list, sets it as the queue start point, and plays.
-  void selectTrack(Track track, List<Track> currentList) {
+  void selectTrack(MusicItem track, List<MusicItem> currentList) {
     final index = currentList.indexWhere((t) => t.id == track.id);
     setQueue(currentList, startIndex: index >= 0 ? index : 0);
   }
 
   // -- Playback ----------------------------------------------------------------
 
-  /// Loads and plays a specific [Track]. Updates Riverpod state immediately.
-  Future<void> playTrack(Track track) async {
+  /// Loads and plays a specific [MusicItem]. Updates Riverpod state immediately.
+  Future<void> playTrack(MusicItem track) async {
     state = state.copyWith(
       status: PlaybackStatus.loading,
       currentTrack: track,
@@ -258,7 +259,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   /// Appends [track] to the end of the queue.
-  Future<void> addTrackToQueue(Track track) async {
+  Future<void> addTrackToQueue(MusicItem track) async {
     _queueManager.addTrack(track);
     await _handler.appendTrack(track);
     if (state.currentTrack == null) {

@@ -1,4 +1,5 @@
-﻿import '../../../shared/models/track.dart';
+import '../../../shared/models/track.dart';
+import '../../../shared/models/music_item.dart';
 
 /// Rich domain model for a user playlist.
 ///
@@ -8,7 +9,7 @@
 class PlaylistModel {
   final String id;
   final String name;
-  final List<Track> tracks;
+  final List<MusicItem> tracks;
   final DateTime createdAt;
   final DateTime lastModified;
 
@@ -47,7 +48,7 @@ class PlaylistModel {
   }
 
   /// First track in the playlist, used as cover artwork source.
-  Track? get artworkTrack => tracks.isNotEmpty ? tracks.first : null;
+  MusicItem? get artworkTrack => tracks.isNotEmpty ? tracks.first : null;
 
   bool get isEmpty => tracks.isEmpty;
   bool get isNotEmpty => !isEmpty;
@@ -55,7 +56,7 @@ class PlaylistModel {
   PlaylistModel copyWith({
     String? id,
     String? name,
-    List<Track>? tracks,
+    List<MusicItem>? tracks,
     DateTime? createdAt,
     DateTime? lastModified,
   }) =>
@@ -67,3 +68,4 @@ class PlaylistModel {
         lastModified: lastModified ?? this.lastModified,
       );
 }
+

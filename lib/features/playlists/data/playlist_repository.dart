@@ -1,4 +1,4 @@
-﻿import '../../../features/library/data/playlists_repository.dart';
+import '../../../features/library/data/playlists_repository.dart';
 import '../../../shared/models/track.dart';
 import '../domain/playlist_model.dart';
 
@@ -65,8 +65,9 @@ class PlaylistRepository {
 
   Future<String> duplicatePlaylist(String id) => _base.duplicatePlaylist(id);
 
-  Future<void> addTrack(String playlistId, Track track) =>
+  Future<void> addTrack(String playlistId, MusicItem track) =>
       _base.addTrackToPlaylist(playlistId, track);
+
 
   Future<void> removeTrack(String playlistId, String trackId) =>
       _base.removeTrackFromPlaylist(playlistId, trackId);

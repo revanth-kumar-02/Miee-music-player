@@ -1,9 +1,10 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 
 import '../../../core/storage/adapters/queue_snapshot.dart';
 import '../../../core/storage/adapters/track_hive_model.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../../../shared/models/track.dart';
+import '../../../shared/models/music_item.dart';
 
 /// Saves and restores the full playback queue state across app restarts.
 class QueueStateRepository {
@@ -12,7 +13,7 @@ class QueueStateRepository {
 
   /// Persists the current queue state. Overwrites any previous snapshot.
   Future<void> saveSnapshot({
-    required List<Track> queue,
+    required List<MusicItem> queue,
     required int currentIndex,
     required int positionMs,
     required bool isShuffleEnabled,
@@ -32,10 +33,11 @@ class QueueStateRepository {
   QueueSnapshot? loadSnapshot() =>
       _box.get(HiveBoxes.queueSnapshotKey);
 
-  /// Converts the snapshot's track list back to domain [Track] objects.
-  List<Track>? loadQueueTracks() =>
+  /// Converts the snapshot's track list back to domain [MusicItem] objects.
+  List<MusicItem>? loadQueueTracks() =>
       loadSnapshot()?.queue.map((m) => m.toTrack()).toList();
 
   /// Clears the persisted snapshot.
   Future<void> clear() async => _box.delete(HiveBoxes.queueSnapshotKey);
 }
+
