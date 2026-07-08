@@ -17,6 +17,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../../playlists/domain/playlist_model.dart';
 import '../../playlists/providers/playlist_providers.dart';
 import '../../playlists/presentation/widgets/create_playlist_dialog.dart';
+import '../../profile/presentation/profile_controller.dart';
 
 /// Miee Library Screen.
 /// Arranges category grids (Songs, Albums, Artists, Playlists, Genres, Folders),
@@ -62,9 +63,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    // Direct profile image URL from Stitch design header asset
-    const profileImageUrl =
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuCDZmpkhy-KZuf2O4xloHsZzxPp8DkoTGkjoVFnKicBJ6XInSpyLlI7yQY9pd49dU1cRtDq_xCLGdWwTYRALTpFoQs81kp8gIHaCC5JRhN2a294dQGoH7x67HFERLUUS-_8hZlEJ_VaspfYRd-TKOIkujaKRQJivS2hEhODaDlj6L5AgeV6ZVq6y6L2KIsAEB-SgefGsC4x0oRFu0cGizDlywju5_X_jtaNz8W_aj03825ZM8XtF3WlB8anP5-f29u01fLWnLy-OanQ';
+    final profile = ref.watch(profileProvider);
 
     return Scaffold(
       extendBody: true,
@@ -76,12 +75,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           onPressed: () {},
           splashRadius: 20.0,
         ),
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: AppSpacing.marginMobile),
+            padding: const EdgeInsets.only(right: AppSpacing.marginMobile),
             child: ProfileAvatar(
-              imageUrl: profileImageUrl,
+              imageUrl: profile.profilePicturePath,
               size: 32.0,
+              onTap: () => context.push('/profile'),
             ),
           ),
         ],

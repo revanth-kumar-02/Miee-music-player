@@ -14,6 +14,7 @@ import '../../../shared/models/track.dart';
 import '../../../shared/models/mock_data.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../profile/presentation/profile_controller.dart';
 
 /// Miee Home Screen.
 /// Arranges continue listening spotlight, scroll lists for recently played,
@@ -63,6 +64,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     final localSongs = ref.watch(songsProvider);
     final localAlbums = ref.watch(albumsProvider);
     final localArtists = ref.watch(artistsProvider);
+    final profile = ref.watch(profileProvider);
+
+    final hour = DateTime.now().hour;
+    final greetingPrefix = hour < 12 ? 'Good Morning' : (hour < 17 ? 'Good Afternoon' : 'Good Evening');
+    final firstName = profile.displayName.split(' ').first;
 
     return Scaffold(
       extendBody: true,
@@ -78,9 +84,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.marginMobile),
             child: ProfileAvatar(
-              imageUrl: null, // Displays default outline person icon
+              imageUrl: profile.profilePicturePath,
               size: 32.0,
-              onTap: () => context.push('/settings'),
+              onTap: () => context.push('/profile'),
             ),
           ),
         ],
@@ -99,7 +105,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   AppSpacing.heightSm,
                   // Greeting Header
                   Text(
-                    'Good morning',
+                    '$greetingPrefix, $firstName',
                     style: AppTypography.headlineLargeMobile.copyWith(
                       color: AppColors.onSurface,
                     ),

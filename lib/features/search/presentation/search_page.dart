@@ -18,6 +18,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../providers/search_providers.dart';
 import '../../../features/library/providers/library_providers.dart';
+import '../../profile/presentation/profile_controller.dart';
 import '../../youtube/providers/youtube_providers.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
 
@@ -119,6 +120,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final localArtists = ref.watch(artistsProvider);
     final localGenres = ref.watch(genresProvider);
     final localPlaylists = ref.watch(playlistsProvider);
+    final profile = ref.watch(profileProvider);
 
     return Scaffold(
       extendBody: true,
@@ -134,9 +136,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.marginMobile),
             child: ProfileAvatar(
-              imageUrl: null,
+              imageUrl: profile.profilePicturePath,
               size: 32.0,
-              onTap: () => context.push('/settings'),
+              onTap: () => context.push('/profile'),
             ),
           ),
         ],

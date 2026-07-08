@@ -1,0 +1,422 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_spacing.dart';
+import '../../../../shared/widgets/profile_avatar.dart';
+import '../../library/providers/library_providers.dart';
+import '../../media/providers/media_providers.dart';
+import '../../../../core/audio/providers.dart';
+import '../../../../core/audio/playback_state.dart';
+import '../../../../core/storage/adapters/history_entry.dart';
+import '../domain/profile_model.dart';
+import 'profile_controller.dart';
+
+/// User Profile screen detailing stats, custom details, preferences, and quick action bridges.
+class ProfilePage extends ConsumerWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final profile = ref.watch(profileProvider);
+    final profileNotifier = ref.read(profileProvider.notifier);
+
+    // Watch dynamic data for listening statistics calculation
+    final localSongs = ref.watch(songsProvider);
+    final playlists = ref.watch(userPlaylistsProvider);
+    final favorites = ref.watch(favoritesProvider);
+    final recentlyPlayedAsync = ref.watch(recentlyPlayedProvider);
+    final recentlyPlayedList = recentlyPlayedAsync.value ?? [];
+
+    // Calculate Dynamic Statistics
+    final totalSongsPlayed = recentlyPlayedList.length;
+    
+    // Total listening time: Sum duration of recently played items
+    int totalListeningSecs = recentlyPlayedList.fold(0, (sum, entry) => sum + (entry.track.duration ?? 0));
+    final totalListeningMins = (totalListeningSecs / 60).toStringAsFixed(1);
+
+    // Calculate dynamic favorite artist based on history count
+    final favoriteArtistCalculated = _calculateFavoriteArtist(recentlyPlayedList);
+
+    // Member since date formatting
+    final memberSince = _formatDate(profile.createdDate);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/home'),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 12.0),
+              
+              // Profile Picture & Name Display
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  ProfileAvatar(
+                    imageUrl: profile.profilePicturePath,
+                    size: 96.0,
+                  ),
+                  CircleAvatar(
+                    backgroundColor: theme.colorScheme.primary,
+                    radius: 18.0,
+                    child: IconButton(
+                      icon: const Icon(Icons.camera_alt, size: 16.0, color: Colors.white),
+                      onPressed: () => _showEditProfilePictureSheet(context, profileNotifier),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+
+              Text(
+                profile.displayName,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (profile.username != null && profile.username!.isNotEmpty)
+                Text(
+                  '@${profile.username}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              const SizedBox(height: 6.0),
+              Text(
+                'Member Since $memberSince',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+
+              const SizedBox(height: 24.0),
+
+              // Listening Statistics Row Grid
+              _buildSectionTitle(context, 'Listening Statistics'),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatItem(context, 'Songs Played', totalSongsPlayed.toString()),
+                          _buildStatItem(context, 'Listening Time', '$totalListeningMins m'),
+                          _buildStatItem(context, 'Playlists', playlists.length.toString()),
+                        ],
+                      ),
+                      const Divider(height: 24.0),
+                      _buildStorageRow(context, 'Top Artist (History)', favoriteArtistCalculated),
+                      const SizedBox(height: 8.0),
+                      _buildStorageRow(context, 'Favorite Genre (Profile)', profile.favoriteGenre),
+                      const SizedBox(height: 8.0),
+                      _buildStorageRow(context, 'Favorite Artist (Profile)', profile.favoriteArtist),
+                      const SizedBox(height: 8.0),
+                      _buildStorageRow(context, 'Favorites Count', '${favorites.length} tracks'),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16.0),
+
+              // Quick Actions Panel
+              _buildSectionTitle(context, 'Quick Actions'),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.edit_outlined),
+                      title: const Text('Edit Profile'),
+                      subtitle: const Text('Modify name, username, genres, and photo'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _showEditProfileDialog(context, profile, profileNotifier),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.settings_outlined),
+                      title: const Text('Application Settings'),
+                      subtitle: const Text('Playback rules, storage cache, notifications'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/settings'),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.info_outline),
+                      title: const Text('About Miee'),
+                      subtitle: const Text('App information and software details'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('About Miee'),
+                            content: const Text('Miee is an offline-first, premium minimalist audio playback player. Fully written in Flutter using Clean Architecture principles, Hive storage persistence, and Riverpod providers.\n\nBuilt by the Antigravity Team.'),
+                            actions: [
+                              TextButton(
+                                child: const Text('OK'),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 80.0),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 3, // Group settings and profile under the settings slot
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              context.go('/home');
+              break;
+            case 1:
+              context.go('/search');
+              break;
+            case 2:
+              context.go('/library');
+              break;
+            case 3:
+              break;
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.library_music),
+            label: 'Library',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 4.0, bottom: 8.0, top: 12.0),
+        child: Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Text(
+          value,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 4.0),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStorageRow(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _calculateFavoriteArtist(List<HistoryEntry> history) {
+    if (history.isEmpty) return 'None';
+    final counts = <String, int>{};
+    for (final entry in history) {
+      final artist = entry.track.artist;
+      counts[artist] = (counts[artist] ?? 0) + 1;
+    }
+    var fav = 'None';
+    var maxVal = 0;
+    counts.forEach((k, v) {
+      if (v > maxVal) {
+        maxVal = v;
+        fav = k;
+      }
+    });
+    return fav;
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return "${months[date.month - 1]} ${date.year}";
+  }
+
+  void _showEditProfilePictureSheet(BuildContext context, ProfileController notifier) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Pick image from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final ImagePicker picker = ImagePicker();
+                final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                if (image != null) {
+                  final activeProfile = notifier.state;
+                  await notifier.updateProfile(
+                    displayName: activeProfile.displayName,
+                    username: activeProfile.username,
+                    profilePicturePath: image.path,
+                    favoriteGenre: activeProfile.favoriteGenre,
+                    favoriteArtist: activeProfile.favoriteArtist,
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('Remove profile picture', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context);
+                await notifier.removeProfilePicture();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditProfileDialog(BuildContext context, ProfileModel profile, ProfileController notifier) {
+    final nameController = TextEditingController(text: profile.displayName);
+    final userController = TextEditingController(text: profile.username ?? '');
+    final genreController = TextEditingController(text: profile.favoriteGenre);
+    final artistController = TextEditingController(text: profile.favoriteArtist);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Profile'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Display Name',
+                  hintText: 'Enter Display Name',
+                ),
+              ),
+              const SizedBox(height: 8.0),
+              TextField(
+                controller: userController,
+                decoration: const InputDecoration(
+                  labelText: 'Username (Optional)',
+                  hintText: 'Enter Username',
+                ),
+              ),
+              const SizedBox(height: 8.0),
+              TextField(
+                controller: genreController,
+                decoration: const InputDecoration(
+                  labelText: 'Favorite Genre',
+                  hintText: 'Enter Genre',
+                ),
+              ),
+              const SizedBox(height: 8.0),
+              TextField(
+                controller: artistController,
+                decoration: const InputDecoration(
+                  labelText: 'Favorite Artist',
+                  hintText: 'Enter Artist',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: const Text('Save'),
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty) return;
+              Navigator.pop(context);
+              await notifier.updateProfile(
+                displayName: nameController.text.trim(),
+                username: userController.text.trim().isEmpty ? null : userController.text.trim(),
+                profilePicturePath: profile.profilePicturePath,
+                favoriteGenre: genreController.text.trim().isEmpty ? 'Unknown' : genreController.text.trim(),
+                favoriteArtist: artistController.text.trim().isEmpty ? 'Unknown' : artistController.text.trim(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}

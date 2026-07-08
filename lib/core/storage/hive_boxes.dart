@@ -28,6 +28,9 @@ abstract class HiveBoxes {
 
   /// Stores user preference values keyed by [PreferenceKeys] constants.
   static const String preferences = 'miee_preferences';
+
+  /// Stores local profile details and personal configuration settings.
+  static const String profile = 'miee_profile';
 }
 
 /// Typed keys for the [HiveBoxes.preferences] box.

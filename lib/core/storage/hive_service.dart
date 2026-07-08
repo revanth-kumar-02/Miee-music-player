@@ -1,4 +1,4 @@
-﻿import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'adapters/history_entry.dart';
 import 'adapters/playback_history_entry.dart';
@@ -36,6 +36,7 @@ class HiveService {
       Hive.openBox<QueueSnapshot>(HiveBoxes.queueState),
       Hive.openBox<String>(HiveBoxes.searchHistory),
       Hive.openBox(HiveBoxes.preferences),
+      Hive.openBox(HiveBoxes.profile),
     ]);
   }
 

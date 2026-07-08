@@ -1,10 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 
 /// Reusable Profile Avatar widget.
 /// Renders the user profile image as a circle. Falls back to an icon if empty.
 class ProfileAvatar extends StatelessWidget {
-  /// The image source URL.
+  /// The image source URL or local path.
   final String? imageUrl;
 
   /// Width and height of the avatar. Defaults to 32.0.
@@ -25,13 +26,23 @@ class ProfileAvatar extends StatelessWidget {
     Widget avatarChild;
 
     if (imageUrl != null && imageUrl!.isNotEmpty) {
-      avatarChild = Image.network(
-        imageUrl!,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-      );
+      if (imageUrl!.startsWith('http') || imageUrl!.startsWith('assets')) {
+        avatarChild = Image.network(
+          imageUrl!,
+          fit: BoxFit.cover,
+          width: size,
+          height: size,
+          errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+        );
+      } else {
+        avatarChild = Image.file(
+          File(imageUrl!),
+          fit: BoxFit.cover,
+          width: size,
+          height: size,
+          errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+        );
+      }
     } else {
       avatarChild = _buildPlaceholder();
     }
