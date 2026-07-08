@@ -11,6 +11,7 @@ import '../../library/providers/library_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../core/audio/providers.dart';
 import '../../../core/audio/playback_state.dart';
+import 'settings_controller.dart';
 
 final devTapsProvider = StateProvider<int>((ref) => 0);
 final devModeUnlockedProvider = StateProvider<bool>((ref) => false);
@@ -152,14 +153,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final settings = ref.watch(settingsProvider);
-    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final settings = ref.watch(settingsControllerProvider);
+    final settingsNotifier = ref.read(settingsControllerProvider.notifier);
 
     final localSongs = ref.watch(songsProvider);
     final localAlbums = ref.watch(albumsProvider);
     final localArtists = ref.watch(artistsProvider);
     final favoritesCount = ref.watch(favoritesProvider).length;
     final searchHistoryCount = ref.watch(searchHistoryProvider).length;
+    final recentlyPlayedList = ref.watch(recentlyPlayedProvider).value ?? [];
 
     final devTaps = ref.watch(devTapsProvider);
     final devUnlocked = ref.watch(devModeUnlockedProvider);
@@ -198,7 +200,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const Divider(height: 32.0),
 
-              // ── Appearance Section ──
+              // ── 1. Appearance Section ──
               _buildSectionHeader('Appearance'),
               Card(
                 elevation: 0,
@@ -208,9 +210,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ListTile(
                       leading: const Icon(Icons.palette_outlined),
                       title: const Text('Theme Mode'),
-                      subtitle: Text(settings.theme.toUpperCase()),
+                      subtitle: Text(settings.themeMode.toUpperCase()),
                       trailing: DropdownButton<String>(
-                        value: settings.theme,
+                        value: settings.themeMode,
                         underline: const SizedBox(),
                         items: const [
                           DropdownMenuItem(value: 'system', child: Text('System')),
@@ -218,7 +220,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           DropdownMenuItem(value: 'dark', child: Text('Dark')),
                         ],
                         onChanged: (val) {
-                          if (val != null) settingsNotifier.setTheme(val);
+                          if (val != null) settingsNotifier.updateThemeMode(val);
                         },
                       ),
                     ),
@@ -226,56 +228,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
               ),
 
-              // ── Playback Section ──
+              // ── 2. Playback Section ──
               _buildSectionHeader('Playback'),
               Card(
                 elevation: 0,
                 color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
                 child: Column(
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.speed_outlined),
-                      title: const Text('Playback Speed'),
-                      subtitle: Slider(
-                        value: settings.playbackSpeed,
-                        min: 0.5,
-                        max: 2.0,
-                        divisions: 6,
-                        label: '${settings.playbackSpeed}x',
-                        onChanged: (val) => settingsNotifier.setPlaybackSpeed(val),
-                      ),
-                      trailing: Text(
-                        '${settings.playbackSpeed}x',
-                        style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
                     SwitchListTile(
                       secondary: const Icon(Icons.restore_outlined),
-                      title: const Text('Resume Playback'),
+                      title: const Text('Resume playback on startup'),
                       subtitle: const Text('Resume song state on app startup'),
                       value: settings.resumePlayback,
-                      onChanged: (val) => settingsNotifier.setResumePlayback(val),
-                    ),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.skip_next_outlined),
-                      title: const Text('Auto Play Next'),
-                      subtitle: const Text('Play subsequent queue tracks automatically'),
-                      value: settings.autoPlayNext,
-                      onChanged: (val) => settingsNotifier.setAutoPlayNext(val),
+                      onChanged: (val) => settingsNotifier.updateResumePlayback(val),
                     ),
                     SwitchListTile(
                       secondary: const Icon(Icons.shuffle_outlined),
-                      title: const Text('Shuffle Default'),
+                      title: const Text('Default Shuffle'),
                       subtitle: const Text('Always enable shuffle mode for new queues'),
-                      value: settings.shuffleDefault,
-                      onChanged: (val) => settingsNotifier.setShuffleDefault(val),
+                      value: settings.defaultShuffle,
+                      onChanged: (val) => settingsNotifier.updateDefaultShuffle(val),
                     ),
                     ListTile(
                       leading: const Icon(Icons.repeat_outlined),
-                      title: const Text('Repeat Default'),
-                      subtitle: Text(settings.repeatDefault.toUpperCase()),
+                      title: const Text('Default Repeat'),
+                      subtitle: Text(settings.defaultRepeat.toUpperCase()),
                       trailing: DropdownButton<String>(
-                        value: settings.repeatDefault,
+                        value: settings.defaultRepeat,
                         underline: const SizedBox(),
                         items: const [
                           DropdownMenuItem(value: 'off', child: Text('Off')),
@@ -283,30 +262,50 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           DropdownMenuItem(value: 'one', child: Text('One')),
                         ],
                         onChanged: (val) {
-                          if (val != null) settingsNotifier.setRepeatDefault(val);
+                          if (val != null) settingsNotifier.updateDefaultRepeat(val);
                         },
                       ),
                     ),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.transform_outlined),
-                      title: const Text('Crossfade Tracks'),
-                      subtitle: const Text('Smoothly overlap songs (placeholder)'),
-                      value: settings.crossfadeEnabled,
-                      onChanged: (val) => settingsNotifier.setCrossfadeEnabled(val),
+                    ListTile(
+                      leading: const Icon(Icons.speed_outlined),
+                      title: const Text('Playback Speed'),
+                      subtitle: const Text('Adjust audio playing speed rate'),
+                      trailing: DropdownButton<double>(
+                        value: settings.playbackSpeed,
+                        underline: const SizedBox(),
+                        items: const [
+                          DropdownMenuItem(value: 0.5, child: Text('0.5x')),
+                          DropdownMenuItem(value: 0.75, child: Text('0.75x')),
+                          DropdownMenuItem(value: 1.0, child: Text('1.0x')),
+                          DropdownMenuItem(value: 1.25, child: Text('1.25x')),
+                          DropdownMenuItem(value: 1.5, child: Text('1.5x')),
+                          DropdownMenuItem(value: 2.0, child: Text('2.0x')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) settingsNotifier.updatePlaybackSpeed(val);
+                        },
+                      ),
                     ),
                     SwitchListTile(
                       secondary: const Icon(Icons.linear_scale_outlined),
                       title: const Text('Gapless Playback'),
                       subtitle: const Text('Minimize silence buffers between tracks'),
-                      value: settings.gaplessPlaybackEnabled,
-                      onChanged: (val) => settingsNotifier.setGaplessPlaybackEnabled(val),
+                      value: settings.gaplessPlayback,
+                      onChanged: (val) => settingsNotifier.updateGaplessPlayback(val),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.transform_outlined),
+                      title: const Text('Crossfade Tracks'),
+                      subtitle: const Text('Smoothly overlap songs (placeholder)'),
+                      value: settings.crossfade,
+                      onChanged: (val) => settingsNotifier.updateCrossfade(val),
                     ),
                   ],
                 ),
               ),
 
-              // ── Library & Preferred Source ──
-              _buildSectionHeader('Library & YouTube'),
+              // ── 3. Music Library Section ──
+              _buildSectionHeader('Music Library'),
               Card(
                 elevation: 0,
                 color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
@@ -314,7 +313,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.sync_outlined),
-                      title: const Text('Rescan Local Library'),
+                      title: const Text('Rescan Music Library'),
                       subtitle: settings.lastScanTime != null
                           ? Text('Last scanned: ${settings.lastScanTime}')
                           : const Text('Scan directories for offline files'),
@@ -326,7 +325,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         await ref.read(mediaLibraryServiceProvider.notifier).scanDevice(forceRefresh: true);
                         final now = DateTime.now();
                         final scanStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-                        await settingsNotifier.setLastScanTime(scanStr);
+                        await settingsNotifier.updateLastScanTime(scanStr);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Library scan completed! Found ${ref.read(songsProvider).length} songs.')),
@@ -345,28 +344,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.source_outlined),
-                      title: const Text('Preferred Audio Source'),
-                      subtitle: Text(settings.sourceSelection == 'smart'
-                          ? 'Prefer Local (Smart)'
-                          : settings.sourceSelection == 'alwaysLocal'
-                              ? 'Always Local'
-                              : settings.sourceSelection == 'alwaysYouTube'
-                                  ? 'Always YouTube'
-                                  : 'Ask Every Time'),
-                      trailing: DropdownButton<String>(
-                        value: settings.sourceSelection,
-                        underline: const SizedBox(),
-                        items: const [
-                          DropdownMenuItem(value: 'smart', child: Text('Smart Selection')),
-                          DropdownMenuItem(value: 'alwaysLocal', child: Text('Always Local')),
-                          DropdownMenuItem(value: 'alwaysYouTube', child: Text('Always YouTube')),
-                          DropdownMenuItem(value: 'askEveryTime', child: Text('Ask Every Time')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) settingsNotifier.setSourceSelectionMode(val);
-                        },
-                      ),
+                      leading: const Icon(Icons.image_not_supported_outlined),
+                      title: const Text('Clear Artwork Cache'),
+                      subtitle: const Text('Clean cached album and artist covers'),
+                      onTap: _clearArtworkCache,
                     ),
                     Padding(
                       padding: const EdgeInsets.all(12.0),
@@ -383,8 +364,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
               ),
 
-              // ── Search & Storage ──
-              _buildSectionHeader('Storage & Cache'),
+              // ── 4. Search Section ──
+              _buildSectionHeader('Search'),
               Card(
                 elevation: 0,
                 color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
@@ -404,21 +385,145 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.image_not_supported_outlined),
-                      title: const Text('Clear Artwork Cache'),
-                      subtitle: Text('Clean on-disk cache: $_artworkCacheSize'),
-                      onTap: _clearArtworkCache,
+                      leading: const Icon(Icons.history_outlined),
+                      title: const Text('Clear Recent Searches'),
+                      subtitle: const Text('Clear local application query recents'),
+                      onTap: () async {
+                        await ref.read(searchHistoryProvider.notifier).clearAll();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Recent searches cleared.')),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── 5. Playback Source Section ──
+              _buildSectionHeader('Playback Source'),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.source_outlined),
+                      title: const Text('Preferred Playback Source'),
+                      subtitle: Text(settings.preferredSource == 'preferLocal'
+                          ? 'Prefer Local'
+                          : settings.preferredSource == 'preferYouTube'
+                              ? 'Prefer YouTube'
+                              : 'Ask Every Time'),
+                      trailing: DropdownButton<String>(
+                        value: settings.preferredSource,
+                        underline: const SizedBox(),
+                        items: const [
+                          DropdownMenuItem(value: 'preferLocal', child: Text('Prefer Local')),
+                          DropdownMenuItem(value: 'preferYouTube', child: Text('Prefer YouTube')),
+                          DropdownMenuItem(value: 'askEveryTime', child: Text('Ask Every Time')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) settingsNotifier.updatePreferredSource(val);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── 6. Notifications Section ──
+              _buildSectionHeader('Notifications'),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      secondary: const Icon(Icons.play_circle_outline),
+                      title: const Text('Background Playback'),
+                      subtitle: const Text('Allow music to continue when app is minimized'),
+                      value: settings.backgroundPlayback,
+                      onChanged: (val) => settingsNotifier.updateBackgroundPlayback(val),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.notifications_active_outlined),
+                      title: const Text('Media Notification'),
+                      subtitle: const Text('Display playback widget in notification bar'),
+                      value: settings.mediaNotification,
+                      onChanged: (val) => settingsNotifier.updateMediaNotification(val),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.phonelink_lock_outlined),
+                      title: const Text('Lock Screen Controls'),
+                      subtitle: const Text('Show playback controls on lock screen'),
+                      value: settings.lockScreenControls,
+                      onChanged: (val) => settingsNotifier.updateLockScreenControls(val),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── 7. Storage Section ──
+              _buildSectionHeader('Storage'),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                      child: Column(
+                        children: [
+                          _buildStorageRow('Artwork Cache Size', _artworkCacheSize),
+                          const SizedBox(height: 6.0),
+                          _buildStorageRow('Playlist Database Size', _databaseSize),
+                          const SizedBox(height: 6.0),
+                          _buildStorageRow('Favorites Count', '$favoritesCount tracks'),
+                          const SizedBox(height: 6.0),
+                          _buildStorageRow('Recently Played Count', '${recentlyPlayedList.length} tracks'),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.image_not_supported_outlined, color: Colors.blue),
+                      title: const Text('Clear Cache', style: TextStyle(color: Colors.blue)),
+                      subtitle: const Text('Delete local artwork image covers cache'),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Clear Cache?'),
+                            content: const Text('Are you sure you want to clear the locally cached album artwork?'),
+                            actions: [
+                              TextButton(
+                                child: const Text('Cancel'),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                              TextButton(
+                                child: const Text('Clear', style: TextStyle(color: Colors.blue)),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _clearArtworkCache();
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.delete_forever_outlined),
-                      title: const Text('Reset Library Databases'),
-                      subtitle: const Text('Wipe favorites, playlists, and settings'),
+                      leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+                      title: const Text('Reset Library', style: TextStyle(color: Colors.red)),
+                      subtitle: const Text('Wipe favorites, custom playlists, and history'),
                       onTap: () {
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
                             title: const Text('Reset Library?'),
-                            content: const Text('This will delete all custom playlists, favorited items, recently played histories, and reset setting toggles. This action is irreversible.'),
+                            content: const Text('Are you sure you want to delete all playlists, favorites, history, and stored preferences? This is a destructive action that cannot be undone.'),
                             actions: [
                               TextButton(
                                 child: const Text('Cancel'),
@@ -436,53 +541,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         );
                       },
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-                      child: Column(
-                        children: [
-                          _buildStorageRow('Database File Size', _databaseSize),
-                          const SizedBox(height: 6.0),
-                          _buildStorageRow('Favorites Track Count', '$favoritesCount tracks'),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
 
-              // ── Notifications Section ──
-              _buildSectionHeader('Notifications & Background'),
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-                child: Column(
-                  children: [
-                    SwitchListTile(
-                      secondary: const Icon(Icons.notifications_active_outlined),
-                      title: const Text('Media Notification'),
-                      subtitle: const Text('Display playback widget in notification bar'),
-                      value: settings.mediaNotificationEnabled,
-                      onChanged: (val) => settingsNotifier.setMediaNotificationEnabled(val),
-                    ),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.play_circle_outline),
-                      title: const Text('Background Playback'),
-                      subtitle: const Text('Allow music to continue when app is minimized'),
-                      value: settings.backgroundPlaybackEnabled,
-                      onChanged: (val) => settingsNotifier.setBackgroundPlaybackEnabled(val),
-                    ),
-                    SwitchListTile(
-                      secondary: const Icon(Icons.phonelink_lock_outlined),
-                      title: const Text('Lock Screen Controls'),
-                      subtitle: const Text('Show playback overlays on devices lock screen'),
-                      value: settings.lockScreenControlsEnabled,
-                      onChanged: (val) => settingsNotifier.setLockScreenControlsEnabled(val),
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── About Section ──
+              // ── 8. About Section ──
               _buildSectionHeader('About'),
               Card(
                 elevation: 0,
@@ -491,8 +554,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.info_outline),
-                      title: const Text('App Version'),
-                      subtitle: const Text('Miee v1.0.0 (Stable Release)'),
+                      title: const Text('Miee Version'),
+                      subtitle: const Text('v1.0.0 (Stable Release)'),
                       onTap: () {
                         final taps = devTaps + 1;
                         ref.read(devTapsProvider.notifier).state = taps;
@@ -510,18 +573,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                     const ListTile(
                       leading: const Icon(Icons.code_outlined),
-                      title: const Text('Flutter SDK Version'),
+                      title: const Text('Flutter Version'),
                       subtitle: const Text('Flutter 3.22.2 (Channel stable)'),
                     ),
-                    const ListTile(
-                      leading: const Icon(Icons.person_pin_outlined),
-                      title: const Text('Developer'),
-                      subtitle: const Text('Antigravity Team'),
+                    ListTile(
+                      leading: const Icon(Icons.library_books_outlined),
+                      title: const Text('Open Source Licenses'),
+                      subtitle: const Text('Tap to view third-party packages used'),
+                      onTap: () {
+                        _showInfoDialog('Open Source Licences', 'This application leverages high-performance libraries from the Flutter community:\n\n- riverpod: State management\n- just_audio: Core player engine\n- hive: High-performance databases\n- go_router: Page routing\n- permission_handler: Media scanner utilities\n\nThanks to all contributors!');
+                      },
                     ),
                     ListTile(
                       leading: const Icon(Icons.description_outlined),
                       title: const Text('Privacy Policy'),
-                      subtitle: const Text('Read our data and privacy statement'),
+                      subtitle: const Text('Read our data privacy statement'),
                       onTap: () {
                         _showInfoDialog('Privacy Policy', 'Miee Music Player is a local-first application. We do not transmit your local storage music data, queries, or media history to external servers. Stream requests are handled directly with respective public streams.');
                       },
@@ -532,14 +598,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       subtitle: const Text('User agreements and terms of usage'),
                       onTap: () {
                         _showInfoDialog('Terms of Service', 'By using Miee, you agree to comply with your local copyright laws regarding private music files and media streams. Miee operates on user-supplied storage directories.');
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.library_books_outlined),
-                      title: const Text('Open Source Libraries'),
-                      subtitle: const Text('Hive, Riverpod, JustAudio, GoRouter'),
-                      onTap: () {
-                        _showInfoDialog('Open Source Licences', 'This application leverages high-performance libraries from the Flutter community:\n\n- riverpod: State management\n- just_audio: Core player engine\n- hive: High-performance databases\n- go_router: Page routing\n- permission_handler: Media scanner utilities\n\nThanks to all contributors!');
                       },
                     ),
                   ],
@@ -560,23 +618,25 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   child: Column(
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.developer_mode, color: Colors.red),
-                        title: const Text('Current Player Engine', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                        subtitle: const Text('just_audio / audio_service active'),
-                      ),
-                      ListTile(
                         leading: const Icon(Icons.format_list_numbered, color: Colors.red),
-                        title: const Text('Active Queue Length', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        title: const Text('Current Queue Length', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                         subtitle: Text('${ref.watch(queueManagerProvider).queue.length} items in list'),
                       ),
                       ListTile(
                         leading: const Icon(Icons.stream, color: Colors.red),
-                        title: const Text('Playback State Status', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        title: const Text('Current Playback State', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                         subtitle: Text(ref.watch(playerControllerProvider).status.toString()),
                       ),
                       ListTile(
+                        leading: const Icon(Icons.audiotrack, color: Colors.red),
+                        title: const Text('Active Audio Source', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        subtitle: Text(ref.watch(playerControllerProvider).currentTrack != null
+                            ? '${ref.watch(playerControllerProvider).currentTrack!.title} (${ref.watch(playerControllerProvider).currentTrack!.isYoutube ? "YouTube" : "Local"})'
+                            : 'None'),
+                      ),
+                      ListTile(
                         leading: const Icon(Icons.security, color: Colors.red),
-                        title: const Text('Media Permission status', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        title: const Text('Media Permission Status', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                         subtitle: Text(_permissionStatus.toString()),
                       ),
                     ],

@@ -157,7 +157,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   Future<MusicItem> _resolveSource(MusicItem track) async {
     final mode = _ref.read(sourceSelectionProvider);
 
-    if (mode == 'alwaysLocal') {
+    if (mode == 'preferLocal' || mode == 'smart' || mode == 'alwaysLocal') {
       if (!track.isYoutube) {
         return track; // Already local
       }
@@ -168,7 +168,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       return track; // Fallback
     }
 
-    if (mode == 'alwaysYouTube') {
+    if (mode == 'preferYouTube' || mode == 'alwaysYouTube') {
       if (track.isYoutube) {
         return track; // Already YouTube
       }
@@ -179,12 +179,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
       return track; // Fallback
     }
 
-    // mode == 'smart' (default)
-    if (track.isYoutube) {
-      final localMatch = _findLocalVersion(track.title, track.artist);
-      if (localMatch != null) {
-        return localMatch;
-      }
+    // mode == 'askEveryTime'
+    final localMatch = _findLocalVersion(track.title, track.artist);
+    if (localMatch != null) {
+      return localMatch;
     }
     return track;
   }

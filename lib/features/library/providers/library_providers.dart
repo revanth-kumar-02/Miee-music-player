@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/storage/adapters/playlist_hive_model.dart';
 import '../../../core/storage/adapters/history_entry.dart';
 import '../../../shared/models/track.dart';
+import '../../settings/presentation/settings_controller.dart';
 import '../data/favorites_repository.dart';
 import '../data/most_played_repository.dart';
 import '../data/playback_history_repository.dart';
@@ -231,7 +232,7 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(
 
 /// Reactive source selection preference proxy.
 final sourceSelectionProvider = Provider<String>((ref) {
-  return ref.watch(settingsProvider.select((s) => s.sourceSelection));
+  return ref.watch(settingsControllerProvider.select((s) => s.preferredSource));
 });
 
 

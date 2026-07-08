@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
-import '../features/library/providers/library_providers.dart';
+import '../features/settings/presentation/settings_controller.dart';
 
 /// Root Widget of the Miee Music Player application.
 /// Extends [ConsumerWidget] to integrate Riverpod state management.
@@ -11,7 +11,8 @@ class MieeApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themePref = ref.watch(settingsProvider.select((s) => s.theme));
+    final settings = ref.watch(settingsControllerProvider);
+    final themePref = settings.themeMode;
 
     ThemeMode mode;
     if (themePref == 'light') {
