@@ -53,6 +53,10 @@ class YouTubeRepository {
       if (html == null || html.isEmpty) return [];
 
       final videos = _parseInitialData(html);
+      if (videos.isEmpty && !html.contains('ytInitialData')) {
+        throw Exception('YouTube integration is temporarily unavailable. YouTube layout may have changed.');
+      }
+
       if (videos.isNotEmpty) {
         _searchCache[cleanQuery] = videos;
         // Keep cache size bounded to 50 queries

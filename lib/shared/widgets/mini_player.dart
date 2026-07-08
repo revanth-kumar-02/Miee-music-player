@@ -75,14 +75,18 @@ class MiniPlayer extends StatelessWidget {
 
     final imageUrl = musicItem.imageUrl;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 64.0,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: AppRadius.radiusXl, // 16px
-          boxShadow: AppShadows.shadowHigh,
+    return Semantics(
+      label: 'Mini Player. Now playing: ${musicItem.title} by ${musicItem.artist}. Tap to open full screen player.',
+      button: true,
+      enabled: onTap != null,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 64.0,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: AppRadius.radiusXl, // 16px
+            boxShadow: AppShadows.shadowHigh,
           border: isDark
               ? null
               : Border.all(
@@ -235,8 +239,9 @@ class MiniPlayer extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _SourceBadge extends StatelessWidget {

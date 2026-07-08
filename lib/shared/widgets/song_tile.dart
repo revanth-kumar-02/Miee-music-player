@@ -122,17 +122,21 @@ class SongTile extends StatelessWidget {
       leadingWidget = const SizedBox.shrink();
     }
 
-    return InkWell(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(8.0),
-      child: Container(
-        height: 64.0,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        child: Row(
-          children: [
-            leadingWidget,
-            if (imageUrl != null || index != null) AppSpacing.widthMd,
+    return Semantics(
+      label: 'Song: $title by $artist, duration $duration${isPlaying ? ", currently playing" : ""}',
+      button: true,
+      enabled: onTap != null,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(8.0),
+        child: Container(
+          height: 64.0,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: Row(
+            children: [
+              leadingWidget,
+              if (imageUrl != null || index != null) AppSpacing.widthMd,
             // Track Metadata
             Expanded(
               child: Column(
