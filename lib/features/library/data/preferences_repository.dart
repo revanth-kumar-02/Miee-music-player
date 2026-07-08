@@ -68,6 +68,72 @@ class PreferencesRepository {
   Future<void> setSourceSelectionMode(String mode) async =>
       _box.put(PreferenceKeys.sourceSelection, mode);
 
+  // ── Playback Settings ────────────────────────────────────────────────────────
+
+  bool getResumePlayback() =>
+      _box.get(PreferenceKeys.resumePlayback, defaultValue: false) as bool;
+
+  Future<void> setResumePlayback(bool value) async =>
+      _box.put(PreferenceKeys.resumePlayback, value);
+
+  bool getAutoPlayNext() =>
+      _box.get(PreferenceKeys.autoPlayNext, defaultValue: true) as bool;
+
+  Future<void> setAutoPlayNext(bool value) async =>
+      _box.put(PreferenceKeys.autoPlayNext, value);
+
+  bool getShuffleDefault() =>
+      _box.get(PreferenceKeys.shuffleDefault, defaultValue: false) as bool;
+
+  Future<void> setShuffleDefault(bool value) async =>
+      _box.put(PreferenceKeys.shuffleDefault, value);
+
+  String getRepeatDefault() =>
+      _box.get(PreferenceKeys.repeatDefault, defaultValue: 'off') as String;
+
+  Future<void> setRepeatDefault(String value) async =>
+      _box.put(PreferenceKeys.repeatDefault, value);
+
+  bool getCrossfadeEnabled() =>
+      _box.get(PreferenceKeys.crossfadeEnabled, defaultValue: false) as bool;
+
+  Future<void> setCrossfadeEnabled(bool value) async =>
+      _box.put(PreferenceKeys.crossfadeEnabled, value);
+
+  bool getGaplessPlaybackEnabled() =>
+      _box.get(PreferenceKeys.gaplessPlaybackEnabled, defaultValue: true) as bool;
+
+  Future<void> setGaplessPlaybackEnabled(bool value) async =>
+      _box.put(PreferenceKeys.gaplessPlaybackEnabled, value);
+
+  // ── Library Settings ─────────────────────────────────────────────────────────
+
+  String? getLastScanTime() =>
+      _box.get(PreferenceKeys.lastScanTime) as String?;
+
+  Future<void> setLastScanTime(String? time) async =>
+      _box.put(PreferenceKeys.lastScanTime, time);
+
+  // ── Notification Settings ───────────────────────────────────────────────────
+
+  bool getMediaNotificationEnabled() =>
+      _box.get(PreferenceKeys.mediaNotificationEnabled, defaultValue: true) as bool;
+
+  Future<void> setMediaNotificationEnabled(bool value) async =>
+      _box.put(PreferenceKeys.mediaNotificationEnabled, value);
+
+  bool getBackgroundPlaybackEnabled() =>
+      _box.get(PreferenceKeys.backgroundPlaybackEnabled, defaultValue: true) as bool;
+
+  Future<void> setBackgroundPlaybackEnabled(bool value) async =>
+      _box.put(PreferenceKeys.backgroundPlaybackEnabled, value);
+
+  bool getLockScreenControlsEnabled() =>
+      _box.get(PreferenceKeys.lockScreenControlsEnabled, defaultValue: true) as bool;
+
+  Future<void> setLockScreenControlsEnabled(bool value) async =>
+      _box.put(PreferenceKeys.lockScreenControlsEnabled, value);
+
   // ── Watch stream ────────────────────────────────────────────────────────────
 
   /// Emits a [BoxEvent] whenever any preference changes.

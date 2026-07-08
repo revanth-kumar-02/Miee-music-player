@@ -39,4 +39,14 @@ abstract class PreferenceKeys {
   static const String sleepTimerMinutes = 'sleep_timer_minutes';
   static const String audioQuality = 'audio_quality';
   static const String sourceSelection = 'source_selection';
+  static const String resumePlayback = 'resume_playback';
+  static const String autoPlayNext = 'auto_play_next';
+  static const String shuffleDefault = 'shuffle_default';
+  static const String repeatDefault = 'repeat_default';
+  static const String crossfadeEnabled = 'crossfade_enabled';
+  static const String gaplessPlaybackEnabled = 'gapless_playback';
+  static const String lastScanTime = 'last_scan_time';
+  static const String mediaNotificationEnabled = 'media_notification_enabled';
+  static const String backgroundPlaybackEnabled = 'background_playback_enabled';
+  static const String lockScreenControlsEnabled = 'lock_screen_controls_enabled';
 }

@@ -67,4 +67,68 @@ abstract class AppTheme {
       ),
     );
   }
+
+  /// Assembled Dark Theme for the application.
+  static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: const ColorScheme(
+        brightness: Brightness.dark,
+        primary: AppColors.primary,
+        onPrimary: AppColors.onPrimary,
+        secondary: AppColors.secondary,
+        onSecondary: AppColors.onSecondary,
+        error: AppColors.error,
+        onError: AppColors.onError,
+        errorContainer: AppColors.errorContainer,
+        onErrorContainer: Colors.white,
+        background: const Color(0xFF121212),
+        onBackground: Colors.white,
+        surface: const Color(0xFF1E1E1E),
+        onSurface: Colors.white,
+        surfaceVariant: const Color(0xFF2C2C2C),
+        onSurfaceVariant: Colors.white70,
+        outline: AppColors.outline,
+        outlineVariant: AppColors.outlineVariant,
+        scrim: AppColors.scrim,
+        inverseSurface: Colors.white,
+        onInverseSurface: const Color(0xFF121212),
+      ),
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: const Color(0xFF121212),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.white),
+        actionsIconTheme: IconThemeData(color: Colors.white),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: const Color(0xFF1E1E1E),
+        elevation: 8,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelTextStyle: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return AppTypography.labelSmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.primary);
+          }
+          return AppTypography.labelSmall.copyWith(color: Colors.white70);
+        }),
+      ),
+      sliderTheme: const SliderThemeData(
+        activeTrackColor: AppColors.accentIndigo,
+        inactiveTrackColor: Colors.white24,
+        thumbColor: AppColors.accentIndigo,
+        trackHeight: 2.0,
+      ),
+      textTheme: TextTheme(
+        displayLarge: AppTypography.displayLarge.copyWith(color: Colors.white),
+        headlineLarge: AppTypography.headlineLarge.copyWith(color: Colors.white),
+        headlineMedium: AppTypography.headlineMedium.copyWith(color: Colors.white),
+        bodyLarge: AppTypography.bodyLarge.copyWith(color: Colors.white),
+        bodyMedium: AppTypography.bodyMedium.copyWith(color: Colors.white70),
+        labelMedium: AppTypography.labelMedium.copyWith(color: Colors.white70),
+        labelSmall: AppTypography.labelSmall.copyWith(color: Colors.white70),
+      ),
+    );
+  }
 }

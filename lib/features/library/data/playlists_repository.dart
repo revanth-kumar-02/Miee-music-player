@@ -117,6 +117,9 @@ class PlaylistsRepository {
     await playlist.save();
   }
 
+  /// Permanently clears all playlists from the database.
+  Future<void> clearAll() async => _box.clear();
+
   /// Returns the tracks of playlist [playlistId] as domain [Track] objects.
   List<Track> getPlaylistTracks(String playlistId) {
     final playlist = _box.get(playlistId);

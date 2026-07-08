@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/adapters/playlist_hive_model.dart';
+import '../../../core/storage/adapters/history_entry.dart';
 import '../../../shared/models/track.dart';
 import '../data/favorites_repository.dart';
 import '../data/most_played_repository.dart';
@@ -53,22 +54,185 @@ final preferencesRepositoryProvider = Provider<PreferencesRepository>(
   (ref) => PreferencesRepository(),
 );
 
-/// Reactive source selection preference.
-final sourceSelectionProvider = StateNotifierProvider<SourceSelectionNotifier, String>((ref) {
-  final repo = ref.watch(preferencesRepositoryProvider);
-  return SourceSelectionNotifier(repo);
-});
+class SettingsState {
+  final String theme;
+  final double playbackSpeed;
+  final String repeatMode;
+  final bool isShuffle;
+  final String sourceSelection;
+  final bool resumePlayback;
+  final bool autoPlayNext;
+  final bool shuffleDefault;
+  final String repeatDefault;
+  final bool crossfadeEnabled;
+  final bool gaplessPlaybackEnabled;
+  final String? lastScanTime;
+  final bool mediaNotificationEnabled;
+  final bool backgroundPlaybackEnabled;
+  final bool lockScreenControlsEnabled;
 
-class SourceSelectionNotifier extends StateNotifier<String> {
-  final PreferencesRepository _repo;
+  const SettingsState({
+    required this.theme,
+    required this.playbackSpeed,
+    required this.repeatMode,
+    required this.isShuffle,
+    required this.sourceSelection,
+    required this.resumePlayback,
+    required this.autoPlayNext,
+    required this.shuffleDefault,
+    required this.repeatDefault,
+    required this.crossfadeEnabled,
+    required this.gaplessPlaybackEnabled,
+    this.lastScanTime,
+    required this.mediaNotificationEnabled,
+    required this.backgroundPlaybackEnabled,
+    required this.lockScreenControlsEnabled,
+  });
 
-  SourceSelectionNotifier(this._repo) : super(_repo.getSourceSelectionMode());
-
-  Future<void> setMode(String mode) async {
-    await _repo.setSourceSelectionMode(mode);
-    state = mode;
+  SettingsState copyWith({
+    String? theme,
+    double? playbackSpeed,
+    String? repeatMode,
+    bool? isShuffle,
+    String? sourceSelection,
+    bool? resumePlayback,
+    bool? autoPlayNext,
+    bool? shuffleDefault,
+    String? repeatDefault,
+    bool? crossfadeEnabled,
+    bool? gaplessPlaybackEnabled,
+    String? lastScanTime,
+    bool? mediaNotificationEnabled,
+    bool? backgroundPlaybackEnabled,
+    bool? lockScreenControlsEnabled,
+  }) {
+    return SettingsState(
+      theme: theme ?? this.theme,
+      playbackSpeed: playbackSpeed ?? this.playbackSpeed,
+      repeatMode: repeatMode ?? this.repeatMode,
+      isShuffle: isShuffle ?? this.isShuffle,
+      sourceSelection: sourceSelection ?? this.sourceSelection,
+      resumePlayback: resumePlayback ?? this.resumePlayback,
+      autoPlayNext: autoPlayNext ?? this.autoPlayNext,
+      shuffleDefault: shuffleDefault ?? this.shuffleDefault,
+      repeatDefault: repeatDefault ?? this.repeatDefault,
+      crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
+      gaplessPlaybackEnabled: gaplessPlaybackEnabled ?? this.gaplessPlaybackEnabled,
+      lastScanTime: lastScanTime ?? this.lastScanTime,
+      mediaNotificationEnabled: mediaNotificationEnabled ?? this.mediaNotificationEnabled,
+      backgroundPlaybackEnabled: backgroundPlaybackEnabled ?? this.backgroundPlaybackEnabled,
+      lockScreenControlsEnabled: lockScreenControlsEnabled ?? this.lockScreenControlsEnabled,
+    );
   }
 }
+
+class SettingsNotifier extends StateNotifier<SettingsState> {
+  final PreferencesRepository _repo;
+
+  SettingsNotifier(this._repo)
+      : super(SettingsState(
+          theme: _repo.getTheme(),
+          playbackSpeed: _repo.getPlaybackSpeed(),
+          repeatMode: _repo.getRepeatMode(),
+          isShuffle: _repo.getShuffle(),
+          sourceSelection: _repo.getSourceSelectionMode(),
+          resumePlayback: _repo.getResumePlayback(),
+          autoPlayNext: _repo.getAutoPlayNext(),
+          shuffleDefault: _repo.getShuffleDefault(),
+          repeatDefault: _repo.getRepeatDefault(),
+          crossfadeEnabled: _repo.getCrossfadeEnabled(),
+          gaplessPlaybackEnabled: _repo.getGaplessPlaybackEnabled(),
+          lastScanTime: _repo.getLastScanTime(),
+          mediaNotificationEnabled: _repo.getMediaNotificationEnabled(),
+          backgroundPlaybackEnabled: _repo.getBackgroundPlaybackEnabled(),
+          lockScreenControlsEnabled: _repo.getLockScreenControlsEnabled(),
+        ));
+
+  Future<void> setTheme(String theme) async {
+    await _repo.setTheme(theme);
+    state = state.copyWith(theme: theme);
+  }
+
+  Future<void> setPlaybackSpeed(double speed) async {
+    await _repo.setPlaybackSpeed(speed);
+    state = state.copyWith(playbackSpeed: speed);
+  }
+
+  Future<void> setRepeatMode(String mode) async {
+    await _repo.setRepeatMode(mode);
+    state = state.copyWith(repeatMode: mode);
+  }
+
+  Future<void> setShuffle(bool value) async {
+    await _repo.setShuffle(value);
+    state = state.copyWith(isShuffle: value);
+  }
+
+  Future<void> setSourceSelectionMode(String mode) async {
+    await _repo.setSourceSelectionMode(mode);
+    state = state.copyWith(sourceSelection: mode);
+  }
+
+  Future<void> setResumePlayback(bool value) async {
+    await _repo.setResumePlayback(value);
+    state = state.copyWith(resumePlayback: value);
+  }
+
+  Future<void> setAutoPlayNext(bool value) async {
+    await _repo.setAutoPlayNext(value);
+    state = state.copyWith(autoPlayNext: value);
+  }
+
+  Future<void> setShuffleDefault(bool value) async {
+    await _repo.setShuffleDefault(value);
+    state = state.copyWith(shuffleDefault: value);
+  }
+
+  Future<void> setRepeatDefault(String value) async {
+    await _repo.setRepeatDefault(value);
+    state = state.copyWith(repeatDefault: value);
+  }
+
+  Future<void> setCrossfadeEnabled(bool value) async {
+    await _repo.setCrossfadeEnabled(value);
+    state = state.copyWith(crossfadeEnabled: value);
+  }
+
+  Future<void> setGaplessPlaybackEnabled(bool value) async {
+    await _repo.setGaplessPlaybackEnabled(value);
+    state = state.copyWith(gaplessPlaybackEnabled: value);
+  }
+
+  Future<void> setLastScanTime(String? time) async {
+    await _repo.setLastScanTime(time);
+    state = state.copyWith(lastScanTime: time);
+  }
+
+  Future<void> setMediaNotificationEnabled(bool value) async {
+    await _repo.setMediaNotificationEnabled(value);
+    state = state.copyWith(mediaNotificationEnabled: value);
+  }
+
+  Future<void> setBackgroundPlaybackEnabled(bool value) async {
+    await _repo.setBackgroundPlaybackEnabled(value);
+    state = state.copyWith(backgroundPlaybackEnabled: value);
+  }
+
+  Future<void> setLockScreenControlsEnabled(bool value) async {
+    await _repo.setLockScreenControlsEnabled(value);
+    state = state.copyWith(lockScreenControlsEnabled: value);
+  }
+}
+
+final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
+  final repo = ref.watch(preferencesRepositoryProvider);
+  return SettingsNotifier(repo);
+});
+
+/// Reactive source selection preference proxy.
+final sourceSelectionProvider = Provider<String>((ref) {
+  return ref.watch(settingsProvider.select((s) => s.sourceSelection));
+});
 
 
 // ── State providers ───────────────────────────────────────────────────────────
@@ -143,6 +307,11 @@ class PlaylistsNotifier extends StateNotifier<List<PlaylistHiveModel>> {
       String playlistId, int oldIndex, int newIndex) async {
     await _repo.reorderTracks(playlistId, oldIndex, newIndex);
     state = _repo.getPlaylists();
+  }
+
+  Future<void> clearAll() async {
+    await _repo.clearAll();
+    state = [];
   }
 }
 
@@ -293,4 +462,9 @@ final preferencesProvider =
     StateNotifierProvider<PreferencesNotifier, PreferencesState>((ref) {
   final repo = ref.watch(preferencesRepositoryProvider);
   return PreferencesNotifier(repo);
+});
+
+final recentlyPlayedProvider = StreamProvider<List<HistoryEntry>>((ref) {
+  final repo = ref.watch(recentlyPlayedRepositoryProvider);
+  return repo.watchRecentlyPlayed();
 });
