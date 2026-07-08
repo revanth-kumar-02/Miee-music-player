@@ -1,21 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../core/sync/sync_manager.dart';
 
-/// Splash screen placeholder.
-/// Handles the branding view and initiates routing to Home.
-class SplashPage extends StatefulWidget {
+/// Splash screen that handles branding visualization and triggers background cloud sync.
+class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
 
   @override
-  State<SplashPage> createState() => _SplashPageState();
+  ConsumerState<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> {
+class _SplashPageState extends ConsumerState<SplashPage> {
   @override
   void initState() {
     super.initState();
+    
+    // Trigger offline-first background cloud synchronization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncManagerProvider).triggerSync();
+    });
+
     // Simulate auto-navigation to Home screen after 2.5 seconds
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {

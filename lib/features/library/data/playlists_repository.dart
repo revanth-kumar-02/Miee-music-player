@@ -1,12 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../../../core/storage/adapters/playlist_hive_model.dart';
 import '../../../core/storage/adapters/track_hive_model.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
+import '../../../core/sync/sync_manager.dart';
+import '../../../core/sync/offline_operation.dart';
 
-/// Manages user-created playlists persisted in Hive.
+/// Manages user-created playlists persisted in Hive with background cloud synchronization.
 class PlaylistsRepository {
+  final Ref _ref;
+
+  PlaylistsRepository(this._ref);
+
   Box<PlaylistHiveModel> get _box =>
       Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
 
@@ -37,6 +44,20 @@ class PlaylistsRepository {
       lastModified: now,
     );
     await _box.put(id, playlist);
+
+    final op = OfflineOperation(
+      id: 'pl_create_${id}_${now.millisecondsSinceEpoch}',
+      type: 'playlist_create',
+      payload: {
+        'id': id,
+        'name': name,
+        'createdAt': now.toIso8601String(),
+        'lastModified': now.toIso8601String(),
+      },
+      timestamp: now,
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
+
     return id;
   }
 
@@ -55,11 +76,31 @@ class PlaylistsRepository {
     playlist.name = newName;
     playlist.lastModified = DateTime.now();
     await playlist.save();
+
+    final op = OfflineOperation(
+      id: 'pl_rename_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_rename',
+      payload: {
+        'id': playlistId,
+        'name': newName,
+        'lastModified': playlist.lastModified.toIso8601String(),
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   /// Permanently deletes the playlist with [playlistId].
   Future<void> deletePlaylist(String playlistId) async {
     await _box.delete(playlistId);
+
+    final op = OfflineOperation(
+      id: 'pl_delete_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_delete',
+      payload: {'id': playlistId},
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   /// Creates a deep copy of [playlistId] with " (Copy)" appended to the name.
@@ -76,6 +117,43 @@ class PlaylistsRepository {
       lastModified: now,
     );
     await _box.put(id, copy);
+
+    // Sync metadata
+    final op = OfflineOperation(
+      id: 'pl_create_${id}_${now.millisecondsSinceEpoch}',
+      type: 'playlist_create',
+      payload: {
+        'id': id,
+        'name': copy.name,
+        'createdAt': now.toIso8601String(),
+        'lastModified': now.toIso8601String(),
+      },
+      timestamp: now,
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
+
+    // Sync all copied songs
+    for (final track in copy.tracks) {
+      final songOp = OfflineOperation(
+        id: 'pl_song_add_${id}_${track.id}_${DateTime.now().millisecondsSinceEpoch}',
+        type: 'playlist_song_add',
+        payload: {
+          'playlistId': id,
+          'track': {
+            'id': track.id,
+            'title': track.title,
+            'artist': track.artist,
+            'imageUrl': track.imageUrl,
+            'duration': track.duration,
+            'filePath': track.filePath,
+            'isYoutube': track.isYoutube,
+          }
+        },
+        timestamp: DateTime.now(),
+      );
+      await _ref.read(syncManagerProvider).queueOperation(songOp);
+    }
+
     return id;
   }
 
@@ -88,9 +166,27 @@ class PlaylistsRepository {
       playlist.tracks.add(TrackHiveModel.fromTrack(track));
       playlist.lastModified = DateTime.now();
       await playlist.save();
+
+      final op = OfflineOperation(
+        id: 'pl_song_add_${playlistId}_${track.id}_${DateTime.now().millisecondsSinceEpoch}',
+        type: 'playlist_song_add',
+        payload: {
+          'playlistId': playlistId,
+          'track': {
+            'id': track.id,
+            'title': track.title,
+            'artist': track.artist,
+            'imageUrl': track.imageUrl,
+            'duration': track.duration,
+            'filePath': track.filePath,
+            'isYoutube': track.isYoutube,
+          }
+        },
+        timestamp: DateTime.now(),
+      );
+      await _ref.read(syncManagerProvider).queueOperation(op);
     }
   }
-
 
   /// Removes the track with [trackId] from playlist [playlistId].
   Future<void> removeTrackFromPlaylist(String playlistId, String trackId) async {
@@ -99,6 +195,17 @@ class PlaylistsRepository {
     playlist.tracks.removeWhere((t) => t.id == trackId);
     playlist.lastModified = DateTime.now();
     await playlist.save();
+
+    final op = OfflineOperation(
+      id: 'pl_song_rem_${playlistId}_${trackId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_song_remove',
+      payload: {
+        'playlistId': playlistId,
+        'trackId': trackId,
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   /// Reorders the track at [oldIndex] to [newIndex] within playlist [playlistId].
@@ -115,6 +222,19 @@ class PlaylistsRepository {
     tracks.insert(insertAt.clamp(0, tracks.length), track);
     playlist.lastModified = DateTime.now();
     await playlist.save();
+    
+    // Push the full updated order on re-sync since position order resolves on sync
+    final op = OfflineOperation(
+      id: 'pl_rename_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_rename',
+      payload: {
+        'id': playlistId,
+        'name': playlist.name,
+        'lastModified': playlist.lastModified.toIso8601String(),
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   /// Permanently clears all playlists from the database.
@@ -127,4 +247,3 @@ class PlaylistsRepository {
     return playlist.tracks.map((m) => m.toTrack()).toList(growable: false);
   }
 }
-

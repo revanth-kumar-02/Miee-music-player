@@ -37,6 +37,7 @@ class HiveService {
       Hive.openBox<String>(HiveBoxes.searchHistory),
       Hive.openBox(HiveBoxes.preferences),
       Hive.openBox(HiveBoxes.profile),
+      Hive.openBox(HiveBoxes.offlineQueue),
     ]);
   }
 

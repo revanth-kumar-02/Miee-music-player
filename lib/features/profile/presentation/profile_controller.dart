@@ -1,15 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../../../../core/storage/hive_boxes.dart';
+import '../../../../core/sync/sync_manager.dart';
+import '../../../../core/sync/offline_operation.dart';
 import '../domain/profile_model.dart';
 import '../domain/profile_repository.dart';
 import '../data/hive_profile_repository.dart';
 
-/// Notifier that manages active profile data reactively and persists changes to Hive.
+/// Notifier that manages active profile data reactively and persists changes to Hive with background sync.
 class ProfileController extends StateNotifier<ProfileModel> {
   final ProfileRepository _repository;
+  final Ref _ref;
 
-  ProfileController(this._repository, ProfileModel initialProfile) : super(initialProfile) {
+  ProfileController(this._repository, this._ref, ProfileModel initialProfile) : super(initialProfile) {
     _recordLastOpened();
   }
 
@@ -17,6 +20,36 @@ class ProfileController extends StateNotifier<ProfileModel> {
     final updated = state.copyWith(lastOpened: DateTime.now());
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
+  }
+
+  Future<void> _queueProfileUpdate(ProfileModel profile) async {
+    final op = OfflineOperation(
+      id: 'profile_upd_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'profile_update',
+      payload: {
+        'displayName': profile.displayName,
+        'username': profile.username,
+        'profilePicturePath': profile.profilePicturePath,
+        'favoriteGenre': profile.favoriteGenre,
+        'favoriteArtist': profile.favoriteArtist,
+        'createdDate': profile.createdDate.toIso8601String(),
+        'lastOpened': profile.lastOpened.toIso8601String(),
+        'themeMode': profile.themeMode,
+        'playbackSpeed': profile.playbackSpeed,
+        'preferredSource': profile.preferredSource,
+        'defaultShuffle': profile.defaultShuffle,
+        'defaultRepeat': profile.defaultRepeat,
+        'backgroundPlayback': profile.backgroundPlayback,
+        'mediaNotification': profile.mediaNotification,
+        'lockScreenControls': profile.lockScreenControls,
+        'gaplessPlayback': profile.gaplessPlayback,
+        'crossfade': profile.crossfade,
+        'lastScanTime': profile.lastScanTime,
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   Future<void> updateProfile({
@@ -35,84 +68,98 @@ class ProfileController extends StateNotifier<ProfileModel> {
     );
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> removeProfilePicture() async {
     final updated = state.copyWith(profilePicturePath: null);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateThemeMode(String mode) async {
     final updated = state.copyWith(themeMode: mode);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateResumePlayback(bool value) async {
     final updated = state.copyWith(resumePlayback: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateDefaultShuffle(bool value) async {
     final updated = state.copyWith(defaultShuffle: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateDefaultRepeat(String value) async {
     final updated = state.copyWith(defaultRepeat: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updatePlaybackSpeed(double value) async {
     final updated = state.copyWith(playbackSpeed: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateGaplessPlayback(bool value) async {
     final updated = state.copyWith(gaplessPlayback: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateCrossfade(bool value) async {
     final updated = state.copyWith(crossfade: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updatePreferredSource(String source) async {
     final updated = state.copyWith(preferredSource: source);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateBackgroundPlayback(bool value) async {
     final updated = state.copyWith(backgroundPlayback: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateMediaNotification(bool value) async {
     final updated = state.copyWith(mediaNotification: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateLockScreenControls(bool value) async {
     final updated = state.copyWith(lockScreenControls: value);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 
   Future<void> updateLastScanTime(String? time) async {
     final updated = state.copyWith(lastScanTime: time);
     await _repository.saveProfile(updated);
     state = updated;
+    await _queueProfileUpdate(updated);
   }
 }
 
@@ -155,5 +202,5 @@ final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>((
     );
   }
 
-  return ProfileController(repo, initialProfile);
+  return ProfileController(repo, ref, initialProfile);
 });

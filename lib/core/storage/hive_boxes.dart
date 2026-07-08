@@ -31,6 +31,9 @@ abstract class HiveBoxes {
 
   /// Stores local profile details and personal configuration settings.
   static const String profile = 'miee_profile';
+
+  /// Stores pending offline operations to replay on connection return.
+  static const String offlineQueue = 'miee_offline_queue';
 }
 
 /// Typed keys for the [HiveBoxes.preferences] box.

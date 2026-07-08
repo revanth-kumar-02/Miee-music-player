@@ -24,6 +24,8 @@ dependencies:
   url_launcher: ^6.2.5
   share_plus: ^7.2.1
   image_picker: ^1.1.2
+  supabase_flutter: ^2.6.0
+  connectivity_plus: ^6.0.3
 
 dev_dependencies:
   flutter_test:

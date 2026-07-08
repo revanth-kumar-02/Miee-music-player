@@ -6,6 +6,8 @@ import 'app/app.dart';
 import 'core/audio/audio_handler.dart';
 import 'core/audio/providers.dart';
 import 'core/storage/hive_service.dart';
+import 'core/sync/supabase_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// App entry point.
 ///
@@ -17,6 +19,17 @@ Future<void> main() async {
 
   // Initialise Hive and open all boxes before anything else runs.
   await HiveService.init();
+
+  if (SupabaseConfig.hasActiveSupabase) {
+    try {
+      await Supabase.initialize(
+        url: SupabaseConfig.url,
+        anonKey: SupabaseConfig.anonKey,
+      );
+    } catch (e) {
+      debugPrint('Supabase initialisation failed: $e');
+    }
+  }
 
   // Register MieeAudioHandler with audio_service.
   // The returned instance is the same object used throughout the app lifetime.

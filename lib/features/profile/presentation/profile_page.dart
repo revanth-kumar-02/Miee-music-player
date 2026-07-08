@@ -11,10 +11,13 @@ import '../../media/providers/media_providers.dart';
 import '../../../../core/audio/providers.dart';
 import '../../../../core/audio/playback_state.dart';
 import '../../../../core/storage/adapters/history_entry.dart';
+import '../../../../core/sync/sync_state.dart';
+import '../../../../core/sync/sync_manager.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../domain/profile_model.dart';
 import 'profile_controller.dart';
 
-/// User Profile screen detailing stats, custom details, preferences, and quick action bridges.
+/// User Profile screen detailing stats, custom details, preferences, and offline-first cloud sync actions.
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
@@ -23,6 +26,12 @@ class ProfilePage extends ConsumerWidget {
     final theme = Theme.of(context);
     final profile = ref.watch(profileProvider);
     final profileNotifier = ref.read(profileProvider.notifier);
+
+    // Watch auth and sync states
+    final authState = ref.watch(authControllerProvider);
+    final authNotifier = ref.read(authControllerProvider.notifier);
+    final syncState = ref.watch(syncStateProvider);
+    final syncManager = ref.read(syncManagerProvider);
 
     // Watch dynamic data for listening statistics calculation
     final localSongs = ref.watch(songsProvider);
@@ -102,6 +111,89 @@ class ProfilePage extends ConsumerWidget {
               ),
 
               const SizedBox(height: 24.0),
+
+              // ── Cloud Integration Section ──
+              _buildSectionTitle(context, 'Cloud Integration'),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (authState.user != null) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Linked Cloud Account',
+                                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    authState.user!.email ?? 'Anonymous User',
+                                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.logout, color: Colors.red),
+                              onPressed: () => _showSignOutDialog(context, authNotifier, syncManager),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 24.0),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Sync Status',
+                                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                _buildSyncStatusText(context, syncState),
+                              ],
+                            ),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.sync, size: 16),
+                              label: const Text('Sync Now'),
+                              onPressed: syncState.status == SyncStatus.syncing ? null : () => syncManager.triggerSync(),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        Text(
+                          'Back up to the Cloud',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4.0),
+                        Text(
+                          'Synchronize your playlists, favorites, history, and preferences across your devices securely.',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 12.0),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.cloud_queue),
+                            label: const Text('Connect to Cloud'),
+                            onPressed: () => _showAuthDialog(context, authNotifier, syncManager),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16.0),
 
               // Listening Statistics Row Grid
               _buildSectionTitle(context, 'Listening Statistics'),
@@ -283,6 +375,35 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
+  Widget _buildSyncStatusText(BuildContext context, SyncState state) {
+    final theme = Theme.of(context);
+    switch (state.status) {
+      case SyncStatus.idle:
+        return Text(
+          'Up to date',
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.green),
+        );
+      case SyncStatus.syncing:
+        return Text(
+          'Syncing in background...',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
+        );
+      case SyncStatus.success:
+        final timeStr = state.lastSynced != null
+            ? '${state.lastSynced!.hour.toString().padLeft(2, '0')}:${state.lastSynced!.minute.toString().padLeft(2, '0')}'
+            : '';
+        return Text(
+          'Last synced at $timeStr',
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.green),
+        );
+      case SyncStatus.error:
+        return Text(
+          'Sync failed. Retrying...',
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+        );
+    }
+  }
+
   String _calculateFavoriteArtist(List<HistoryEntry> history) {
     if (history.isEmpty) return 'None';
     final counts = <String, int>{};
@@ -412,6 +533,142 @@ class ProfilePage extends ConsumerWidget {
                 profilePicturePath: profile.profilePicturePath,
                 favoriteGenre: genreController.text.trim().isEmpty ? 'Unknown' : genreController.text.trim(),
                 favoriteArtist: artistController.text.trim().isEmpty ? 'Unknown' : artistController.text.trim(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAuthDialog(BuildContext context, AuthController authNotifier, SyncManager syncManager) {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final nameController = TextEditingController(text: 'Miee User');
+    bool isSignUp = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(isSignUp ? 'Create Cloud Account' : 'Connect to Cloud'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isSignUp) ...[
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Display Name'),
+                  ),
+                  const SizedBox(height: 8.0),
+                ],
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email Address'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 8.0),
+                TextField(
+                  controller: passwordController,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 16.0),
+                TextButton(
+                  child: Text(isSignUp
+                      ? 'Already have an account? Sign In'
+                      : 'Don\'t have an account? Sign Up'),
+                  onPressed: () {
+                    setState(() {
+                      isSignUp = !isSignUp;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            TextButton(
+              child: Text(isSignUp ? 'Sign Up' : 'Sign In'),
+              onPressed: () async {
+                final email = emailController.text.trim();
+                final pass = passwordController.text.trim();
+                if (email.isEmpty || pass.isEmpty) return;
+
+                Navigator.pop(context);
+                
+                bool success = false;
+                if (isSignUp) {
+                  success = await authNotifier.signUp(email, pass, nameController.text.trim());
+                } else {
+                  success = await authNotifier.signIn(email, pass);
+                }
+
+                if (success) {
+                  // Run full remote download on sign in
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Account connected successfully! Loading cloud backup...')),
+                  );
+                  await syncManager.downloadAllRemoteData();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cloud backup restored successfully!')),
+                  );
+                } else {
+                  final error = ref.read(authControllerProvider).errorMessage ?? 'Unknown error';
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Connection Failed'),
+                      content: Text(error),
+                      actions: [
+                        TextButton(
+                          child: const Text('OK'),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSignOutDialog(BuildContext context, AuthController authNotifier, SyncManager syncManager) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out?'),
+        content: const Text(
+          'Before logging out, all pending changes will be uploaded to the cloud backup. '
+          'Your local cache data will be kept intact on this device.',
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            onPressed: () async {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Uploading local changes and signing out...')),
+              );
+              // 1. Upload local changes before signing out
+              await syncManager.replayOfflineQueue();
+              // 2. Perform sign out
+              await authNotifier.signOut();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Signed out successfully.')),
               );
             },
           ),

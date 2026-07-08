@@ -17,22 +17,22 @@ import '../data/search_history_repository.dart';
 
 /// Provides the [FavoritesRepository] singleton.
 final favoritesRepositoryProvider = Provider<FavoritesRepository>(
-  (ref) => FavoritesRepository(),
+  (ref) => FavoritesRepository(ref),
 );
 
 /// Provides the [PlaylistsRepository] singleton.
 final playlistsRepositoryProvider = Provider<PlaylistsRepository>(
-  (ref) => PlaylistsRepository(),
+  (ref) => PlaylistsRepository(ref),
 );
 
 /// Provides the [RecentlyPlayedRepository] singleton.
 final recentlyPlayedRepositoryProvider = Provider<RecentlyPlayedRepository>(
-  (ref) => RecentlyPlayedRepository(),
+  (ref) => RecentlyPlayedRepository(ref),
 );
 
 /// Provides the [MostPlayedRepository] singleton.
 final mostPlayedRepositoryProvider = Provider<MostPlayedRepository>(
-  (ref) => MostPlayedRepository(),
+  (ref) => MostPlayedRepository(ref),
 );
 
 /// Provides the [PlaybackHistoryRepository] singleton.
@@ -47,7 +47,7 @@ final queueStateRepositoryProvider = Provider<QueueStateRepository>(
 
 /// Provides the [SearchHistoryRepository] singleton.
 final searchHistoryRepositoryProvider = Provider<SearchHistoryRepository>(
-  (ref) => SearchHistoryRepository(),
+  (ref) => SearchHistoryRepository(ref),
 );
 
 /// Provides the [PreferencesRepository] singleton.
