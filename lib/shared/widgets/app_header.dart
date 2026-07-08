@@ -42,37 +42,13 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
 
     final Widget appBarBody = AppBar(
-      title: titleWidget ?? (title == 'Miee'
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6.0),
-                  child: Image.asset(
-                    'assets/logo.png',
-                    width: 24.0,
-                    height: 24.0,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                Text(
-                  title,
-                  style: theme.textTheme.displayLarge?.copyWith(
-                    fontSize: 24.0,
-                    color: AppColors.onSurface,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            )
-          : Text(
-              title,
-              style: theme.textTheme.displayLarge?.copyWith(
-                fontSize: 24.0,
-                color: AppColors.onSurface,
-              ),
-            )),
+      title: titleWidget ?? Text(
+        title,
+        style: theme.textTheme.displayLarge?.copyWith(
+          fontSize: 24.0, // Restrain displayLarge size for header title
+          color: AppColors.onSurface,
+        ),
+      ),
       leading: leading,
       actions: actions,
       backgroundColor: Colors.transparent,
