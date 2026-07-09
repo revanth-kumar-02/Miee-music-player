@@ -55,7 +55,7 @@ class WaveformWidget extends StatelessWidget {
         color: Colors.transparent, // transparent canvas to catch gestures
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: Alignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: List.generate(totalBars, (index) {
             // Determine if this bar lies within the active progress region
             final barProgress = index / totalBars;

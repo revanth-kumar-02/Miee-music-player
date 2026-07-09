@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +12,7 @@ import '../../../core/audio/providers.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../shared/models/track.dart';
+import '../../../shared/models/music_item.dart';
 import '../domain/playlist_model.dart';
 import '../providers/playlist_providers.dart';
 import 'widgets/add_to_playlist_sheet.dart';
@@ -364,7 +365,7 @@ class _PlaylistDetailView extends ConsumerWidget {
   }
 
   Future<void> _confirmRemove(
-      BuildContext context, WidgetRef ref, Track track) async {
+      BuildContext context, WidgetRef ref, MusicItem track) async {
     await ref
         .read(playlistControllerProvider.notifier)
         .removeTrack(playlist.id, track.id);

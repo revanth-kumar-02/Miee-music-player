@@ -1,4 +1,4 @@
-import 'dart:io';
+ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
@@ -203,8 +203,9 @@ class SongTile extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 /// Helper widget to paint and animate 3 EQ bar lines.

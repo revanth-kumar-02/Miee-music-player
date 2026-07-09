@@ -47,7 +47,7 @@ class SectionHeader extends StatelessWidget {
     final cleanTitle = isUppercase ? title.toUpperCase() : title;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.between,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
           child: Text(

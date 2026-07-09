@@ -146,7 +146,7 @@ class PlaylistsRepository {
             'imageUrl': track.imageUrl,
             'duration': track.duration,
             'filePath': track.filePath,
-            'isYoutube': track.isYoutube,
+            'isYoutube': track.filePath == null || track.filePath!.startsWith('http'),
           }
         },
         timestamp: DateTime.now(),

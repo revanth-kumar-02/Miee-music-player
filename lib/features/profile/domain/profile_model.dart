@@ -13,6 +13,7 @@ class ProfileModel {
   final String preferredSource; // 'preferLocal' | 'preferYouTube' | 'askEveryTime'
   final bool defaultShuffle;
   final String defaultRepeat; // 'off' | 'one' | 'all'
+  final bool resumePlayback;
   final bool backgroundPlayback;
   final bool mediaNotification;
   final bool lockScreenControls;
@@ -33,6 +34,7 @@ class ProfileModel {
     required this.preferredSource,
     required this.defaultShuffle,
     required this.defaultRepeat,
+    required this.resumePlayback,
     required this.backgroundPlayback,
     required this.mediaNotification,
     required this.lockScreenControls,
@@ -54,6 +56,7 @@ class ProfileModel {
       preferredSource: 'preferLocal',
       defaultShuffle: false,
       defaultRepeat: 'off',
+      resumePlayback: true,
       backgroundPlayback: true,
       mediaNotification: true,
       lockScreenControls: true,
@@ -75,6 +78,7 @@ class ProfileModel {
     String? preferredSource,
     bool? defaultShuffle,
     String? defaultRepeat,
+    bool? resumePlayback,
     bool? backgroundPlayback,
     bool? mediaNotification,
     bool? lockScreenControls,
@@ -95,6 +99,7 @@ class ProfileModel {
       preferredSource: preferredSource ?? this.preferredSource,
       defaultShuffle: defaultShuffle ?? this.defaultShuffle,
       defaultRepeat: defaultRepeat ?? this.defaultRepeat,
+      resumePlayback: resumePlayback ?? this.resumePlayback,
       backgroundPlayback: backgroundPlayback ?? this.backgroundPlayback,
       mediaNotification: mediaNotification ?? this.mediaNotification,
       lockScreenControls: lockScreenControls ?? this.lockScreenControls,

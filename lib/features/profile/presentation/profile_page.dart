@@ -44,7 +44,7 @@ class ProfilePage extends ConsumerWidget {
     final totalSongsPlayed = recentlyPlayedList.length;
     
     // Total listening time: Sum duration of recently played items
-    int totalListeningSecs = recentlyPlayedList.fold(0, (sum, entry) => sum + (entry.track.duration ?? 0));
+    int totalListeningSecs = recentlyPlayedList.fold(0, (sum, entry) => sum + _parseDurationToSeconds(entry.track.duration));
     final totalListeningMins = (totalListeningSecs / 60).toStringAsFixed(1);
 
     // Calculate dynamic favorite artist based on history count
@@ -184,7 +184,7 @@ class ProfilePage extends ConsumerWidget {
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.cloud_queue),
                             label: const Text('Connect to Cloud'),
-                            onPressed: () => _showAuthDialog(context, authNotifier, syncManager),
+                            onPressed: () => _showAuthDialog(context, ref, authNotifier, syncManager),
                           ),
                         ),
                       ],
@@ -541,7 +541,7 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  void _showAuthDialog(BuildContext context, AuthController authNotifier, SyncManager syncManager) {
+  void _showAuthDialog(BuildContext context, WidgetRef ref, AuthController authNotifier, SyncManager syncManager) {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     final nameController = TextEditingController(text: 'Miee User');
@@ -675,5 +675,15 @@ class ProfilePage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  int _parseDurationToSeconds(String durationStr) {
+    final parts = durationStr.split(':');
+    if (parts.length == 2) {
+      final mins = int.tryParse(parts[0]) ?? 0;
+      final secs = int.tryParse(parts[1]) ?? 0;
+      return mins * 60 + secs;
+    }
+    return 0;
   }
 }

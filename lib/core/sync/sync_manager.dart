@@ -17,6 +17,8 @@ import '../../core/storage/adapters/track_hive_model.dart';
 import '../../core/storage/adapters/playlist_hive_model.dart';
 import '../../core/storage/adapters/history_entry.dart';
 import '../../shared/models/track.dart';
+import '../../features/media/providers/media_providers.dart';
+import '../../features/library/providers/library_providers.dart';
 
 import 'network_monitor.dart';
 import 'offline_operation.dart';
@@ -170,6 +172,7 @@ class SyncManager {
               'preferred_source': payload['preferredSource'],
               'default_shuffle': payload['defaultShuffle'],
               'default_repeat': payload['defaultRepeat'],
+              'resume_playback': payload['resumePlayback'],
               'background_playback': payload['backgroundPlayback'],
               'media_notification': payload['mediaNotification'],
               'lock_screen_controls': payload['lockScreenControls'],
@@ -271,6 +274,7 @@ class SyncManager {
           preferredSource: profileRes['preferred_source'] as String? ?? 'preferLocal',
           defaultShuffle: profileRes['default_shuffle'] as bool? ?? false,
           defaultRepeat: profileRes['default_repeat'] as String? ?? 'off',
+          resumePlayback: profileRes['resume_playback'] as bool? ?? true,
           backgroundPlayback: profileRes['background_playback'] as bool? ?? true,
           mediaNotification: profileRes['media_notification'] as bool? ?? true,
           lockScreenControls: profileRes['lock_screen_controls'] as bool? ?? true,
@@ -302,6 +306,7 @@ class SyncManager {
           'preferredSource': resolved.preferredSource,
           'defaultShuffle': resolved.defaultShuffle,
           'defaultRepeat': resolved.defaultRepeat,
+          'resumePlayback': resolved.resumePlayback,
           'backgroundPlayback': resolved.backgroundPlayback,
           'mediaNotification': resolved.mediaNotification,
           'lockScreenControls': resolved.lockScreenControls,
@@ -335,6 +340,7 @@ class SyncManager {
           'preferred_source': local.preferredSource,
           'default_shuffle': local.defaultShuffle,
           'default_repeat': local.defaultRepeat,
+          'resume_playback': local.resumePlayback,
           'background_playback': local.backgroundPlayback,
           'media_notification': local.mediaNotification,
           'lock_screen_controls': local.lockScreenControls,
@@ -488,7 +494,7 @@ class SyncManager {
       localMostPlayed.forEach((k, v) {
         final String keyStr = k as String;
         final remoteVal = remoteMostPlayed[keyStr] ?? 0;
-        resolvedMostPlayed[keyStr] = max(v, remoteVal);
+        resolvedMostPlayed[keyStr] = v > remoteVal ? v : remoteVal;
       });
       remoteMostPlayed.forEach((k, v) {
         if (!resolvedMostPlayed.containsKey(k)) {

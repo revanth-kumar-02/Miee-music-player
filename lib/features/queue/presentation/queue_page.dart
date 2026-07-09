@@ -9,6 +9,7 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
+import '../../../core/audio/player_controller.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
@@ -171,7 +172,7 @@ class QueuePage extends ConsumerWidget {
                                 vertical: AppSpacing.sm,
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.between,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Playing Queue',

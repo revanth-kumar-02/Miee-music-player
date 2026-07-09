@@ -39,7 +39,7 @@ Future<void> main() async {
       androidNotificationChannelId: 'com.miee.audio',
       androidNotificationChannelName: 'Miee Music',
       androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,
+      androidStopForegroundOnPause: true,
       notificationColor: Color(0xFF1A1A2E),
     ),
   );

@@ -239,7 +239,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
 
   Widget _buildPageHeader(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.between,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           'Library',

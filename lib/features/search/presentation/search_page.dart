@@ -121,6 +121,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final localGenres = ref.watch(genresProvider);
     final localPlaylists = ref.watch(playlistsProvider);
     final profile = ref.watch(profileProvider);
+    final favorites = ref.watch(favoritesProvider);
 
     return Scaffold(
       extendBody: true,
@@ -237,7 +238,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   musicItem: currentTrack,
                   progress: progress,
                   isPlaying: isPlaying,
-                  isFavorited: currentTrack.isFavorited,
+                  isFavorited: favorites.any((t) => t.id == currentTrack.id),
                   isDark: false, // Light mode matches the surface container background
                   onTap: () => context.push('/player'),
                   onPlayPauseTap: () {
@@ -490,7 +491,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
 
     // Show top 3 tracks from mock data as trending tracks fallback
-    final tracks = MockData.recentlyPlayed;
+    final tracks = MockData.favoriteSongs;
 
     return Column(
       children: List.generate(tracks.length, (index) {

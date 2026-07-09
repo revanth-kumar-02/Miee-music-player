@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:audio_service/audio_service.dart';
+import 'package:audio_service/audio_service.dart' hide PlaybackState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -318,8 +318,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   /// Cycles through repeat modes: off ? all ? one ? off.
   Future<void> toggleRepeatMode() async {
-    RepeatMode nextMode;
-    AudioServiceRepeatMode serviceMode;
+    RepeatMode nextMode = RepeatMode.off;
+    AudioServiceRepeatMode serviceMode = AudioServiceRepeatMode.none;
 
     switch (state.repeatMode) {
       case RepeatMode.off:

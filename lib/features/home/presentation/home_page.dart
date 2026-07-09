@@ -15,6 +15,7 @@ import '../../../shared/models/mock_data.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../profile/presentation/profile_controller.dart';
+import '../../library/providers/library_providers.dart';
 
 /// Miee Home Screen.
 /// Arranges continue listening spotlight, scroll lists for recently played,
@@ -65,6 +66,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final localAlbums = ref.watch(albumsProvider);
     final localArtists = ref.watch(artistsProvider);
     final profile = ref.watch(profileProvider);
+    final favorites = ref.watch(favoritesProvider);
 
     final hour = DateTime.now().hour;
     final greetingPrefix = hour < 12 ? 'Good Morning' : (hour < 17 ? 'Good Afternoon' : 'Good Evening');
@@ -178,7 +180,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   musicItem: currentTrack,
                   progress: progress,
                   isPlaying: isPlaying,
-                  isFavorited: currentTrack.isFavorited,
+                  isFavorited: favorites.any((t) => t.id == currentTrack.id),
                   isDark: true, // Black backing color matches Stitch HTML design
                   onTap: () => context.push('/player'),
                   onPlayPauseTap: () {

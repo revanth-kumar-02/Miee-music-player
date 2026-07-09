@@ -5,20 +5,54 @@ allprojects {
     }
 }
 
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+subprojects {
+    val configureNamespace = {
+        if (plugins.hasPlugin("com.android.library")) {
+            val android = extensions.findByName("android")
+            if (android != null) {
+                try {
+                    val namespaceMethod = android.javaClass.getMethod("setNamespace", String::class.java)
+                    val getNamespaceMethod = android.javaClass.getMethod("getNamespace")
+                    val currentNamespace = getNamespaceMethod.invoke(android) as? String
+                    if (currentNamespace.isNullOrEmpty()) {
+                        val fallbackNamespace = "com.example.${project.name.replace(":", "").replace("-", ".").replace("_", ".")}"
+                        namespaceMethod.invoke(android, fallbackNamespace)
+                    }
+                } catch (e: Exception) {
+                    // Method not present or unsupported
+                }
+            }
+        }
+    }
 
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
-    project.evaluationDependsOn(":app")
+    if (state.executed) {
+        configureNamespace()
+    } else {
+        afterEvaluate {
+            configureNamespace()
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
+}
+
+subprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        val javaTaskName = name.replace("Kotlin", "JavaWithJavac")
+        val javaTask = project.tasks.findByName(javaTaskName) as? JavaCompile
+        val javaTarget = javaTask?.targetCompatibility ?: "17"
+
+        val jvmTargetStr = when {
+            javaTarget.contains("17") -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+            javaTarget.contains("11") -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+            javaTarget.contains("1.8") || javaTarget.contains("8") -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+            else -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+
+        compilerOptions {
+            jvmTarget = jvmTargetStr
+        }
+    }
 }

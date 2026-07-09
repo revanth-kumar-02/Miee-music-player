@@ -13,7 +13,7 @@ class Track implements MusicItem {
   @override
   final String duration;
   
-  final String? filePath;
+  final String? localFilePath;
   final double progress;
   final bool isPlaying;
   final bool isFavorited;
@@ -24,20 +24,16 @@ class Track implements MusicItem {
     required this.artist,
     required this.imageUrl,
     required this.duration,
-    this.filePath,
+    String? filePath,
     this.progress = 0.0,
     this.isPlaying = false,
     this.isFavorited = false,
-  });
+  }) : localFilePath = filePath;
 
   @override
-  String get filePathValue => filePath ?? '';
-
-  // For compatibility with the interface
-  @override
-  String get filePath => filePathValue;
+  String get filePath => localFilePath ?? '';
 
   @override
-  bool get isYoutube => id.startsWith('youtube_') || (filePath?.contains('youtube.com') ?? false);
+  bool get isYoutube => id.startsWith('youtube_') || (localFilePath?.contains('youtube.com') ?? false);
 }
 

@@ -1,5 +1,6 @@
 import '../../../features/library/data/playlists_repository.dart';
 import '../../../shared/models/track.dart';
+import '../../../shared/models/music_item.dart';
 import '../domain/playlist_model.dart';
 
 /// Extended repository that converts [PlaylistHiveModel] to [PlaylistModel]
