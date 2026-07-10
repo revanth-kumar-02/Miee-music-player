@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_spacing.dart';
 
 /// Reusable Playback Controls row.
 /// Hosts Shuffle, Skip Previous, Play/Pause large circular FAB, Skip Next, and Repeat buttons.
@@ -50,7 +49,9 @@ class PlaybackControls extends StatelessWidget {
         IconButton(
           icon: Icon(
             Icons.shuffle,
-            color: isShuffleActive ? AppColors.accentIndigo : AppColors.onSurfaceVariant,
+            color: onShuffleTap == null
+                ? AppColors.onSurfaceVariant.withOpacity(0.3)
+                : (isShuffleActive ? AppColors.accentIndigo : AppColors.onSurfaceVariant),
             size: 24.0,
           ),
           onPressed: onShuffleTap,
@@ -58,9 +59,11 @@ class PlaybackControls extends StatelessWidget {
         ),
         // Previous Button
         IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.skip_previous,
-            color: AppColors.onBackground,
+            color: onPrevTap == null
+                ? AppColors.onBackground.withOpacity(0.3)
+                : AppColors.onBackground,
             size: 36.0,
           ),
           onPressed: onPrevTap,
@@ -72,29 +75,37 @@ class PlaybackControls extends StatelessWidget {
           child: Container(
             width: 64.0,
             height: 64.0,
-            decoration: const BoxDecoration(
-              color: AppColors.inverseSurface, // `#313030`
+            decoration: BoxDecoration(
+              color: onPlayPauseTap == null
+                  ? AppColors.surfaceContainerHigh
+                  : AppColors.inverseSurface, // `#313030`
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x29000000), // shadow for high floating buttons
-                  offset: Offset(0, 8),
-                  blurRadius: 24,
-                ),
-              ],
+              boxShadow: onPlayPauseTap == null
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: Color(0x29000000), // shadow for high floating buttons
+                        offset: Offset(0, 8),
+                        blurRadius: 24,
+                      ),
+                    ],
             ),
             child: Icon(
               isPlaying ? Icons.pause : Icons.play_arrow,
-              color: Colors.white,
+              color: onPlayPauseTap == null
+                  ? AppColors.onSurfaceVariant.withOpacity(0.4)
+                  : Colors.white,
               size: 40.0,
             ),
           ),
         ),
         // Next Button
         IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.skip_next,
-            color: AppColors.onBackground,
+            color: onNextTap == null
+                ? AppColors.onBackground.withOpacity(0.3)
+                : AppColors.onBackground,
             size: 36.0,
           ),
           onPressed: onNextTap,
@@ -104,7 +115,9 @@ class PlaybackControls extends StatelessWidget {
         IconButton(
           icon: Icon(
             Icons.repeat,
-            color: isRepeatActive ? AppColors.accentIndigo : AppColors.onSurfaceVariant,
+            color: onRepeatTap == null
+                ? AppColors.onSurfaceVariant.withOpacity(0.3)
+                : (isRepeatActive ? AppColors.accentIndigo : AppColors.onSurfaceVariant),
             size: 24.0,
           ),
           onPressed: onRepeatTap,

@@ -25,13 +25,7 @@ class PlayerPage extends ConsumerWidget {
     final repeatMode = ref.watch(playerControllerProvider.select((s) => s.repeatMode));
     final controller = ref.read(playerControllerProvider.notifier);
 
-    if (currentTrack == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text('No Track Selected'),
-        ),
-      );
-    }
+    final hasTrack = currentTrack != null;
 
     // Format Duration Helper
     String formatDuration(Duration duration) {
@@ -41,28 +35,28 @@ class PlayerPage extends ConsumerWidget {
       return "$minutes:${twoDigits(seconds)}";
     }
 
-
-    final blurBackingUrl = currentTrack.imageUrl;
+    final blurBackingUrl = hasTrack ? currentTrack.imageUrl : '';
 
     return Scaffold(
       body: Stack(
         children: [
           // 1. Monochromatic Album Cover Blur Background layer
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.4,
-              child: Container(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: blurBackingUrl.startsWith('http')
-                        ? NetworkImage(blurBackingUrl) as ImageProvider
-                        : FileImage(File(blurBackingUrl)),
-                    fit: BoxFit.cover,
+          if (hasTrack && blurBackingUrl.isNotEmpty)
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.4,
+                child: Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: blurBackingUrl.startsWith('http')
+                          ? NetworkImage(blurBackingUrl) as ImageProvider
+                          : FileImage(File(blurBackingUrl)),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
           // Glassmorphic overlay backdrop filter
           Positioned.fill(
             child: ClipRect(
@@ -101,7 +95,7 @@ class PlayerPage extends ConsumerWidget {
                         padding: const EdgeInsets.only(right: AppSpacing.sm),
                         child: IconButton(
                           icon: const Icon(Icons.queue_music),
-                          onPressed: () => context.push('/queue'),
+                          onPressed: hasTrack ? () => context.push('/queue') : null,
                           splashRadius: 20.0,
                         ),
                       ),
@@ -122,12 +116,27 @@ class PlayerPage extends ConsumerWidget {
                             builder: (context, constraints) {
                               final artworkSize = constraints.maxWidth * 0.8;
                               return Center(
-                                child: AlbumArtwork(
-                                  imageUrl: currentTrack.imageUrl,
-                                  size: artworkSize,
-                                  borderRadius: BorderRadius.circular(32.0),
-                                  hasShadow: true,
-                                ),
+                                child: hasTrack
+                                    ? AlbumArtwork(
+                                        imageUrl: currentTrack.imageUrl,
+                                        size: artworkSize,
+                                        borderRadius: BorderRadius.circular(32.0),
+                                        hasShadow: true,
+                                      )
+                                    : Container(
+                                        width: artworkSize,
+                                        height: artworkSize,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surfaceContainerHigh,
+                                          borderRadius: BorderRadius.circular(32.0),
+                                          boxShadow: AppShadows.shadowMedium,
+                                        ),
+                                        child: Icon(
+                                          Icons.music_note,
+                                          size: artworkSize * 0.4,
+                                          color: AppColors.onSurfaceVariant.withOpacity(0.3),
+                                        ),
+                                      ),
                               );
                             },
                           ),
@@ -139,7 +148,7 @@ class PlayerPage extends ConsumerWidget {
                               IconButton(
                                 icon: const Icon(Icons.favorite_border),
                                 color: AppColors.onSurfaceVariant,
-                                onPressed: () {},
+                                onPressed: hasTrack ? () {} : null,
                                 splashRadius: 20.0,
                               ),
                               Expanded(
@@ -147,7 +156,7 @@ class PlayerPage extends ConsumerWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      currentTrack.title,
+                                      hasTrack ? currentTrack.title : 'No song selected',
                                       style: AppTypography.headlineLargeMobile.copyWith(
                                         color: AppColors.onSurface,
                                       ),
@@ -157,7 +166,7 @@ class PlayerPage extends ConsumerWidget {
                                     ),
                                     AppSpacing.heightXs,
                                     Text(
-                                      currentTrack.artist,
+                                      hasTrack ? currentTrack.artist : '—',
                                       style: AppTypography.bodyMedium.copyWith(
                                         color: AppColors.onSurfaceVariant,
                                       ),
@@ -171,10 +180,12 @@ class PlayerPage extends ConsumerWidget {
                               IconButton(
                                 icon: const Icon(Icons.more_horiz),
                                 color: AppColors.onSurfaceVariant,
-                                onPressed: () => showAddToPlaylistSheet(
-                                  context,
-                                  currentTrack,
-                                ),
+                                onPressed: hasTrack
+                                    ? () => showAddToPlaylistSheet(
+                                          context,
+                                          currentTrack,
+                                        )
+                                    : null,
                                 splashRadius: 20.0,
                               ),
                             ],
@@ -183,8 +194,12 @@ class PlayerPage extends ConsumerWidget {
                            // Symmetrical Waveform & Progress display
                           Consumer(
                             builder: (context, ref, child) {
-                              final currentPosition = ref.watch(playerControllerProvider.select((s) => s.position));
-                              final totalDuration = ref.watch(playerControllerProvider.select((s) => s.duration));
+                              final currentPosition = hasTrack
+                                  ? ref.watch(playerControllerProvider.select((s) => s.position))
+                                  : Duration.zero;
+                              final totalDuration = hasTrack
+                                  ? ref.watch(playerControllerProvider.select((s) => s.duration))
+                                  : Duration.zero;
 
                               final progress = totalDuration.inMilliseconds > 0
                                   ? currentPosition.inMilliseconds / totalDuration.inMilliseconds
@@ -201,14 +216,16 @@ class PlayerPage extends ConsumerWidget {
                                     widthFactor: 0.85,
                                     child: WaveformWidget(
                                       activeProgress: progress,
-                                      onScrub: (newProgress) {
-                                        final seekPosition = Duration(
-                                          milliseconds: (newProgress *
-                                                  totalDuration.inMilliseconds)
-                                              .toInt(),
-                                        );
-                                        controller.seek(seekPosition);
-                                      },
+                                      onScrub: hasTrack
+                                          ? (newProgress) {
+                                              final seekPosition = Duration(
+                                                milliseconds: (newProgress *
+                                                        totalDuration.inMilliseconds)
+                                                    .toInt(),
+                                              );
+                                              controller.seek(seekPosition);
+                                            }
+                                          : null,
                                     ),
                                   ),
                                   AppSpacing.heightSm,
@@ -239,17 +256,19 @@ class PlayerPage extends ConsumerWidget {
                               isPlaying: isPlaying,
                               isShuffleActive: isShuffleEnabled,
                               isRepeatActive: repeatMode != RepeatMode.off,
-                              onPlayPauseTap: () {
-                                if (isPlaying) {
-                                  controller.pause();
-                                } else {
-                                  controller.play();
-                                }
-                              },
-                              onPrevTap: controller.previous,
-                              onNextTap: controller.next,
-                              onShuffleTap: controller.toggleShuffle,
-                              onRepeatTap: controller.toggleRepeatMode,
+                              onPlayPauseTap: hasTrack
+                                  ? () {
+                                      if (isPlaying) {
+                                        controller.pause();
+                                      } else {
+                                        controller.play();
+                                      }
+                                    }
+                                  : null,
+                              onPrevTap: hasTrack ? controller.previous : null,
+                              onNextTap: hasTrack ? controller.next : null,
+                              onShuffleTap: hasTrack ? controller.toggleShuffle : null,
+                              onRepeatTap: hasTrack ? controller.toggleRepeatMode : null,
                             ),
                           ),
                         ],

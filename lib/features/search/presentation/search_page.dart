@@ -13,7 +13,7 @@ import '../../../core/audio/providers.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/track.dart';
-import '../../../shared/models/mock_data.dart';
+import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../providers/search_providers.dart';
@@ -173,24 +173,28 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     AppSpacing.heightLg,
 
                     // Recent Searches Section (Bento Grid)
-                    SectionHeader(
-                      title: 'Recent',
-                      actionLabel: 'Clear',
-                      onActionTap: () {
-                        ref.read(searchHistoryProvider.notifier).clearAll();
-                      },
-                    ),
-                    AppSpacing.heightMd,
-                    _buildBentoRecentSearches(localArtists, localAlbums),
-                    AppSpacing.heightLg,
+                    if (history.isNotEmpty) ...[
+                      SectionHeader(
+                        title: 'Recent',
+                        actionLabel: 'Clear',
+                        onActionTap: () {
+                          ref.read(searchHistoryProvider.notifier).clearAll();
+                        },
+                      ),
+                      AppSpacing.heightMd,
+                      _buildBentoRecentSearches(localArtists, localAlbums),
+                      AppSpacing.heightLg,
+                    ],
 
-                    // Trending Now Section
-                    const SectionHeader(
-                      title: 'Trending Now',
-                    ),
-                    AppSpacing.heightMd,
-                    _buildTrendingSongsList(context, localSongs),
-                    AppSpacing.heightLg,
+                    if (localSongs.isNotEmpty) ...[
+                      // Trending Now Section
+                      const SectionHeader(
+                        title: 'Trending Now',
+                      ),
+                      AppSpacing.heightMd,
+                      _buildTrendingSongsList(context, localSongs),
+                      AppSpacing.heightLg,
+                    ],
 
                     // Browse Categories Grid
                     const SectionHeader(
@@ -334,52 +338,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Widget _buildBentoRecentSearches(List<MediaArtist> localArtists, List<MediaAlbum> localAlbums) {
     final history = ref.watch(searchHistoryProvider);
 
-    // When no persisted history yet, fall back to device library context as before.
-    if (history.isEmpty) {
-      final hasArtist = localArtists.isNotEmpty;
-      final artistName = hasArtist ? localArtists.first.name : 'Brambles';
-      final hasAlbum = localAlbums.isNotEmpty;
-      final albumTitle = hasAlbum ? localAlbums.first.title : 'Charcoal';
-      final albumArtwork = hasAlbum ? localAlbums.first.artworkPath : MockData.recentlyPlayed[0].imageUrl;
-
-      return Row(
-        children: [
-          Expanded(
-            child: _buildRecentSearchCard(
-              title: artistName,
-              subtitle: 'Artist',
-              onTap: () => _applyHistoryQuery(artistName),
-              topWidget: Container(
-                width: 40.0,
-                height: 40.0,
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceContainerHigh,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.history, color: AppColors.onSurfaceVariant, size: 20.0),
-              ),
-            ),
-          ),
-          AppSpacing.widthMd,
-          Expanded(
-            child: _buildRecentSearchCard(
-              title: albumTitle,
-              subtitle: 'Album',
-              onTap: () => _applyHistoryQuery(albumTitle),
-              topWidget: ClipRRect(
-                borderRadius: BorderRadius.circular(20.0),
-                child: albumArtwork.startsWith('http')
-                    ? Image.network(albumArtwork, width: 40.0, height: 40.0, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(width: 40.0, height: 40.0, color: AppColors.surfaceContainerHigh))
-                    : Image.file(File(albumArtwork), width: 40.0, height: 40.0, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(width: 40.0, height: 40.0, color: AppColors.surfaceContainerHigh)),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
     // Show persisted search history as tappable bento cards (up to 4).
     final displayed = history.take(4).toList();
     return Wrap(
@@ -455,57 +413,30 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildTrendingSongsList(BuildContext context, List<MediaSong> localSongs) {
-    final hasLocal = localSongs.isNotEmpty;
-
-    if (hasLocal) {
-      final displaySongs = localSongs.take(3).toList();
-      final trackList = localSongs.map((song) => Track(
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        imageUrl: song.artworkPath,
-        duration: song.duration,
-        filePath: song.filePath,
-      )).toList();
-
-      return Column(
-        children: List.generate(displaySongs.length, (index) {
-          final song = displaySongs[index];
-          final track = trackList[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: SongTile(
-              title: song.title,
-              artist: song.artist,
-              duration: song.duration,
-              imageUrl: song.artworkPath,
-              isPlaying: false,
-              onTap: () {
-                ref.read(playerControllerProvider.notifier).selectTrack(track, trackList);
-                context.push('/player');
-              },
-            ),
-          );
-        }),
-      );
-    }
-
-    // Show top 3 tracks from mock data as trending tracks fallback
-    final tracks = MockData.favoriteSongs;
+    final displaySongs = localSongs.take(3).toList();
+    final trackList = localSongs.map((song) => Track(
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      imageUrl: song.artworkPath,
+      duration: song.duration,
+      filePath: song.filePath,
+    )).toList();
 
     return Column(
-      children: List.generate(tracks.length, (index) {
-        final track = tracks[index];
+      children: List.generate(displaySongs.length, (index) {
+        final song = displaySongs[index];
+        final track = trackList[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: SongTile(
-            title: track.title,
-            artist: track.artist,
-            duration: '3:24',
-            imageUrl: track.imageUrl,
+            title: song.title,
+            artist: song.artist,
+            duration: song.duration,
+            imageUrl: song.artworkPath,
             isPlaying: false,
             onTap: () {
-              ref.read(playerControllerProvider.notifier).selectTrack(track, tracks);
+              ref.read(playerControllerProvider.notifier).selectTrack(track, trackList);
               context.push('/player');
             },
           ),
@@ -515,10 +446,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildBrowseCategoriesGrid(int albumsCount, int artistsCount, int playlistsCount, int genresCount) {
-    final albumsLabel = albumsCount > 0 ? '$albumsCount Albums' : '24 Albums';
-    final artistsLabel = artistsCount > 0 ? '$artistsCount Artists' : '12 Artists';
-    final playlistsLabel = playlistsCount > 0 ? '$playlistsCount Playlists' : '8 Playlists';
-    final genresLabel = genresCount > 0 ? '$genresCount Genres' : '6 Genres';
+    final albumsLabel = '$albumsCount Albums';
+    final artistsLabel = '$artistsCount Artists';
+    final playlistsLabel = '$playlistsCount Playlists';
+    final genresLabel = '$genresCount Genres';
 
     return Column(
       children: [

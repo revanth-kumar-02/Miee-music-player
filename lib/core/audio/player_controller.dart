@@ -5,7 +5,6 @@ import 'package:audio_service/audio_service.dart' hide PlaybackState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
-import '../../shared/models/mock_data.dart';
 import '../../shared/models/track.dart';
 import '../../shared/models/music_item.dart';
 import 'audio_handler.dart';
@@ -41,17 +40,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
 
   void _init() {
-    // Bootstrap with mock featured track for initial UI display.
-    _queueManager.setQueue([
-      MockData.featuredTrack,
-      ...MockData.favoriteSongs,
-    ]);
+    _queueManager.setQueue([]);
 
-    state = PlaybackState(
-      status: PlaybackStatus.paused,
-      currentTrack: MockData.featuredTrack,
-      duration: const Duration(minutes: 2, seconds: 52),
-    );
+    state = PlaybackState.initial();
 
     // Mirror handler streams into Riverpod state.
     _positionSub = _handler.positionStream.listen((pos) {

@@ -11,9 +11,9 @@ import '../../../core/audio/providers.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/track.dart';
-import '../../../shared/models/mock_data.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../library/providers/library_providers.dart';
 
@@ -83,6 +83,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           splashRadius: 20.0,
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => context.go('/search'),
+            splashRadius: 20.0,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.marginMobile),
             child: ProfileAvatar(
@@ -114,40 +119,53 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   AppSpacing.heightLg,
 
-                  // Continue Listening Section
-                  const SectionHeader(
-                    title: 'Continue Listening',
-                    isUppercase: true,
-                  ),
-                  AppSpacing.heightMd,
-                  _buildContinueListeningCard(context, localSongs),
-                  AppSpacing.heightLg,
+                  if (localSongs.isEmpty) ...[
+                    AppSpacing.heightLg,
+                    const EmptyState(
+                      title: 'No music found',
+                      message: 'Import your local music or connect a music source.',
+                      icon: Icons.music_off_outlined,
+                    ),
+                  ] else ...[
+                    // Continue Listening Section
+                    const SectionHeader(
+                      title: 'Continue Listening',
+                      isUppercase: true,
+                    ),
+                    AppSpacing.heightMd,
+                    _buildContinueListeningCard(context, localSongs),
+                    AppSpacing.heightLg,
 
-                  // Recently Played Section
-                  const SectionHeader(
-                    title: 'Recently Played',
-                    isUppercase: true,
-                  ),
-                  AppSpacing.heightMd,
-                  _buildRecentlyPlayedList(localAlbums),
-                  AppSpacing.heightLg,
+                    if (localAlbums.isNotEmpty) ...[
+                      // Recently Played Section
+                      const SectionHeader(
+                        title: 'Recently Played',
+                        isUppercase: true,
+                      ),
+                      AppSpacing.heightMd,
+                      _buildRecentlyPlayedList(localAlbums),
+                      AppSpacing.heightLg,
 
-                  // Albums Section (Bento Grid)
-                  const SectionHeader(
-                    title: 'Albums',
-                    isUppercase: true,
-                  ),
-                  AppSpacing.heightMd,
-                  _buildBentoAlbumsGrid(context, localAlbums),
-                  AppSpacing.heightLg,
+                      // Albums Section (Bento Grid)
+                      const SectionHeader(
+                        title: 'Albums',
+                        isUppercase: true,
+                      ),
+                      AppSpacing.heightMd,
+                      _buildBentoAlbumsGrid(context, localAlbums),
+                      AppSpacing.heightLg,
+                    ],
 
-                  // Favorite Artists Section
-                  const SectionHeader(
-                    title: 'Favorite Artists',
-                    isUppercase: true,
-                  ),
-                  AppSpacing.heightMd,
-                  _buildFavoriteArtistsList(localArtists),
+                    if (localArtists.isNotEmpty) ...[
+                      // Favorite Artists Section
+                      const SectionHeader(
+                        title: 'Favorite Artists',
+                        isUppercase: true,
+                      ),
+                      AppSpacing.heightMd,
+                      _buildFavoriteArtistsList(localArtists),
+                    ],
+                  ],
 
                   // Bottom padding to ensure items scroll completely above floating players
                   SizedBox(height: 160.0 + bottomInset),

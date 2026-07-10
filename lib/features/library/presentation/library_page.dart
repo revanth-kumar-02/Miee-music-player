@@ -11,9 +11,9 @@ import '../../../core/audio/providers.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/track.dart';
-import '../../../shared/models/mock_data.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../playlists/domain/playlist_model.dart';
 import '../../playlists/providers/playlist_providers.dart';
 import '../../playlists/presentation/widgets/create_playlist_dialog.dart';
@@ -64,6 +64,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
     final profile = ref.watch(profileProvider);
+    final localSongs = ref.watch(songsProvider);
+    final favorites = ref.watch(favoritesProvider);
 
     return Scaffold(
       extendBody: true,
@@ -102,62 +104,71 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   _buildPageHeader(context),
                   AppSpacing.heightLg,
 
-                  // Library Categories Grid (3-row, 2-column flex layout)
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final localSongs = ref.watch(songsProvider);
-                      final localAlbums = ref.watch(albumsProvider);
-                      final localArtists = ref.watch(artistsProvider);
-                      final localGenres = ref.watch(genresProvider);
-                      final localPlaylists = ref.watch(playlistsProvider);
-                      final localFolders = ref.watch(foldersProvider);
+                  if (localSongs.isEmpty) ...[
+                    AppSpacing.heightLg,
+                    const EmptyState(
+                      title: 'No songs available',
+                      message: 'Scan your device to start building your library.',
+                      icon: Icons.library_music_outlined,
+                    ),
+                  ] else ...[
+                    // Library Categories Grid (3-row, 2-column flex layout)
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final localAlbums = ref.watch(albumsProvider);
+                        final localArtists = ref.watch(artistsProvider);
+                        final localGenres = ref.watch(genresProvider);
+                        final localPlaylists = ref.watch(playlistsProvider);
+                        final localFolders = ref.watch(foldersProvider);
 
-                      return _buildCategoryGrid(
-                        localSongs.length,
-                        localAlbums.length,
-                        localArtists.length,
-                        localPlaylists.length,
-                        localGenres.length,
-                        localFolders.length,
-                      );
-                    },
-                  ),
-                  AppSpacing.heightLg,
+                        return _buildCategoryGrid(
+                          localSongs.length,
+                          localAlbums.length,
+                          localArtists.length,
+                          localPlaylists.length,
+                          localGenres.length,
+                          localFolders.length,
+                        );
+                      },
+                    ),
+                    AppSpacing.heightLg,
 
-                  // Recently Added Section
-                  const SectionHeader(
-                    title: 'Recently Added',
-                  ),
-                  AppSpacing.heightMd,
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final localAlbums = ref.watch(albumsProvider);
-                      return _buildRecentlyAddedList(localAlbums);
-                    },
-                  ),
-                  AppSpacing.heightLg,
+                    // Recently Added Section
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final localAlbums = ref.watch(albumsProvider);
+                        if (localAlbums.isEmpty) return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SectionHeader(
+                              title: 'Recently Added',
+                            ),
+                            AppSpacing.heightMd,
+                            _buildRecentlyAddedList(localAlbums),
+                            AppSpacing.heightLg,
+                          ],
+                        );
+                      },
+                    ),
 
-                  // My Playlists Section
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final playlists = ref.watch(allPlaylistsProvider);
-                      return _buildMyPlaylistsSection(context, ref, playlists);
-                    },
-                  ),
+                    // My Playlists Section
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final playlists = ref.watch(allPlaylistsProvider);
+                        return _buildMyPlaylistsSection(context, ref, playlists);
+                      },
+                    ),
 
-                  AppSpacing.heightLg,
+                    AppSpacing.heightLg,
 
-                  // Favorites Section
-                  const SectionHeader(
-                    title: 'Favorites',
-                  ),
-                  AppSpacing.heightMd,
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final localSongs = ref.watch(songsProvider);
-                      return _buildFavoritesList(context, localSongs);
-                    },
-                  ),
+                    // Favorites Section
+                    const SectionHeader(
+                      title: 'Favorites',
+                    ),
+                    AppSpacing.heightMd,
+                    _buildFavoritesList(context, favorites),
+                  ],
 
                   // Bottom padding safety offset for floating overlays
                   SizedBox(height: 160.0 + bottomInset),
@@ -354,21 +365,18 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   }
 
   Widget _buildRecentlyAddedList(List<MediaAlbum> localAlbums) {
-    final hasLocal = localAlbums.isNotEmpty;
-    final itemCount = hasLocal ? localAlbums.length : MockData.recentlyAdded.length;
-
     return SizedBox(
       height: 190.0, // Restrain height to wrap standard AlbumCards comfortably
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: itemCount,
+        itemCount: localAlbums.length,
         separatorBuilder: (context, index) => AppSpacing.widthMd,
         itemBuilder: (context, index) {
-          final imageUrl = hasLocal ? localAlbums[index].artworkPath : MockData.recentlyAdded[index].imageUrl;
-          final title = hasLocal ? localAlbums[index].title : MockData.recentlyAdded[index].title;
-          final subtitle = hasLocal ? '${localAlbums[index].trackCount} Songs' : MockData.recentlyAdded[index].subtitle;
+          final imageUrl = localAlbums[index].artworkPath;
+          final title = localAlbums[index].title;
+          final subtitle = '${localAlbums[index].trackCount} Songs';
 
           return AlbumCard(
             imageUrl: imageUrl,
@@ -382,26 +390,22 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     );
   }
 
-  Widget _buildFavoritesList(BuildContext context, List<MediaSong> localSongs) {
-    final hasLocal = localSongs.isNotEmpty;
-
-    if (hasLocal) {
-      final displaySongs = localSongs.take(5).toList();
-      final trackList = localSongs;
-
+  Widget _buildFavoritesList(BuildContext context, List<Track> favorites) {
+    if (favorites.isNotEmpty) {
+      final displaySongs = favorites.take(5).toList();
       return Column(
         children: List.generate(displaySongs.length, (index) {
-          final song = displaySongs[index];
+          final track = displaySongs[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: SongTile(
-              title: song.title,
-              artist: song.artist,
-              duration: song.duration,
-              imageUrl: song.artworkPath,
+              title: track.title,
+              artist: track.artist,
+              duration: track.duration,
+              imageUrl: track.imageUrl,
               isPlaying: false,
               onTap: () {
-                ref.read(playerControllerProvider.notifier).selectTrack(song, trackList);
+                ref.read(playerControllerProvider.notifier).selectTrack(track, favorites);
                 context.push('/player');
               },
             ),
@@ -410,26 +414,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       );
     }
 
-    final trackList = MockData.favoriteSongs;
-
-    return Column(
-      children: List.generate(trackList.length, (index) {
-        final track = trackList[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: SongTile(
-            title: track.title,
-            artist: track.artist,
-            duration: track.duration,
-            imageUrl: track.imageUrl,
-            isPlaying: false,
-            onTap: () {
-              ref.read(playerControllerProvider.notifier).selectTrack(track, trackList);
-              context.push('/player');
-            },
-          ),
-        );
-      }),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Text(
+        'No favorite songs yet',
+        style: AppTypography.bodyMedium
+            .copyWith(color: AppColors.onSurfaceVariant),
+      ),
     );
   }
 
@@ -447,11 +438,29 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         ),
         if (playlists.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-            child: Text(
-              'No playlists yet. Tap "New" to create one.',
-              style: AppTypography.bodyMedium
-                  .copyWith(color: AppColors.onSurfaceVariant),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No playlists yet',
+                  style: AppTypography.bodyMedium
+                      .copyWith(color: AppColors.onSurfaceVariant),
+                ),
+                AppSpacing.heightMd,
+                ElevatedButton.icon(
+                  onPressed: () async => showCreatePlaylistDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create Playlist'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20.0),
+                    ),
+                  ),
+                ),
+              ],
             ),
           )
         else ...[
