@@ -25,11 +25,46 @@ subprojects {
         }
     }
 
+    val configureSdkVersion = {
+        if (plugins.hasPlugin("com.android.library") || plugins.hasPlugin("com.android.application")) {
+            val android = extensions.findByName("android")
+            if (android != null) {
+                try {
+                    val compileSdkVersionMethod = try {
+                        android.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType ?: Int::class.java)
+                    } catch (e: NoSuchMethodException) {
+                        android.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType ?: Int::class.java)
+                    }
+                    compileSdkVersionMethod.invoke(android, 36)
+                } catch (e: Exception) {
+                    // Method not present or unsupported
+                }
+
+                try {
+                    val getDefaultConfig = android.javaClass.getMethod("getDefaultConfig")
+                    val defaultConfig = getDefaultConfig.invoke(android)
+                    if (defaultConfig != null) {
+                        val targetSdkVersionMethod = try {
+                            defaultConfig.javaClass.getMethod("targetSdkVersion", Int::class.javaPrimitiveType ?: Int::class.java)
+                        } catch (e: NoSuchMethodException) {
+                            defaultConfig.javaClass.getMethod("setTargetSdkVersion", Int::class.javaPrimitiveType ?: Int::class.java)
+                        }
+                        targetSdkVersionMethod.invoke(defaultConfig, 36)
+                    }
+                } catch (e: Exception) {
+                    // Method not present or unsupported
+                }
+            }
+        }
+    }
+
     if (state.executed) {
         configureNamespace()
+        configureSdkVersion()
     } else {
         afterEvaluate {
             configureNamespace()
+            configureSdkVersion()
         }
     }
 }

@@ -41,7 +41,7 @@ class YouTubeRepository {
 
     try {
       // sp=EgIQAQ%253D%253D is the video-only filter
-      final response = await _dio.get(
+      final response = await _dio.get<String>(
         'https://www.youtube.com/results',
         queryParameters: {
           'search_query': cleanQuery,
@@ -109,8 +109,8 @@ class YouTubeRepository {
                 final video = item['videoRenderer'];
                 if (video != null) {
                   final videoId = video['videoId'] as String?;
-                  final title = _extractText(video['title']);
-                  final channel = _extractText(video['longBylineText'] ?? video['shortBylineText']);
+                  final title = _extractText(video['title'] as Map<String, dynamic>?);
+                  final channel = _extractText((video['longBylineText'] ?? video['shortBylineText']) as Map<String, dynamic>?);
                   final duration = video['lengthText']?['simpleText'] as String? ?? '0:00';
                   final viewCount = video['viewCountText']?['simpleText'] as String? ?? '';
 

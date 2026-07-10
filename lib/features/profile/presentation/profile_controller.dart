@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../../../../core/storage/hive_boxes.dart';
@@ -13,43 +14,43 @@ class ProfileController extends StateNotifier<ProfileModel> {
   final Ref _ref;
 
   ProfileController(this._repository, this._ref, ProfileModel initialProfile) : super(initialProfile) {
-    _recordLastOpened();
+    // _recordLastOpened();
   }
 
   Future<void> _recordLastOpened() async {
-    final updated = state.copyWith(lastOpened: DateTime.now());
-    await _repository.saveProfile(updated);
-    state = updated;
-    await _queueProfileUpdate(updated);
+    // final updated = state.copyWith(lastOpened: DateTime.now());
+    // await _repository.saveProfile(updated);
+    // state = updated;
+    // await _queueProfileUpdate(updated);
   }
 
   Future<void> _queueProfileUpdate(ProfileModel profile) async {
-    final op = OfflineOperation(
-      id: 'profile_upd_${DateTime.now().millisecondsSinceEpoch}',
-      type: 'profile_update',
-      payload: {
-        'displayName': profile.displayName,
-        'username': profile.username,
-        'profilePicturePath': profile.profilePicturePath,
-        'favoriteGenre': profile.favoriteGenre,
-        'favoriteArtist': profile.favoriteArtist,
-        'createdDate': profile.createdDate.toIso8601String(),
-        'lastOpened': profile.lastOpened.toIso8601String(),
-        'themeMode': profile.themeMode,
-        'playbackSpeed': profile.playbackSpeed,
-        'preferredSource': profile.preferredSource,
-        'defaultShuffle': profile.defaultShuffle,
-        'defaultRepeat': profile.defaultRepeat,
-        'backgroundPlayback': profile.backgroundPlayback,
-        'mediaNotification': profile.mediaNotification,
-        'lockScreenControls': profile.lockScreenControls,
-        'gaplessPlayback': profile.gaplessPlayback,
-        'crossfade': profile.crossfade,
-        'lastScanTime': profile.lastScanTime,
-      },
-      timestamp: DateTime.now(),
-    );
-    await _ref.read(syncManagerProvider).queueOperation(op);
+    // final op = OfflineOperation(
+    //   id: 'profile_upd_${DateTime.now().millisecondsSinceEpoch}',
+    //   type: 'profile_update',
+    //   payload: {
+    //     'displayName': profile.displayName,
+    //     'username': profile.username,
+    //     'profilePicturePath': profile.profilePicturePath,
+    //     'favoriteGenre': profile.favoriteGenre,
+    //     'favoriteArtist': profile.favoriteArtist,
+    //     'createdDate': profile.createdDate.toIso8601String(),
+    //     'lastOpened': profile.lastOpened.toIso8601String(),
+    //     'themeMode': profile.themeMode,
+    //     'playbackSpeed': profile.playbackSpeed,
+    //     'preferredSource': profile.preferredSource,
+    //     'defaultShuffle': profile.defaultShuffle,
+    //     'defaultRepeat': profile.defaultRepeat,
+    //     'backgroundPlayback': profile.backgroundPlayback,
+    //     'mediaNotification': profile.mediaNotification,
+    //     'lockScreenControls': profile.lockScreenControls,
+    //     'gaplessPlayback': profile.gaplessPlayback,
+    //     'crossfade': profile.crossfade,
+    //     'lastScanTime': profile.lastScanTime,
+    //   },
+    //   timestamp: DateTime.now(),
+    // );
+    // await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   Future<void> updateProfile({
@@ -171,6 +172,7 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 
 /// Provider for the active user ProfileModel.
 final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>((ref) {
+  debugPrint('STARTUP: profileProvider creating controller');
   final repo = ref.watch(profileRepositoryProvider);
   final box = Hive.box(HiveBoxes.profile);
   
@@ -203,5 +205,6 @@ final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>((
     );
   }
 
+  debugPrint('STARTUP: profileProvider initialProfile loaded');
   return ProfileController(repo, ref, initialProfile);
 });

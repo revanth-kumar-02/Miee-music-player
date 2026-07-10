@@ -17,15 +17,18 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   @override
   void initState() {
     super.initState();
+    debugPrint('STARTUP: SplashPage.initState() entered');
     
     // Trigger offline-first background cloud synchronization
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(syncManagerProvider).triggerSync();
+      debugPrint('STARTUP: SplashPage post-frame callback fired');
+      // ref.read(syncManagerProvider).triggerSync();
     });
 
     // Simulate auto-navigation to Home screen after 2.5 seconds
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
+        debugPrint("STARTUP: SplashPage navigating to '/home'");
         context.go('/home');
       }
     });
@@ -33,6 +36,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('STARTUP: SplashPage.build() entered');
     final theme = Theme.of(context);
     
     return Scaffold(

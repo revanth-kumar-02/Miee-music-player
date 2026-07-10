@@ -82,7 +82,7 @@ class ProfilePage extends ConsumerWidget {
                     radius: 18.0,
                     child: IconButton(
                       icon: const Icon(Icons.camera_alt, size: 16.0, color: Colors.white),
-                      onPressed: () => _showEditProfilePictureSheet(context, profileNotifier),
+                      onPressed: () => _showEditProfilePictureSheet(context, ref, profileNotifier),
                     ),
                   ),
                 ],
@@ -430,7 +430,7 @@ class ProfilePage extends ConsumerWidget {
     return "${months[date.month - 1]} ${date.year}";
   }
 
-  void _showEditProfilePictureSheet(BuildContext context, ProfileController notifier) {
+  void _showEditProfilePictureSheet(BuildContext context, WidgetRef ref, ProfileController notifier) {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -444,7 +444,7 @@ class ProfilePage extends ConsumerWidget {
                 final ImagePicker picker = ImagePicker();
                 final XFile? image = await picker.pickImage(source: ImageSource.gallery);
                 if (image != null) {
-                  final activeProfile = notifier.state;
+                  final activeProfile = ref.read(profileProvider);
                   await notifier.updateProfile(
                     displayName: activeProfile.displayName,
                     username: activeProfile.username,

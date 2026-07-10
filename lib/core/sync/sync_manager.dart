@@ -39,9 +39,9 @@ class SyncManager {
         _networkMonitor = _ref.read(networkMonitorProvider) {
     // Automatically trigger sync when network returns
     _networkSubscription = _networkMonitor.onConnectivityChanged.listen((isOnline) {
-      if (isOnline) {
-        triggerSync();
-      }
+      // if (isOnline) {
+      //   triggerSync();
+      // }
     });
   }
 
@@ -94,7 +94,7 @@ class SyncManager {
             await client
                 .from('favorites')
                 .delete()
-                .eq('id', payload['id'])
+                .eq('id', payload['id'] as Object)
                 .eq('user_id', userId);
             break;
 
@@ -113,12 +113,12 @@ class SyncManager {
             await client
                 .from('playlists')
                 .delete()
-                .eq('id', payload['id'])
+                .eq('id', payload['id'] as Object)
                 .eq('user_id', userId);
             await client
                 .from('playlist_songs')
                 .delete()
-                .eq('playlist_id', payload['id'])
+                .eq('playlist_id', payload['id'] as Object)
                 .eq('user_id', userId);
             break;
 
@@ -152,8 +152,8 @@ class SyncManager {
             await client
                 .from('playlist_songs')
                 .delete()
-                .eq('playlist_id', payload['playlistId'])
-                .eq('track_id', payload['trackId'])
+                .eq('playlist_id', payload['playlistId'] as Object)
+                .eq('track_id', payload['trackId'] as Object)
                 .eq('user_id', userId);
             break;
 
@@ -222,7 +222,7 @@ class SyncManager {
             await client
                 .from('search_history')
                 .delete()
-                .eq('query', payload['query'])
+                .eq('query', payload['query'] as Object)
                 .eq('user_id', userId);
             break;
         }

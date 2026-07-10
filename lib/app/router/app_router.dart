@@ -18,6 +18,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (BuildContext context, GoRouterState state) {
+        debugPrint("STARTUP: GoRouter builder for '/' executing");
         return const SplashPage();
       },
     ),

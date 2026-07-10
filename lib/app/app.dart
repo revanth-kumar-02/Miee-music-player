@@ -11,7 +11,9 @@ class MieeApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    debugPrint('STARTUP: MieeApp.build() entered');
     final settings = ref.watch(settingsControllerProvider);
+    debugPrint('STARTUP: settingsControllerProvider resolved themeMode=${settings.themeMode}');
     final themePref = settings.themeMode;
 
     ThemeMode mode;
@@ -23,6 +25,7 @@ class MieeApp extends ConsumerWidget {
       mode = ThemeMode.system;
     }
 
+    debugPrint('STARTUP: MaterialApp.router() building');
     return MaterialApp.router(
       title: 'Miee Music Player',
       debugShowCheckedModeBanner: false,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
@@ -31,14 +32,22 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   StreamSubscription<Duration?>? _durationSub;
 
   MieeAudioHandler() {
+    debugPrint("STARTUP: MieeAudioHandler() constructor started");
     _initAudioSession();
+    debugPrint("STARTUP: MieeAudioHandler() _initAudioSession called (async)");
     _listenToPlayerStreams();
+    debugPrint("STARTUP: MieeAudioHandler() _listenToPlayerStreams called");
     queue.add([]);
+    debugPrint("STARTUP: MieeAudioHandler() queue.add([]) done");
   }
 
   Future<void> _initAudioSession() async {
+    debugPrint("STARTUP: AudioSession.instance starting");
     final session = await AudioSession.instance;
+    debugPrint("STARTUP: AudioSession.instance done");
+    debugPrint("STARTUP: session.configure starting");
     await session.configure(const AudioSessionConfiguration.music());
+    debugPrint("STARTUP: session.configure done");
 
     session.interruptionEventStream.listen((event) {
       if (event.begin) {

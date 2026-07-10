@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/settings_model.dart';
 import '../../profile/domain/profile_model.dart';
@@ -8,7 +9,9 @@ class SettingsController extends StateNotifier<SettingsModel> {
   final Ref _ref;
 
   SettingsController(this._ref) : super(_mapSettings(_ref.read(profileProvider))) {
+    debugPrint('STARTUP: SettingsController() created');
     _ref.listen<ProfileModel>(profileProvider, (previous, next) {
+      debugPrint('STARTUP: SettingsController heard profileProvider change');
       state = _mapSettings(next);
     });
   }
