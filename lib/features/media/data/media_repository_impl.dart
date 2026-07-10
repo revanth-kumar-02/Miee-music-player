@@ -121,8 +121,8 @@ class MediaRepositoryImpl implements MediaRepository {
     final Set<String> seenPaths = {};
 
     for (final song in rawSongs) {
-      if (song.isMusic != true) continue;
-      // Ignore ringtones/notifications/short audios under 30 seconds
+      // Exclude notification/alarm sounds, and enforce the 30-second limit
+      if (song.isNotification == true || song.isAlarm == true) continue;
       if (song.duration != null && song.duration! < 30000) continue;
 
       final path = song.data;
