@@ -229,12 +229,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                     context.go('/search');
                     break;
                   case 2:
-                    context.go('/library');
-                    break;
-                  case 3:
                     context.go('/playlists');
                     break;
-                  case 4:
+                  case 3:
                     context.go('/settings');
                     break;
                 }

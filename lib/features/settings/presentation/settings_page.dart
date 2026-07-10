@@ -673,7 +673,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         right: 0,
         bottom: 0,
         child: BottomNavigation(
-          currentIndex: 4,
+          currentIndex: 3,
           onTap: (index) {
             switch (index) {
               case 0:
@@ -683,12 +683,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 context.go('/search');
                 break;
               case 2:
-                context.go('/library');
-                break;
-              case 3:
                 context.go('/playlists');
                 break;
-              case 4:
+              case 3:
                 break;
             }
           },

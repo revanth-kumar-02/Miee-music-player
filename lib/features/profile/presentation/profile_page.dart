@@ -330,7 +330,7 @@ class ProfilePage extends ConsumerWidget {
         right: 0,
         bottom: 0,
         child: BottomNavigation(
-          currentIndex: 4, // Setting/Profile is tab 4
+          currentIndex: 3, // Setting/Profile is tab 3
           onTap: (index) {
             switch (index) {
               case 0:
@@ -340,12 +340,9 @@ class ProfilePage extends ConsumerWidget {
                 context.go('/search');
                 break;
               case 2:
-                context.go('/library');
-                break;
-              case 3:
                 context.go('/playlists');
                 break;
-              case 4:
+              case 3:
                 context.go('/settings');
                 break;
             }

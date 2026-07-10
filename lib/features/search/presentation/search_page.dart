@@ -274,12 +274,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   case 1:
                     break;
                   case 2:
-                    context.go('/library');
-                    break;
-                  case 3:
                     context.go('/playlists');
                     break;
-                  case 4:
+                  case 3:
                     context.go('/settings');
                     break;
                 }

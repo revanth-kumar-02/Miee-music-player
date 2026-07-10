@@ -58,18 +58,12 @@ class BottomNavigation extends StatelessWidget {
               ),
               _buildNavItem(
                 index: 2,
-                icon: Icons.library_music_outlined,
-                activeIcon: Icons.library_music,
-                label: 'Library',
-              ),
-              _buildNavItem(
-                index: 3,
                 icon: Icons.queue_music_outlined,
                 activeIcon: Icons.queue_music,
                 label: 'Playlists',
               ),
               _buildNavItem(
-                index: 4,
+                index: 3,
                 icon: Icons.settings_outlined,
                 activeIcon: Icons.settings,
                 label: 'Settings',
