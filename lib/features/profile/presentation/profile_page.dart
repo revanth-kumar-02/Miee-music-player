@@ -58,11 +58,12 @@ class ProfilePage extends ConsumerWidget {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppBar(
-        title: const Text('Profile'),
+      appBar: AppHeader(
+        title: 'Profile',
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
+          onPressed: () => context.pop(),
+          splashRadius: 20.0,
         ),
       ),
       body: Stack(

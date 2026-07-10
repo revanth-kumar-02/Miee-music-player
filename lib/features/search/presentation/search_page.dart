@@ -127,23 +127,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return Scaffold(
       extendBody: true,
       appBar: AppHeader(
-        title: 'Miee',
+        title: 'Search',
         isScrolled: _isScrolled,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-          splashRadius: 20.0,
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.marginMobile),
-            child: ProfileAvatar(
-              imageUrl: profile.profilePicturePath,
-              size: 32.0,
-              onTap: () => context.push('/profile'),
-            ),
-          ),
-        ],
       ),
       body: Stack(
         children: [

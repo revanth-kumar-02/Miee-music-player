@@ -51,6 +51,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       ),
       leading: leading,
       actions: actions,
+      centerTitle: true,
       backgroundColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,

@@ -172,12 +172,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppBar(
-        title: const Text('Settings'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-        ),
+      appBar: const AppHeader(
+        title: 'Settings',
       ),
       body: Stack(
         children: [

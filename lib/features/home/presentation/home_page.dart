@@ -77,17 +77,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppHeader(
         title: 'Miee',
         isScrolled: _isScrolled,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-          splashRadius: 20.0,
-        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => context.go('/search'),
-            splashRadius: 20.0,
-          ),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.marginMobile),
             child: ProfileAvatar(

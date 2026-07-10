@@ -134,18 +134,6 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
       appBar: AppHeader(
         title: 'Playlists',
         isScrolled: _isScrolled,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
-          splashRadius: 20.0,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () async => showCreatePlaylistDialog(context),
-            splashRadius: 20.0,
-          ),
-        ],
       ),
       body: Stack(
         children: [
