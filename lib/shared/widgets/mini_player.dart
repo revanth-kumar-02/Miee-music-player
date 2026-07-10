@@ -146,24 +146,35 @@ class MiniPlayer extends StatelessWidget {
                               ),
                             ),
                           )
-                        : Image.file(
-                            File(imageUrl),
-                            width: 48.0,
-                            height: 48.0,
-                            fit: BoxFit.cover,
-                            cacheWidth: 120,
-                            cacheHeight: 120,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              width: 48.0,
-                              height: 48.0,
-                              color: AppColors.surfaceContainerHigh,
-                              child: const Icon(
-                                Icons.music_note,
-                                color: AppColors.onSurfaceVariant,
-                                size: 20.0,
+                        : imageUrl.isNotEmpty
+                            ? Image.file(
+                                File(imageUrl),
+                                width: 48.0,
+                                height: 48.0,
+                                fit: BoxFit.cover,
+                                cacheWidth: 120,
+                                cacheHeight: 120,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  width: 48.0,
+                                  height: 48.0,
+                                  color: AppColors.surfaceContainerHigh,
+                                  child: const Icon(
+                                    Icons.music_note,
+                                    color: AppColors.onSurfaceVariant,
+                                    size: 20.0,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                width: 48.0,
+                                height: 48.0,
+                                color: AppColors.surfaceContainerHigh,
+                                child: const Icon(
+                                  Icons.music_note,
+                                  color: AppColors.onSurfaceVariant,
+                                  size: 20.0,
+                                ),
                               ),
-                            ),
-                          ),
                   ),
                   AppSpacing.widthMd,
                   // Track Metadata Stack

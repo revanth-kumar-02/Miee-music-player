@@ -307,7 +307,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildRecentlyPlayedList(List<MediaAlbum> localAlbums) {
     return SizedBox(
-      height: 190.0, // Restrain height to wrap standard AlbumCards comfortably
+      height: 205.0, // Restrain height to wrap standard AlbumCards comfortably without overflows
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -379,7 +379,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildFavoriteArtistsList(List<MediaArtist> localArtists) {
     return SizedBox(
-      height: 110.0, // Restrain height for avatar + space + text label
+      height: 125.0, // Expanded height for avatar + space + single-line text label
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
@@ -398,10 +398,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                 onTap: () {},
               ),
               AppSpacing.heightSm,
-              Text(
-                name,
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.onSurface,
+              SizedBox(
+                width: 72.0, // Constrain text width to match avatar width
+                child: Text(
+                  name,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.onSurface,
+                  ),
                 ),
               ),
             ],

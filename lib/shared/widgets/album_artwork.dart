@@ -65,18 +65,27 @@ class AlbumArtwork extends StatelessWidget {
                         ),
                       ),
                     )
-                  : Image.file(
-                      File(imageUrl),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: AppColors.surfaceContainerHigh,
-                        child: const Icon(
-                          Icons.music_note,
-                          color: AppColors.onSurfaceVariant,
-                          size: 32.0,
+                  : imageUrl.isNotEmpty
+                      ? Image.file(
+                          File(imageUrl),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: AppColors.surfaceContainerHigh,
+                            child: const Icon(
+                              Icons.music_note,
+                              color: AppColors.onSurfaceVariant,
+                              size: 32.0,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: AppColors.surfaceContainerHigh,
+                          child: const Icon(
+                            Icons.music_note,
+                            color: AppColors.onSurfaceVariant,
+                            size: 32.0,
+                          ),
                         ),
-                      ),
-                    ),
             ),
           ),
           // Play Button Overlay

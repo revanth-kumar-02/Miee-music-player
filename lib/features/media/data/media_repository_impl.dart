@@ -83,6 +83,28 @@ class MediaRepositoryImpl implements MediaRepository {
     return '$minutes:$seconds';
   }
 
+  String _fixCachePath(String cachedPath, String currentTempDirPath) {
+    if (cachedPath.isEmpty) return '';
+    if (cachedPath.startsWith('http')) return cachedPath;
+    final fileName = cachedPath.split(Platform.isWindows ? '\\' : '/').last;
+    return '$currentTempDirPath/$fileName';
+  }
+
+  Future<void> _queryAndSaveArtwork(int id, ArtworkType type, String targetPath) async {
+    try {
+      final bytes = await _audioQuery.queryArtwork(
+        id,
+        type,
+        format: ArtworkFormat.PNG,
+        size: 200,
+      );
+      if (bytes != null && bytes.isNotEmpty) {
+        final file = File(targetPath);
+        await file.writeAsBytes(bytes);
+      }
+    } catch (_) {}
+  }
+
   @override
   Future<List<MediaSong>> getSongs({bool forceRefresh = false}) async {
     if (!forceRefresh) {
@@ -93,11 +115,42 @@ class MediaRepositoryImpl implements MediaRepository {
       final box = Hive.box(HiveBoxes.preferences);
       final cachedData = box.get('scanned_songs');
       if (cachedData is List) {
+        final tempDir = await getTemporaryDirectory();
         final List<MediaSong> cachedSongs = [];
         for (final item in cachedData) {
           if (item is Map) {
             final castedMap = Map<String, dynamic>.from(item);
-            cachedSongs.add(MediaSong.fromJson(castedMap));
+            final song = MediaSong.fromJson(castedMap);
+            
+            final fixedArtworkPath = _fixCachePath(song.artworkPath, tempDir.path);
+            
+            if (fixedArtworkPath.isNotEmpty) {
+              final file = File(fixedArtworkPath);
+              if (!await file.exists()) {
+                final baseName = fixedArtworkPath.split(Platform.isWindows ? '\\' : '/').last;
+                final idStr = baseName.replaceAll('album_', '').replaceAll('.png', '');
+                final albumId = int.tryParse(idStr);
+                if (albumId != null) {
+                  await _queryAndSaveArtwork(albumId, ArtworkType.ALBUM, fixedArtworkPath);
+                } else {
+                  final songId = int.tryParse(song.id);
+                  if (songId != null) {
+                    await _queryAndSaveArtwork(songId, ArtworkType.AUDIO, fixedArtworkPath);
+                  }
+                }
+              }
+            }
+
+            cachedSongs.add(MediaSong(
+              id: song.id,
+              title: song.title,
+              artist: song.artist,
+              album: song.album,
+              duration: song.duration,
+              durationMs: song.durationMs,
+              filePath: song.filePath,
+              artworkPath: fixedArtworkPath,
+            ));
           }
         }
         if (cachedSongs.isNotEmpty) {
@@ -129,13 +182,17 @@ class MediaRepositoryImpl implements MediaRepository {
       if (path == null || path.isEmpty) continue;
       if (!seenPaths.add(path)) continue; // skip duplicates
 
+      final title = song.title.isEmpty ? 'Unknown Title' : song.title;
+      final artistName = (song.artist == null || song.artist == '<unknown>' || song.artist!.trim().isEmpty) ? 'Unknown Artist' : song.artist!;
+      final albumName = (song.album == null || song.album == '<unknown>' || song.album!.trim().isEmpty) ? 'Unknown Album' : song.album!;
+
       final artPath = await _getAlbumArtworkPath(song.albumId);
       songs.add(
         MediaSong(
           id: song.id.toString(),
-          title: song.title,
-          artist: song.artist ?? 'Unknown Artist',
-          album: song.album ?? 'Unknown Album',
+          title: title,
+          artist: artistName,
+          album: albumName,
           duration: _formatDuration(song.duration),
           durationMs: song.duration ?? 0,
           filePath: path,
@@ -171,11 +228,14 @@ class MediaRepositoryImpl implements MediaRepository {
     final List<MediaAlbum> albums = [];
     for (final album in rawAlbums) {
       final artPath = await _getAlbumArtworkPath(album.id);
+      final albumTitle = (album.album.isEmpty || album.album == '<unknown>') ? 'Unknown Album' : album.album;
+      final artistName = (album.artist == null || album.artist == '<unknown>' || album.artist!.trim().isEmpty) ? 'Unknown Artist' : album.artist!;
+
       albums.add(
         MediaAlbum(
           id: album.id.toString(),
-          title: album.album,
-          artist: album.artist ?? 'Unknown Artist',
+          title: albumTitle,
+          artist: artistName,
           trackCount: album.numOfSongs,
           artworkPath: artPath,
         ),
@@ -203,12 +263,15 @@ class MediaRepositoryImpl implements MediaRepository {
 
     final artists = rawArtists
         .map(
-          (artist) => MediaArtist(
-            id: artist.id.toString(),
-            name: artist.artist,
-            trackCount: artist.numberOfTracks ?? 0,
-            albumCount: artist.numberOfAlbums ?? 0,
-          ),
+          (artist) {
+            final name = (artist.artist.isEmpty || artist.artist == '<unknown>') ? 'Unknown Artist' : artist.artist;
+            return MediaArtist(
+              id: artist.id.toString(),
+              name: name,
+              trackCount: artist.numberOfTracks ?? 0,
+              albumCount: artist.numberOfAlbums ?? 0,
+            );
+          },
         )
         .toList();
 
