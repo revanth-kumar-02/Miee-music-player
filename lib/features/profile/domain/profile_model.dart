@@ -8,7 +8,6 @@ class ProfileModel {
   final DateTime lastOpened;
 
   // Preferences moved into Profile
-  final String themeMode; // 'light' | 'dark' | 'system'
   final double playbackSpeed;
   final String preferredSource; // 'preferLocal' | 'preferYouTube' | 'askEveryTime'
   final bool defaultShuffle;
@@ -29,7 +28,6 @@ class ProfileModel {
     required this.favoriteArtist,
     required this.createdDate,
     required this.lastOpened,
-    required this.themeMode,
     required this.playbackSpeed,
     required this.preferredSource,
     required this.defaultShuffle,
@@ -51,7 +49,6 @@ class ProfileModel {
       favoriteArtist: 'Unknown Artist',
       createdDate: now,
       lastOpened: now,
-      themeMode: 'system',
       playbackSpeed: 1.0,
       preferredSource: 'preferLocal',
       defaultShuffle: false,
@@ -73,7 +70,6 @@ class ProfileModel {
     String? favoriteArtist,
     DateTime? createdDate,
     DateTime? lastOpened,
-    String? themeMode,
     double? playbackSpeed,
     String? preferredSource,
     bool? defaultShuffle,
@@ -94,7 +90,6 @@ class ProfileModel {
       favoriteArtist: favoriteArtist ?? this.favoriteArtist,
       createdDate: createdDate ?? this.createdDate,
       lastOpened: lastOpened ?? this.lastOpened,
-      themeMode: themeMode ?? this.themeMode,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       preferredSource: preferredSource ?? this.preferredSource,
       defaultShuffle: defaultShuffle ?? this.defaultShuffle,

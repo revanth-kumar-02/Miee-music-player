@@ -9,14 +9,6 @@ import '../../../core/storage/hive_boxes.dart';
 class PreferencesRepository {
   Box get _box => Hive.box(HiveBoxes.preferences);
 
-  // ── Theme ───────────────────────────────────────────────────────────────────
-
-  /// Returns the stored theme. Defaults to 'dark'.
-  String getTheme() => _box.get(PreferenceKeys.theme, defaultValue: 'dark') as String;
-
-  Future<void> setTheme(String theme) async =>
-      _box.put(PreferenceKeys.theme, theme);
-
   // ── Playback speed ──────────────────────────────────────────────────────────
 
   double getPlaybackSpeed() =>

@@ -198,35 +198,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 ],
               ),
-              const Divider(height: 32.0),
-
-              // ── 1. Appearance Section ──
-              _buildSectionHeader('Appearance'),
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.palette_outlined),
-                      title: const Text('Theme Mode'),
-                      subtitle: Text(settings.themeMode.toUpperCase()),
-                      trailing: DropdownButton<String>(
-                        value: settings.themeMode,
-                        underline: const SizedBox(),
-                        items: const [
-                          DropdownMenuItem(value: 'system', child: Text('System')),
-                          DropdownMenuItem(value: 'light', child: Text('Light')),
-                          DropdownMenuItem(value: 'dark', child: Text('Dark')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) settingsNotifier.updateThemeMode(val);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
               // ── 2. Playback Section ──
               _buildSectionHeader('Playback'),

@@ -1,5 +1,4 @@
 class SettingsModel {
-  final String themeMode; // 'light' | 'dark' | 'system'
   final bool resumePlayback;
   final bool defaultShuffle;
   final String defaultRepeat; // 'off' | 'one' | 'all'
@@ -13,7 +12,6 @@ class SettingsModel {
   final String? lastScanTime;
 
   const SettingsModel({
-    required this.themeMode,
     required this.resumePlayback,
     required this.defaultShuffle,
     required this.defaultRepeat,
@@ -28,7 +26,6 @@ class SettingsModel {
   });
 
   SettingsModel copyWith({
-    String? themeMode,
     bool? resumePlayback,
     bool? defaultShuffle,
     String? defaultRepeat,
@@ -42,7 +39,6 @@ class SettingsModel {
     String? lastScanTime,
   }) {
     return SettingsModel(
-      themeMode: themeMode ?? this.themeMode,
       resumePlayback: resumePlayback ?? this.resumePlayback,
       defaultShuffle: defaultShuffle ?? this.defaultShuffle,
       defaultRepeat: defaultRepeat ?? this.defaultRepeat,

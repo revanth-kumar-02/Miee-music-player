@@ -38,7 +38,6 @@ abstract class HiveBoxes {
 
 /// Typed keys for the [HiveBoxes.preferences] box.
 abstract class PreferenceKeys {
-  static const String theme = 'theme';
   static const String playbackSpeed = 'playback_speed';
   static const String repeatMode = 'repeat_mode';
   static const String shuffle = 'shuffle';

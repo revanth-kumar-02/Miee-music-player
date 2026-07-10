@@ -56,7 +56,6 @@ final preferencesRepositoryProvider = Provider<PreferencesRepository>(
 );
 
 class SettingsState {
-  final String theme;
   final double playbackSpeed;
   final String repeatMode;
   final bool isShuffle;
@@ -73,7 +72,6 @@ class SettingsState {
   final bool lockScreenControlsEnabled;
 
   const SettingsState({
-    required this.theme,
     required this.playbackSpeed,
     required this.repeatMode,
     required this.isShuffle,
@@ -91,7 +89,6 @@ class SettingsState {
   });
 
   SettingsState copyWith({
-    String? theme,
     double? playbackSpeed,
     String? repeatMode,
     bool? isShuffle,
@@ -108,7 +105,6 @@ class SettingsState {
     bool? lockScreenControlsEnabled,
   }) {
     return SettingsState(
-      theme: theme ?? this.theme,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       repeatMode: repeatMode ?? this.repeatMode,
       isShuffle: isShuffle ?? this.isShuffle,
@@ -132,7 +128,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   SettingsNotifier(this._repo)
       : super(SettingsState(
-          theme: _repo.getTheme(),
           playbackSpeed: _repo.getPlaybackSpeed(),
           repeatMode: _repo.getRepeatMode(),
           isShuffle: _repo.getShuffle(),
@@ -148,11 +143,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           backgroundPlaybackEnabled: _repo.getBackgroundPlaybackEnabled(),
           lockScreenControlsEnabled: _repo.getLockScreenControlsEnabled(),
         ));
-
-  Future<void> setTheme(String theme) async {
-    await _repo.setTheme(theme);
-    state = state.copyWith(theme: theme);
-  }
 
   Future<void> setPlaybackSpeed(double speed) async {
     await _repo.setPlaybackSpeed(speed);
@@ -356,7 +346,6 @@ final searchHistoryProvider =
 
 /// Exposes current user preferences as a typed snapshot.
 class PreferencesState {
-  final String theme;
   final double playbackSpeed;
   final String repeatMode;
   final bool isShuffle;
@@ -364,7 +353,6 @@ class PreferencesState {
   final String audioQuality;
 
   const PreferencesState({
-    required this.theme,
     required this.playbackSpeed,
     required this.repeatMode,
     required this.isShuffle,
@@ -378,7 +366,6 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
 
   PreferencesNotifier(this._repo)
       : super(PreferencesState(
-          theme: _repo.getTheme(),
           playbackSpeed: _repo.getPlaybackSpeed(),
           repeatMode: _repo.getRepeatMode(),
           isShuffle: _repo.getShuffle(),
@@ -386,22 +373,9 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
           audioQuality: _repo.getAudioQuality(),
         ));
 
-  Future<void> setTheme(String theme) async {
-    await _repo.setTheme(theme);
-    state = PreferencesState(
-      theme: theme,
-      playbackSpeed: state.playbackSpeed,
-      repeatMode: state.repeatMode,
-      isShuffle: state.isShuffle,
-      sleepTimerMinutes: state.sleepTimerMinutes,
-      audioQuality: state.audioQuality,
-    );
-  }
-
   Future<void> setPlaybackSpeed(double speed) async {
     await _repo.setPlaybackSpeed(speed);
     state = PreferencesState(
-      theme: state.theme,
       playbackSpeed: speed,
       repeatMode: state.repeatMode,
       isShuffle: state.isShuffle,
@@ -413,7 +387,6 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
   Future<void> setRepeatMode(String mode) async {
     await _repo.setRepeatMode(mode);
     state = PreferencesState(
-      theme: state.theme,
       playbackSpeed: state.playbackSpeed,
       repeatMode: mode,
       isShuffle: state.isShuffle,
@@ -425,7 +398,6 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
   Future<void> setShuffle(bool value) async {
     await _repo.setShuffle(value);
     state = PreferencesState(
-      theme: state.theme,
       playbackSpeed: state.playbackSpeed,
       repeatMode: state.repeatMode,
       isShuffle: value,
@@ -437,7 +409,6 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
   Future<void> setSleepTimer(int? minutes) async {
     await _repo.setSleepTimerMinutes(minutes);
     state = PreferencesState(
-      theme: state.theme,
       playbackSpeed: state.playbackSpeed,
       repeatMode: state.repeatMode,
       isShuffle: state.isShuffle,
@@ -449,7 +420,6 @@ class PreferencesNotifier extends StateNotifier<PreferencesState> {
   Future<void> setAudioQuality(String quality) async {
     await _repo.setAudioQuality(quality);
     state = PreferencesState(
-      theme: state.theme,
       playbackSpeed: state.playbackSpeed,
       repeatMode: state.repeatMode,
       isShuffle: state.isShuffle,

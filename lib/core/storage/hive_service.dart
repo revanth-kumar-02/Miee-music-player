@@ -6,7 +6,6 @@ import 'adapters/playback_history_entry.dart';
 import 'adapters/playlist_hive_model.dart';
 import 'adapters/queue_snapshot.dart';
 import 'adapters/track_hive_model.dart';
-import 'adapters/user_preferences.dart';
 import 'hive_boxes.dart';
 
 /// Responsible for initialising Hive, registering all [TypeAdapter]s,
@@ -54,6 +53,5 @@ class HiveService {
     if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(HistoryEntryAdapter());
     if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(PlaybackHistoryEntryAdapter());
     if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(QueueSnapshotAdapter());
-    if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(UserPreferencesAdapter());
   }
 }

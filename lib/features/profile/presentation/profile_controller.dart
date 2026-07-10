@@ -79,13 +79,6 @@ class ProfileController extends StateNotifier<ProfileModel> {
     await _queueProfileUpdate(updated);
   }
 
-  Future<void> updateThemeMode(String mode) async {
-    final updated = state.copyWith(themeMode: mode);
-    await _repository.saveProfile(updated);
-    state = updated;
-    await _queueProfileUpdate(updated);
-  }
-
   Future<void> updateResumePlayback(bool value) async {
     final updated = state.copyWith(resumePlayback: value);
     await _repository.saveProfile(updated);
@@ -190,7 +183,6 @@ final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>((
       favoriteArtist: map['favoriteArtist'] as String? ?? 'Unknown Artist',
       createdDate: DateTime.tryParse(map['createdDate'] as String? ?? '') ?? DateTime.now(),
       lastOpened: DateTime.tryParse(map['lastOpened'] as String? ?? '') ?? DateTime.now(),
-      themeMode: map['themeMode'] as String? ?? 'system',
       playbackSpeed: (map['playbackSpeed'] as num? ?? 1.0).toDouble(),
       preferredSource: map['preferredSource'] as String? ?? 'preferLocal',
       defaultShuffle: map['defaultShuffle'] as bool? ?? false,

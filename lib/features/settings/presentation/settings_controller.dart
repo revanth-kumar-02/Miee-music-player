@@ -18,7 +18,6 @@ class SettingsController extends StateNotifier<SettingsModel> {
 
   static SettingsModel _mapSettings(ProfileModel profile) {
     return SettingsModel(
-      themeMode: profile.themeMode,
       resumePlayback: profile.resumePlayback,
       defaultShuffle: profile.defaultShuffle,
       defaultRepeat: profile.defaultRepeat,
@@ -31,10 +30,6 @@ class SettingsController extends StateNotifier<SettingsModel> {
       lockScreenControls: profile.lockScreenControls,
       lastScanTime: profile.lastScanTime,
     );
-  }
-
-  Future<void> updateThemeMode(String mode) async {
-    await _ref.read(profileProvider.notifier).updateThemeMode(mode);
   }
 
   Future<void> updateResumePlayback(bool value) async {
