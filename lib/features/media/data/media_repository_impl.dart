@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:hive/hive.dart';
+import '../../../core/storage/hive_boxes.dart';
 import '../domain/media_repository.dart';
 import '../domain/models.dart';
 
@@ -22,6 +25,14 @@ class MediaRepositoryImpl implements MediaRepository {
   @override
   Future<bool> checkAndRequestPermissions() async {
     if (!Platform.isAndroid) return true;
+    
+    if (await Permission.audio.request().isGranted) {
+      return true;
+    }
+    if (await Permission.storage.request().isGranted) {
+      return true;
+    }
+    
     final hasPermission = await _audioQuery.permissionsStatus();
     if (!hasPermission) {
       return await _audioQuery.permissionsRequest();
@@ -74,8 +85,26 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<List<MediaSong>> getSongs({bool forceRefresh = false}) async {
-    if (!forceRefresh && _cachedSongs != null) {
-      return _cachedSongs!;
+    if (!forceRefresh) {
+      if (_cachedSongs != null) {
+        return _cachedSongs!;
+      }
+
+      final box = Hive.box(HiveBoxes.preferences);
+      final cachedData = box.get('scanned_songs');
+      if (cachedData is List) {
+        final List<MediaSong> cachedSongs = [];
+        for (final item in cachedData) {
+          if (item is Map) {
+            final castedMap = Map<String, dynamic>.from(item);
+            cachedSongs.add(MediaSong.fromJson(castedMap));
+          }
+        }
+        if (cachedSongs.isNotEmpty) {
+          _cachedSongs = cachedSongs;
+          return cachedSongs;
+        }
+      }
     }
 
     final hasPerm = await checkAndRequestPermissions();
@@ -89,9 +118,16 @@ class MediaRepositoryImpl implements MediaRepository {
     );
 
     final List<MediaSong> songs = [];
+    final Set<String> seenPaths = {};
+
     for (final song in rawSongs) {
-      // Exclude files that are not music (like ringtones, notifications, or short audios)
       if (song.isMusic != true) continue;
+      // Ignore ringtones/notifications/short audios under 30 seconds
+      if (song.duration != null && song.duration! < 30000) continue;
+
+      final path = song.data;
+      if (path == null || path.isEmpty) continue;
+      if (!seenPaths.add(path)) continue; // skip duplicates
 
       final artPath = await _getAlbumArtworkPath(song.albumId);
       songs.add(
@@ -102,13 +138,18 @@ class MediaRepositoryImpl implements MediaRepository {
           album: song.album ?? 'Unknown Album',
           duration: _formatDuration(song.duration),
           durationMs: song.duration ?? 0,
-          filePath: song.data,
+          filePath: path,
           artworkPath: artPath,
         ),
       );
     }
 
     _cachedSongs = songs;
+
+    final box = Hive.box(HiveBoxes.preferences);
+    final songMaps = songs.map((s) => s.toJson()).toList();
+    await box.put('scanned_songs', songMaps);
+
     return songs;
   }
 

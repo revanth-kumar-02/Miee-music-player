@@ -32,6 +32,28 @@ class MediaSong implements MusicItem {
 
   @override
   bool get isYoutube => false;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'artist': artist,
+        'album': album,
+        'duration': duration,
+        'durationMs': durationMs,
+        'filePath': filePath,
+        'artworkPath': artworkPath,
+      };
+
+  factory MediaSong.fromJson(Map<String, dynamic> json) => MediaSong(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        artist: json['artist'] as String,
+        album: json['album'] as String,
+        duration: json['duration'] as String,
+        durationMs: json['durationMs'] as int,
+        filePath: json['filePath'] as String,
+        artworkPath: json['artworkPath'] as String,
+      );
 }
 
 

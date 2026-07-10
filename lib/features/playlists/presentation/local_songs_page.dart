@@ -69,6 +69,8 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final favorites = ref.watch(favoritesProvider);
 
+    final isLoading = ref.watch(loadingStateProvider);
+
     // 1. Filter local songs by search query
     final query = _searchController.text.toLowerCase().trim();
     final filteredSongs = localSongs.where((song) {
@@ -103,6 +105,15 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
           onPressed: () => context.pop(),
           splashRadius: 20.0,
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref
+                .read(mediaLibraryServiceProvider.notifier)
+                .scanDevice(forceRefresh: true),
+            splashRadius: 20.0,
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -200,39 +211,76 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
 
                   // Song list
                   Expanded(
-                    child: filteredSongs.isEmpty
+                    child: isLoading
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
-                                  Icons.music_note_outlined,
-                                  size: 64.0,
-                                  color: AppColors.onSurfaceVariant,
-                                ),
+                                const CircularProgressIndicator(
+                                    color: AppColors.primary),
                                 AppSpacing.heightMd,
                                 Text(
-                                  _searchController.text.isNotEmpty
-                                      ? 'No search results'
-                                      : 'No local songs',
-                                  style: AppTypography.headlineMedium.copyWith(
-                                    color: AppColors.onSurface,
-                                  ),
-                                ),
-                                AppSpacing.heightSm,
-                                Text(
-                                  _searchController.text.isNotEmpty
-                                      ? 'Try a different search query.'
-                                      : 'Scanned songs on your device will appear here.',
-                                  textAlign: TextAlign.center,
+                                  'Scanning device for music...',
                                   style: AppTypography.bodyMedium.copyWith(
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
+                                      color: AppColors.onSurfaceVariant),
                                 ),
-                                SizedBox(height: 120.0 + bottomInset),
                               ],
                             ),
                           )
+                        : filteredSongs.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.music_note_outlined,
+                                      size: 64.0,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                    AppSpacing.heightMd,
+                                    Text(
+                                      _searchController.text.isNotEmpty
+                                          ? 'No search results'
+                                          : 'No local songs',
+                                      style: AppTypography.headlineMedium
+                                          .copyWith(
+                                        color: AppColors.onSurface,
+                                      ),
+                                    ),
+                                    AppSpacing.heightSm,
+                                    Text(
+                                      _searchController.text.isNotEmpty
+                                          ? 'Try a different search query.'
+                                          : 'Scanned songs on your device will appear here.',
+                                      textAlign: TextAlign.center,
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        color: AppColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    if (_searchController.text.isEmpty) ...[
+                                      AppSpacing.heightLg,
+                                      FilledButton.icon(
+                                        onPressed: () => ref
+                                            .read(
+                                                mediaLibraryServiceProvider
+                                                    .notifier)
+                                            .scanDevice(forceRefresh: true),
+                                        icon: const Icon(Icons.sync,
+                                            color: Colors.white),
+                                        label: const Text('Scan Device',
+                                            style:
+                                                TextStyle(color: Colors.white)),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 24.0, vertical: 12.0),
+                                        ),
+                                      ),
+                                    ],
+                                    SizedBox(height: 120.0 + bottomInset),
+                                  ],
+                                ),
+                              )
                         : ListView.builder(
                             controller: _scrollController,
                             physics: const BouncingScrollPhysics(),
