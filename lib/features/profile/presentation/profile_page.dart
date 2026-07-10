@@ -343,7 +343,7 @@ class ProfilePage extends ConsumerWidget {
                 context.go('/library');
                 break;
               case 3:
-                context.go('/queue');
+                context.go('/playlists');
                 break;
               case 4:
                 context.go('/settings');

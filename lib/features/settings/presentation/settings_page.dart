@@ -686,7 +686,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 context.go('/library');
                 break;
               case 3:
-                context.go('/queue');
+                context.go('/playlists');
                 break;
               case 4:
                 break;

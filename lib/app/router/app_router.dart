@@ -8,6 +8,7 @@ import '../../features/player/presentation/player_page.dart';
 import '../../features/queue/presentation/queue_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/playlists/presentation/playlist_detail_page.dart';
+import '../../features/playlists/presentation/playlists_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
 
 /// App router configuration using go_router.
@@ -75,6 +76,28 @@ final GoRouter appRouter = GoRouter(
               position: animation.drive(
                 Tween<Offset>(
                   begin: const Offset(0.0, 1.0),
+                  end: Offset.zero,
+                ).chain(CurveTween(curve: Curves.easeOutCubic)),
+              ),
+              child: child,
+            );
+          },
+        );
+      },
+    ),
+    GoRoute(
+      path: '/playlists',
+      pageBuilder: (BuildContext context, GoRouterState state) {
+        return CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const PlaylistsPage(),
+          transitionDuration: const Duration(milliseconds: 350),
+          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
                   end: Offset.zero,
                 ).chain(CurveTween(curve: Curves.easeOutCubic)),
               ),
