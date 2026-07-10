@@ -122,6 +122,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final localPlaylists = ref.watch(playlistsProvider);
     final profile = ref.watch(profileProvider);
     final favorites = ref.watch(favoritesProvider);
+    final history = ref.watch(searchHistoryProvider);
 
     return Scaffold(
       extendBody: true,

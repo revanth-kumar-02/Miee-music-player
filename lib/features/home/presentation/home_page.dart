@@ -247,18 +247,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildContinueListeningCard(BuildContext context, List<MediaSong> localSongs) {
-    final hasLocal = localSongs.isNotEmpty;
-    final displayTitle = hasLocal ? localSongs.first.title : MockData.featuredTrack.title;
-    final displayArtist = hasLocal ? localSongs.first.artist : MockData.featuredTrack.artist;
-    final displayArtwork = hasLocal ? localSongs.first.artworkPath : MockData.featuredTrack.imageUrl;
+    final displayTitle = localSongs.first.title;
+    final displayArtist = localSongs.first.artist;
+    final displayArtwork = localSongs.first.artworkPath;
 
-    final MusicItem targetTrack = hasLocal
-        ? localSongs.first
-        : MockData.featuredTrack;
-
-    final List<MusicItem> trackList = hasLocal
-        ? localSongs
-        : [MockData.featuredTrack, ...MockData.favoriteSongs];
+    final MusicItem targetTrack = localSongs.first;
+    final List<MusicItem> trackList = localSongs;
 
     return GestureDetector(
       onTap: () {
@@ -325,21 +319,18 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildRecentlyPlayedList(List<MediaAlbum> localAlbums) {
-    final hasLocal = localAlbums.isNotEmpty;
-    final itemCount = hasLocal ? localAlbums.length : MockData.recentlyPlayed.length;
-
     return SizedBox(
       height: 190.0, // Restrain height to wrap standard AlbumCards comfortably
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: itemCount,
+        itemCount: localAlbums.length,
         separatorBuilder: (context, index) => AppSpacing.widthMd,
         itemBuilder: (context, index) {
-          final imageUrl = hasLocal ? localAlbums[index].artworkPath : MockData.recentlyPlayed[index].imageUrl;
-          final title = hasLocal ? localAlbums[index].title : MockData.recentlyPlayed[index].title;
-          final subtitle = hasLocal ? '${localAlbums[index].trackCount} Songs' : MockData.recentlyPlayed[index].subtitle;
+          final imageUrl = localAlbums[index].artworkPath;
+          final title = localAlbums[index].title;
+          final subtitle = '${localAlbums[index].trackCount} Songs';
 
           return AlbumCard(
             imageUrl: imageUrl,
@@ -354,17 +345,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildBentoAlbumsGrid(BuildContext context, List<MediaAlbum> localAlbums) {
-    final hasLocal = localAlbums.length >= 3;
+    final heroImageUrl = localAlbums.isNotEmpty ? localAlbums[0].artworkPath : '';
+    final heroTitle = localAlbums.isNotEmpty ? localAlbums[0].title : '';
+    final heroSubtitle = localAlbums.isNotEmpty ? '${localAlbums[0].trackCount} Songs' : '';
 
-    final heroImageUrl = hasLocal ? localAlbums[0].artworkPath : MockData.bentoHeroAlbum.imageUrl;
-    final heroTitle = hasLocal ? localAlbums[0].title : MockData.bentoHeroAlbum.title;
-    final heroSubtitle = hasLocal ? '${localAlbums[0].trackCount} Songs' : MockData.bentoHeroAlbum.subtitle;
+    final sub1ImageUrl = localAlbums.length > 1 ? localAlbums[1].artworkPath : '';
+    final sub1Title = localAlbums.length > 1 ? localAlbums[1].title : '';
 
-    final sub1ImageUrl = hasLocal ? localAlbums[1].artworkPath : MockData.bentoSubAlbums[0].imageUrl;
-    final sub1Title = hasLocal ? localAlbums[1].title : MockData.bentoSubAlbums[0].title;
-
-    final sub2ImageUrl = hasLocal ? localAlbums[2].artworkPath : MockData.bentoSubAlbums[1].imageUrl;
-    final sub2Title = hasLocal ? localAlbums[2].title : MockData.bentoSubAlbums[1].title;
+    final sub2ImageUrl = localAlbums.length > 2 ? localAlbums[2].artworkPath : '';
+    final sub2Title = localAlbums.length > 2 ? localAlbums[2].title : '';
 
     return Column(
       children: [
@@ -402,26 +391,22 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildFavoriteArtistsList(List<MediaArtist> localArtists) {
-    final hasLocal = localArtists.isNotEmpty;
-    final itemCount = hasLocal ? localArtists.length : MockData.favoriteArtists.length;
-
     return SizedBox(
       height: 110.0, // Restrain height for avatar + space + text label
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         clipBehavior: Clip.none,
-        itemCount: itemCount,
+        itemCount: localArtists.length,
         separatorBuilder: (context, index) => AppSpacing.widthLg,
         itemBuilder: (context, index) {
-          final imageUrl = hasLocal ? '' : MockData.favoriteArtists[index].imageUrl;
-          final name = hasLocal ? localArtists[index].name : MockData.favoriteArtists[index].name;
+          final name = localArtists[index].name;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ProfileAvatar(
-                imageUrl: imageUrl.isEmpty ? null : imageUrl,
+                imageUrl: null,
                 size: 72.0,
                 onTap: () {},
               ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_shadows.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
@@ -129,7 +130,7 @@ class PlayerPage extends ConsumerWidget {
                                         decoration: BoxDecoration(
                                           color: AppColors.surfaceContainerHigh,
                                           borderRadius: BorderRadius.circular(32.0),
-                                          boxShadow: AppShadows.shadowMedium,
+                                          boxShadow: AppShadows.shadowHigh,
                                         ),
                                         child: Icon(
                                           Icons.music_note,
