@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../shared/widgets/profile_avatar.dart';
+import '../../../../shared/widgets/widgets.dart';
 import '../../library/providers/library_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../../core/audio/providers.dart';
@@ -53,7 +54,10 @@ class ProfilePage extends ConsumerWidget {
     // Member since date formatting
     final memberSince = _formatDate(profile.createdDate);
 
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         title: const Text('Profile'),
         leading: IconButton(
@@ -61,10 +65,15 @@ class ProfilePage extends ConsumerWidget {
           onPressed: () => context.go('/home'),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 12.0),
@@ -272,48 +281,80 @@ class ProfilePage extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 80.0),
+              SizedBox(height: 160.0 + bottomInset),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3, // Group settings and profile under the settings slot
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              context.go('/home');
-              break;
-            case 1:
-              context.go('/search');
-              break;
-            case 2:
-              context.go('/library');
-              break;
-            case 3:
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.library_music),
-            label: 'Library',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+    ),
+      Positioned(
+        left: AppSpacing.marginMobile,
+        right: AppSpacing.marginMobile,
+        bottom: 80.0 + bottomInset + AppSpacing.sm,
+        child: Consumer(
+          builder: (context, ref, child) {
+            final playbackState = ref.watch(playerControllerProvider);
+            final controller = ref.read(playerControllerProvider.notifier);
+            final currentTrack = playbackState.currentTrack;
+
+            if (currentTrack == null) {
+              return const SizedBox.shrink();
+            }
+
+            final isPlaying = playbackState.status == PlaybackStatus.playing;
+            final total = playbackState.duration.inMilliseconds;
+            final pos = playbackState.position.inMilliseconds;
+            final progress = total > 0 ? pos / total : 0.0;
+
+            return MiniPlayer(
+              musicItem: currentTrack,
+              progress: progress,
+              isPlaying: isPlaying,
+              isFavorited: favorites.any((t) => t.id == currentTrack.id),
+              isDark: true, // Black backing color matches Stitch HTML design
+              onTap: () => context.push('/player'),
+              onPlayPauseTap: () {
+                if (isPlaying) {
+                  controller.pause();
+                } else {
+                  controller.play();
+                }
+              },
+              onFavoriteTap: () {},
+            );
+          },
+        ),
       ),
-    );
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: BottomNavigation(
+          currentIndex: 4, // Setting/Profile is tab 4
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                context.go('/home');
+                break;
+              case 1:
+                context.go('/search');
+                break;
+              case 2:
+                context.go('/library');
+                break;
+              case 3:
+                context.go('/queue');
+                break;
+              case 4:
+                context.go('/settings');
+                break;
+            }
+          },
+        ),
+      ),
+    ],
+  ),
+);
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {

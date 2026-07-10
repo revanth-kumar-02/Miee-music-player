@@ -11,6 +11,7 @@ import '../../library/providers/library_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../core/audio/providers.dart';
 import '../../../core/audio/playback_state.dart';
+import '../../../shared/widgets/widgets.dart';
 import 'settings_controller.dart';
 
 final devTapsProvider = StateProvider<int>((ref) => 0);
@@ -166,7 +167,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final devTaps = ref.watch(devTapsProvider);
     final devUnlocked = ref.watch(devModeUnlockedProvider);
 
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final favorites = ref.watch(favoritesProvider);
+
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         title: const Text('Settings'),
         leading: IconButton(
@@ -174,10 +179,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           onPressed: () {},
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Column(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // About/Header Block
@@ -614,48 +624,79 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 ),
               ],
-              const SizedBox(height: 120.0), // Padding to clear bottom navigation and mini player
+              SizedBox(height: 160.0 + bottomInset),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3,
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              context.go('/home');
-              break;
-            case 1:
-              context.go('/search');
-              break;
-            case 2:
-              context.go('/library');
-              break;
-            case 3:
-              break;
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.library_music),
-            label: 'Library',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+    ),
+      Positioned(
+        left: AppSpacing.marginMobile,
+        right: AppSpacing.marginMobile,
+        bottom: 80.0 + bottomInset + AppSpacing.sm,
+        child: Consumer(
+          builder: (context, ref, child) {
+            final playbackState = ref.watch(playerControllerProvider);
+            final controller = ref.read(playerControllerProvider.notifier);
+            final currentTrack = playbackState.currentTrack;
+
+            if (currentTrack == null) {
+              return const SizedBox.shrink();
+            }
+
+            final isPlaying = playbackState.status == PlaybackStatus.playing;
+            final total = playbackState.duration.inMilliseconds;
+            final pos = playbackState.position.inMilliseconds;
+            final progress = total > 0 ? pos / total : 0.0;
+
+            return MiniPlayer(
+              musicItem: currentTrack,
+              progress: progress,
+              isPlaying: isPlaying,
+              isFavorited: favorites.any((t) => t.id == currentTrack.id),
+              isDark: true, // Black backing color matches Stitch HTML design
+              onTap: () => context.push('/player'),
+              onPlayPauseTap: () {
+                if (isPlaying) {
+                  controller.pause();
+                } else {
+                  controller.play();
+                }
+              },
+              onFavoriteTap: () {},
+            );
+          },
+        ),
       ),
-    );
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: BottomNavigation(
+          currentIndex: 4,
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                context.go('/home');
+                break;
+              case 1:
+                context.go('/search');
+                break;
+              case 2:
+                context.go('/library');
+                break;
+              case 3:
+                context.go('/queue');
+                break;
+              case 4:
+                break;
+            }
+          },
+        ),
+      ),
+    ],
+  ),
+);
   }
 
   Widget _buildSectionHeader(String title) {
