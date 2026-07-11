@@ -10,7 +10,6 @@ import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
-import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -133,7 +132,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         isUppercase: true,
                       ),
                       AppSpacing.heightMd,
-                      _buildRecentlyPlayedList(localAlbums),
+                      _buildRecentlyPlayedList(localAlbums, localSongs),
                       AppSpacing.heightLg,
 
                       // Albums Section (Bento Grid)
@@ -142,7 +141,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         isUppercase: true,
                       ),
                       AppSpacing.heightMd,
-                      _buildBentoAlbumsGrid(context, localAlbums),
+                      _buildBentoAlbumsGrid(context, localAlbums, localSongs),
                       AppSpacing.heightLg,
                     ],
 
@@ -305,7 +304,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildRecentlyPlayedList(List<MediaAlbum> localAlbums) {
+  Widget _buildRecentlyPlayedList(
+    List<MediaAlbum> localAlbums,
+    List<MediaSong> localSongs,
+  ) {
     return SizedBox(
       height: 205.0, // Restrain height to wrap standard AlbumCards comfortably without overflows
       child: ListView.separated(
@@ -315,23 +317,54 @@ class _HomePageState extends ConsumerState<HomePage> {
         itemCount: localAlbums.length,
         separatorBuilder: (context, index) => AppSpacing.widthMd,
         itemBuilder: (context, index) {
-          final imageUrl = localAlbums[index].artworkPath;
-          final title = localAlbums[index].title;
-          final subtitle = '${localAlbums[index].trackCount} Songs';
+          final album = localAlbums[index];
+          final imageUrl = album.artworkPath;
+          final title = album.title;
+          final subtitle = '${album.trackCount} Songs';
 
           return AlbumCard(
             imageUrl: imageUrl,
             title: title,
             subtitle: subtitle,
             variant: AlbumCardVariant.standard,
-            onTap: () => context.push('/player'),
+            onTap: () {
+              // Find songs that belong to this album and start playback
+              final albumSongs = localSongs
+                  .where((s) => s.album == album.title)
+                  .toList();
+              final queue = albumSongs.isNotEmpty ? albumSongs : localSongs;
+              if (queue.isNotEmpty) {
+                ref
+                    .read(playerControllerProvider.notifier)
+                    .selectTrack(queue.first, queue);
+                context.push('/player');
+              }
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildBentoAlbumsGrid(BuildContext context, List<MediaAlbum> localAlbums) {
+  Widget _buildBentoAlbumsGrid(
+    BuildContext context,
+    List<MediaAlbum> localAlbums,
+    List<MediaSong> localSongs,
+  ) {
+    // Helper: start playback of the first song in an album
+    void playAlbum(MediaAlbum album) {
+      final albumSongs = localSongs
+          .where((s) => s.album == album.title)
+          .toList();
+      final queue = albumSongs.isNotEmpty ? albumSongs : localSongs;
+      if (queue.isNotEmpty) {
+        ref
+            .read(playerControllerProvider.notifier)
+            .selectTrack(queue.first, queue);
+        context.push('/player');
+      }
+    }
+
     final heroImageUrl = localAlbums.isNotEmpty ? localAlbums[0].artworkPath : '';
     final heroTitle = localAlbums.isNotEmpty ? localAlbums[0].title : '';
     final heroSubtitle = localAlbums.isNotEmpty ? '${localAlbums[0].trackCount} Songs' : '';
@@ -349,7 +382,9 @@ class _HomePageState extends ConsumerState<HomePage> {
           title: heroTitle,
           subtitle: heroSubtitle,
           variant: AlbumCardVariant.bentoHero,
-          onTap: () => context.push('/player'),
+          onTap: localAlbums.isNotEmpty
+              ? () => playAlbum(localAlbums[0])
+              : null,
         ),
         AppSpacing.heightMd,
         Row(
@@ -359,7 +394,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 imageUrl: sub1ImageUrl,
                 title: sub1Title,
                 variant: AlbumCardVariant.bentoSub,
-                onTap: () => context.push('/player'),
+                onTap: localAlbums.length > 1
+                    ? () => playAlbum(localAlbums[1])
+                    : null,
               ),
             ),
             AppSpacing.widthMd,
@@ -368,7 +405,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                 imageUrl: sub2ImageUrl,
                 title: sub2Title,
                 variant: AlbumCardVariant.bentoSub,
-                onTap: () => context.push('/player'),
+                onTap: localAlbums.length > 2
+                    ? () => playAlbum(localAlbums[2])
+                    : null,
               ),
             ),
           ],

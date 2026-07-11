@@ -5,7 +5,6 @@ import 'package:audio_service/audio_service.dart' hide PlaybackState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
-import '../../shared/models/track.dart';
 import '../../shared/models/music_item.dart';
 import 'audio_handler.dart';
 import 'playback_state.dart';
@@ -15,13 +14,11 @@ import '../../features/media/domain/models.dart';
 import '../../features/youtube/providers/youtube_providers.dart';
 import '../../features/library/providers/library_providers.dart';
 
-
 /// Single orchestrator that bridges [MieeAudioHandler] with Riverpod state.
 ///
 /// [PlayerController] is the single source of truth for the UI layer.
 /// It delegates all actual playback operations to [MieeAudioHandler], which
 /// manages the background service, OS media session, and audio focus.
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PlayerController extends StateNotifier<PlaybackState> {
   final MieeAudioHandler _handler;

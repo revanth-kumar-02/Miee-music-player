@@ -60,7 +60,7 @@ class MediaRepositoryImpl implements MediaRepository {
         albumId,
         ArtworkType.ALBUM,
         format: ArtworkFormat.PNG,
-        size: 200,
+        size: 800,
       );
 
       if (bytes != null && bytes.isNotEmpty) {
@@ -96,7 +96,7 @@ class MediaRepositoryImpl implements MediaRepository {
         id,
         type,
         format: ArtworkFormat.PNG,
-        size: 200,
+        size: 800,
       );
       if (bytes != null && bytes.isNotEmpty) {
         final file = File(targetPath);

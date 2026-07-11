@@ -1,5 +1,5 @@
-import '../../shared/models/track.dart';
 import '../../shared/models/music_item.dart';
+
 
 /// Strongly typed playback status.
 enum PlaybackStatus {

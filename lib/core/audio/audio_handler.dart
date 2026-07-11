@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
-import '../../shared/models/track.dart';
 import '../../shared/models/music_item.dart';
 
 /// Duration for fast-forward and rewind operations.
@@ -32,37 +31,39 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   StreamSubscription<Duration?>? _durationSub;
 
   MieeAudioHandler() {
-    debugPrint("STARTUP: MieeAudioHandler() constructor started");
-    _initAudioSession();
-    debugPrint("STARTUP: MieeAudioHandler() _initAudioSession called (async)");
     _listenToPlayerStreams();
-    debugPrint("STARTUP: MieeAudioHandler() _listenToPlayerStreams called");
     queue.add([]);
-    debugPrint("STARTUP: MieeAudioHandler() queue.add([]) done");
+    debugPrint('STARTUP: MieeAudioHandler() constructed');
   }
 
-  Future<void> _initAudioSession() async {
-    debugPrint("STARTUP: AudioSession.instance starting");
-    final session = await AudioSession.instance;
-    debugPrint("STARTUP: AudioSession.instance done");
-    debugPrint("STARTUP: session.configure starting");
-    await session.configure(const AudioSessionConfiguration.music());
-    debugPrint("STARTUP: session.configure done");
+  /// Must be called once after [AudioService.init] completes.
+  ///
+  /// Configures the audio session for music playback and wires up
+  /// interruption/noise-becoming-noisy handlers. Calling this from
+  /// inside the constructor while [AudioService.init] is still running
+  /// creates a deadlock — [AudioSession.instance] waits for audio focus
+  /// from the same foreground service that is still being initialized.
+  Future<void> initialize() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
 
-    session.interruptionEventStream.listen((event) {
-      if (event.begin) {
-        _player.pause();
-      } else {
-        if (event.type == AudioInterruptionType.pause ||
-            event.type == AudioInterruptionType.duck) {
-          _player.play();
+      session.interruptionEventStream.listen((event) {
+        if (event.begin) {
+          _player.pause();
+        } else {
+          if (event.type == AudioInterruptionType.pause ||
+              event.type == AudioInterruptionType.duck) {
+            _player.play();
+          }
         }
-      }
-    });
+      });
 
-    session.becomingNoisyEventStream.listen((_) {
-      _player.pause();
-    });
+      session.becomingNoisyEventStream.listen((_) => _player.pause());
+      debugPrint('STARTUP: MieeAudioHandler.initialize() done');
+    } catch (e) {
+      debugPrint('STARTUP: MieeAudioHandler.initialize() error: $e');
+    }
   }
 
   void _listenToPlayerStreams() {
@@ -170,15 +171,26 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     mediaItem.add(_trackToMediaItem(track));
     _pushPlaybackState(playerState: PlayerState(false, ProcessingState.loading));
     try {
-      if (track.filePath != null && !track.filePath!.startsWith('http')) {
-        await _player.setAudioSource(AudioSource.file(track.filePath!));
-      } else if (track.filePath != null) {
-        await _player.setUrl(track.filePath!);
+      final path = track.filePath;
+      if (path.isNotEmpty && !path.startsWith('http')) {
+        // Local file — use AudioSource.file for proper URI handling on Android
+        await _player.setAudioSource(AudioSource.file(path));
+      } else if (path.isNotEmpty) {
+        // Remote URL (YouTube stream etc.)
+        await _player.setUrl(path);
       } else {
-        await _player.setUrl('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+        // No valid source — emit error state so the UI can react
+        debugPrint('MieeAudioHandler: track "${track.title}" has no filePath');
+        playbackState.add(
+          playbackState.value.copyWith(processingState: AudioProcessingState.error),
+        );
+        return;
       }
-    } catch (e) {
-      playbackState.add(playbackState.value.copyWith(processingState: AudioProcessingState.error));
+    } catch (e, stack) {
+      debugPrint('MieeAudioHandler: _loadCurrentTrack error: $e\n$stack');
+      playbackState.add(
+        playbackState.value.copyWith(processingState: AudioProcessingState.error),
+      );
     }
   }
 

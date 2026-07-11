@@ -156,14 +156,11 @@ class PlayerPage extends ConsumerWidget {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      hasTrack ? currentTrack.title : 'No song selected',
+                                    MarqueeText(
+                                      text: hasTrack ? currentTrack.title : 'No song selected',
                                       style: AppTypography.headlineLargeMobile.copyWith(
                                         color: AppColors.onSurface,
                                       ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     AppSpacing.heightXs,
                                     Text(
@@ -192,57 +189,70 @@ class PlayerPage extends ConsumerWidget {
                             ],
                           ),
 
-                           // Symmetrical Waveform & Progress display
+                           // ── Live audio visualizer + seek bar ──
                           Consumer(
                             builder: (context, ref, child) {
+                              final state = ref.watch(playerControllerProvider);
                               final currentPosition = hasTrack
-                                  ? ref.watch(playerControllerProvider.select((s) => s.position))
+                                  ? state.position
                                   : Duration.zero;
                               final totalDuration = hasTrack
-                                  ? ref.watch(playerControllerProvider.select((s) => s.duration))
+                                  ? state.duration
                                   : Duration.zero;
+                              final isPlaying =
+                                  state.status == PlaybackStatus.playing;
 
                               final progress = totalDuration.inMilliseconds > 0
-                                  ? currentPosition.inMilliseconds / totalDuration.inMilliseconds
+                                  ? (currentPosition.inMilliseconds /
+                                          totalDuration.inMilliseconds)
+                                      .clamp(0.0, 1.0)
                                   : 0.0;
-
-                              final currentPositionStr = formatDuration(currentPosition);
-                              final totalDurationStr = formatDuration(totalDuration);
 
                               return Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Waveform progress tracker
+                                  // Animated bar visualizer centered and narrower (75% of screen width)
                                   FractionallySizedBox(
-                                    widthFactor: 0.85,
-                                    child: WaveformWidget(
-                                      activeProgress: progress,
-                                      onScrub: hasTrack
-                                          ? (newProgress) {
-                                              final seekPosition = Duration(
-                                                milliseconds: (newProgress *
-                                                        totalDuration.inMilliseconds)
-                                                    .toInt(),
-                                              );
-                                              controller.seek(seekPosition);
-                                            }
-                                          : null,
+                                    widthFactor: 0.75,
+                                    child: LiveAudioVisualizer(
+                                      isPlaying: isPlaying,
+                                      trackId: currentTrack?.id,
+                                      barCount: 24,
+                                      height: 60.0,
                                     ),
                                   ),
-                                  AppSpacing.heightSm,
-                                  // Duration stamps
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.lg),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(currentPositionStr,
-                                            style: AppTypography.labelSmall),
-                                        Text(totalDurationStr,
-                                            style: AppTypography.labelSmall),
-                                      ],
-                                    ),
+                                  const SizedBox(height: 12.0),
+                                  // Slim seek bar
+                                  MieeSeekBar(
+                                    progress: progress,
+                                    enabled: hasTrack,
+                                    onSeek: hasTrack
+                                        ? (frac) {
+                                            final seekPos = Duration(
+                                              milliseconds: (frac *
+                                                      totalDuration
+                                                          .inMilliseconds)
+                                                  .toInt(),
+                                            );
+                                            controller.seek(seekPos);
+                                          }
+                                        : null,
+                                  ),
+                                  const SizedBox(height: 4.0),
+                                  // Duration timestamps
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        formatDuration(currentPosition),
+                                        style: AppTypography.labelSmall,
+                                      ),
+                                      Text(
+                                        formatDuration(totalDuration),
+                                        style: AppTypography.labelSmall,
+                                      ),
+                                    ],
                                   ),
                                 ],
                               );
