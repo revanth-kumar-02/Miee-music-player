@@ -216,29 +216,24 @@ class PlayerPage extends ConsumerWidget {
                                     widthFactor: 0.75,
                                     child: LiveAudioVisualizer(
                                       isPlaying: isPlaying,
+                                      progress: progress,
                                       trackId: currentTrack?.id,
                                       barCount: 24,
                                       height: 60.0,
+                                      onScrub: hasTrack
+                                          ? (frac) {
+                                              final seekPos = Duration(
+                                                milliseconds: (frac *
+                                                        totalDuration
+                                                            .inMilliseconds)
+                                                    .toInt(),
+                                              );
+                                              controller.seek(seekPos);
+                                            }
+                                          : null,
                                     ),
                                   ),
                                   const SizedBox(height: 12.0),
-                                  // Slim seek bar
-                                  MieeSeekBar(
-                                    progress: progress,
-                                    enabled: hasTrack,
-                                    onSeek: hasTrack
-                                        ? (frac) {
-                                            final seekPos = Duration(
-                                              milliseconds: (frac *
-                                                      totalDuration
-                                                          .inMilliseconds)
-                                                  .toInt(),
-                                            );
-                                            controller.seek(seekPos);
-                                          }
-                                        : null,
-                                  ),
-                                  const SizedBox(height: 4.0),
                                   // Duration timestamps
                                   Row(
                                     mainAxisAlignment:

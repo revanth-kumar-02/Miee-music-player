@@ -4,57 +4,42 @@ import '../../app/theme/app_colors.dart';
 
 /// Live audio visualizer with animated vertical bars for the Miee player.
 ///
-/// ## Architecture
-///
-/// Each bar independently oscillates using a sine function:
-///
-///   `height[i] = minH + (maxH - minH) × relAmp[i] × amplitude × ½(1 + sin(t × freq[i] + phase[i]))`
-///
-/// where `t` is continuously increasing time, `freq[i]` and `phase[i]` are
-/// seeded deterministically from [trackId], and `amplitude` fades 0→1 when
-/// playback starts and 1→0 when paused (300 ms ease).
-///
-/// ## Rendering strategy
-///
-/// - A [CustomPainter] is registered as the `repaint` listener of a
-///   [Listenable.merge] of both controllers, so repaints happen on the raster
-///   thread without ever calling [setState] — no widget rebuilds per frame.
-/// - A [RepaintBoundary] isolates the visualizer from the rest of the tree.
-///
-/// ## Why not real FFT?
-///
-/// `just_audio` and `audio_service` expose playback position but not PCM
-/// amplitude buffers or FFT data.  Accessing real audio amplitude requires
-/// a native platform channel or a dedicated plugin (e.g. `flutter_visualizer`,
-/// currently unmaintained).  The physics-based sine approach used here is
-/// visually equivalent and is the technique used by Spotify, Apple Music, and
-/// SoundCloud for their animated waveform visualizers.
+/// ## Features
+/// - Slow-motion multi-sine wave animation for smooth and gentle transitions.
+/// - Progress-based coloring: bars before current position are dark, remaining are light.
+/// - Gestures: tap or drag to scrub/seek playback.
 class LiveAudioVisualizer extends StatefulWidget {
   /// Whether audio is currently playing.
   final bool isPlaying;
 
-  /// Stable track identifier — seeds the per-bar frequency and phase values
-  /// so each song consistently displays its own bar pattern.
+  /// Stable track identifier to seed per-bar properties.
   final String? trackId;
+
+  /// Playback progress fraction 0.0 → 1.0.
+  final double progress;
+
+  /// Called with fraction 0.0–1.0 when the user taps or drags.
+  final ValueChanged<double>? onScrub;
 
   /// Number of animated bars.
   final int barCount;
 
-  /// Total widget height including breathing room above/below bars.
+  /// Total widget height.
   final double height;
 
-  /// Color of the animated bars while playing.  Defaults to [AppColors.onSurface].
+  /// Color of played bars. Defaults to [AppColors.onSurface].
   final Color? barColor;
 
-  /// Color of the bars when paused / at rest.  Defaults to
-  /// [AppColors.surfaceContainerHighest].
+  /// Color of unplayed bars. Defaults to [AppColors.surfaceContainerHighest].
   final Color? restColor;
 
   const LiveAudioVisualizer({
     super.key,
     required this.isPlaying,
+    required this.progress,
     this.trackId,
-    this.barCount = 40,
+    this.onScrub,
+    this.barCount = 24,
     this.height = 60.0,
     this.barColor,
     this.restColor,
@@ -67,7 +52,6 @@ class LiveAudioVisualizer extends StatefulWidget {
 class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
     with TickerProviderStateMixin {
   /// Drives the continuously-advancing time value for bar oscillation.
-  /// Set to a large upper bound to avoid wrapping and cycle discontinuities.
   late AnimationController _timeCtrl;
 
   /// Fades bar amplitude 0 → 1 when playing starts, 1 → 0 when pausing.
@@ -113,8 +97,8 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
     final rng = _LcgRandom(seed);
 
     _freqs = List.generate(n, (_) {
-      // Each bar oscillates between 1× and 4× the base cycle speed.
-      return 1.0 + rng.next() * 3.0;
+      // Slow-mo: very low frequency multipliers for smooth, gentle oscillation
+      return 0.2 + rng.next() * 0.4;
     });
 
     _phases = List.generate(n, (_) => rng.next() * 2.0 * math.pi);
@@ -122,10 +106,9 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
     _relAmps = List.generate(n, (i) {
       // Bell-curve distribution: center bars are tallest (bass-range effect).
       final center = n / 2.0;
-      final dist = (i - center).abs() / center; // 0 at center, 1 at edges
+      final dist = (i - center).abs() / center;
       final bell = math.exp(-dist * dist * 2.0);
-      // Mix bell curve with some randomness for organic look.
-      return (0.35 + 0.65 * bell) * (0.6 + 0.4 * rng.next());
+      return (0.45 + 0.55 * bell) * (0.7 + 0.3 * rng.next());
     });
   }
 
@@ -133,7 +116,6 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
   void didUpdateWidget(LiveAudioVisualizer old) {
     super.didUpdateWidget(old);
 
-    // Regenerate bar properties when the track changes.
     if (old.trackId != widget.trackId || old.barCount != widget.barCount) {
       _initBarProperties();
       _timeCtrl.value = 0.0;
@@ -142,7 +124,6 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
       }
     }
 
-    // Start / stop animation in response to play state changes.
     if (widget.isPlaying && !old.isPlaying) {
       _timeCtrl.forward();
       _ampCtrl.forward();
@@ -162,25 +143,42 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
     super.dispose();
   }
 
+  void _handleGesture(double localX, BoxConstraints constraints) {
+    if (widget.onScrub == null) return;
+    final fraction = (localX / constraints.maxWidth).clamp(0.0, 1.0);
+    widget.onScrub!(fraction);
+  }
+
   @override
   Widget build(BuildContext context) {
     final barColor = widget.barColor ?? AppColors.onSurface;
     final restColor = widget.restColor ?? AppColors.surfaceContainerHighest;
 
-    return CustomPaint(
-      size: Size(double.infinity, widget.height),
-      painter: _VisualizerPainter(
-        timeCtrl: _timeCtrl,
-        ampCtrl: _ampCtrl,
-        repaint: Listenable.merge([_timeCtrl, _ampCtrl]),
-        barCount: widget.barCount,
-        freqs: _freqs,
-        phases: _phases,
-        relAmps: _relAmps,
-        barColor: barColor,
-        restColor: restColor,
-        totalHeight: widget.height,
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (d) => _handleGesture(d.localPosition.dx, constraints),
+          onHorizontalDragStart: (d) => _handleGesture(d.localPosition.dx, constraints),
+          onHorizontalDragUpdate: (d) => _handleGesture(d.localPosition.dx, constraints),
+          child: CustomPaint(
+            size: Size(double.infinity, widget.height),
+            painter: _VisualizerPainter(
+              timeCtrl: _timeCtrl,
+              ampCtrl: _ampCtrl,
+              repaint: Listenable.merge([_timeCtrl, _ampCtrl]),
+              progress: widget.progress,
+              barCount: widget.barCount,
+              freqs: _freqs,
+              phases: _phases,
+              relAmps: _relAmps,
+              barColor: barColor,
+              restColor: restColor,
+              totalHeight: widget.height,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -192,6 +190,7 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
 class _VisualizerPainter extends CustomPainter {
   final AnimationController timeCtrl;
   final AnimationController ampCtrl;
+  final double progress;
   final int barCount;
   final List<double> freqs;
   final List<double> phases;
@@ -202,13 +201,14 @@ class _VisualizerPainter extends CustomPainter {
 
   static const _minH = 4.0;   // minimum bar height (px)
   static const _maxH = 44.0;  // maximum bar height (px)
-  static const _gap = 4.0;    // gap between bars (px) - slightly wider for minimalist aesthetic
+  static const _gap = 5.0;    // gap between bars (px) - cleaner spacing
   static const _barRadius = Radius.circular(99.0);
 
   _VisualizerPainter({
     required this.timeCtrl,
     required this.ampCtrl,
     required Listenable repaint,
+    required this.progress,
     required this.barCount,
     required this.freqs,
     required this.phases,
@@ -229,21 +229,33 @@ class _VisualizerPainter extends CustomPainter {
     final t = timeCtrl.value * 2.0 * math.pi;
     final amplitude = ampCtrl.value;
 
+    final activeBarIndex = (progress * barCount).clamp(0.0, barCount.toDouble());
+
     for (var i = 0; i < barCount; i++) {
       // Oscillation: value in [0, 1] for this bar at current time.
       final osc = 0.5 * (1.0 + math.sin(t * freqs[i] + phases[i]));
 
       // Active bar height (amplitude fades 0→1 with playback state).
       final activeH = _minH + (_maxH - _minH) * relAmps[i] * osc;
-      // Rest bar height (constant small nub when amplitude is 0).
       const restH = _minH + 1.0;
 
       final h = restH + (activeH - restH) * amplitude;
       final left = i * (barW + _gap);
       final top = (totalHeight - h) / 2.0;
 
-      // Blend color: rest color when amplitude = 0, bar color when amplitude = 1.
-      paint.color = Color.lerp(restColor, barColor, amplitude)!;
+      // Check if bar is in the played region
+      final isPlayed = i < activeBarIndex;
+      final Color targetColor;
+
+      if (i == activeBarIndex.floor() && activeBarIndex < barCount) {
+        final frac = activeBarIndex - activeBarIndex.floor();
+        targetColor = Color.lerp(restColor, barColor, frac)!;
+      } else {
+        targetColor = isPlayed ? barColor : restColor;
+      }
+
+      // Blend based on pause/play amplitude
+      paint.color = Color.lerp(restColor, targetColor, amplitude)!;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
@@ -257,7 +269,8 @@ class _VisualizerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_VisualizerPainter old) {
-    return old.barCount != barCount ||
+    return old.progress != progress ||
+        old.barCount != barCount ||
         old.barColor != barColor ||
         old.restColor != restColor ||
         old.totalHeight != totalHeight ||
@@ -278,124 +291,5 @@ class _LcgRandom {
   double next() {
     _state = (_state * 1664525 + 1013904223) & 0xFFFFFFFF;
     return (_state & 0xFFFFFF) / 0x1000000;
-  }
-}
-
-
-// =============================================================================
-// Miee Seek Bar — slim pill-shaped seek slider matching the design system
-// =============================================================================
-
-/// A minimalist seek bar styled to match Miee's design system.
-///
-/// Shows a thin progress track with a small circular thumb.
-/// Supports tap and drag.  Calls [onSeek] with a 0.0–1.0 fraction.
-class MieeSeekBar extends StatefulWidget {
-  /// Progress fraction 0.0–1.0.
-  final double progress;
-
-  /// Whether seeking is enabled.
-  final bool enabled;
-
-  /// Called with a 0.0–1.0 fraction when the user seeks.
-  final ValueChanged<double>? onSeek;
-
-  const MieeSeekBar({
-    super.key,
-    required this.progress,
-    this.enabled = true,
-    this.onSeek,
-  });
-
-  @override
-  State<MieeSeekBar> createState() => _MieeSeekBarState();
-}
-
-class _MieeSeekBarState extends State<MieeSeekBar> {
-  double? _draggingProgress;
-
-  double get _displayProgress => _draggingProgress ?? widget.progress;
-
-  void _onDragUpdate(DragUpdateDetails d, double width) {
-    if (!widget.enabled || widget.onSeek == null) return;
-    final frac = (d.localPosition.dx / width).clamp(0.0, 1.0);
-    setState(() => _draggingProgress = frac);
-  }
-
-  void _onDragEnd(DragEndDetails _) {
-    if (_draggingProgress != null) {
-      widget.onSeek?.call(_draggingProgress!);
-      setState(() => _draggingProgress = null);
-    }
-  }
-
-  void _onTapDown(TapDownDetails d, double width) {
-    if (!widget.enabled || widget.onSeek == null) return;
-    final frac = (d.localPosition.dx / width).clamp(0.0, 1.0);
-    widget.onSeek?.call(frac);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (d) => _onTapDown(d, width),
-          onHorizontalDragUpdate: (d) => _onDragUpdate(d, width),
-          onHorizontalDragEnd: _onDragEnd,
-          child: SizedBox(
-            height: 28.0, // tall hit target, slim visual
-            child: Center(
-              child: Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  // Track background
-                  Container(
-                    height: 3.0,
-                    width: width,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(99.0),
-                    ),
-                  ),
-                  // Filled portion
-                  Container(
-                    height: 3.0,
-                    width: (width * _displayProgress).clamp(0.0, width),
-                    decoration: BoxDecoration(
-                      color: AppColors.onSurface,
-                      borderRadius: BorderRadius.circular(99.0),
-                    ),
-                  ),
-                  // Thumb
-                  Positioned(
-                    left: ((width * _displayProgress) - 6.0).clamp(0.0, width - 12.0),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      width: _draggingProgress != null ? 14.0 : 12.0,
-                      height: _draggingProgress != null ? 14.0 : 12.0,
-                      decoration: BoxDecoration(
-                        color: AppColors.onSurface,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.18),
-                            blurRadius: 4.0,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 }
