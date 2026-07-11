@@ -29,6 +29,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<Duration>? _bufferedSub;
   StreamSubscription<PlayerState>? _playerStateSub;
+  StreamSubscription<MediaItem?>? _mediaItemSub;
 
   PlayerController(this._handler, this._queueManager, this._ref)
       : super(PlaybackState.initial()) {
@@ -52,6 +53,16 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     _bufferedSub = _handler.bufferedPositionStream.listen((buf) {
       state = state.copyWith(bufferedPosition: buf);
+    });
+
+    _mediaItemSub = _handler.mediaItem.listen((mediaItem) {
+      if (mediaItem != null) {
+        final queue = _queueManager.queue;
+        final index = queue.indexWhere((t) => t.id == mediaItem.id);
+        if (index >= 0) {
+          state = state.copyWith(currentTrack: queue[index]);
+        }
+      }
     });
 
     _playerStateSub = _handler.playerStateStream.listen((playerState) {
@@ -368,6 +379,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _durationSub?.cancel();
     _bufferedSub?.cancel();
     _playerStateSub?.cancel();
+    _mediaItemSub?.cancel();
     super.dispose();
   }
 }

@@ -67,9 +67,8 @@ class LiveAudioVisualizer extends StatefulWidget {
 class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
     with TickerProviderStateMixin {
   /// Drives the continuously-advancing time value for bar oscillation.
-  /// Cycles 0 → 1 every [_cycleDuration] and repeats.
+  /// Set to a large upper bound to avoid wrapping and cycle discontinuities.
   late AnimationController _timeCtrl;
-  static const _cycleDuration = Duration(seconds: 5);
 
   /// Fades bar amplitude 0 → 1 when playing starts, 1 → 0 when pausing.
   late AnimationController _ampCtrl;
@@ -80,28 +79,24 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
   late List<double> _phases;   // phase offset per bar (radians)
   late List<double> _relAmps;  // relative amplitude per bar (0.0–1.0)
 
-  // Accumulated full cycles to produce unbounded time.
-  double _cycleOffset = 0.0;
-  bool _wasAnimating = false;
-
   @override
   void initState() {
     super.initState();
 
     _initBarProperties();
 
-    _timeCtrl = AnimationController(vsync: this, duration: _cycleDuration)
-      ..addStatusListener((status) {
-        // When a cycle completes, record it and repeat — gives us unbounded t.
-        if (status == AnimationStatus.completed) {
-          _cycleOffset += 1.0;
-        }
-      });
+    // Use a very large upper bound (100,000 seconds) so that the animation
+    // value grows continuously without wrapping, preventing periodic jumps.
+    _timeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 100000),
+      upperBound: 100000.0,
+    );
 
     _ampCtrl = AnimationController(vsync: this, duration: _fadeDuration);
 
     if (widget.isPlaying) {
-      _timeCtrl.repeat();
+      _timeCtrl.forward();
       _ampCtrl.forward();
     }
   }
@@ -141,17 +136,18 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
     // Regenerate bar properties when the track changes.
     if (old.trackId != widget.trackId || old.barCount != widget.barCount) {
       _initBarProperties();
-      _cycleOffset = 0.0;
+      _timeCtrl.value = 0.0;
+      if (widget.isPlaying) {
+        _timeCtrl.forward();
+      }
     }
 
     // Start / stop animation in response to play state changes.
     if (widget.isPlaying && !old.isPlaying) {
-      _timeCtrl.repeat();
+      _timeCtrl.forward();
       _ampCtrl.forward();
     } else if (!widget.isPlaying && old.isPlaying) {
       _ampCtrl.reverse().whenCompleteOrCancel(() {
-        // Only stop the time controller once amplitude has faded out fully,
-        // so the bars slide down smoothly rather than snapping.
         if (!widget.isPlaying && mounted) {
           _timeCtrl.stop();
         }
@@ -176,7 +172,6 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
       painter: _VisualizerPainter(
         timeCtrl: _timeCtrl,
         ampCtrl: _ampCtrl,
-        getCycleOffset: () => _cycleOffset,
         repaint: Listenable.merge([_timeCtrl, _ampCtrl]),
         barCount: widget.barCount,
         freqs: _freqs,
@@ -197,7 +192,6 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
 class _VisualizerPainter extends CustomPainter {
   final AnimationController timeCtrl;
   final AnimationController ampCtrl;
-  final double Function() getCycleOffset;
   final int barCount;
   final List<double> freqs;
   final List<double> phases;
@@ -214,7 +208,6 @@ class _VisualizerPainter extends CustomPainter {
   _VisualizerPainter({
     required this.timeCtrl,
     required this.ampCtrl,
-    required this.getCycleOffset,
     required Listenable repaint,
     required this.barCount,
     required this.freqs,
@@ -233,7 +226,7 @@ class _VisualizerPainter extends CustomPainter {
     if (barW <= 0) return;
 
     final paint = Paint()..style = PaintingStyle.fill;
-    final t = (getCycleOffset() + timeCtrl.value) * 2.0 * math.pi;
+    final t = timeCtrl.value * 2.0 * math.pi;
     final amplitude = ampCtrl.value;
 
     for (var i = 0; i < barCount; i++) {
