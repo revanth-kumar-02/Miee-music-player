@@ -56,36 +56,15 @@ class AlbumArtwork extends StatelessWidget {
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: AppColors.surfaceContainerHigh,
-                        child: const Icon(
-                          Icons.music_note,
-                          color: AppColors.onSurfaceVariant,
-                          size: 32.0,
-                        ),
-                      ),
+                      errorBuilder: (context, error, stackTrace) => _buildFallbackContainer(),
                     )
                   : imageUrl.isNotEmpty
                       ? Image.file(
                           File(imageUrl),
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: AppColors.surfaceContainerHigh,
-                            child: const Icon(
-                              Icons.music_note,
-                              color: AppColors.onSurfaceVariant,
-                              size: 32.0,
-                            ),
-                          ),
+                          errorBuilder: (context, error, stackTrace) => _buildFallbackContainer(),
                         )
-                      : Container(
-                          color: AppColors.surfaceContainerHigh,
-                          child: const Icon(
-                            Icons.music_note,
-                            color: AppColors.onSurfaceVariant,
-                            size: 32.0,
-                          ),
-                        ),
+                      : _buildFallbackContainer(),
             ),
           ),
           // Play Button Overlay
@@ -112,6 +91,25 @@ class AlbumArtwork extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFallbackContainer() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF111111), Color(0xFF2A2A2A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.music_note,
+          color: Colors.white54,
+          size: 32.0,
+        ),
       ),
     );
   }

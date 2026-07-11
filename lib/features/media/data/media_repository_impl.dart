@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -247,6 +249,52 @@ class MediaRepositoryImpl implements MediaRepository {
   }
 
   @override
+  Future<String?> _resolveArtistArtwork(String name, List<MediaSong> songsList, Box prefBox) async {
+    final cacheKey = 'artist_art_$name';
+    final cached = prefBox.get(cacheKey) as String?;
+    if (cached != null && cached.isNotEmpty) {
+      if (cached.startsWith('http') || await File(cached).exists()) {
+        return cached;
+      }
+    }
+
+    // 1. Find local song artwork
+    final artistSongs = songsList.where((s) => s.artist.trim().toLowerCase() == name.trim().toLowerCase() && s.artworkPath.isNotEmpty);
+    if (artistSongs.isNotEmpty) {
+      final localArt = artistSongs.first.artworkPath;
+      await prefBox.put(cacheKey, localArt);
+      return localArt;
+    }
+
+    // 2. Fetch from internet (Deezer API)
+    try {
+      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 3)));
+      final response = await dio.get('https://api.deezer.com/search/artist', queryParameters: {'q': name});
+      if (response.statusCode == 200 && response.data is Map) {
+        final data = response.data;
+        final list = data['data'];
+        if (list is List && list.isNotEmpty) {
+          final first = list.first;
+          final pictureUrl = first['picture_medium'] as String?;
+          if (pictureUrl != null && pictureUrl.isNotEmpty) {
+            final tempDir = await getTemporaryDirectory();
+            final sanitized = name.replaceAll(RegExp(r'[^\w\s\-]'), '_');
+            final file = File('${tempDir.path}/artist_$sanitized.png');
+            
+            await dio.download(pictureUrl, file.path);
+            await prefBox.put(cacheKey, file.path);
+            return file.path;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching internet artwork for artist $name: $e');
+    }
+
+    return null;
+  }
+
+  @override
   Future<List<MediaArtist>> getArtists({bool forceRefresh = false}) async {
     if (!forceRefresh && _cachedArtists != null) {
       return _cachedArtists!;
@@ -261,19 +309,34 @@ class MediaRepositoryImpl implements MediaRepository {
       ignoreCase: true,
     );
 
-    final artists = rawArtists
-        .map(
-          (artist) {
-            final name = (artist.artist.isEmpty || artist.artist == '<unknown>') ? 'Unknown Artist' : artist.artist;
-            return MediaArtist(
-              id: artist.id.toString(),
-              name: name,
-              trackCount: artist.numberOfTracks ?? 0,
-              albumCount: artist.numberOfAlbums ?? 0,
-            );
-          },
-        )
-        .toList();
+    final songsList = _cachedSongs ?? await getSongs();
+    final prefBox = Hive.box(HiveBoxes.preferences);
+
+    final filteredRawArtists = rawArtists.where((artist) {
+      final a = artist.artist;
+      if (a == null ||
+          a.isEmpty ||
+          a == '<unknown>' ||
+          a == 'Unknown' ||
+          a.trim().isEmpty) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final List<MediaArtist> artists = await Future.wait(
+      filteredRawArtists.map((artist) async {
+        final name = artist.artist;
+        final artPath = await _resolveArtistArtwork(name, songsList, prefBox);
+        return MediaArtist(
+          id: artist.id.toString(),
+          name: name,
+          trackCount: artist.numberOfTracks ?? 0,
+          albumCount: artist.numberOfAlbums ?? 0,
+          artworkPath: artPath,
+        );
+      }),
+    );
 
     _cachedArtists = artists;
     return artists;

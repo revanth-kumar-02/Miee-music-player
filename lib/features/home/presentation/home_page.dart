@@ -432,7 +432,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ProfileAvatar(
-                imageUrl: null,
+                imageUrl: localArtists[index].artworkPath,
                 size: 72.0,
                 onTap: () {},
               ),

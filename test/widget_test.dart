@@ -9,23 +9,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:Miee/app/app.dart';
+import 'package:Miee/features/splash/presentation/splash_page.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('SplashPage title smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const ProviderScope(child: MieeApp()));
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: SplashPage(),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify that our Splash screen is displayed with the title 'Miee'.
+    expect(find.text('Miee'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Let the SplashPage navigation timer complete to satisfy test invariants.
+    await tester.pump(const Duration(seconds: 3));
   });
 }

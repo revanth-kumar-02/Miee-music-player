@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_radius.dart';
@@ -124,13 +125,7 @@ class AlbumCard extends StatelessWidget {
             children: [
               // Background Image
               Positioned.fill(
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: AppColors.surfaceContainerHigh,
-                  ),
-                ),
+                child: _buildImageWidget(imageUrl),
               ),
               // Bottom Shadow Gradient
               Positioned.fill(
@@ -201,13 +196,7 @@ class AlbumCard extends StatelessWidget {
               children: [
                 // Background Image
                 Positioned.fill(
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: AppColors.surfaceContainerHigh,
-                    ),
-                  ),
+                  child: _buildImageWidget(imageUrl),
                 ),
                 // Bottom Translucent Banner
                 Positioned(
@@ -242,5 +231,43 @@ class AlbumCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildFallbackImageContainer() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF111111), Color(0xFF2A2A2A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.music_note,
+          color: Colors.white54,
+          size: 32.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(String path) {
+    if (path.isEmpty) {
+      return _buildFallbackImageContainer();
+    }
+    if (path.startsWith('http')) {
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackImageContainer(),
+      );
+    } else {
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackImageContainer(),
+      );
+    }
   }
 }

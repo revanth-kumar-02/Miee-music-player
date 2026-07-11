@@ -80,12 +80,14 @@ class MediaArtist {
   final String name;
   final int trackCount;
   final int albumCount;
+  final String? artworkPath;
 
   const MediaArtist({
     required this.id,
     required this.name,
     required this.trackCount,
     required this.albumCount,
+    this.artworkPath,
   });
 }
 

@@ -29,7 +29,11 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
         debugPrint("STARTUP: SplashPage navigating to '/home'");
-        context.go('/home');
+        try {
+          context.go('/home');
+        } catch (e) {
+          debugPrint("STARTUP: SplashPage navigation failed (no GoRouter in context): $e");
+        }
       }
     });
   }

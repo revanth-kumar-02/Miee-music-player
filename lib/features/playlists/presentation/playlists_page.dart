@@ -161,12 +161,12 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                           padding: const EdgeInsets.all(20.0),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.surfaceContainerHighest],
+                              colors: [Color(0xFF111111), Color(0xFF2A2A2A)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(20.0),
-                            boxShadow: AppShadows.shadowHigh,
+                            boxShadow: AppShadows.shadowLow,
                           ),
                           child: Row(
                             children: [
@@ -431,7 +431,7 @@ class _PlaylistGridCard extends StatelessWidget {
                       : Container(
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [AppColors.surfaceContainerHigh, AppColors.surfaceContainer],
+                              colors: [Color(0xFF111111), Color(0xFF2A2A2A)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -442,7 +442,7 @@ class _PlaylistGridCard extends StatelessWidget {
                             child: Icon(
                               Icons.queue_music,
                               size: 48.0,
-                              color: AppColors.onSurfaceVariant,
+                              color: Colors.white54,
                             ),
                           ),
                         ),
