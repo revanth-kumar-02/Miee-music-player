@@ -90,6 +90,16 @@ class PlaylistsRepository {
     await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
+  /// Updates the custom cover image path for [playlistId].
+  /// Pass null to clear the custom cover and fall back to auto-derived artwork.
+  Future<void> updateCoverPath(String playlistId, String? path) async {
+    final playlist = _box.get(playlistId);
+    if (playlist == null) return;
+    playlist.customCoverPath = path;
+    playlist.lastModified = DateTime.now();
+    await playlist.save();
+  }
+
   /// Permanently deletes the playlist with [playlistId].
   Future<void> deletePlaylist(String playlistId) async {
     await _box.delete(playlistId);
@@ -102,6 +112,7 @@ class PlaylistsRepository {
     );
     await _ref.read(syncManagerProvider).queueOperation(op);
   }
+
 
   /// Creates a deep copy of [playlistId] with " (Copy)" appended to the name.
   Future<String> duplicatePlaylist(String playlistId) async {

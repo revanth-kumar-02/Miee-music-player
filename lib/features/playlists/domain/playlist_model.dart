@@ -13,12 +13,17 @@ class PlaylistModel {
   final DateTime createdAt;
   final DateTime lastModified;
 
+  /// Optional user-selected custom cover image (local file path).
+  /// When set, this takes highest priority as the playlist cover.
+  final String? customCoverPath;
+
   const PlaylistModel({
     required this.id,
     required this.name,
     required this.tracks,
     required this.createdAt,
     required this.lastModified,
+    this.customCoverPath,
   });
 
   // ── Computed properties ───────────────────────────────────────────────────
@@ -47,8 +52,17 @@ class PlaylistModel {
     return '< 1m';
   }
 
-  /// First track in the playlist, used as cover artwork source.
+  /// First track in the playlist, used as fallback cover artwork source.
   MusicItem? get artworkTrack => tracks.isNotEmpty ? tracks.first : null;
+
+  /// Effective cover image URL/path for display, following the priority chain:
+  /// 1. User-selected [customCoverPath] (highest priority).
+  /// 2. Album art of the first track ([artworkTrack]?.imageUrl).
+  /// 3. null — callers should render a placeholder.
+  String? get effectiveCoverUrl =>
+      customCoverPath?.isNotEmpty == true
+          ? customCoverPath
+          : (artworkTrack?.imageUrl?.isNotEmpty == true ? artworkTrack!.imageUrl : null);
 
   bool get isEmpty => tracks.isEmpty;
   bool get isNotEmpty => !isEmpty;
@@ -59,6 +73,8 @@ class PlaylistModel {
     List<MusicItem>? tracks,
     DateTime? createdAt,
     DateTime? lastModified,
+    String? customCoverPath,
+    bool clearCustomCover = false,
   }) =>
       PlaylistModel(
         id: id ?? this.id,
@@ -66,6 +82,8 @@ class PlaylistModel {
         tracks: tracks ?? this.tracks,
         createdAt: createdAt ?? this.createdAt,
         lastModified: lastModified ?? this.lastModified,
+        customCoverPath: clearCustomCover ? null : (customCoverPath ?? this.customCoverPath),
       );
 }
+
 

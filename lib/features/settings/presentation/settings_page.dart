@@ -3,12 +3,14 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../library/providers/library_providers.dart';
 import '../../media/providers/media_providers.dart';
+import '../../profile/presentation/profile_controller.dart';
 import '../../../core/audio/providers.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../shared/widgets/widgets.dart';
@@ -169,6 +171,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final favorites = ref.watch(favoritesProvider);
+    final profile = ref.watch(profileProvider);
 
     return Scaffold(
       extendBody: true,
@@ -186,6 +189,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Profile Card ──
+              _buildSettingsProfileCard(context, profile),
+              const SizedBox(height: 4.0),
+
               // About/Header Block
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -690,6 +697,148 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     ],
   ),
 );
+  }
+
+  Widget _buildSettingsProfileCard(BuildContext context, dynamic profile) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+        child: Row(
+          children: [
+            // Avatar with camera-overlay tap
+            GestureDetector(
+              onTap: () => _showAvatarOptions(context),
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  ProfileAvatar(
+                    imageUrl: profile.profilePicturePath as String?,
+                    size: 64.0,
+                  ),
+                  Container(
+                    width: 22.0,
+                    height: 22.0,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt, size: 13.0, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16.0),
+            // Name & Username
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profile.displayName as String,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if ((profile.username as String?)?.isNotEmpty == true)
+                    Text(
+                      '@${profile.username}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  const SizedBox(height: 8.0),
+                  SizedBox(
+                    height: 32.0,
+                    child: OutlinedButton(
+                      onPressed: () => context.push('/profile'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                        side: BorderSide(color: theme.colorScheme.outline),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      child: Text(
+                        'Edit Profile',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAvatarOptions(BuildContext context) {
+    final profile = ref.read(profileProvider);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Text(
+                'Profile Photo',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0),
+              ),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickSettingsProfileImage();
+              },
+            ),
+            if (profile.profilePicturePath != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _removeSettingsProfileImage();
+                },
+              ),
+            const SizedBox(height: 12.0),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickSettingsProfileImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (picked == null) return;
+    final profile = ref.read(profileProvider);
+    await ref.read(profileProvider.notifier).updateProfile(
+          displayName: profile.displayName,
+          username: profile.username,
+          profilePicturePath: picked.path,
+          favoriteGenre: profile.favoriteGenre,
+          favoriteArtist: profile.favoriteArtist,
+        );
+  }
+
+  Future<void> _removeSettingsProfileImage() async {
+    await ref.read(profileProvider.notifier).removeProfilePicture();
   }
 
   Widget _buildSectionHeader(String title) {

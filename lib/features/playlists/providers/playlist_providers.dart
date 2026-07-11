@@ -94,6 +94,13 @@ class PlaylistController extends StateNotifier<PlaylistsState> {
     _refresh();
   }
 
+  /// Sets or clears the custom cover image for [playlistId].
+  /// Pass null [path] to remove the custom cover and fall back to auto-derived artwork.
+  Future<void> updateCoverPath(String playlistId, String? path) async {
+    await _repo.updateCoverPath(playlistId, path);
+    _refresh();
+  }
+
   // ── Track operations ───────────────────────────────────────────────────────
 
   Future<void> addTrack(String playlistId, MusicItem track) async {

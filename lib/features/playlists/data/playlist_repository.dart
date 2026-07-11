@@ -66,6 +66,11 @@ class PlaylistRepository {
 
   Future<String> duplicatePlaylist(String id) => _base.duplicatePlaylist(id);
 
+  /// Updates the custom cover image path for [playlistId].
+  /// Pass null to clear the custom cover and fall back to auto-derived artwork.
+  Future<void> updateCoverPath(String playlistId, String? path) =>
+      _base.updateCoverPath(playlistId, path);
+
   Future<void> addTrack(String playlistId, MusicItem track) =>
       _base.addTrackToPlaylist(playlistId, track);
 
@@ -84,5 +89,6 @@ class PlaylistRepository {
         tracks: (raw.tracks as List).map((t) => t.toTrack() as Track).toList(),
         createdAt: raw.createdAt as DateTime,
         lastModified: raw.lastModified as DateTime,
+        customCoverPath: raw.customCoverPath as String?,
       );
 }

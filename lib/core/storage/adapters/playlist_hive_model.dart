@@ -11,12 +11,17 @@ class PlaylistHiveModel extends HiveObject {
   DateTime createdAt;
   DateTime lastModified;
 
+  /// Optional user-selected custom cover image path.
+  /// When set, takes priority over auto-derived artwork.
+  String? customCoverPath;
+
   PlaylistHiveModel({
     required this.id,
     required this.name,
     required this.tracks,
     required this.createdAt,
     DateTime? lastModified,
+    this.customCoverPath,
   }) : lastModified = lastModified ?? createdAt;
 }
 
@@ -39,13 +44,15 @@ class PlaylistHiveModelAdapter extends TypeAdapter<PlaylistHiveModel> {
       createdAt: createdAt,
       // Field 4 is lastModified — falls back to createdAt for old data.
       lastModified: fields[4] as DateTime? ?? createdAt,
+      // Field 5 is customCoverPath — null for old records lacking this field.
+      customCoverPath: fields[5] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PlaylistHiveModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -55,7 +62,9 @@ class PlaylistHiveModelAdapter extends TypeAdapter<PlaylistHiveModel> {
       ..writeByte(3)
       ..write(obj.createdAt)
       ..writeByte(4)
-      ..write(obj.lastModified);
+      ..write(obj.lastModified)
+      ..writeByte(5)
+      ..write(obj.customCoverPath);
   }
 }
 

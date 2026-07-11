@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
@@ -79,6 +81,23 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.image_outlined, color: AppColors.onSurface),
+              title: const Text('Change Cover', style: TextStyle(color: AppColors.onSurface)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPlaylistCover(context, ref, playlist.id);
+              },
+            ),
+            if (playlist.customCoverPath != null)
+              ListTile(
+                leading: const Icon(Icons.hide_image_outlined, color: AppColors.onSurfaceVariant),
+                title: const Text('Remove Custom Cover', style: TextStyle(color: AppColors.onSurfaceVariant)),
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(playlistControllerProvider.notifier).updateCoverPath(playlist.id, null);
+                },
+              ),
+            ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text('Delete Playlist', style: TextStyle(color: Colors.red)),
               onTap: () {
@@ -91,6 +110,18 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickPlaylistCover(BuildContext context, WidgetRef ref, String playlistId) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+    await ref
+        .read(playlistControllerProvider.notifier)
+        .updateCoverPath(playlistId, picked.path);
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, PlaylistModel playlist) {
@@ -411,7 +442,7 @@ class _PlaylistGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final artwork = playlist.artworkTrack?.imageUrl;
+    final artwork = playlist.effectiveCoverUrl;
 
     return GestureDetector(
       onTap: () => context.push('/playlist/${playlist.id}'),

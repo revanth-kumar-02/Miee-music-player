@@ -76,16 +76,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppHeader(
         title: 'Miee',
         isScrolled: _isScrolled,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.marginMobile),
-            child: ProfileAvatar(
-              imageUrl: profile.profilePicturePath,
-              size: 32.0,
-              onTap: () => context.push('/profile'),
-            ),
-          ),
-        ],
       ),
       body: Stack(
         children: [
