@@ -26,6 +26,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   final List<MusicItem> _queue = [];
   int _currentIndex = -1;
 
+  /// Controller to stream playback/resolution errors to PlayerController.
+  final StreamController<String> _errorController = StreamController<String>.broadcast();
+  Stream<String> get errorStream => _errorController.stream;
+
   // Stream subscriptions
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<Duration>? _positionSub;
@@ -169,6 +173,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> _loadCurrentTrack() async {
     if (_queue.isEmpty || _currentIndex < 0) return;
     final track = _queue[_currentIndex];
+    debugPrint('PLAYBACK: Selected Track ID: ${track.id}, Title: "${track.title}" by "${track.artist}"');
     mediaItem.add(_trackToMediaItem(track));
     _pushPlaybackState(playerState: PlayerState(false, ProcessingState.loading));
     try {
@@ -180,35 +185,44 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             : path.contains('watch?v=')
                 ? Uri.parse(path).queryParameters['v'] ?? track.id
                 : track.id;
-        try {
-          final audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
-          await _player.setUrl(audioUrl);
-        } catch (e) {
-          debugPrint('MieeAudioHandler: YouTube stream resolution failed: $e');
-          playbackState.add(
-            playbackState.value.copyWith(processingState: AudioProcessingState.error),
-          );
-          return;
-        }
-      } else if (path.isNotEmpty && !path.startsWith('http')) {
-        // Local file — use AudioSource.file for proper URI handling on Android
-        await _player.setAudioSource(AudioSource.file(path));
-      } else if (path.isNotEmpty) {
-        // Other remote URL
-        await _player.setUrl(path);
-      } else {
-        // No valid source — emit error state so the UI can react
-        debugPrint('MieeAudioHandler: track "${track.title}" has no filePath');
-        playbackState.add(
-          playbackState.value.copyWith(processingState: AudioProcessingState.error),
+        
+        debugPrint('PLAYBACK: YouTube Video ID parsed: $videoId');
+        debugPrint('PLAYBACK: Fetching stream manifest for YouTube ID: $videoId...');
+        
+        final audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+        debugPrint('PLAYBACK: YouTube Resolved Audio URL: $audioUrl');
+        debugPrint('PLAYBACK: Loading audio URL into just_audio with browser headers...');
+        
+        await _player.setUrl(
+          audioUrl,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+          },
         );
-        return;
+        debugPrint('PLAYBACK: Audio source loaded successfully for YouTube ID: $videoId');
+      } else if (path.isNotEmpty && !path.startsWith('http')) {
+        debugPrint('PLAYBACK: Loading local file audio source: $path');
+        await _player.setAudioSource(AudioSource.file(path));
+        debugPrint('PLAYBACK: Local audio source loaded successfully.');
+      } else if (path.isNotEmpty) {
+        debugPrint('PLAYBACK: Loading remote URL audio source: $path');
+        await _player.setUrl(path);
+        debugPrint('PLAYBACK: Remote audio source loaded successfully.');
+      } else {
+        throw Exception('Track "${track.title}" has no valid file path or source.');
       }
     } catch (e, stack) {
-      debugPrint('MieeAudioHandler: _loadCurrentTrack error: $e\n$stack');
+      debugPrint('PLAYBACK ERROR: _loadCurrentTrack failed: $e');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+      
       playbackState.add(
         playbackState.value.copyWith(processingState: AudioProcessingState.error),
       );
+      _errorController.add(e.toString().replaceFirst('Exception: ', ''));
+      rethrow; // Propagate exception to playTrack
     }
   }
 
@@ -231,27 +245,49 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
-  Future<void> play() async => _player.play();
+  Future<void> play() async {
+    debugPrint('PLAYBACK: play() called. Player status: playing=${_player.playing}, processingState=${_player.processingState}');
+    try {
+      await _player.play();
+      debugPrint('PLAYBACK: Playback started successfully.');
+    } catch (e, stack) {
+      debugPrint('PLAYBACK ERROR: play() failed: $e');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+      _errorController.add(e.toString().replaceFirst('Exception: ', ''));
+      rethrow;
+    }
+  }
 
   @override
-  Future<void> pause() async => _player.pause();
+  Future<void> pause() async {
+    debugPrint('PLAYBACK: pause() called.');
+    await _player.pause();
+  }
 
   @override
   Future<void> stop() async {
+    debugPrint('PLAYBACK: stop() called.');
     await _player.stop();
     await super.stop();
   }
 
   @override
-  Future<void> seek(Duration position) async => _player.seek(position);
+  Future<void> seek(Duration position) async {
+    debugPrint('PLAYBACK: seek() called to: $position');
+    await _player.seek(position);
+  }
 
   @override
   Future<void> skipToNext() async {
     if (_queue.isEmpty) return;
     if (_currentIndex < _queue.length - 1) {
       _currentIndex++;
-      await _loadCurrentTrack();
-      await _player.play();
+      try {
+        await _loadCurrentTrack();
+        await play();
+      } catch (e) {
+        debugPrint('PLAYBACK ERROR: skipToNext failed: $e');
+      }
     } else {
       await _player.stop();
     }
@@ -266,8 +302,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
     if (_currentIndex > 0) {
       _currentIndex--;
-      await _loadCurrentTrack();
-      await _player.play();
+      try {
+        await _loadCurrentTrack();
+        await play();
+      } catch (e) {
+        debugPrint('PLAYBACK ERROR: skipToPrevious failed: $e');
+      }
     } else {
       await _player.seek(Duration.zero);
     }
@@ -277,8 +317,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> skipToQueueItem(int index) async {
     if (index < 0 || index >= _queue.length) return;
     _currentIndex = index;
-    await _loadCurrentTrack();
-    await _player.play();
+    try {
+      await _loadCurrentTrack();
+      await play();
+    } catch (e) {
+      debugPrint('PLAYBACK ERROR: skipToQueueItem failed: $e');
+    }
   }
 
   @override
@@ -342,6 +386,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     await _playerStateSub?.cancel();
     await _positionSub?.cancel();
     await _durationSub?.cancel();
+    await _errorController.close();
     await _player.dispose();
   }
 }

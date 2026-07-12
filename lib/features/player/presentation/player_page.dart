@@ -24,6 +24,8 @@ class PlayerPage extends ConsumerWidget {
     final isPlaying = ref.watch(playerControllerProvider.select((s) => s.status == PlaybackStatus.playing));
     final isShuffleEnabled = ref.watch(playerControllerProvider.select((s) => s.isShuffleEnabled));
     final repeatMode = ref.watch(playerControllerProvider.select((s) => s.repeatMode));
+    final status = ref.watch(playerControllerProvider.select((s) => s.status));
+    final errorMessage = ref.watch(playerControllerProvider.select((s) => s.errorMessage));
     final controller = ref.read(playerControllerProvider.notifier);
 
     final hasTrack = currentTrack != null;
@@ -33,7 +35,7 @@ class PlayerPage extends ConsumerWidget {
       String twoDigits(int n) => n.toString().padLeft(2, '0');
       final minutes = duration.inMinutes;
       final seconds = duration.inSeconds.remainder(60);
-      return "$minutes:${twoDigits(seconds)}";
+      return '$minutes:${twoDigits(seconds)}';
     }
 
     final blurBackingUrl = hasTrack ? currentTrack.imageUrl : '';
@@ -64,7 +66,7 @@ class PlayerPage extends ConsumerWidget {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 80.0, sigmaY: 80.0),
                 child: Container(
-                  color: AppColors.background.withOpacity(0.8),
+                  color: AppColors.background.withValues(alpha: 0.8),
                 ),
               ),
             ),
@@ -135,7 +137,7 @@ class PlayerPage extends ConsumerWidget {
                                         child: Icon(
                                           Icons.music_note,
                                           size: artworkSize * 0.4,
-                                          color: AppColors.onSurfaceVariant.withOpacity(0.3),
+                                          color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
                                         ),
                                       ),
                               );
@@ -156,22 +158,43 @@ class PlayerPage extends ConsumerWidget {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    MarqueeText(
-                                      text: hasTrack ? currentTrack.title : 'No song selected',
-                                      style: AppTypography.headlineLargeMobile.copyWith(
-                                        color: AppColors.onSurface,
+                                    if (status == PlaybackStatus.error && errorMessage != null) ...[
+                                      Text(
+                                        'Playback Error',
+                                        style: AppTypography.labelSmall.copyWith(
+                                          color: AppColors.error,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.0,
+                                        ),
                                       ),
-                                    ),
-                                    AppSpacing.heightXs,
-                                    Text(
-                                      hasTrack ? currentTrack.artist : '—',
-                                      style: AppTypography.bodyMedium.copyWith(
-                                        color: AppColors.onSurfaceVariant,
+                                      const SizedBox(height: 4.0),
+                                      Text(
+                                        errorMessage,
+                                        style: AppTypography.bodyMedium.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    ] else ...[
+                                      MarqueeText(
+                                        text: hasTrack ? currentTrack.title : 'No song selected',
+                                        style: AppTypography.headlineLargeMobile.copyWith(
+                                          color: AppColors.onSurface,
+                                        ),
+                                      ),
+                                      AppSpacing.heightXs,
+                                      Text(
+                                        hasTrack ? currentTrack.artist : '—',
+                                        style: AppTypography.bodyMedium.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

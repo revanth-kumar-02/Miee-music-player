@@ -42,23 +42,107 @@ class YouTubeRepository {
         filter: TypeFilters.video,
       );
 
+      // Exclude live streams, videos under 30s or over 10 minutes, and specific unwanted content types.
+      // We allow 'mix', 'slowed', and 'reverb' versions as requested.
+      final excludedKeywords = [
+        'live',
+        'livestream',
+        'podcast',
+        'interview',
+        'full movie',
+        'documentary',
+        'compilation',
+        'reaction',
+        'karaoke',
+        '8d',
+        'lyrics',
+      ];
+
+      final filteredResults = searchResults.where((video) {
+        // 1. Duration check (30s < duration <= 10m)
+        final duration = video.duration;
+        if (duration == null ||
+            duration <= const Duration(seconds: 30) ||
+            duration > const Duration(minutes: 10)) {
+          return false;
+        }
+
+        // 2. Not live stream
+        if (video.isLive) {
+          return false;
+        }
+
+        // 3. Excluded keywords check
+        final titleLower = video.title.toLowerCase();
+        final authorLower = video.author.toLowerCase();
+        final descLower = video.description.toLowerCase();
+
+        final hasExcluded = excludedKeywords.any((kw) =>
+            titleLower.contains(kw) ||
+            authorLower.contains(kw) ||
+            descLower.contains(kw));
+
+        return !hasExcluded;
+      }).toList();
+
+      // Heuristic scoring to sort official audio and music videos first.
+      int calculateScore(Video video) {
+        int score = 0;
+        final titleLower = video.title.toLowerCase();
+        final authorLower = video.author.toLowerCase();
+
+        // 1. Channel authority check
+        if (authorLower.contains('- topic')) {
+          score += 100; // Auto-generated official audio release channels
+        }
+        if (authorLower.contains('vevo')) {
+          score += 90; // VEVO channel releases
+        }
+        if (authorLower.contains('official')) {
+          score += 50; // Official channel
+        }
+
+        // 2. Title authority check
+        if (titleLower.contains('official audio')) {
+          score += 80;
+        }
+        if (titleLower.contains('official music video') ||
+            titleLower.contains('official video')) {
+          score += 75;
+        }
+        if (titleLower.contains('official mv') || titleLower.contains(' mv ')) {
+          score += 70;
+        }
+        if (titleLower.contains('music video') || titleLower.contains('mv')) {
+          score += 40;
+        }
+        if (titleLower.contains('audio')) {
+          score += 30;
+        }
+
+        return score;
+      }
+
+      // Sort by score descending (higher score = more official/relevant track)
+      filteredResults.sort((a, b) => calculateScore(b).compareTo(calculateScore(a)));
+
       debugPrint(
-        'YouTubeRepository: raw results count = ${searchResults.length}',
+        'YouTubeRepository: filtered & sorted results count = ${filteredResults.length}',
       );
 
-      if (searchResults.isEmpty) {
-        debugPrint('YouTubeRepository: search returned 0 results for "$cleanQuery"');
+      if (filteredResults.isEmpty) {
+        debugPrint('YouTubeRepository: filtered search returned 0 results for "$cleanQuery"');
         return [];
       }
 
-      final videos = searchResults
+      final videos = filteredResults
           .map((video) => _videoToModel(video))
           .where((v) => v != null)
           .cast<YouTubeVideo>()
           .toList();
 
       debugPrint(
-        'YouTubeRepository: mapped ${videos.length} valid videos for "$cleanQuery"',
+        'YouTubeRepository: mapped ${videos.length} valid YouTubeVideo models for "$cleanQuery"',
       );
 
       // Cache and return.

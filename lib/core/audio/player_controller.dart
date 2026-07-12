@@ -30,6 +30,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   StreamSubscription<Duration>? _bufferedSub;
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<MediaItem?>? _mediaItemSub;
+  StreamSubscription<String>? _errorSub;
 
   PlayerController(this._handler, this._queueManager, this._ref)
       : super(PlaybackState.initial()) {
@@ -44,6 +45,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     // Mirror handler streams into Riverpod state.
     _positionSub = _handler.positionStream.listen((pos) {
+      if (state.status == PlaybackStatus.error && pos > Duration.zero) {
+        state = state.copyWith(status: PlaybackStatus.playing, errorMessage: null);
+      }
       state = state.copyWith(position: pos);
     });
 
@@ -53,6 +57,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     _bufferedSub = _handler.bufferedPositionStream.listen((buf) {
       state = state.copyWith(bufferedPosition: buf);
+    });
+
+    _errorSub = _handler.errorStream.listen((errorMsg) {
+      state = state.copyWith(
+        status: PlaybackStatus.error,
+        errorMessage: errorMsg,
+      );
     });
 
     _mediaItemSub = _handler.mediaItem.listen((mediaItem) {
@@ -126,6 +137,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       status: PlaybackStatus.loading,
       currentTrack: track,
       position: Duration.zero,
+      errorMessage: null,
     );
 
     try {
@@ -380,6 +392,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _bufferedSub?.cancel();
     _playerStateSub?.cancel();
     _mediaItemSub?.cancel();
+    _errorSub?.cancel();
     super.dispose();
   }
 }
