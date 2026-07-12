@@ -189,19 +189,36 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         debugPrint('PLAYBACK: YouTube Video ID parsed: $videoId');
         debugPrint('PLAYBACK: Fetching stream manifest for YouTube ID: $videoId...');
         
-        final audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
-        debugPrint('PLAYBACK: YouTube Resolved Audio URL: $audioUrl');
-        debugPrint('PLAYBACK: Loading audio URL into just_audio with browser headers...');
+        String audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+        debugPrint('PLAYBACK: Selected audio stream URL: $audioUrl');
         
-        await _player.setUrl(
-          audioUrl,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': '*/*',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-          },
-        );
+        try {
+          debugPrint('PLAYBACK: Loading audio URL into just_audio with browser headers...');
+          await _player.setUrl(
+            audioUrl,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+              'Accept': '*/*',
+              'Connection': 'keep-alive',
+            },
+          );
+        } catch (loadErr) {
+          debugPrint('PLAYBACK WARNING: Initial setUrl failed: $loadErr. Clearing video cache and retrying...');
+          YouTubeAudioResolver.instance.clearVideoCache(videoId);
+          
+          audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+          debugPrint('PLAYBACK: Retrying selected audio stream URL: $audioUrl');
+          
+          await _player.setUrl(
+            audioUrl,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+              'Accept': '*/*',
+              'Connection': 'keep-alive',
+            },
+          );
+        }
+        
         debugPrint('PLAYBACK: Audio source loaded successfully for YouTube ID: $videoId');
       } else if (path.isNotEmpty && !path.startsWith('http')) {
         debugPrint('PLAYBACK: Loading local file audio source: $path');
@@ -214,6 +231,14 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       } else {
         throw Exception('Track "${track.title}" has no valid file path or source.');
       }
+    } on PlayerException catch (e, stack) {
+      debugPrint('PLAYBACK ERROR: just_audio PlayerException! Code: ${e.code}, Message: ${e.message}');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+      playbackState.add(
+        playbackState.value.copyWith(processingState: AudioProcessingState.error),
+      );
+      _errorController.add('Playback Error: ${e.message} (Code: ${e.code})');
+      rethrow;
     } catch (e, stack) {
       debugPrint('PLAYBACK ERROR: _loadCurrentTrack failed: $e');
       if (kDebugMode) debugPrintStack(stackTrace: stack);

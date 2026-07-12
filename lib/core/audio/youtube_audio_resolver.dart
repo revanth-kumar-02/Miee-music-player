@@ -36,8 +36,14 @@ class YouTubeAudioResolver {
     debugPrint('YouTubeAudioResolver: resolving stream for $videoId');
 
     try {
-      final manifest =
-          await _yt.videos.streamsClient.getManifest(videoId);
+      final manifest = await _yt.videos.streamsClient.getManifest(
+        videoId,
+        ytClients: [
+          YoutubeApiClient.ios,
+          YoutubeApiClient.androidMusic,
+          YoutubeApiClient.androidSdkless,
+        ],
+      );
 
       debugPrint(
         'YouTubeAudioResolver: manifest fetched for $videoId — '
@@ -55,8 +61,9 @@ class YouTubeAudioResolver {
         final best = sorted.last;
         url = best.url.toString();
         debugPrint(
-          'YouTubeAudioResolver: selected audio-only stream '
-          '${best.codec} @ ${best.bitrate.kiloBitsPerSecond.toStringAsFixed(0)} kbps',
+          'YouTubeAudioResolver: SELECTED STREAM IS AUDIO-ONLY: true. '
+          'Codec: ${best.codec}, Container: ${best.container}, '
+          'Bitrate: ${best.bitrate.kiloBitsPerSecond.toStringAsFixed(0)} kbps',
         );
       } else {
         // Muxed fallback (rare — live streams, some age-restricted videos).
@@ -65,8 +72,8 @@ class YouTubeAudioResolver {
           final best = muxedStreams.withHighestBitrate();
           url = best.url.toString();
           debugPrint(
-            'YouTubeAudioResolver: falling back to muxed stream '
-            '${best.qualityLabel}',
+            'YouTubeAudioResolver: SELECTED STREAM IS AUDIO-ONLY: false. '
+            'Falling back to muxed stream: ${best.qualityLabel}',
           );
         }
       }
@@ -97,6 +104,9 @@ class YouTubeAudioResolver {
       throw Exception('Could not resolve audio for $videoId: $e');
     }
   }
+
+  /// Clears the cached stream URL for a specific video ID.
+  void clearVideoCache(String videoId) => _cache.remove(videoId);
 
   /// Clears the in-memory URL cache.
   void clearCache() => _cache.clear();
