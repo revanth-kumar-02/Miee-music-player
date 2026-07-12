@@ -4,9 +4,8 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 /// Resolves a YouTube video ID to a direct playable audio-stream URL.
 ///
 /// Uses [YoutubeExplode] to fetch the stream manifest and select the
-/// highest-quality audio-only stream (AAC/WebM). Resolved URLs are
-/// cached in memory so re-queuing the same video does not incur another
-/// network round-trip.
+/// highest-quality audio-only stream. Results are cached in memory so
+/// re-queuing the same video does not incur another network round-trip.
 ///
 /// Usage:
 /// ```dart
@@ -24,10 +23,10 @@ class YouTubeAudioResolver {
   final Map<String, String> _cache = {};
   static const int _maxCacheSize = 100;
 
-  /// Resolves [videoId] to a playable audio URL.
+  /// Resolves [videoId] to a playable audio-only stream URL.
   ///
-  /// Throws a descriptive [Exception] if the stream cannot be resolved
-  /// (private video, region-locked, network error, etc.).
+  /// Full stack traces are printed in debug mode.
+  /// Throws a descriptive [Exception] on every failure path.
   Future<String> resolve(String videoId) async {
     if (_cache.containsKey(videoId)) {
       debugPrint('YouTubeAudioResolver: cache hit for $videoId');
@@ -35,28 +34,48 @@ class YouTubeAudioResolver {
     }
 
     debugPrint('YouTubeAudioResolver: resolving stream for $videoId');
-    try {
-      final manifest = await _yt.videos.streamsClient.getManifest(videoId);
 
-      // Prefer audio-only streams (smallest data, no video payload).
-      // Fallback to muxed if no audio-only is available.
+    try {
+      final manifest =
+          await _yt.videos.streamsClient.getManifest(videoId);
+
+      debugPrint(
+        'YouTubeAudioResolver: manifest fetched for $videoId — '
+        '${manifest.audioOnly.length} audio-only, '
+        '${manifest.muxed.length} muxed streams',
+      );
+
       String? url;
 
-      final audioOnly = manifest.audioOnly;
-      if (audioOnly.isNotEmpty) {
-        // Sort by bitrate descending; pick the best quality.
-        final sorted = audioOnly.sortByBitrate();
-        url = sorted.last.url.toString();
+      // Prefer audio-only (AAC/WebM) — no video data, smallest payload.
+      final audioStreams = manifest.audioOnly;
+      if (audioStreams.isNotEmpty) {
+        // sortByBitrate() returns ascending order; .last = highest bitrate.
+        final sorted = audioStreams.sortByBitrate();
+        final best = sorted.last;
+        url = best.url.toString();
+        debugPrint(
+          'YouTubeAudioResolver: selected audio-only stream '
+          '${best.codec} @ ${best.bitrate.kiloBitsPerSecond.toStringAsFixed(0)} kbps',
+        );
       } else {
-        // Muxed fallback (rare).
-        final muxed = manifest.muxed;
-        if (muxed.isNotEmpty) {
-          url = muxed.withHighestBitrate().url.toString();
+        // Muxed fallback (rare — live streams, some age-restricted videos).
+        final muxedStreams = manifest.muxed;
+        if (muxedStreams.isNotEmpty) {
+          final best = muxedStreams.withHighestBitrate();
+          url = best.url.toString();
+          debugPrint(
+            'YouTubeAudioResolver: falling back to muxed stream '
+            '${best.qualityLabel}',
+          );
         }
       }
 
       if (url == null || url.isEmpty) {
-        throw Exception('No playable stream found for video $videoId.');
+        throw Exception(
+          'No playable stream found for video $videoId. '
+          'The video may be age-restricted, private, or region-locked.',
+        );
       }
 
       // Evict oldest entry if cache is full.
@@ -64,20 +83,25 @@ class YouTubeAudioResolver {
         _cache.remove(_cache.keys.first);
       }
       _cache[videoId] = url;
-      debugPrint('YouTubeAudioResolver: resolved $videoId → ${url.substring(0, 60)}…');
+
+      final preview = url.length > 80 ? '${url.substring(0, 80)}…' : url;
+      debugPrint('YouTubeAudioResolver: resolved $videoId → $preview');
       return url;
-    } on YoutubeExplodeException catch (e) {
-      throw Exception('YouTube stream error: ${e.message}');
-    } catch (e) {
-      throw Exception('Could not resolve audio for video $videoId: $e');
+    } on YoutubeExplodeException catch (e, stack) {
+      debugPrint('YouTubeAudioResolver: YoutubeExplodeException for $videoId: ${e.message}');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+      throw Exception('YouTube stream error for $videoId: ${e.message}');
+    } catch (e, stack) {
+      debugPrint('YouTubeAudioResolver: unexpected error resolving $videoId: $e');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+      throw Exception('Could not resolve audio for $videoId: $e');
     }
   }
 
-  /// Clears the in-memory URL cache (e.g., when the user signs out or
-  /// on low-memory pressure).
+  /// Clears the in-memory URL cache.
   void clearCache() => _cache.clear();
 
-  /// Disposes the underlying [YoutubeExplode] HTTP client.
-  /// Call this only when the app is shutting down.
+  /// Closes the underlying [YoutubeExplode] HTTP client.
+  /// Call only when the app is shutting down.
   void dispose() => _yt.close();
 }

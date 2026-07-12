@@ -18,7 +18,7 @@ class YouTubeResultTile extends ConsumerWidget {
   const YouTubeResultTile({super.key, required this.video});
 
   void _showOptions(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surfaceContainerLowest,
       shape: const RoundedRectangleBorder(
@@ -75,7 +75,7 @@ class YouTubeResultTile extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: Text(
@@ -111,7 +111,7 @@ class YouTubeResultTile extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            '${video.channelTitle}${video.viewCount.isNotEmpty ? " · " + video.viewCount : ""}',
+                            '${video.channelTitle}${video.viewCount.isNotEmpty ? ' · ${video.viewCount}' : ''}',
                             style: AppTypography.labelSmall.copyWith(
                               color: AppColors.onSurfaceVariant,
                             ),

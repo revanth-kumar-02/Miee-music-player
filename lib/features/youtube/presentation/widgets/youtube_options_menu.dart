@@ -173,7 +173,9 @@ class YouTubeOptionsMenu extends ConsumerWidget {
             title: const Text('Share Link'),
             onTap: () {
               Navigator.of(context).pop();
-              Share.share('${video.title}\n${video.videoUrl}');
+              SharePlus.instance.share(
+                ShareParams(text: '${video.title}\n${video.videoUrl}'),
+              );
             },
           ),
         ],

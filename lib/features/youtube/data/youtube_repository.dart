@@ -1,159 +1,165 @@
-import 'dart:convert';
-import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+
 import '../domain/youtube_model.dart';
 
 /// Repository responsible for querying YouTube search results.
 ///
-/// Implements a no-API-key scraper by requesting the HTML results page and
-/// parsing the embedded `ytInitialData` JSON structure.
+/// Uses [YoutubeExplode]'s search API — no web scraping, no custom regex,
+/// no Dio. Works reliably with the current YouTube backend.
 class YouTubeRepository {
-  final Dio _dio;
+  /// Shared [YoutubeExplode] instance — keep alive for the app's lifetime
+  /// so the underlying HTTP client is reused across searches.
+  final YoutubeExplode _yt;
 
-  // Simple in-memory cache to prevent redundant search requests.
+  /// In-memory query → results cache (bounded to 50 entries).
   final Map<String, List<YouTubeVideo>> _searchCache = {};
+  static const int _maxCacheSize = 50;
 
-  YouTubeRepository({Dio? dio})
-      : _dio = dio ??
-            Dio(
-              BaseOptions(
-                connectTimeout: const Duration(seconds: 8),
-                receiveTimeout: const Duration(seconds: 8),
-                headers: {
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                  'Accept-Language': 'en-US,en;q=0.9',
-                },
-              ),
-            );
+  YouTubeRepository({YoutubeExplode? yt}) : _yt = yt ?? YoutubeExplode();
 
-  /// Searches YouTube for the given [query].
+  /// Searches YouTube for [query] and returns up to 20 video results.
   ///
-  /// Caches the results in memory. Handles empty results, network timeouts,
-  /// and missing connection errors gracefully.
+  /// Throws a descriptive exception on network failure, rate limiting, or
+  /// empty results caused by a bad response. Never silently swallows errors.
   Future<List<YouTubeVideo>> search(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
-    // Return cached results if available
+    // Return cached results if available.
     if (_searchCache.containsKey(cleanQuery)) {
+      debugPrint('YouTubeRepository: cache hit for "$cleanQuery"');
       return _searchCache[cleanQuery]!;
     }
 
+    debugPrint('YouTubeRepository: searching for "$cleanQuery"');
+
     try {
-      // sp=EgIQAQ%253D%253D is the video-only filter
-      final response = await _dio.get<String>(
-        'https://www.youtube.com/results',
-        queryParameters: {
-          'search_query': cleanQuery,
-          'sp': 'EgIQAQ==',
-        },
+      // Use youtube_explode_dart's official search API.
+      // TypeFilters.video restricts results to videos only.
+      final searchResults = await _yt.search.search(
+        cleanQuery,
+        filter: TypeFilters.video,
       );
 
-      final html = response.data as String?;
-      if (html == null || html.isEmpty) return [];
+      debugPrint(
+        'YouTubeRepository: raw results count = ${searchResults.length}',
+      );
 
-      final videos = _parseInitialData(html);
-      if (videos.isEmpty && !html.contains('ytInitialData')) {
-        throw Exception('YouTube integration is temporarily unavailable. YouTube layout may have changed.');
+      if (searchResults.isEmpty) {
+        debugPrint('YouTubeRepository: search returned 0 results for "$cleanQuery"');
+        return [];
       }
 
+      final videos = searchResults
+          .map((video) => _videoToModel(video))
+          .where((v) => v != null)
+          .cast<YouTubeVideo>()
+          .toList();
+
+      debugPrint(
+        'YouTubeRepository: mapped ${videos.length} valid videos for "$cleanQuery"',
+      );
+
+      // Cache and return.
       if (videos.isNotEmpty) {
-        _searchCache[cleanQuery] = videos;
-        // Keep cache size bounded to 50 queries
-        if (_searchCache.length > 50) {
+        if (_searchCache.length >= _maxCacheSize) {
           _searchCache.remove(_searchCache.keys.first);
         }
+        _searchCache[cleanQuery] = videos;
       }
+
       return videos;
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
-        throw Exception('Connection timed out. Please check your internet connection.');
-      }
-      if (e.type == DioExceptionType.connectionError) {
+    } on YoutubeExplodeException catch (e, stack) {
+      debugPrint('YouTubeRepository: YoutubeExplodeException: ${e.message}');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+      throw Exception('YouTube search failed: ${e.message}');
+    } catch (e, stack) {
+      debugPrint('YouTubeRepository: unexpected error during search: $e');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+
+      // Distinguish network errors from other failures.
+      final msg = e.toString();
+      if (msg.contains('SocketException') ||
+          msg.contains('NetworkException') ||
+          msg.contains('Failed host lookup')) {
         throw Exception('No internet connection. Please go online to search YouTube.');
       }
-      throw Exception('Failed to search YouTube: ${e.message}');
-    } catch (e) {
-      throw Exception('An unexpected error occurred: $e');
-    }
-  }
-
-  /// Extracts and parses [ytInitialData] from YouTube's HTML response.
-  List<YouTubeVideo> _parseInitialData(String html) {
-    final List<YouTubeVideo> results = [];
-
-    // Matches the ytInitialData JSON object inside script tags.
-    final regex = RegExp(r'ytInitialData\s*=\s*({.*?});\s*</script>');
-    final match = regex.firstMatch(html);
-    if (match == null) return [];
-
-    final jsonStr = match.group(1);
-    if (jsonStr == null) return [];
-
-    try {
-      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-      final contents = data['contents']
-          ?['twoColumnSearchResultRenderer']
-          ?['primaryContents']
-          ?['sectionListRenderer']
-          ?['contents'];
-
-      if (contents is List) {
-        for (final section in contents) {
-          final itemSection = section['itemSectionRenderer'];
-          if (itemSection != null) {
-            final items = itemSection['contents'];
-            if (items is List) {
-              for (final item in items) {
-                final video = item['videoRenderer'];
-                if (video != null) {
-                  final videoId = video['videoId'] as String?;
-                  final title = _extractText(video['title'] as Map<String, dynamic>?);
-                  final channel = _extractText((video['longBylineText'] ?? video['shortBylineText']) as Map<String, dynamic>?);
-                  final duration = video['lengthText']?['simpleText'] as String? ?? '0:00';
-                  final viewCount = video['viewCountText']?['simpleText'] as String? ?? '';
-
-                  final thumbnails = video['thumbnail']?['thumbnails'];
-                  final thumbnailUrl = (thumbnails is List && thumbnails.isNotEmpty)
-                      ? thumbnails.last['url'] as String? ?? ''
-                      : '';
-
-                  if (videoId != null && title.isNotEmpty) {
-                    results.add(
-                      YouTubeVideo(
-                        id: videoId,
-                        title: title,
-                        channelTitle: channel.isNotEmpty ? channel : 'Unknown Channel',
-                        thumbnailUrl: thumbnailUrl,
-                        duration: duration,
-                        viewCount: viewCount,
-                      ),
-                    );
-                  }
-                }
-              }
-            }
-          }
-        }
+      if (msg.contains('429') || msg.contains('rate limit')) {
+        throw Exception('YouTube rate limit reached. Please wait a moment and try again.');
       }
-    } catch (_) {
-      // If parsing fails, return empty list instead of crashing
+      throw Exception('YouTube search error: $e');
     }
-
-    return results;
   }
 
-  /// Extracts text from standard YouTube rendering structures (runs vs simpleText).
-  String _extractText(Map<String, dynamic>? data) {
-    if (data == null) return '';
-    final simpleText = data['simpleText'];
-    if (simpleText is String) return simpleText;
+  /// Converts a [Video] from youtube_explode_dart to our [YouTubeVideo] model.
+  YouTubeVideo? _videoToModel(Video video) {
+    try {
+      final id = video.id.value;
+      final title = video.title;
 
-    final runs = data['runs'];
-    if (runs is List && runs.isNotEmpty) {
-      return runs.map((run) => run['text'] as String? ?? '').join();
+      if (id.isEmpty || title.isEmpty) {
+        debugPrint('YouTubeRepository: skipping video with empty id/title');
+        return null;
+      }
+
+      // Duration: format as M:SS or H:MM:SS.
+      final duration = _formatDuration(video.duration);
+
+      // Thumbnail: highResUrl (hqdefault.jpg) is always available.
+      // maxResUrl may return a 404 for some videos, so prefer highRes.
+      final thumbnailUrl = video.thumbnails.highResUrl;
+
+      // View count — non-nullable int.
+      final viewCount = _formatViewCount(video.engagement.viewCount);
+
+      debugPrint(
+        'YouTubeRepository: [$id] title="$title" duration="$duration" '
+        'views="$viewCount" thumb="${thumbnailUrl.substring(0, 40)}…"',
+      );
+
+      return YouTubeVideo(
+        id: id,
+        title: title,
+        channelTitle: video.author,
+        thumbnailUrl: thumbnailUrl,
+        duration: duration,
+        viewCount: viewCount,
+      );
+    } catch (e, stack) {
+      debugPrint('YouTubeRepository: error mapping video: $e');
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
+      return null;
     }
-    return '';
   }
+
+  /// Formats a [Duration] as "M:SS" or "H:MM:SS".
+  String _formatDuration(Duration? duration) {
+    if (duration == null) return '0:00';
+    final h = duration.inHours;
+    final m = duration.inMinutes.remainder(60);
+    final s = duration.inSeconds.remainder(60);
+    if (h > 0) {
+      return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  /// Formats a raw view count integer to a human-readable string.
+  String _formatViewCount(int views) {
+    if (views >= 1000000000) {
+      return '${(views / 1000000000).toStringAsFixed(1)}B views';
+    } else if (views >= 1000000) {
+      return '${(views / 1000000).toStringAsFixed(1)}M views';
+    } else if (views >= 1000) {
+      return '${(views / 1000).toStringAsFixed(0)}K views';
+    }
+    return '$views views';
+  }
+
+  /// Clears the in-memory search cache.
+  void clearCache() => _searchCache.clear();
+
+  /// Closes the underlying HTTP client. Call only on app shutdown.
+  void dispose() => _yt.close();
 }

@@ -17,7 +17,7 @@ class YouTubeSearchHistoryNotifier extends StateNotifier<List<String>> {
   static const String _prefKey = 'youtube_search_history';
   static const int _maxEntries = 20;
 
-  Box get _box => Hive.box(HiveBoxes.preferences);
+  Box<Object?> get _box => Hive.box<Object?>(HiveBoxes.preferences);
 
   YouTubeSearchHistoryNotifier() : super([]) {
     _load();
