@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../shared/models/music_item.dart';
+import 'youtube_audio_resolver.dart';
 
 /// Duration for fast-forward and rewind operations.
 const _kSkipDuration = Duration(seconds: 10);
@@ -172,11 +173,28 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _pushPlaybackState(playerState: PlayerState(false, ProcessingState.loading));
     try {
       final path = track.filePath;
-      if (path.isNotEmpty && !path.startsWith('http')) {
+      if (track.isYoutube) {
+        // Resolve the actual audio stream URL from the YouTube video ID.
+        final videoId = track.id.startsWith('youtube_')
+            ? track.id.replaceFirst('youtube_', '')
+            : path.contains('watch?v=')
+                ? Uri.parse(path).queryParameters['v'] ?? track.id
+                : track.id;
+        try {
+          final audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+          await _player.setUrl(audioUrl);
+        } catch (e) {
+          debugPrint('MieeAudioHandler: YouTube stream resolution failed: $e');
+          playbackState.add(
+            playbackState.value.copyWith(processingState: AudioProcessingState.error),
+          );
+          return;
+        }
+      } else if (path.isNotEmpty && !path.startsWith('http')) {
         // Local file — use AudioSource.file for proper URI handling on Android
         await _player.setAudioSource(AudioSource.file(path));
       } else if (path.isNotEmpty) {
-        // Remote URL (YouTube stream etc.)
+        // Other remote URL
         await _player.setUrl(path);
       } else {
         // No valid source — emit error state so the UI can react

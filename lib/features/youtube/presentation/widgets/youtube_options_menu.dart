@@ -7,6 +7,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/providers.dart';
+import '../../../../features/library/providers/library_providers.dart';
 import '../../../../features/playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../domain/youtube_model.dart';
 
@@ -94,6 +95,40 @@ class YouTubeOptionsMenu extends ConsumerWidget {
           const Divider(height: 1),
 
           // Actions
+          Builder(builder: (context) {
+            final track = video.toTrack();
+            final isFav = ref.watch(
+              favoritesProvider.select((list) => list.any((t) => t.id == track.id)),
+            );
+            return ListTile(
+              leading: Icon(
+                isFav ? Icons.favorite : Icons.favorite_border,
+                color: isFav ? AppColors.primary : AppColors.onSurfaceVariant,
+              ),
+              title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                final notifier = ref.read(favoritesProvider.notifier);
+                if (isFav) {
+                  await notifier.removeFavorite(track.id);
+                } else {
+                  await notifier.addFavorite(track);
+                }
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isFav
+                            ? 'Removed "${video.title}" from favorites'
+                            : 'Added "${video.title}" to favorites',
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+            );
+          }),
           ListTile(
             leading: const Icon(Icons.queue, color: AppColors.onSurfaceVariant),
             title: const Text('Add to Queue'),

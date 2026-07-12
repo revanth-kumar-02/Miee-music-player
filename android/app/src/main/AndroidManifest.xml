@@ -9,7 +9,7 @@
     <application
         android:label="Miee"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
 
         <service android:name="com.ryanheise.audioservice.AudioServiceService"
             android:foregroundServiceType="mediaPlayback"

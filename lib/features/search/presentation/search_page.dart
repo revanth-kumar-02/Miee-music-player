@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -85,7 +86,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _searchQuery = _searchController.text;
     });
     ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
-    ref.read(youtubeSearchProvider.notifier).searchDebounced(_searchController.text);
+    _triggerYouTubeSearch(_searchController.text, debounced: true);
   }
 
   /// Called when user submits the search (keyboard done / enter).
@@ -93,7 +94,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     if (query.trim().isEmpty) return;
     ref.read(searchHistoryProvider.notifier).addSearch(query.trim());
     ref.read(searchNotifierProvider.notifier).searchNow(query);
-    ref.read(youtubeSearchProvider.notifier).searchNow(query);
+    _triggerYouTubeSearch(query, debounced: false);
   }
 
   /// Populates the search bar with [query] and triggers a search.
@@ -104,7 +105,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
     setState(() => _searchQuery = query);
     ref.read(searchNotifierProvider.notifier).searchNow(query);
-    ref.read(youtubeSearchProvider.notifier).searchNow(query);
+    _triggerYouTubeSearch(query, debounced: false);
+  }
+
+  /// Fires a YouTube search only when the device has internet connectivity.
+  /// Uses [Connectivity] from connectivity_plus for a quick check.
+  Future<void> _triggerYouTubeSearch(String query, {required bool debounced}) async {
+    final result = await Connectivity().checkConnectivity();
+    final isOnline = result.any((r) => r != ConnectivityResult.none);
+    if (!isOnline) {
+      ref.read(youtubeSearchProvider.notifier).clear();
+      return;
+    }
+    if (debounced) {
+      ref.read(youtubeSearchProvider.notifier).searchDebounced(query);
+    } else {
+      ref.read(youtubeSearchProvider.notifier).searchNow(query);
+    }
   }
 
 
