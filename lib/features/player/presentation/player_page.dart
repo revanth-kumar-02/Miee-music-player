@@ -11,6 +11,8 @@ import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
+import '../../../shared/models/track.dart';
+import '../../library/providers/library_providers.dart';
 
 /// Miee Now Playing Screen.
 /// Observes active states (track details, position progress, buffering, playing status, and mode changes)
@@ -148,11 +150,41 @@ class PlayerPage extends ConsumerWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.favorite_border),
-                                color: AppColors.onSurfaceVariant,
-                                onPressed: hasTrack ? () {} : null,
-                                splashRadius: 20.0,
+                              Consumer(
+                                builder: (context, ref, child) {
+                                  if (!hasTrack) {
+                                    return IconButton(
+                                      icon: const Icon(Icons.favorite_border),
+                                      color: AppColors.onSurfaceVariant,
+                                      onPressed: null,
+                                      splashRadius: 20.0,
+                                    );
+                                  }
+                                  final isFav = ref.watch(
+                                    favoritesProvider.select((list) => list.any((t) => t.id == currentTrack.id)),
+                                  );
+                                  return IconButton(
+                                    icon: Icon(isFav ? Icons.favorite : Icons.favorite_border),
+                                    color: isFav ? AppColors.primary : AppColors.onSurfaceVariant,
+                                    onPressed: () async {
+                                      final notifier = ref.read(favoritesProvider.notifier);
+                                      if (isFav) {
+                                        await notifier.removeFavorite(currentTrack.id);
+                                      } else {
+                                        final track = Track(
+                                          id: currentTrack.id,
+                                          title: currentTrack.title,
+                                          artist: currentTrack.artist,
+                                          imageUrl: currentTrack.imageUrl,
+                                          duration: currentTrack.duration,
+                                          filePath: currentTrack.filePath,
+                                        );
+                                        await notifier.addFavorite(track);
+                                      }
+                                    },
+                                    splashRadius: 20.0,
+                                  );
+                                },
                               ),
                               Expanded(
                                 child: Column(

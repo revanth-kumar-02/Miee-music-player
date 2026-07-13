@@ -24,14 +24,20 @@ class TrackHiveModel extends HiveObject {
   });
 
   /// Converts a domain [MusicItem] into a [TrackHiveModel].
-  factory TrackHiveModel.fromTrack(MusicItem track) => TrackHiveModel(
-        id: track.id,
-        title: track.title,
-        artist: track.artist,
-        imageUrl: track.imageUrl,
-        duration: track.duration,
-        filePath: track.filePath,
-      );
+  factory TrackHiveModel.fromTrack(MusicItem track) {
+    String finalId = track.id;
+    if (track.isYoutube && !finalId.startsWith('youtube_')) {
+      finalId = 'youtube_${track.id}';
+    }
+    return TrackHiveModel(
+      id: finalId,
+      title: track.title,
+      artist: track.artist,
+      imageUrl: track.imageUrl,
+      duration: track.duration,
+      filePath: track.filePath,
+    );
+  }
 
 
   /// Converts back to the domain [Track] model.

@@ -172,25 +172,38 @@ class PlaylistsRepository {
   Future<void> addTrackToPlaylist(String playlistId, MusicItem track) async {
     final playlist = _box.get(playlistId);
     if (playlist == null) return;
-    final alreadyIn = playlist.tracks.any((t) => t.id == track.id);
+    
+    String trackId = track.id;
+    if (track.isYoutube && !trackId.startsWith('youtube_')) {
+      trackId = 'youtube_${track.id}';
+    }
+
+    final alreadyIn = playlist.tracks.any((t) {
+      final tid = t.id.startsWith('youtube_')
+          ? t.id
+          : (t.filePath?.contains('youtube.com') == true ? 'youtube_${t.id}' : t.id);
+      return tid == trackId;
+    });
+
     if (!alreadyIn) {
-      playlist.tracks.add(TrackHiveModel.fromTrack(track));
+      final hiveTrack = TrackHiveModel.fromTrack(track);
+      playlist.tracks.add(hiveTrack);
       playlist.lastModified = DateTime.now();
       await playlist.save();
 
       final op = OfflineOperation(
-        id: 'pl_song_add_${playlistId}_${track.id}_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'pl_song_add_${playlistId}_${hiveTrack.id}_${DateTime.now().millisecondsSinceEpoch}',
         type: 'playlist_song_add',
         payload: {
           'playlistId': playlistId,
           'track': {
-            'id': track.id,
-            'title': track.title,
-            'artist': track.artist,
-            'imageUrl': track.imageUrl,
-            'duration': track.duration,
-            'filePath': track.filePath,
-            'isYoutube': track.isYoutube,
+            'id': hiveTrack.id,
+            'title': hiveTrack.title,
+            'artist': hiveTrack.artist,
+            'imageUrl': hiveTrack.imageUrl,
+            'duration': hiveTrack.duration,
+            'filePath': hiveTrack.filePath,
+            'isYoutube': hiveTrack.filePath?.contains('youtube.com') == true || hiveTrack.id.startsWith('youtube_'),
           }
         },
         timestamp: DateTime.now(),
@@ -255,6 +268,15 @@ class PlaylistsRepository {
   List<Track> getPlaylistTracks(String playlistId) {
     final playlist = _box.get(playlistId);
     if (playlist == null) return [];
-    return playlist.tracks.map((m) => m.toTrack()).toList(growable: false);
+    return playlist.tracks
+        .map((m) => m.toTrack())
+        .where((t) {
+          final clean = t.artist.trim().toLowerCase();
+          return !(clean.isEmpty ||
+              clean == 'unknown' ||
+              clean == '<unknown>' ||
+              clean == 'unknown artist');
+        })
+        .toList(growable: false);
   }
 }
