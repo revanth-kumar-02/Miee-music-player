@@ -48,6 +48,12 @@ class PlayerPage extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Baseline background container to ensure the GPU always has a layer to draw on
+          Positioned.fill(
+            child: Container(
+              color: AppColors.background,
+            ),
+          ),
           if (hasTrack && blurBackingUrl.isNotEmpty)
             Positioned.fill(
               child: Opacity(
