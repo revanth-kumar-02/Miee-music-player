@@ -171,6 +171,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  /// Reorders the queue elements and keeps the active index in sync.
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 || oldIndex >= _queue.length || newIndex < 0 || newIndex > _queue.length) return;
+    
+    final playingTrack = _queue[_currentIndex];
+    
+    final item = _queue.removeAt(oldIndex);
+    final insertAt = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    _queue.insert(insertAt.clamp(0, _queue.length), item);
+    
+    _currentIndex = _queue.indexOf(playingTrack);
+    
+    queue.add(_queue.map(_trackToMediaItem).toList());
+  }
+
   Future<void> _loadCurrentTrack() async {
     if (_queue.isEmpty || _currentIndex < 0) return;
     final track = _queue[_currentIndex];

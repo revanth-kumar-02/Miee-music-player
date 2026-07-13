@@ -374,6 +374,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
   }
 
+  /// Reorders a track within the queue.
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {
+    _queueManager.reorder(oldIndex, newIndex);
+    await _handler.reorderQueue(oldIndex, newIndex);
+    // Force state update to trigger queue UI listener redraw
+    state = state.copyWith(currentTrack: _queueManager.currentTrack);
+  }
+
   /// Clears the active queue.
   void clearQueue() {
     _queueManager.clear();

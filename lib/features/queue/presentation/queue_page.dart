@@ -228,7 +228,7 @@ class QueuePage extends ConsumerWidget {
                                 isUppercase: true,
                               ),
                               AppSpacing.heightMd,
-                              _buildUpcomingQueueList(upcomingList, controller),
+                              _buildUpcomingQueueList(upcomingList, controller, activeIndex),
                             ],
 
                             // Footer bottom spacer (Clear Queue button offset)
@@ -296,20 +296,39 @@ class QueuePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildUpcomingQueueList(List<MusicItem> upcomingList, PlayerController controller) {
-    return Column(
-      children: List.generate(upcomingList.length, (index) {
+  Widget _buildUpcomingQueueList(
+    List<MusicItem> upcomingList,
+    PlayerController controller,
+    int activeIndex,
+  ) {
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: upcomingList.length,
+      onReorder: (oldIndex, newIndex) {
+        final fullOldIndex = activeIndex + 1 + oldIndex;
+        final fullNewIndex = activeIndex + 1 + newIndex;
+        controller.reorderQueue(fullOldIndex, fullNewIndex);
+      },
+      itemBuilder: (context, index) {
         final track = upcomingList[index];
 
         return Padding(
+          key: ValueKey('queue_item_${track.id}_$index'),
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: Row(
             children: [
               // Drag Indicator handle icon on the left
-              const Icon(
-                Icons.drag_indicator,
-                color: AppColors.onSurfaceVariant,
-                size: 20.0,
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.0),
+                  child: Icon(
+                    Icons.drag_indicator,
+                    color: AppColors.onSurfaceVariant,
+                    size: 20.0,
+                  ),
+                ),
               ),
               AppSpacing.widthSm,
               Expanded(
@@ -320,14 +339,25 @@ class QueuePage extends ConsumerWidget {
                   duration: track.duration,
                   isPlaying: false,
                   onTap: () => controller.playTrack(track),
-                  onMoreTap: () {},
+                  trailingIcon: Icons.remove_circle_outline,
+                  onMoreTap: () {
+                    final fullIndex = activeIndex + 1 + index;
+                    controller.removeTrackFromQueue(fullIndex);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Removed "${track.title}" from queue'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
                   sourceBadge: _SourceBadge(isYoutube: track.isYoutube),
                 ),
               ),
             ],
           ),
         );
-      }),
+      },
     );
   }
 }

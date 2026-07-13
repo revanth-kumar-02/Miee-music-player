@@ -72,6 +72,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     'Jazz'
   ];
 
+  late final FocusNode _searchFocusNode;
+
   @override
   void initState() {
     super.initState();
@@ -80,6 +82,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     _searchController = TextEditingController();
     _searchController.addListener(_handleSearchQueryChange);
+    _searchFocusNode = FocusNode();
+    _searchFocusNode.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
@@ -89,6 +95,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     _searchController.removeListener(_handleSearchQueryChange);
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -194,13 +201,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   // Search Bar Input widget
                   AppSearchBar(
                     controller: _searchController,
+                    focusNode: _searchFocusNode,
                     placeholder: 'Artists, songs, or online videos',
                     onSubmitted: _handleSearchSubmit,
                   ),
                   AppSpacing.heightLg,
 
-                  // Live search results when a query is active
-                  if (isSearching) ...[
+                   // Live search results when a query is active
+                  if (_searchFocusNode.hasFocus && _searchQuery.isNotEmpty) ...[
+                    _SearchSuggestionsList(
+                      query: _searchQuery,
+                      onSelect: (suggestion) {
+                        _searchController.text = suggestion;
+                        _searchFocusNode.unfocus();
+                        _handleSearchSubmit(suggestion);
+                      },
+                    ),
+                  ] else if (isSearching) ...[
                     _SearchResultsSection(query: _searchQuery),
                   ] else if (selectedGenre != 'All') ...[
                     // Filter Chips horizontal row
@@ -963,6 +980,65 @@ class _ResultListTile extends StatelessWidget {
         borderRadius: radius,
       ),
       child: Icon(icon, color: AppColors.onSurfaceVariant, size: 22.0),
+    );
+  }
+}
+
+class _SearchSuggestionsList extends ConsumerWidget {
+  final String query;
+  final ValueChanged<String> onSelect;
+
+  const _SearchSuggestionsList({
+    required this.query,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final suggestionsAsync = ref.watch(searchSuggestionsProvider(query));
+
+    return suggestionsAsync.when(
+      data: (suggestions) {
+        if (suggestions.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          margin: const EdgeInsets.only(top: AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: AppRadius.radiusXl,
+            boxShadow: AppShadows.shadowLow,
+            border: Border.all(
+              color: AppColors.outlineVariant.withOpacity(0.1),
+              width: 1.0,
+            ),
+          ),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: suggestions.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final suggestion = suggestions[index];
+              return ListTile(
+                leading: const Icon(Icons.search, color: AppColors.onSurfaceVariant, size: 20.0),
+                title: Text(
+                  suggestion,
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                ),
+                trailing: const Icon(Icons.north_west, color: AppColors.onSurfaceVariant, size: 16.0),
+                onTap: () => onSelect(suggestion),
+              );
+            },
+          ),
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }

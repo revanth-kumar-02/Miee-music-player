@@ -1,10 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../media/providers/media_providers.dart';
 import '../data/search_repository.dart';
 import '../domain/search_results.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 /// Debounce duration — short enough to feel instant, long enough to avoid
 /// excessive re-computation while the user is still typing.
@@ -132,4 +133,19 @@ final searchResultsProvider = Provider<SearchResults>((ref) {
 /// The raw query string currently in the search bar.
 final searchQueryProvider = Provider<String>((ref) {
   return ref.watch(searchNotifierProvider).query;
+});
+
+/// Fetches search query suggestions from YouTube Explode.
+final searchSuggestionsProvider = FutureProvider.family<List<String>, String>((ref, query) async {
+  if (query.trim().isEmpty) return const [];
+  
+  final yt = YoutubeExplode();
+  try {
+    final suggestions = await yt.search.getQueries(query);
+    yt.close();
+    return suggestions;
+  } catch (e) {
+    yt.close();
+    return const [];
+  }
 });

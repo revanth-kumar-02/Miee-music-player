@@ -38,6 +38,9 @@ class SongTile extends StatelessWidget {
   /// Optional source badge widget (e.g. Local vs YouTube indicator).
   final Widget? sourceBadge;
 
+  /// Optional trailing icon.
+  final IconData? trailingIcon;
+
   const SongTile({
     super.key,
     required this.title,
@@ -50,6 +53,7 @@ class SongTile extends StatelessWidget {
     this.onMoreTap,
     this.onLongPress,
     this.sourceBadge,
+    this.trailingIcon,
   });
 
   @override
@@ -187,19 +191,18 @@ class SongTile extends StatelessWidget {
                 fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-            AppSpacing.widthSm,
-            // More Actions
-            IconButton(
-              icon: Icon(
-                Icons.more_horiz,
-                color: isPlaying ? AppColors.primary : AppColors.onSurfaceVariant,
-                size: 20.0,
+            if (onMoreTap != null)
+              IconButton(
+                icon: Icon(
+                  trailingIcon ?? Icons.more_horiz,
+                  color: isPlaying ? AppColors.primary : AppColors.onSurfaceVariant,
+                  size: 20.0,
+                ),
+                onPressed: onMoreTap,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                splashRadius: 20.0,
               ),
-              onPressed: onMoreTap,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              splashRadius: 20.0,
-            ),
           ],
         ),
       ),
