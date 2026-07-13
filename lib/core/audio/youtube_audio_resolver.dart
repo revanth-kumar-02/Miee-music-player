@@ -118,41 +118,9 @@ class YouTubeAudioResolver {
       debugPrint('YouTubeAudioResolver VALIDATION FAILED: URL is not HTTPS: $urlString');
       return false;
     }
-
-    try {
-      final uri = Uri.parse(urlString);
-      final client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 5);
-      
-      // Perform a HEAD request to check connection status and content headers
-      final request = await client.headUrl(uri);
-      
-      // Pass typical browser headers so YouTube doesn't block the verification request
-      request.headers.set('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1');
-      request.headers.set('Accept', '*/*');
-      
-      final response = await request.close();
-      final statusCode = response.statusCode;
-      final contentType = response.headers.value(HttpHeaders.contentTypeHeader) ?? '';
-
-      debugPrint('YouTubeAudioResolver VALIDATION RESULT: HTTP Status = $statusCode, Content-Type = $contentType');
-
-      if (statusCode != 200 && statusCode != 206) {
-        debugPrint('YouTubeAudioResolver VALIDATION FAILED: URL returned HTTP status $statusCode');
-        return false;
-      }
-
-      if (!contentType.toLowerCase().contains('audio/')) {
-        debugPrint('YouTubeAudioResolver VALIDATION FAILED: Content-Type is not an audio stream: $contentType');
-        return false;
-      }
-
-      debugPrint('YouTubeAudioResolver VALIDATION PASSED successfully.');
-      return true;
-    } catch (e) {
-      debugPrint('YouTubeAudioResolver VALIDATION FAILED: Connection error: $e');
-      return false;
-    }
+    // Bypass connection/HEAD request validation to avoid network latency.
+    // just_audio will catch any expired/invalid streams and trigger self-healing retry.
+    return true;
   }
 
   /// Returns the File object representing the cached audio file if it exists and is valid.

@@ -48,21 +48,21 @@ class PlayerPage extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Monochromatic Album Cover Blur Background layer
           if (hasTrack && blurBackingUrl.isNotEmpty)
             Positioned.fill(
               child: Opacity(
                 opacity: 0.4,
-                child: Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: blurBackingUrl.startsWith('http')
-                          ? NetworkImage(blurBackingUrl) as ImageProvider
-                          : FileImage(File(blurBackingUrl)),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
+                child: blurBackingUrl.startsWith('http')
+                    ? Image.network(
+                        blurBackingUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      )
+                    : Image.file(
+                        File(blurBackingUrl),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      ),
               ),
             ),
           // Glassmorphic overlay backdrop filter
