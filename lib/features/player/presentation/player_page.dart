@@ -350,6 +350,8 @@ class PlayerPage extends ConsumerWidget {
                   // Bottom padding spacer above device safe areas
                   AppSpacing.heightLg,
                 ],
+              ),
+            ),
           ),
 
           // 3. Lyrics Overlay layer

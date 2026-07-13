@@ -141,7 +141,7 @@ final searchSuggestionsProvider = FutureProvider.family<List<String>, String>((r
   
   final yt = YoutubeExplode();
   try {
-    final suggestions = await yt.search.getQueries(query);
+    final suggestions = await yt.search.getQuerySuggestions(query);
     yt.close();
     return suggestions;
   } catch (e) {

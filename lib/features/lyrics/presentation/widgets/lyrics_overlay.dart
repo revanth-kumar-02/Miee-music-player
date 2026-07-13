@@ -124,7 +124,7 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
 
                     return GestureDetector(
                       onTap: () {
-                        ref.read(playerControllerProvider.notifier).seekTo(line.time);
+                        ref.read(playerControllerProvider.notifier).seek(line.time);
                       },
                       child: Container(
                         height: _itemHeight,
@@ -137,7 +137,7 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
                                 )
-                              : AppTypography.titleLarge.copyWith(
+                              : AppTypography.bodyLarge.copyWith(
                                   color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
                                 ),
                           textAlign: TextAlign.center,
