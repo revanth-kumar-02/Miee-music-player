@@ -48,37 +48,50 @@ class PlayerPage extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Baseline background container to ensure the GPU always has a layer to draw on
+          // 1. Elegant solid canvas baseline
           Positioned.fill(
             child: Container(
               color: AppColors.background,
             ),
           ),
-          if (hasTrack && blurBackingUrl.isNotEmpty)
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.4,
-                child: blurBackingUrl.startsWith('http')
-                    ? Image.network(
-                        blurBackingUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                      )
-                    : Image.file(
-                        File(blurBackingUrl),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                      ),
+          // 2. Soft, stylized ambient glow gradient to mimic glassmorphic background without GPU-heavy BackdropFilter
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.surfaceContainerLowest,
+                    AppColors.surfaceContainerHigh.withValues(alpha: 0.8),
+                    AppColors.background,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
             ),
-          // Glassmorphic overlay backdrop filter
-          Positioned.fill(
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-                child: Container(
-                  color: AppColors.background.withValues(alpha: 0.5),
-                ),
+          ),
+          // Ambient circular glows for extra premium visual depth
+          Positioned(
+            top: -100,
+            left: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -50,
+            right: -50,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.05),
               ),
             ),
           ),

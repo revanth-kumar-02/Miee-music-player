@@ -58,6 +58,8 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
   late AnimationController _ampCtrl;
   static const _fadeDuration = Duration(milliseconds: 350);
 
+  bool _isDisposed = false;
+
   // Per-bar properties seeded from trackId.
   late List<double> _freqs;    // angular frequency multiplier per bar
   late List<double> _phases;   // phase offset per bar (radians)
@@ -129,7 +131,7 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
       _ampCtrl.forward();
     } else if (!widget.isPlaying && old.isPlaying) {
       _ampCtrl.reverse().whenCompleteOrCancel(() {
-        if (!widget.isPlaying && mounted) {
+        if (!_isDisposed && !widget.isPlaying && mounted) {
           _timeCtrl.stop();
         }
       });
@@ -138,6 +140,7 @@ class _LiveAudioVisualizerState extends State<LiveAudioVisualizer>
 
   @override
   void dispose() {
+    _isDisposed = true;
     _timeCtrl.dispose();
     _ampCtrl.dispose();
     super.dispose();
