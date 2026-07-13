@@ -75,9 +75,9 @@ class PlayerPage extends ConsumerWidget {
           Positioned.fill(
             child: ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80.0, sigmaY: 80.0),
+                filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
                 child: Container(
-                  color: AppColors.background.withValues(alpha: 0.8),
+                  color: AppColors.background.withValues(alpha: 0.5),
                 ),
               ),
             ),
