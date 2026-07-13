@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
@@ -30,7 +31,15 @@ class YouTubeAudioResolver {
   Future<String> resolve(String videoId) async {
     if (_cache.containsKey(videoId)) {
       debugPrint('YouTubeAudioResolver: cache hit for $videoId');
-      return _cache[videoId]!;
+      final cachedUrl = _cache[videoId]!;
+      // Verify cached URL is still valid and reachable before returning it.
+      final isReachable = await _validateAudioUrl(videoId, cachedUrl);
+      if (isReachable) {
+        return cachedUrl;
+      } else {
+        debugPrint('YouTubeAudioResolver: cached URL is no longer reachable. Evicting and re-resolving.');
+        _cache.remove(videoId);
+      }
     }
 
     debugPrint('YouTubeAudioResolver: resolving stream for $videoId');
@@ -45,44 +54,39 @@ class YouTubeAudioResolver {
         ],
       );
 
+      final audioStreams = manifest.audioOnly;
       debugPrint(
         'YouTubeAudioResolver: manifest fetched for $videoId — '
-        '${manifest.audioOnly.length} audio-only, '
+        '${audioStreams.length} audio-only, '
         '${manifest.muxed.length} muxed streams',
       );
 
-      String? url;
-
-      // Prefer audio-only (AAC/WebM) — no video data, smallest payload.
-      final audioStreams = manifest.audioOnly;
-      if (audioStreams.isNotEmpty) {
-        // sortByBitrate() returns ascending order; .last = highest bitrate.
-        final sorted = audioStreams.sortByBitrate();
-        final best = sorted.last;
-        url = best.url.toString();
-        debugPrint(
-          'YouTubeAudioResolver: SELECTED STREAM IS AUDIO-ONLY: true. '
-          'Codec: ${best.codec}, Container: ${best.container}, '
-          'Bitrate: ${best.bitrate.kiloBitsPerSecond.toStringAsFixed(0)} kbps',
-        );
-      } else {
-        // Muxed fallback (rare — live streams, some age-restricted videos).
-        final muxedStreams = manifest.muxed;
-        if (muxedStreams.isNotEmpty) {
-          final best = muxedStreams.withHighestBitrate();
-          url = best.url.toString();
-          debugPrint(
-            'YouTubeAudioResolver: SELECTED STREAM IS AUDIO-ONLY: false. '
-            'Falling back to muxed stream: ${best.qualityLabel}',
-          );
-        }
+      if (audioStreams.isEmpty) {
+        throw Exception('Strict Audio-Only Mode: No audio-only streams found for video $videoId.');
       }
 
-      if (url == null || url.isEmpty) {
-        throw Exception(
-          'No playable stream found for video $videoId. '
-          'The video may be age-restricted, private, or region-locked.',
-        );
+      // Sort by bitrate descending; pick the highest quality audio-only stream.
+      final sorted = audioStreams.sortByBitrate();
+      final best = sorted.last;
+      final url = best.url.toString();
+
+      debugPrint('YouTubeAudioResolver Details:');
+      debugPrint('- Video ID: $videoId');
+      debugPrint('- Number of audio streams found: ${audioStreams.length}');
+      debugPrint('- Selected audio bitrate: ${best.bitrate.kiloBitsPerSecond.toStringAsFixed(0)} kbps');
+      debugPrint('- Audio codec: ${best.audioCodec}');
+      debugPrint('- MIME type: ${best.codec.toString()}');
+      debugPrint('- Selected stream URL: $url');
+      debugPrint('- SELECTED STREAM IS AUDIO-ONLY: true');
+
+      // Before calling just_audio, validate:
+      // - URL is HTTPS
+      // - URL is non-empty
+      // - URL is reachable
+      // - URL is an audio stream
+      final isValid = await _validateAudioUrl(videoId, url);
+      if (!isValid) {
+        throw Exception('Resolved stream URL for video $videoId failed HTTPS, reachability, or audio stream validations.');
       }
 
       // Evict oldest entry if cache is full.
@@ -91,8 +95,6 @@ class YouTubeAudioResolver {
       }
       _cache[videoId] = url;
 
-      final preview = url.length > 80 ? '${url.substring(0, 80)}…' : url;
-      debugPrint('YouTubeAudioResolver: resolved $videoId → $preview');
       return url;
     } on YoutubeExplodeException catch (e, stack) {
       debugPrint('YouTubeAudioResolver: YoutubeExplodeException for $videoId: ${e.message}');
@@ -102,6 +104,53 @@ class YouTubeAudioResolver {
       debugPrint('YouTubeAudioResolver: unexpected error resolving $videoId: $e');
       if (kDebugMode) debugPrintStack(stackTrace: stack);
       throw Exception('Could not resolve audio for $videoId: $e');
+    }
+  }
+
+  /// Validates the stream URL before playing it.
+  Future<bool> _validateAudioUrl(String videoId, String urlString) async {
+    if (urlString.isEmpty) {
+      debugPrint('YouTubeAudioResolver VALIDATION FAILED: URL is empty.');
+      return false;
+    }
+    if (!urlString.startsWith('https://')) {
+      debugPrint('YouTubeAudioResolver VALIDATION FAILED: URL is not HTTPS: $urlString');
+      return false;
+    }
+
+    try {
+      final uri = Uri.parse(urlString);
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 5);
+      
+      // Perform a HEAD request to check connection status and content headers
+      final request = await client.headUrl(uri);
+      
+      // Pass typical browser headers so YouTube doesn't block the verification request
+      request.headers.set('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1');
+      request.headers.set('Accept', '*/*');
+      
+      final response = await request.close();
+      final statusCode = response.statusCode;
+      final contentType = response.headers.value(HttpHeaders.contentTypeHeader) ?? '';
+
+      debugPrint('YouTubeAudioResolver VALIDATION RESULT: HTTP Status = $statusCode, Content-Type = $contentType');
+
+      if (statusCode != 200 && statusCode != 206) {
+        debugPrint('YouTubeAudioResolver VALIDATION FAILED: URL returned HTTP status $statusCode');
+        return false;
+      }
+
+      if (!contentType.toLowerCase().contains('audio/')) {
+        debugPrint('YouTubeAudioResolver VALIDATION FAILED: Content-Type is not an audio stream: $contentType');
+        return false;
+      }
+
+      debugPrint('YouTubeAudioResolver VALIDATION PASSED successfully.');
+      return true;
+    } catch (e) {
+      debugPrint('YouTubeAudioResolver VALIDATION FAILED: Connection error: $e');
+      return false;
     }
   }
 

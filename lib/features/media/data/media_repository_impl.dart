@@ -24,6 +24,16 @@ class MediaRepositoryImpl implements MediaRepository {
   // Cache mapping unique album IDs to local artwork file paths
   final Map<int, String> _albumArtCache = {};
 
+  /// Helper to check if a String represents an unknown/empty artist.
+  bool _isUnknownArtist(String? name) {
+    if (name == null) return true;
+    final clean = name.trim().toLowerCase();
+    return clean.isEmpty ||
+        clean == 'unknown' ||
+        clean == '<unknown>' ||
+        clean == 'unknown artist';
+  }
+
   @override
   Future<bool> checkAndRequestPermissions() async {
     if (!Platform.isAndroid) return true;
@@ -124,6 +134,11 @@ class MediaRepositoryImpl implements MediaRepository {
             final castedMap = Map<String, dynamic>.from(item);
             final song = MediaSong.fromJson(castedMap);
             
+            // Check and exclude unknown/empty/whitespace-only artists
+            if (_isUnknownArtist(song.artist)) {
+              continue;
+            }
+
             final fixedArtworkPath = _fixCachePath(song.artworkPath, tempDir.path);
             
             if (fixedArtworkPath.isNotEmpty) {
@@ -184,8 +199,11 @@ class MediaRepositoryImpl implements MediaRepository {
       if (path == null || path.isEmpty) continue;
       if (!seenPaths.add(path)) continue; // skip duplicates
 
+      // Validate and exclude unknown artists globally
+      if (_isUnknownArtist(song.artist)) continue;
+
       final title = song.title.isEmpty ? 'Unknown Title' : song.title;
-      final artistName = (song.artist == null || song.artist == '<unknown>' || song.artist!.trim().isEmpty) ? 'Unknown Artist' : song.artist!;
+      final artistName = song.artist!;
       final albumName = (song.album == null || song.album == '<unknown>' || song.album!.trim().isEmpty) ? 'Unknown Album' : song.album!;
 
       final artPath = await _getAlbumArtworkPath(song.albumId);
@@ -227,18 +245,27 @@ class MediaRepositoryImpl implements MediaRepository {
       ignoreCase: true,
     );
 
+    final songsList = _cachedSongs ?? await getSongs();
     final List<MediaAlbum> albums = [];
-    for (final album in rawAlbums) {
-      final artPath = await _getAlbumArtworkPath(album.id);
-      final albumTitle = (album.album.isEmpty || album.album == '<unknown>') ? 'Unknown Album' : album.album;
-      final artistName = (album.artist == null || album.artist == '<unknown>' || album.artist!.trim().isEmpty) ? 'Unknown Artist' : album.artist!;
 
+    for (final album in rawAlbums) {
+      // Exclude albums whose artist is unknown
+      if (_isUnknownArtist(album.artist)) continue;
+
+      final albumTitle = (album.album.isEmpty || album.album == '<unknown>') ? 'Unknown Album' : album.album;
+      final artistName = album.artist!;
+
+      // Calculate track count dynamically based only on active, non-filtered songs
+      final albumSongsCount = songsList.where((s) => s.album.trim().toLowerCase() == albumTitle.trim().toLowerCase()).length;
+      if (albumSongsCount == 0) continue; // If no playable songs in album, exclude it!
+
+      final artPath = await _getAlbumArtworkPath(album.id);
       albums.add(
         MediaAlbum(
           id: album.id.toString(),
           title: albumTitle,
           artist: artistName,
-          trackCount: album.numOfSongs,
+          trackCount: albumSongsCount,
           artworkPath: artPath,
         ),
       );
@@ -248,7 +275,6 @@ class MediaRepositoryImpl implements MediaRepository {
     return albums;
   }
 
-  @override
   Future<String?> _resolveArtistArtwork(String name, List<MediaSong> songsList, Box prefBox) async {
     final cacheKey = 'artist_art_$name';
     final cached = prefBox.get(cacheKey) as String?;
@@ -312,32 +338,32 @@ class MediaRepositoryImpl implements MediaRepository {
     final songsList = _cachedSongs ?? await getSongs();
     final prefBox = Hive.box(HiveBoxes.preferences);
 
+    // Validate and exclude unknown artists
     final filteredRawArtists = rawArtists.where((artist) {
-      final a = artist.artist;
-      if (a == null ||
-          a.isEmpty ||
-          a == '<unknown>' ||
-          a == 'Unknown' ||
-          a.trim().isEmpty) {
-        return false;
-      }
-      return true;
+      return !_isUnknownArtist(artist.artist);
     }).toList();
 
-    final List<MediaArtist> artists = await Future.wait(
+    final List<MediaArtist?> artistsRaw = await Future.wait(
       filteredRawArtists.map((artist) async {
         final name = artist.artist;
+        final artistSongs = songsList.where((s) => s.artist.trim().toLowerCase() == name.trim().toLowerCase()).toList();
+        final artistSongsCount = artistSongs.length;
+        if (artistSongsCount == 0) return null; // If no active songs, exclude it!
+
+        final artistAlbumsCount = artistSongs.map((s) => s.album.trim().toLowerCase()).toSet().length;
+
         final artPath = await _resolveArtistArtwork(name, songsList, prefBox);
         return MediaArtist(
           id: artist.id.toString(),
           name: name,
-          trackCount: artist.numberOfTracks ?? 0,
-          albumCount: artist.numberOfAlbums ?? 0,
+          trackCount: artistSongsCount,
+          albumCount: artistAlbumsCount,
           artworkPath: artPath,
         );
       }),
     );
 
+    final artists = artistsRaw.whereType<MediaArtist>().toList();
     _cachedArtists = artists;
     return artists;
   }
@@ -357,15 +383,35 @@ class MediaRepositoryImpl implements MediaRepository {
       ignoreCase: true,
     );
 
-    final genres = rawGenres
-        .map(
-          (genre) => MediaGenre(
+    final songsList = _cachedSongs ?? await getSongs();
+
+    final List<MediaGenre> genres = [];
+    for (final genre in rawGenres) {
+      final name = genre.genre;
+      if (name.isEmpty || name == '<unknown>' || name == 'Unknown' || name.trim().isEmpty) {
+        continue;
+      }
+      
+      // Calculate active track count from our filtered songs.
+      final genreRawSongs = await _audioQuery.queryAudiosFrom(
+        AudiosFromType.GENRE_ID,
+        genre.id,
+      );
+      
+      final activeCount = genreRawSongs.where((rawSong) {
+        return songsList.any((s) => s.id == rawSong.id.toString());
+      }).length;
+
+      if (activeCount > 0) {
+        genres.add(
+          MediaGenre(
             id: genre.id.toString(),
-            name: genre.genre,
-            trackCount: genre.numOfSongs,
+            name: name,
+            trackCount: activeCount,
           ),
-        )
-        .toList();
+        );
+      }
+    }
 
     _cachedGenres = genres;
     return genres;

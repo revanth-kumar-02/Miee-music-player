@@ -234,16 +234,33 @@ final sourceSelectionProvider = Provider<String>((ref) {
 class FavoritesNotifier extends StateNotifier<List<Track>> {
   final FavoritesRepository _repo;
 
-  FavoritesNotifier(this._repo) : super(_repo.getFavorites());
+  FavoritesNotifier(this._repo) : super(_filterUnknown(_repo.getFavorites()));
+
+  static List<Track> _filterUnknown(List<Track> tracks) {
+    return tracks.where((t) {
+      final clean = t.artist.trim().toLowerCase();
+      return !(clean.isEmpty ||
+          clean == 'unknown' ||
+          clean == '<unknown>' ||
+          clean == 'unknown artist');
+    }).toList();
+  }
 
   Future<void> addFavorite(Track track) async {
+    final clean = track.artist.trim().toLowerCase();
+    if (clean.isEmpty ||
+        clean == 'unknown' ||
+        clean == '<unknown>' ||
+        clean == 'unknown artist') {
+      return;
+    }
     await _repo.addFavorite(track);
-    state = _repo.getFavorites();
+    state = _filterUnknown(_repo.getFavorites());
   }
 
   Future<void> removeFavorite(String trackId) async {
     await _repo.removeFavorite(trackId);
-    state = _repo.getFavorites();
+    state = _filterUnknown(_repo.getFavorites());
   }
 
   bool isFavorite(String trackId) => _repo.isFavorite(trackId);

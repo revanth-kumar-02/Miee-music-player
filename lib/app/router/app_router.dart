@@ -10,6 +10,12 @@ import '../../features/playlists/presentation/playlist_detail_page.dart';
 import '../../features/playlists/presentation/playlists_page.dart';
 import '../../features/playlists/presentation/local_songs_page.dart';
 import '../../features/profile/presentation/profile_page.dart';
+import '../../features/library/presentation/albums_page.dart';
+import '../../features/library/presentation/album_detail_page.dart';
+import '../../features/library/presentation/artists_page.dart';
+import '../../features/library/presentation/artist_detail_page.dart';
+import '../../features/library/presentation/genres_page.dart';
+import '../../features/library/presentation/genre_detail_page.dart';
 
 /// App router configuration using go_router.
 /// Registers all major feature screens as placeholder routes.
@@ -189,6 +195,47 @@ final GoRouter appRouter = GoRouter(
             );
           },
         );
+      },
+    ),
+    
+    // ── Library / Category Routes ─────────────────────────────────────────────
+    GoRoute(
+      path: '/albums',
+      builder: (BuildContext context, GoRouterState state) {
+        return const AlbumsPage();
+      },
+    ),
+    GoRoute(
+      path: '/album/:id',
+      builder: (BuildContext context, GoRouterState state) {
+        final id = state.pathParameters['id']!;
+        return AlbumDetailPage(albumId: id);
+      },
+    ),
+    GoRoute(
+      path: '/artists',
+      builder: (BuildContext context, GoRouterState state) {
+        return const ArtistsPage();
+      },
+    ),
+    GoRoute(
+      path: '/artist/:id',
+      builder: (BuildContext context, GoRouterState state) {
+        final id = state.pathParameters['id']!;
+        return ArtistDetailPage(artistId: id);
+      },
+    ),
+    GoRoute(
+      path: '/genres',
+      builder: (BuildContext context, GoRouterState state) {
+        return const GenresPage();
+      },
+    ),
+    GoRoute(
+      path: '/genre/:id',
+      builder: (BuildContext context, GoRouterState state) {
+        final id = state.pathParameters['id']!;
+        return GenreDetailPage(genreId: id);
       },
     ),
   ],

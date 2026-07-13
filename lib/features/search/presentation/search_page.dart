@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:on_audio_query/on_audio_query.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_shadows.dart';
@@ -23,6 +24,30 @@ import '../../profile/presentation/profile_controller.dart';
 import '../../youtube/providers/youtube_providers.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
 
+final selectedGenreProvider = StateProvider<String>((ref) => 'All');
+
+final genreSongIdsProvider = FutureProvider.family<Set<String>, String>((ref, genreName) async {
+  if (genreName.toLowerCase() == 'all') return <String>{};
+  
+  final genres = ref.watch(genresProvider);
+  final targetGenre = genres.firstWhere(
+    (g) => g.name.trim().toLowerCase() == genreName.trim().toLowerCase(),
+    orElse: () => const MediaGenre(id: '', name: '', trackCount: 0),
+  );
+  if (targetGenre.id.isEmpty) return <String>{};
+  
+  final audioQuery = OnAudioQuery();
+  try {
+    final rawSongs = await audioQuery.queryAudiosFrom(
+      AudiosFromType.GENRE_ID,
+      int.parse(targetGenre.id),
+    );
+    return rawSongs.map((s) => s.id.toString()).toSet();
+  } catch (_) {
+    return <String>{};
+  }
+});
+
 /// Miee Search Screen.
 /// Combines dynamic search toggles, filter chip selectors, bento-grid search history,
 /// vertical list of trending song tiles, library category grids, and overlay mini players.
@@ -37,9 +62,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   late final ScrollController _scrollController;
   late final TextEditingController _searchController;
   bool _isScrolled = false;
-  String _selectedFilter = 'All';
   String _searchQuery = '';
-
 
   final List<String> _filters = [
     'All',
@@ -86,7 +109,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _searchQuery = _searchController.text;
     });
     ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
-    _triggerYouTubeSearch(_searchController.text, debounced: true);
+    
+    final selectedGenre = ref.read(selectedGenreProvider);
+    final query = _searchController.text;
+    final youtubeQuery = (selectedGenre != 'All' && query.isNotEmpty) ? '$query $selectedGenre' : query;
+    _triggerYouTubeSearch(youtubeQuery, debounced: true);
   }
 
   /// Called when user submits the search (keyboard done / enter).
@@ -94,7 +121,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     if (query.trim().isEmpty) return;
     ref.read(searchHistoryProvider.notifier).addSearch(query.trim());
     ref.read(searchNotifierProvider.notifier).searchNow(query);
-    _triggerYouTubeSearch(query, debounced: false);
+    
+    final selectedGenre = ref.read(selectedGenreProvider);
+    final youtubeQuery = (selectedGenre != 'All') ? '${query.trim()} $selectedGenre' : query.trim();
+    _triggerYouTubeSearch(youtubeQuery, debounced: false);
   }
 
   /// Populates the search bar with [query] and triggers a search.
@@ -105,7 +135,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
     setState(() => _searchQuery = query);
     ref.read(searchNotifierProvider.notifier).searchNow(query);
-    _triggerYouTubeSearch(query, debounced: false);
+    
+    final selectedGenre = ref.read(selectedGenreProvider);
+    final youtubeQuery = (selectedGenre != 'All') ? '$query $selectedGenre' : query;
+    _triggerYouTubeSearch(youtubeQuery, debounced: false);
   }
 
   /// Fires a YouTube search only when the device has internet connectivity.
@@ -124,8 +157,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -137,9 +168,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final localArtists = ref.watch(artistsProvider);
     final localGenres = ref.watch(genresProvider);
     final localPlaylists = ref.watch(playlistsProvider);
-    final profile = ref.watch(profileProvider);
     final favorites = ref.watch(favoritesProvider);
     final history = ref.watch(searchHistoryProvider);
+    final selectedGenre = ref.watch(selectedGenreProvider);
+    final genreSongIdsAsync = ref.watch(genreSongIdsProvider(selectedGenre));
 
     return Scaffold(
       extendBody: true,
@@ -170,6 +202,86 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   // Live search results when a query is active
                   if (isSearching) ...[
                     _SearchResultsSection(query: _searchQuery),
+                  ] else if (selectedGenre != 'All') ...[
+                    // Filter Chips horizontal row
+                    _buildFilterChips(),
+                    AppSpacing.heightLg,
+                    
+                    // Genre details view when query is empty but a genre is selected
+                    genreSongIdsAsync.when(
+                      data: (ids) {
+                        final genreSongs = localSongs.where((s) => ids.contains(s.id)).toList();
+                        if (genreSongs.isEmpty) {
+                          return EmptyState(
+                            title: 'No songs in $selectedGenre',
+                            message: 'There are no local songs in the $selectedGenre genre on this device.',
+                            icon: Icons.music_off,
+                          );
+                        }
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SectionHeader(
+                              title: '$selectedGenre Songs',
+                            ),
+                            AppSpacing.heightMd,
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: genreSongs.length,
+                              itemBuilder: (context, index) {
+                                final song = genreSongs[index];
+                                final track = Track(
+                                  id: song.id,
+                                  title: song.title,
+                                  artist: song.artist,
+                                  imageUrl: song.artworkPath,
+                                  duration: song.duration,
+                                  filePath: song.filePath,
+                                );
+                                final playbackState = ref.watch(playerControllerProvider);
+                                final isCurrentTrack = playbackState.currentTrack?.id == song.id;
+                                
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                  child: SongTile(
+                                    title: song.title,
+                                    artist: song.artist,
+                                    duration: song.duration,
+                                    imageUrl: song.artworkPath,
+                                    isPlaying: isCurrentTrack,
+                                    onTap: () {
+                                      final playlistTracks = genreSongs.map((s) => Track(
+                                        id: s.id,
+                                        title: s.title,
+                                        artist: s.artist,
+                                        imageUrl: s.artworkPath,
+                                        duration: s.duration,
+                                        filePath: s.filePath,
+                                      )).toList();
+                                      ref.read(playerControllerProvider.notifier).selectTrack(track, playlistTracks);
+                                      context.push('/player');
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (e, __) => EmptyState(
+                        title: 'Error loading genre',
+                        message: e.toString(),
+                        icon: Icons.error_outline,
+                      ),
+                    ),
                   ] else ...[
                     // Filter Chips horizontal row
                     _buildFilterChips(),
@@ -211,8 +323,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       localGenres.length,
                     ),
                   ],
-
-
 
                   // Bottom padding offset for MiniPlayer & BottomNavigation
                   SizedBox(height: 160.0 + bottomInset),
@@ -291,6 +401,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   Widget _buildFilterChips() {
+    final selectedFilter = ref.watch(selectedGenreProvider);
+    
     return SizedBox(
       height: 38.0,
       child: ListView.separated(
@@ -301,13 +413,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         separatorBuilder: (context, index) => AppSpacing.widthSm,
         itemBuilder: (context, index) {
           final filter = _filters[index];
-          final isSelected = _selectedFilter == filter;
+          final isSelected = selectedFilter == filter;
 
           return GestureDetector(
             onTap: () {
-              setState(() {
-                _selectedFilter = filter;
-              });
+              ref.read(selectedGenreProvider.notifier).state = filter;
+              // If searching, trigger a new search on YouTube with the selected genre appended!
+              if (_searchQuery.isNotEmpty) {
+                final ytQuery = (filter != 'All') ? '$_searchQuery $filter' : _searchQuery;
+                _triggerYouTubeSearch(ytQuery, debounced: false);
+              }
             },
             child: Container(
               padding: const EdgeInsets.symmetric(
@@ -374,40 +489,40 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-      padding: AppSpacing.paddingAllMd,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: AppRadius.radiusXl,
-        boxShadow: AppShadows.shadowLow,
-        border: Border.all(
-          color: AppColors.outlineVariant.withOpacity(0.1),
-          width: 1.0,
+        padding: AppSpacing.paddingAllMd,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: AppRadius.radiusXl,
+          boxShadow: AppShadows.shadowLow,
+          border: Border.all(
+            color: AppColors.outlineVariant.withOpacity(0.1),
+            width: 1.0,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          topWidget,
-          AppSpacing.heightSm,
-          Text(
-            title,
-            style: AppTypography.labelMedium.copyWith(
-              color: AppColors.onSurface,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            topWidget,
+            AppSpacing.heightSm,
+            Text(
+              title,
+              style: AppTypography.labelMedium.copyWith(
+                color: AppColors.onSurface,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          AppSpacing.heightXs,
-          Text(
-            subtitle,
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.onSurfaceVariant,
+            AppSpacing.heightXs,
+            Text(
+              subtitle,
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -460,7 +575,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 icon: Icons.album_outlined,
                 title: 'Albums',
                 subtitle: albumsLabel,
-                onTap: () {},
+                onTap: () => context.push('/albums'),
               ),
             ),
             AppSpacing.widthMd,
@@ -469,7 +584,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 icon: Icons.person_outline,
                 title: 'Artists',
                 subtitle: artistsLabel,
-                onTap: () {},
+                onTap: () => context.push('/artists'),
               ),
             ),
           ],
@@ -482,7 +597,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 icon: Icons.playlist_play,
                 title: 'Playlists',
                 subtitle: playlistsLabel,
-                onTap: () {},
+                onTap: () => context.push('/playlists'),
               ),
             ),
             AppSpacing.widthMd,
@@ -491,7 +606,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 icon: Icons.music_note_outlined,
                 title: 'Genres',
                 subtitle: genresLabel,
-                onTap: () {},
+                onTap: () => context.push('/genres'),
               ),
             ),
           ],
@@ -500,6 +615,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 }
+
 // ── Search Results Section ────────────────────────────────────────────────────
 
 /// Displays grouped live search results when a query is active.
@@ -515,16 +631,39 @@ class _SearchResultsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final localState = ref.watch(searchNotifierProvider);
     final youtubeState = ref.watch(youtubeSearchProvider);
-    final library = ref.watch(mediaLibraryServiceProvider);
+    final songs = ref.watch(songsProvider);
+    final selectedGenre = ref.watch(selectedGenreProvider);
+    final genreSongIdsAsync = ref.watch(genreSongIdsProvider(selectedGenre));
 
     final showLocalLoading = localState.isLoading;
     final showYoutubeLoading = youtubeState.isLoading;
 
     final localResults = localState.results;
-    final hasLocalResults = localResults.songs.isNotEmpty ||
-        localResults.albums.isNotEmpty ||
-        localResults.artists.isNotEmpty ||
-        localResults.genres.isNotEmpty;
+    final Set<String> genreSongIds = genreSongIdsAsync.value ?? <String>{};
+
+    final filteredSongs = selectedGenre == 'All'
+        ? localResults.songs
+        : localResults.songs.where((s) => genreSongIds.contains(s.id)).toList();
+
+    final filteredAlbums = selectedGenre == 'All'
+        ? localResults.albums
+        : localResults.albums.where((album) {
+            return songs.any((s) =>
+                s.album.trim().toLowerCase() == album.title.trim().toLowerCase() &&
+                genreSongIds.contains(s.id));
+          }).toList();
+
+    final filteredArtists = selectedGenre == 'All'
+        ? localResults.artists
+        : localResults.artists.where((artist) {
+            return songs.any((s) =>
+                s.artist.trim().toLowerCase() == artist.name.trim().toLowerCase() &&
+                genreSongIds.contains(s.id));
+          }).toList();
+
+    final hasLocalResults = filteredSongs.isNotEmpty ||
+        filteredAlbums.isNotEmpty ||
+        filteredArtists.isNotEmpty;
 
     final hasYoutubeResults = youtubeState.results.isNotEmpty;
 
@@ -538,13 +677,10 @@ class _SearchResultsSection extends ConsumerWidget {
     if (isBothEmpty) {
       return EmptyState(
         title: 'No results',
-        message: 'Nothing found for "$query" in local music or YouTube.',
+        message: 'Nothing found for "$query" in local music or YouTube${selectedGenre != 'All' ? ' for genre $selectedGenre' : ''}.',
         icon: Icons.search_off,
       );
     }
-
-    // Using local songs list directly as they implement MusicItem
-    final allSongTracks = localResults.songs;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -554,13 +690,13 @@ class _SearchResultsSection extends ConsumerWidget {
         // ── 1. Local Songs Section ───────────────────────────────────────────
         if (showLocalLoading)
           _buildLoadingSection('Songs')
-        else if (localResults.songs.isNotEmpty) ...[
+        else if (filteredSongs.isNotEmpty) ...[
           SectionHeader(
             title: 'Songs',
-            actionLabel: localResults.songs.length > 5 ? 'See all' : null,
+            actionLabel: filteredSongs.length > 5 ? 'See all' : null,
           ),
           AppSpacing.heightMd,
-          ...localResults.songs.take(5).map((song) {
+          ...filteredSongs.take(5).map((song) {
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: SongTile(
@@ -572,30 +708,29 @@ class _SearchResultsSection extends ConsumerWidget {
                 onTap: () {
                   ref
                       .read(playerControllerProvider.notifier)
-                      .selectTrack(song, allSongTracks);
+                      .selectTrack(song, filteredSongs);
                   context.push('/player');
                 },
               ),
             );
           }),
-
           AppSpacing.heightMd,
         ],
 
         // ── 2. Local Albums Section ──────────────────────────────────────────
         if (showLocalLoading)
           _buildLoadingSection('Albums')
-        else if (localResults.albums.isNotEmpty) ...[
+        else if (filteredAlbums.isNotEmpty) ...[
           const SectionHeader(title: 'Albums'),
           AppSpacing.heightMd,
-          ...localResults.albums.take(4).map((album) => Padding(
+          ...filteredAlbums.take(4).map((album) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: _ResultListTile(
                   imageUrl: album.artworkPath,
                   title: album.title,
                   subtitle: '${album.artist} · ${album.trackCount} songs',
                   icon: Icons.album_outlined,
-                  onTap: () {},
+                  onTap: () => context.push('/album/${album.id}'),
                 ),
               )),
           AppSpacing.heightMd,
@@ -604,44 +739,47 @@ class _SearchResultsSection extends ConsumerWidget {
         // ── 3. Local Artists Section ─────────────────────────────────────────
         if (showLocalLoading)
           _buildLoadingSection('Artists')
-        else if (localResults.artists.isNotEmpty) ...[
+        else if (filteredArtists.isNotEmpty) ...[
           const SectionHeader(title: 'Artists'),
           AppSpacing.heightMd,
-          ...localResults.artists.take(4).map((artist) => Padding(
+          ...filteredArtists.take(4).map((artist) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: _ResultListTile(
-                  imageUrl: null,
+                  imageUrl: artist.artworkPath,
                   title: artist.name,
                   subtitle: '${artist.trackCount} songs · ${artist.albumCount} albums',
                   icon: Icons.person_outline,
                   isCircle: true,
-                  onTap: () {},
+                  onTap: () => context.push('/artist/${artist.id}'),
                 ),
               )),
           AppSpacing.heightMd,
         ],
 
         // ── 4. Local Genres Section ──────────────────────────────────────────
-        if (!showLocalLoading && localResults.genres.isNotEmpty) ...[
+        if (selectedGenre == 'All' && !showLocalLoading && localResults.genres.isNotEmpty) ...[
           const SectionHeader(title: 'Genres'),
           AppSpacing.heightMd,
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: localResults.genres.take(6).map((genre) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerHighest,
-                  borderRadius: AppRadius.radiusFull,
-                ),
-                child: Text(
-                  genre.name,
-                  style: AppTypography.labelMedium.copyWith(
-                    color: AppColors.onSurface,
+              return GestureDetector(
+                onTap: () => context.push('/genre/${genre.id}'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerHighest,
+                    borderRadius: AppRadius.radiusFull,
+                  ),
+                  child: Text(
+                    genre.name,
+                    style: AppTypography.labelMedium.copyWith(
+                      color: AppColors.onSurface,
+                    ),
                   ),
                 ),
               );
@@ -828,5 +966,3 @@ class _ResultListTile extends StatelessWidget {
     );
   }
 }
-
-

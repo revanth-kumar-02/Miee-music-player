@@ -83,12 +83,24 @@ class PlaylistRepository {
 
   // ── Conversion ────────────────────────────────────────────────────────────
 
-  PlaylistModel _toModel(dynamic raw) => PlaylistModel(
-        id: raw.id as String,
-        name: raw.name as String,
-        tracks: (raw.tracks as List).map((t) => t.toTrack() as Track).toList(),
-        createdAt: raw.createdAt as DateTime,
-        lastModified: raw.lastModified as DateTime,
-        customCoverPath: raw.customCoverPath as String?,
-      );
+  PlaylistModel _toModel(dynamic raw) {
+    final tracksList = (raw.tracks as List)
+        .map((t) => t.toTrack() as Track)
+        .where((t) {
+          final clean = t.artist.trim().toLowerCase();
+          return !(clean.isEmpty ||
+              clean == 'unknown' ||
+              clean == '<unknown>' ||
+              clean == 'unknown artist');
+        })
+        .toList();
+    return PlaylistModel(
+      id: raw.id as String,
+      name: raw.name as String,
+      tracks: tracksList,
+      createdAt: raw.createdAt as DateTime,
+      lastModified: raw.lastModified as DateTime,
+      customCoverPath: raw.customCoverPath as String?,
+    );
+  }
 }
