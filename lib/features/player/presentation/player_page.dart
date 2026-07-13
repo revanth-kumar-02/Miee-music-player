@@ -13,6 +13,9 @@ import '../../../shared/widgets/widgets.dart';
 import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/models/track.dart';
 import '../../library/providers/library_providers.dart';
+import '../../lyrics/presentation/widgets/lyrics_overlay.dart';
+
+final showLyricsProvider = StateProvider.autoDispose<bool>((ref) => false);
 
 /// Miee Now Playing Screen.
 /// Observes active states (track details, position progress, buffering, playing status, and mode changes)
@@ -96,6 +99,13 @@ class PlayerPage extends ConsumerWidget {
                       splashRadius: 20.0,
                     ),
                     actions: [
+                      IconButton(
+                        icon: const Icon(Icons.lyrics_outlined),
+                        onPressed: hasTrack
+                            ? () => ref.read(showLyricsProvider.notifier).update((s) => !s)
+                            : null,
+                        splashRadius: 20.0,
+                      ),
                       Padding(
                         padding: const EdgeInsets.only(right: AppSpacing.sm),
                         child: IconButton(
@@ -340,8 +350,20 @@ class PlayerPage extends ConsumerWidget {
                   // Bottom padding spacer above device safe areas
                   AppSpacing.heightLg,
                 ],
-              ),
-            ),
+          ),
+
+          // 3. Lyrics Overlay layer
+          Consumer(
+            builder: (context, ref, child) {
+              final showLyrics = ref.watch(showLyricsProvider);
+              if (!showLyrics || !hasTrack) return const SizedBox.shrink();
+              return Positioned.fill(
+                child: LyricsOverlay(
+                  track: currentTrack,
+                  onClose: () => ref.read(showLyricsProvider.notifier).state = false,
+                ),
+              );
+            },
           ),
         ],
       ),

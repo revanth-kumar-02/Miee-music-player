@@ -62,7 +62,6 @@ class AlbumCard extends StatelessWidget {
       case AlbumCardVariant.bentoSub:
         return _buildBentoSub(context);
       case AlbumCardVariant.standard:
-      default:
         return _buildStandard(context);
     }
   }

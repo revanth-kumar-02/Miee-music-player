@@ -1,5 +1,6 @@
-import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
@@ -187,36 +188,55 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
                 : track.id;
         
         debugPrint('PLAYBACK: YouTube Video ID parsed: $videoId');
-        debugPrint('PLAYBACK: Fetching stream manifest for YouTube ID: $videoId...');
-        
-        String audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
-        debugPrint('PLAYBACK: Selected audio stream URL: $audioUrl');
-        
-        try {
-          debugPrint('PLAYBACK: Loading audio URL into just_audio with browser headers...');
-          await _player.setUrl(
-            audioUrl,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-              'Accept': '*/*',
-              'Connection': 'keep-alive',
-            },
-          );
-        } catch (loadErr) {
-          debugPrint('PLAYBACK WARNING: Initial setUrl failed: $loadErr. Clearing video cache and retrying...');
-          YouTubeAudioResolver.instance.clearVideoCache(videoId);
+
+        // Check if there is a valid local cached file
+        final cachedFile = await YouTubeAudioResolver.instance.getCachedFile(videoId);
+        if (cachedFile != null) {
+          debugPrint('PLAYBACK: Cache HIT! Playing YouTube audio from local file: ${cachedFile.path}');
+          await _player.setAudioSource(AudioSource.file(cachedFile.path));
+        } else {
+          debugPrint('PLAYBACK: Cache MISS. Fetching stream manifest for YouTube ID: $videoId...');
+          String audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+          debugPrint('PLAYBACK: Selected audio stream URL: $audioUrl');
           
-          audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
-          debugPrint('PLAYBACK: Retrying selected audio stream URL: $audioUrl');
-          
-          await _player.setUrl(
-            audioUrl,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-              'Accept': '*/*',
-              'Connection': 'keep-alive',
-            },
-          );
+          // Trigger background download to local cache
+          YouTubeAudioResolver.instance.startBackgroundDownload(videoId, audioUrl);
+
+          try {
+            debugPrint('PLAYBACK: Loading audio URL into just_audio with browser headers...');
+            await _player.setUrl(
+              audioUrl,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+                'Accept': '*/*',
+                'Connection': 'keep-alive',
+              },
+            );
+          } catch (loadErr) {
+            debugPrint('PLAYBACK WARNING: Initial setUrl failed: $loadErr. Clearing video cache, deleting files, and retrying...');
+            YouTubeAudioResolver.instance.clearVideoCache(videoId);
+            
+            // Delete potentially corrupted cache files
+            try {
+              final cacheDir = await getTemporaryDirectory();
+              final targetFile = File('${cacheDir.path}/yt_cache_$videoId.m4a');
+              if (await targetFile.exists()) {
+                await targetFile.delete();
+              }
+            } catch (_) {}
+
+            audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+            debugPrint('PLAYBACK: Retrying selected audio stream URL: $audioUrl');
+            
+            await _player.setUrl(
+              audioUrl,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+                'Accept': '*/*',
+                'Connection': 'keep-alive',
+              },
+            );
+          }
         }
         
         debugPrint('PLAYBACK: Audio source loaded successfully for YouTube ID: $videoId');

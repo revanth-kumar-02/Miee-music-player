@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
-import '../../../core/sync/sync_manager.dart';
 
 /// Splash screen that handles branding visualization and triggers background cloud sync.
 class SplashPage extends ConsumerStatefulWidget {
