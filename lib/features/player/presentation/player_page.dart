@@ -239,11 +239,14 @@ class PlayerPage extends ConsumerWidget {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ] else ...[
-                                      MarqueeText(
-                                        text: hasTrack ? currentTrack.title : 'No song selected',
+                                      Text(
+                                        hasTrack ? currentTrack.title : 'No song selected',
                                         style: AppTypography.headlineLargeMobile.copyWith(
                                           color: AppColors.onSurface,
                                         ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       AppSpacing.heightXs,
                                       Text(
@@ -273,7 +276,7 @@ class PlayerPage extends ConsumerWidget {
                             ],
                           ),
 
-                           // ── Live audio visualizer + seek bar ──
+                           // ── Symmetrical Waveform Progress ──
                           Consumer(
                             builder: (context, ref, child) {
                               final state = ref.watch(playerControllerProvider);
@@ -295,15 +298,11 @@ class PlayerPage extends ConsumerWidget {
                               return Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Animated bar visualizer centered and narrower (75% of screen width)
+                                  // Symmetrical Waveform progress tracker
                                   FractionallySizedBox(
-                                    widthFactor: 0.75,
-                                    child: LiveAudioVisualizer(
-                                      isPlaying: isPlaying,
-                                      progress: progress,
-                                      trackId: currentTrack?.id,
-                                      barCount: 24,
-                                      height: 60.0,
+                                    widthFactor: 0.85,
+                                    child: WaveformWidget(
+                                      activeProgress: progress,
                                       onScrub: hasTrack
                                           ? (frac) {
                                               final seekPos = Duration(
