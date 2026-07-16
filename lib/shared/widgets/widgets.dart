@@ -12,6 +12,3 @@ export 'category_card.dart';
 export 'mini_player.dart';
 export 'playback_controls.dart';
 export 'waveform_widget.dart';
-export 'playback_waveform.dart';
-export 'live_audio_visualizer.dart';
-export 'marquee_text.dart';
