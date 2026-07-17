@@ -48,51 +48,10 @@ class PlayerPage extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Elegant solid canvas baseline
+          // 1. Clean white minimalist background
           Positioned.fill(
             child: Container(
-              color: AppColors.background,
-            ),
-          ),
-          // 2. Soft, stylized ambient glow gradient to mimic glassmorphic background without GPU-heavy BackdropFilter
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.surfaceContainerLowest,
-                    AppColors.surfaceContainerHigh.withValues(alpha: 0.8),
-                    AppColors.background,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
-          // Ambient circular glows for extra premium visual depth
-          Positioned(
-            top: -100,
-            left: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.08),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -50,
-            right: -50,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.05),
-              ),
+              color: Colors.white,
             ),
           ),
 
@@ -302,6 +261,7 @@ class PlayerPage extends ConsumerWidget {
                                   FractionallySizedBox(
                                     widthFactor: 0.85,
                                     child: WaveformWidget(
+                                      isPlaying: isPlaying,
                                       activeProgress: progress,
                                       onScrub: hasTrack
                                           ? (frac) {

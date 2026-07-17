@@ -1,16 +1,17 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 
 /// Reusable Waveform Widget.
 /// Renders a series of vertical bars representing track amplitude.
+/// Oscillates smoothly when playing and pauses in place when playback pauses.
 /// Supports interactive scrubbing and updates colored states based on progress.
-class WaveformWidget extends StatelessWidget {
+class WaveformWidget extends StatefulWidget {
+  /// Whether the player is currently playing audio.
+  final bool isPlaying;
+
   /// Playback progress fraction from 0.0 to 1.0.
   final double activeProgress;
-
-  /// Optional list of heights for the waveform bars.
-  /// If null, a standard pattern of 32 bars is used.
-  final List<double>? barHeights;
 
   /// Callback when the user taps or drags to scrub playback.
   final ValueChanged<double>? onScrub;
@@ -23,72 +24,156 @@ class WaveformWidget extends StatelessWidget {
 
   const WaveformWidget({
     super.key,
+    required this.isPlaying,
     required this.activeProgress,
-    this.barHeights,
     this.onScrub,
     this.activeColor,
     this.inactiveColor,
   });
 
-  // Default amplitude heights matching the Miee Now Playing visualizer layout
-  static const List<double> _defaultHeights = [
-    8.0, 12.0, 20.0, 16.0, 24.0, 32.0, 20.0, 36.0,
-    40.0, 28.0, 16.0, 44.0, 32.0, 24.0, 48.0, 36.0,
-    20.0, 28.0, 40.0, 24.0, 16.0, 32.0, 20.0, 12.0,
-    24.0, 16.0, 28.0, 8.0, 20.0, 12.0, 16.0, 8.0,
+  @override
+  State<WaveformWidget> createState() => _WaveformWidgetState();
+}
+
+class _WaveformWidgetState extends State<WaveformWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  // 18 centered, wider base heights forming a premium double-peak audio waveform pattern.
+  static const List<double> _baseHeights = [
+    12.0, 18.0, 26.0, 38.0, 46.0, 42.0, 32.0, 22.0, 16.0,
+    16.0, 22.0, 32.0, 42.0, 46.0, 38.0, 26.0, 18.0, 12.0,
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    if (widget.isPlaying) {
+      _animationController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(WaveformWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _animationController.repeat();
+      } else {
+        _animationController.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final heights = barHeights ?? _defaultHeights;
-    final totalBars = heights.length;
+    final colorActive = widget.activeColor ?? AppColors.primary;
+    final colorInactive = widget.inactiveColor ?? AppColors.surfaceContainerHighest;
 
-    final colorActive = activeColor ?? AppColors.primary;
-    final colorInactive = inactiveColor ?? AppColors.surfaceContainerHighest;
-
-    return GestureDetector(
-      onHorizontalDragUpdate: (details) => _handleScrub(context, details.localPosition.dx),
-      onTapDown: (details) => _handleScrub(context, details.localPosition.dx),
-      child: Container(
-        height: 52.0,
-        width: double.infinity,
-        color: Colors.transparent, // transparent canvas to catch gestures
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: List.generate(totalBars, (index) {
-            // Determine if this bar lies within the active progress region
-            final barProgress = index / totalBars;
-            final isBarActive = barProgress <= activeProgress;
-
-            return Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                height: heights[index],
-                decoration: BoxDecoration(
-                  color: isBarActive ? colorActive : colorInactive,
-                  borderRadius: BorderRadius.circular(99.0),
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: (details) => _handleScrub(width, details.localPosition.dx),
+          onTapDown: (details) => _handleScrub(width, details.localPosition.dx),
+          child: CustomPaint(
+            size: const Size(double.infinity, 52.0),
+            painter: _WaveformPainter(
+              animation: _animationController,
+              activeProgress: widget.activeProgress,
+              baseHeights: _baseHeights,
+              activeColor: colorActive,
+              inactiveColor: colorInactive,
+            ),
+          ),
+        );
+      },
     );
   }
 
-  void _handleScrub(BuildContext context, double localX) {
-    if (onScrub == null) return;
-    
-    // Find the render box to compute width
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final width = renderBox.size.width;
-    if (width <= 0) return;
-
-    // Calculate scrub fraction clamped to 0.0 - 1.0
+  void _handleScrub(double width, double localX) {
+    if (widget.onScrub == null || width <= 0) return;
     final fraction = (localX / width).clamp(0.0, 1.0);
-    onScrub!(fraction);
+    widget.onScrub!(fraction);
+  }
+}
+
+class _WaveformPainter extends CustomPainter {
+  final Animation<double> animation;
+  final double activeProgress;
+  final List<double> baseHeights;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  _WaveformPainter({
+    required this.animation,
+    required this.activeProgress,
+    required this.baseHeights,
+    required this.activeColor,
+    required this.inactiveColor,
+  }) : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final barCount = baseHeights.length;
+    if (barCount == 0) return;
+
+    // Draw fewer, wider bars with cleaner spacing
+    const double barWidth = 6.0;
+    const double gap = 4.0;
+
+    // Total width occupied by the waveform
+    final totalWaveformWidth = (barCount * barWidth) + ((barCount - 1) * gap);
+    
+    // Centering the waveform horizontally
+    final startX = (size.width - totalWaveformWidth) / 2.0;
+
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    final animationValue = animation.value;
+
+    for (int i = 0; i < barCount; i++) {
+      // Determine active color status
+      final barProgress = i / barCount;
+      final isBarActive = barProgress <= activeProgress;
+      paint.color = isBarActive ? activeColor : inactiveColor;
+
+      // Phase offset for a wavy, rolling visual effect
+      final phase = (i * 0.45) + (animationValue * 2.0 * math.pi);
+      // Smooth oscillation between [0.35, 1.0] of base height
+      final osc = 0.35 + 0.65 * math.sin(phase).abs();
+      final height = baseHeights[i] * osc;
+
+      // Center vertically within the painter canvas
+      final left = startX + i * (barWidth + gap);
+      final top = (size.height - height) / 2.0;
+
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(left, top, barWidth, height),
+          const Radius.circular(99.0),
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WaveformPainter oldDelegate) {
+    return oldDelegate.activeProgress != activeProgress ||
+        oldDelegate.activeColor != activeColor ||
+        oldDelegate.inactiveColor != inactiveColor;
   }
 }
