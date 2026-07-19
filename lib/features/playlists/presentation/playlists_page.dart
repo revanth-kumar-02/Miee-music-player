@@ -160,273 +160,156 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     final favorites = ref.watch(favoritesProvider);
 
     return Scaffold(
-      extendBody: true,
       backgroundColor: AppColors.background,
       appBar: AppHeader(
         title: 'Playlists',
         isScrolled: _isScrolled,
       ),
-      body: Stack(
-        children: [
-          // 1. Content View
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              bottom: false,
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  // Prominent Local Songs Card
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.marginMobile,
-                        right: AppSpacing.marginMobile,
-                        top: AppSpacing.md,
-                        bottom: AppSpacing.md,
+      body: SafeArea(
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // Prominent Local Songs Card
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.marginMobile,
+                  right: AppSpacing.marginMobile,
+                  top: AppSpacing.md,
+                  bottom: AppSpacing.md,
+                ),
+                child: GestureDetector(
+                  onTap: () => context.push('/local-songs'),
+                  child: Container(
+                    padding: const EdgeInsets.all(20.0),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF111111), Color(0xFF2A2A2A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: GestureDetector(
-                        onTap: () => context.push('/local-songs'),
-                        child: Container(
-                          padding: const EdgeInsets.all(20.0),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF111111), Color(0xFF2A2A2A)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(20.0),
-                            boxShadow: AppShadows.shadowLow,
+                      borderRadius: BorderRadius.circular(20.0),
+                      boxShadow: AppShadows.shadowLow,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 56.0,
+                          height: 56.0,
+                          decoration: const BoxDecoration(
+                            color: Colors.black26,
+                            shape: BoxShape.circle,
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 56.0,
-                                height: 56.0,
-                                decoration: const BoxDecoration(
-                                  color: Colors.black26,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: Colors.white,
-                                  size: 32.0,
-                                ),
-                              ),
-                              const SizedBox(width: 16.0),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Local Songs',
-                                      style: AppTypography.headlineMedium.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4.0),
-                                    Text(
-                                      '${localSongs.length} track${localSongs.length != 1 ? "s" : ""}',
-                                      style: AppTypography.bodyMedium.copyWith(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: Colors.white70,
-                                size: 28.0,
-                              ),
-                            ],
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.white,
+                            size: 32.0,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-
-                  // Divider Line
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
-                      child: Divider(color: AppColors.outlineVariant, height: 24.0),
-                    ),
-                  ),
-
-                  // "Your Playlists" Section Header
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.marginMobile,
-                        vertical: AppSpacing.xs,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Your Playlists',
-                            style: AppTypography.headlineMedium.copyWith(
-                              color: AppColors.onSurface,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: () async => showCreatePlaylistDialog(context),
-                            icon: const Icon(Icons.add, size: 18.0),
-                            label: const Text('Create'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Grid or Empty State of User Playlists
-                  if (playlists.isEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.marginMobile,
-                          vertical: AppSpacing.lg,
-                        ),
-                        child: Center(
+                        const SizedBox(width: 16.0),
+                        Expanded(
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
-                                Icons.queue_music_outlined,
-                                size: 56.0,
-                                color: AppColors.onSurfaceVariant,
-                              ),
-                              AppSpacing.heightSm,
                               Text(
-                                'No playlists created yet',
-                                style: AppTypography.bodyLarge.copyWith(
-                                  color: AppColors.onSurface,
+                                'Local Songs',
+                                style: AppTypography.headlineMedium.copyWith(
+                                  color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              AppSpacing.heightXs,
+                              const SizedBox(height: 4.0),
                               Text(
-                                'Create custom playlists to group your favorite tracks.',
-                                textAlign: TextAlign.center,
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: AppColors.onSurfaceVariant,
+                                '${localSongs.length} track${localSongs.length != 1 ? "s" : ""}',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: Colors.white70,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.marginMobile,
-                        right: AppSpacing.marginMobile,
-                        top: AppSpacing.sm,
-                        bottom: 180.0,
-                      ),
-                      sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16.0,
-                          mainAxisSpacing: 20.0,
-                          childAspectRatio: 0.75,
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Colors.white70,
                         ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final playlist = playlists[index];
-                            return _PlaylistGridCard(
-                              playlist: playlist,
-                              onOptionsTap: () => _showPlaylistOptions(context, ref, playlist),
-                            );
-                          },
-                          childCount: playlists.length,
-                        ),
-                      ),
+                      ],
                     ),
-
-                  // Bottom Spacing for MiniPlayer & BottomNavigation
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 180.0),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
 
-          // 2. Floating MiniPlayer
-          Positioned(
-            left: AppSpacing.marginMobile,
-            right: AppSpacing.marginMobile,
-            bottom: 80.0 + bottomInset + AppSpacing.sm,
-            child: Consumer(
-              builder: (context, ref, child) {
-                final playbackState = ref.watch(playerControllerProvider);
-                final controller = ref.read(playerControllerProvider.notifier);
-                final currentTrack = playbackState.currentTrack;
-
-                if (currentTrack == null) {
-                  return const SizedBox.shrink();
-                }
-
-                final isPlaying = playbackState.status == PlaybackStatus.playing;
-                final total = playbackState.duration.inMilliseconds;
-                final pos = playbackState.position.inMilliseconds;
-                final progress = total > 0 ? pos / total : 0.0;
-
-                return MiniPlayer(
-                  musicItem: currentTrack,
-                  progress: progress,
-                  isPlaying: isPlaying,
-                  isFavorited: favorites.any((t) => t.id == currentTrack.id),
-                  isDark: true,
-                  onTap: () => context.push('/player'),
-                  onPlayPauseTap: () {
-                    if (isPlaying) {
-                      controller.pause();
-                    } else {
-                      controller.play();
-                    }
-                  },
-                  onFavoriteTap: () {},
-                );
-              },
+            // Playlist Grid Header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.marginMobile,
+                  vertical: AppSpacing.md,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'User Playlists',
+                      style: AppTypography.headlineLargeMobile.copyWith(
+                        color: AppColors.onBackground,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => showCreatePlaylistDialog(context),
+                      icon: const Icon(Icons.add),
+                      label: const Text('New'),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
 
-          // 3. Fixed Shell Bottom Navigation Bar (4-item layout)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomNavigation(
-              currentIndex: 2, // Playlists tab is index 2
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    context.go('/home');
-                    break;
-                  case 1:
-                    context.go('/search');
-                    break;
-                  case 2:
-                    break;
-                  case 3:
-                    context.go('/settings');
-                    break;
-                }
-              },
-            ),
-          ),
-        ],
+            // Playlists Grid Layout
+            if (playlists.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48.0),
+                    child: EmptyState(
+                      title: 'No playlists',
+                      message: 'Create your first custom playlist above.',
+                      icon: Icons.playlist_add,
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220.0,
+                    mainAxisSpacing: AppSpacing.md,
+                    crossAxisSpacing: AppSpacing.md,
+                    childAspectRatio: 0.76,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final playlist = playlists[index];
+                      return _buildPlaylistCard(context, playlist);
+                    },
+                    childCount: playlists.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildPlaylistCard(BuildContext context, PlaylistModel playlist) {
+    return _PlaylistGridCard(
+      playlist: playlist,
+      onOptionsTap: () => _showPlaylistOptions(context, ref, playlist),
     );
   }
 }

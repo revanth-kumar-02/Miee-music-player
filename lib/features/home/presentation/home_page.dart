@@ -77,147 +77,72 @@ class _HomePageState extends ConsumerState<HomePage> {
         title: 'Miee',
         isScrolled: _isScrolled,
       ),
-      body: Stack(
-        children: [
-          // 1. Scrollable Main Content Canvas
-          Positioned.fill(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppSpacing.heightSm,
-                  // Greeting Header
-                  Text(
-                    '$greetingPrefix, $firstName',
-                    style: AppTypography.headlineLargeMobile.copyWith(
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                  AppSpacing.heightLg,
-
-                  if (localSongs.isEmpty) ...[
-                    AppSpacing.heightLg,
-                    const EmptyState(
-                      title: 'No music found',
-                      message: 'Import your local music or connect a music source.',
-                      icon: Icons.music_off_outlined,
-                    ),
-                  ] else ...[
-                    // Continue Listening Section
-                    const SectionHeader(
-                      title: 'Continue Listening',
-                      isUppercase: true,
-                    ),
-                    AppSpacing.heightMd,
-                    _buildContinueListeningCard(context, localSongs),
-                    AppSpacing.heightLg,
-
-                    if (localAlbums.isNotEmpty) ...[
-                      // Recently Played Section
-                      const SectionHeader(
-                        title: 'Recently Played',
-                        isUppercase: true,
-                      ),
-                      AppSpacing.heightMd,
-                      _buildRecentlyPlayedList(localAlbums, localSongs),
-                      AppSpacing.heightLg,
-
-                      // Albums Section (Bento Grid)
-                      const SectionHeader(
-                        title: 'Albums',
-                        isUppercase: true,
-                      ),
-                      AppSpacing.heightMd,
-                      _buildBentoAlbumsGrid(context, localAlbums, localSongs),
-                      AppSpacing.heightLg,
-                    ],
-
-                    if (localArtists.isNotEmpty) ...[
-                      // Favorite Artists Section
-                      const SectionHeader(
-                        title: 'Favorite Artists',
-                        isUppercase: true,
-                      ),
-                      AppSpacing.heightMd,
-                      _buildFavoriteArtistsList(localArtists),
-                    ],
-                  ],
-
-                  // Bottom padding to ensure items scroll completely above floating players
-                  SizedBox(height: 160.0 + bottomInset),
-                ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppSpacing.heightSm,
+              // Greeting Header
+              Text(
+                '$greetingPrefix, $firstName',
+                style: AppTypography.headlineLargeMobile.copyWith(
+                  color: AppColors.onSurface,
+                ),
               ),
-            ),
+              AppSpacing.heightLg,
+
+              if (localSongs.isNotEmpty) ...[
+                // Spotlight / Continue Listening
+                const SectionHeader(
+                  title: 'Continue Listening',
+                  isUppercase: true,
+                ),
+                AppSpacing.heightMd,
+                _buildContinueListeningCard(context, localSongs),
+                AppSpacing.heightLg,
+              ],
+
+              if (localSongs.isNotEmpty) ...[
+                // Recently Played Section
+                const SectionHeader(
+                  title: 'Recently Played',
+                  isUppercase: true,
+                ),
+                AppSpacing.heightMd,
+                _buildRecentlyPlayedList(localAlbums, localSongs),
+                AppSpacing.heightLg,
+              ],
+
+              if (localAlbums.isNotEmpty) ...[
+                // Bento Album Grid Section
+                const SectionHeader(
+                  title: 'Albums',
+                  isUppercase: true,
+                ),
+                AppSpacing.heightMd,
+                _buildBentoAlbumsGrid(context, localAlbums, localSongs),
+                AppSpacing.heightLg,
+              ],
+
+              if (localArtists.isNotEmpty) ...[
+                // Favorite Artists Section
+                const SectionHeader(
+                  title: 'Favorite Artists',
+                  isUppercase: true,
+                ),
+                AppSpacing.heightMd,
+                _buildFavoriteArtistsList(localArtists),
+              ],
+            ],
+
+            // Extra bottom padding to ensure items scroll completely above floating players
+            // SizedBox(height: 160.0 + bottomInset),
           ),
-
-          // 2. Fixed Mini Player Overlay
-          Positioned(
-            left: AppSpacing.marginMobile,
-            right: AppSpacing.marginMobile,
-            bottom: 80.0 + bottomInset + AppSpacing.sm,
-            child: Consumer(
-              builder: (context, ref, child) {
-                final playbackState = ref.watch(playerControllerProvider);
-                final controller = ref.read(playerControllerProvider.notifier);
-                final currentTrack = playbackState.currentTrack;
-
-                if (currentTrack == null) {
-                  return const SizedBox.shrink();
-                }
-
-                final isPlaying = playbackState.status == PlaybackStatus.playing;
-                final total = playbackState.duration.inMilliseconds;
-                final pos = playbackState.position.inMilliseconds;
-                final progress = total > 0 ? pos / total : 0.0;
-
-                return MiniPlayer(
-                  musicItem: currentTrack,
-                  progress: progress,
-                  isPlaying: isPlaying,
-                  isFavorited: favorites.any((t) => t.id == currentTrack.id),
-                  isDark: true, // Black backing color matches Stitch HTML design
-                  onTap: () => context.push('/player'),
-                  onPlayPauseTap: () {
-                    if (isPlaying) {
-                      controller.pause();
-                    } else {
-                      controller.play();
-                    }
-                  },
-                  onFavoriteTap: () {},
-                );
-              },
-            ),
-          ),
-
-          // 3. Fixed Shell Bottom Navigation Bar
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomNavigation(
-              currentIndex: 0,
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    break;
-                  case 1:
-                    context.go('/search');
-                    break;
-                  case 2:
-                    context.go('/playlists');
-                    break;
-                  case 3:
-                    context.go('/settings');
-                    break;
-                }
-              },
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

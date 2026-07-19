@@ -178,15 +178,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       appBar: const AppHeader(
         title: 'Settings',
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              bottom: false,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                child: Column(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Profile Card ──
@@ -324,6 +319,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Metadata tags refreshed successfully.')),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.folder_open_outlined),
+                      title: const Text('Music Folder Location'),
+                      subtitle: Text(settings.customMusicPath ?? 'Default system music directory'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        // Folder picker placeholder
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Selecting custom music path is only supported on Desktop.')),
                         );
                       },
                     ),
@@ -632,71 +639,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
       ),
-    ),
-      Positioned(
-        left: AppSpacing.marginMobile,
-        right: AppSpacing.marginMobile,
-        bottom: 80.0 + bottomInset + AppSpacing.sm,
-        child: Consumer(
-          builder: (context, ref, child) {
-            final playbackState = ref.watch(playerControllerProvider);
-            final controller = ref.read(playerControllerProvider.notifier);
-            final currentTrack = playbackState.currentTrack;
-
-            if (currentTrack == null) {
-              return const SizedBox.shrink();
-            }
-
-            final isPlaying = playbackState.status == PlaybackStatus.playing;
-            final total = playbackState.duration.inMilliseconds;
-            final pos = playbackState.position.inMilliseconds;
-            final progress = total > 0 ? pos / total : 0.0;
-
-            return MiniPlayer(
-              musicItem: currentTrack,
-              progress: progress,
-              isPlaying: isPlaying,
-              isFavorited: favorites.any((t) => t.id == currentTrack.id),
-              isDark: true, // Black backing color matches Stitch HTML design
-              onTap: () => context.push('/player'),
-              onPlayPauseTap: () {
-                if (isPlaying) {
-                  controller.pause();
-                } else {
-                  controller.play();
-                }
-              },
-              onFavoriteTap: () {},
-            );
-          },
-        ),
-      ),
-      Positioned(
-        left: 0,
-        right: 0,
-        bottom: 0,
-        child: BottomNavigation(
-          currentIndex: 3,
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                context.go('/home');
-                break;
-              case 1:
-                context.go('/search');
-                break;
-              case 2:
-                context.go('/playlists');
-                break;
-              case 3:
-                break;
-            }
-          },
-        ),
-      ),
-    ],
-  ),
-);
+    );
   }
 
   Widget _buildSettingsProfileCard(BuildContext context, dynamic profile) {

@@ -186,233 +186,155 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         title: 'Search',
         isScrolled: _isScrolled,
       ),
-      body: Stack(
-        children: [
-          // 1. Main scrollable content canvas
-          Positioned.fill(
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppSpacing.heightSm,
-                  // Search Bar Input widget
-                  AppSearchBar(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    placeholder: 'Artists, songs, or online videos',
-                    onSubmitted: _handleSearchSubmit,
-                  ),
-                  AppSpacing.heightLg,
-
-                   // Live search results when a query is active
-                  if (_searchFocusNode.hasFocus && _searchQuery.isNotEmpty) ...[
-                    _SearchSuggestionsList(
-                      query: _searchQuery,
-                      onSelect: (suggestion) {
-                        _searchController.text = suggestion;
-                        _searchFocusNode.unfocus();
-                        _handleSearchSubmit(suggestion);
-                      },
-                    ),
-                  ] else if (isSearching) ...[
-                    _SearchResultsSection(query: _searchQuery),
-                  ] else if (selectedGenre != 'All') ...[
-                    // Filter Chips horizontal row
-                    _buildFilterChips(),
-                    AppSpacing.heightLg,
-                    
-                    // Genre details view when query is empty but a genre is selected
-                    genreSongIdsAsync.when(
-                      data: (ids) {
-                        final genreSongs = localSongs.where((s) => ids.contains(s.id)).toList();
-                        if (genreSongs.isEmpty) {
-                          return EmptyState(
-                            title: 'No songs in $selectedGenre',
-                            message: 'There are no local songs in the $selectedGenre genre on this device.',
-                            icon: Icons.music_off,
-                          );
-                        }
-                        
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SectionHeader(
-                              title: '$selectedGenre Songs',
-                            ),
-                            AppSpacing.heightMd,
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: genreSongs.length,
-                              itemBuilder: (context, index) {
-                                final song = genreSongs[index];
-                                final track = Track(
-                                  id: song.id,
-                                  title: song.title,
-                                  artist: song.artist,
-                                  imageUrl: song.artworkPath,
-                                  duration: song.duration,
-                                  filePath: song.filePath,
-                                );
-                                final playbackState = ref.watch(playerControllerProvider);
-                                final isCurrentTrack = playbackState.currentTrack?.id == song.id;
-                                
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                                  child: SongTile(
-                                    title: song.title,
-                                    artist: song.artist,
-                                    duration: song.duration,
-                                    imageUrl: song.artworkPath,
-                                    isPlaying: isCurrentTrack,
-                                    onTap: () {
-                                      final playlistTracks = genreSongs.map((s) => Track(
-                                        id: s.id,
-                                        title: s.title,
-                                        artist: s.artist,
-                                        imageUrl: s.artworkPath,
-                                        duration: s.duration,
-                                        filePath: s.filePath,
-                                      )).toList();
-                                      ref.read(playerControllerProvider.notifier).selectTrack(track, playlistTracks);
-                                      context.push('/player');
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                      loading: () => const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24.0),
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                      error: (e, __) => EmptyState(
-                        title: 'Error loading genre',
-                        message: e.toString(),
-                        icon: Icons.error_outline,
-                      ),
-                    ),
-                  ] else ...[
-                    // Filter Chips horizontal row
-                    _buildFilterChips(),
-                    AppSpacing.heightLg,
-
-                    // Recent Searches Section (Bento Grid)
-                    if (history.isNotEmpty) ...[
-                      SectionHeader(
-                        title: 'Recent',
-                        actionLabel: 'Clear',
-                        onActionTap: () {
-                          ref.read(searchHistoryProvider.notifier).clearAll();
-                        },
-                      ),
-                      AppSpacing.heightMd,
-                      _buildBentoRecentSearches(localArtists, localAlbums),
-                      AppSpacing.heightLg,
-                    ],
-
-                    if (localSongs.isNotEmpty) ...[
-                      // Trending Now Section
-                      const SectionHeader(
-                        title: 'Trending Now',
-                      ),
-                      AppSpacing.heightMd,
-                      _buildTrendingSongsList(context, localSongs),
-                      AppSpacing.heightLg,
-                    ],
-
-                    // Browse Categories Grid
-                    const SectionHeader(
-                      title: 'Browse Categories',
-                    ),
-                    AppSpacing.heightMd,
-                    _buildBrowseCategoriesGrid(
-                      localAlbums.length,
-                      localArtists.length,
-                      localPlaylists.length,
-                      localGenres.length,
-                    ),
-                  ],
-
-                  // Bottom padding offset for MiniPlayer & BottomNavigation
-                  SizedBox(height: 160.0 + bottomInset),
-                ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppSpacing.heightSm,
+              // Search Bar Input widget
+              AppSearchBar(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                placeholder: 'Artists, songs, or online videos',
+                onSubmitted: _handleSearchSubmit,
               ),
-            ),
-          ),
+              AppSpacing.heightLg,
 
-          // 2. Fixed Mini Player Overlay (Light Mode matches Page Background)
-          Positioned(
-            left: AppSpacing.marginMobile,
-            right: AppSpacing.marginMobile,
-            bottom: 80.0 + bottomInset + AppSpacing.sm,
-            child: Consumer(
-              builder: (context, ref, child) {
-                final playbackState = ref.watch(playerControllerProvider);
-                final controller = ref.read(playerControllerProvider.notifier);
-                final currentTrack = playbackState.currentTrack;
-
-                if (currentTrack == null) {
-                  return const SizedBox.shrink();
-                }
-
-                final isPlaying = playbackState.status == PlaybackStatus.playing;
-                final total = playbackState.duration.inMilliseconds;
-                final pos = playbackState.position.inMilliseconds;
-                final progress = total > 0 ? pos / total : 0.0;
-
-                return MiniPlayer(
-                  musicItem: currentTrack,
-                  progress: progress,
-                  isPlaying: isPlaying,
-                  isFavorited: favorites.any((t) => t.id == currentTrack.id),
-                  isDark: false, // Light mode matches the surface container background
-                  onTap: () => context.push('/player'),
-                  onPlayPauseTap: () {
-                    if (isPlaying) {
-                      controller.pause();
-                    } else {
-                      controller.play();
+               // Live search results when a query is active
+              if (isSearching) ...[
+                _buildLiveSearchResults(favorites)
+              ] else if (selectedGenre != 'All') ...[
+                // Render list of tracks matching the selected genre filter
+                genreSongIdsAsync.when(
+                  data: (songIds) {
+                    final genreSongs = localSongs.where((s) => songIds.contains(s.id)).toList();
+                    if (genreSongs.isEmpty) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SectionHeader(
+                            title: '$selectedGenre Songs',
+                          ),
+                          AppSpacing.heightLg,
+                          const EmptyState(
+                            title: 'No songs found',
+                            message: 'No songs match this category.',
+                            icon: Icons.music_note_outlined,
+                          ),
+                        ],
+                      );
                     }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SectionHeader(
+                          title: '$selectedGenre Songs',
+                        ),
+                        AppSpacing.heightMd,
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: genreSongs.length,
+                          itemBuilder: (context, index) {
+                            final song = genreSongs[index];
+                            final track = Track(
+                              id: song.id,
+                              title: song.title,
+                              artist: song.artist,
+                              imageUrl: song.artworkPath,
+                              duration: song.duration,
+                              filePath: song.filePath,
+                            );
+                            final playbackState = ref.watch(playerControllerProvider);
+                            final isCurrentTrack = playbackState.currentTrack?.id == song.id;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                              child: SongTile(
+                                title: song.title,
+                                artist: song.artist,
+                                duration: song.duration,
+                                imageUrl: song.artworkPath,
+                                isPlaying: isCurrentTrack,
+                                onTap: () {
+                                  final playlistTracks = genreSongs.map((s) => Track(
+                                    id: s.id,
+                                    title: s.title,
+                                    artist: s.artist,
+                                    imageUrl: s.artworkPath,
+                                    duration: s.duration,
+                                    filePath: s.filePath,
+                                  )).toList();
+                                  ref.read(playerControllerProvider.notifier).selectTrack(track, playlistTracks);
+                                  context.push('/player');
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    );
                   },
-                  onFavoriteTap: () {},
-                );
-              },
-            ),
-          ),
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  error: (e, __) => EmptyState(
+                    title: 'Error loading genre',
+                    message: e.toString(),
+                    icon: Icons.error_outline,
+                  ),
+                ),
+              ] else ...[
+                // Filter Chips horizontal row
+                _buildFilterChips(),
+                AppSpacing.heightLg,
 
-          // 3. Fixed Shell Bottom Navigation Bar
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomNavigation(
-              currentIndex: 1, // Search tab highlighted as active
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    context.go('/home');
-                    break;
-                  case 1:
-                    break;
-                  case 2:
-                    context.go('/playlists');
-                    break;
-                  case 3:
-                    context.go('/settings');
-                    break;
-                }
-              },
-            ),
+                // Recent Searches Section (Bento Grid)
+                if (history.isNotEmpty) ...[
+                  SectionHeader(
+                    title: 'Recent',
+                    actionLabel: 'Clear',
+                    onActionTap: () {
+                      ref.read(searchHistoryProvider.notifier).clearAll();
+                    },
+                  ),
+                  AppSpacing.heightMd,
+                  _buildBentoRecentSearches(localArtists, localAlbums),
+                  AppSpacing.heightLg,
+                ],
+
+                if (localSongs.isNotEmpty) ...[
+                  // Trending Now Section
+                  const SectionHeader(
+                    title: 'Trending Now',
+                  ),
+                  AppSpacing.heightMd,
+                  _buildTrendingSongsList(context, localSongs),
+                  AppSpacing.heightLg,
+                ],
+
+                // Browse Categories Grid
+                const SectionHeader(
+                  title: 'Browse Categories',
+                ),
+                AppSpacing.heightMd,
+                _buildBrowseCategoriesGrid(
+                  localAlbums.length,
+                  localArtists.length,
+                  localPlaylists.length,
+                  localGenres.length,
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
