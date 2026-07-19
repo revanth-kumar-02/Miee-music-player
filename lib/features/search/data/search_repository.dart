@@ -1,112 +1,89 @@
-﻿import '../../media/domain/models.dart';
-import '../../media/providers/media_providers.dart';
-import '../domain/search_results.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
+import '../../../core/storage/hive_boxes.dart';
+import '../../youtube/domain/youtube_model.dart';
+import 'local_search_service.dart';
+import 'youtube_search_service.dart';
 
-/// Performs fast, offline, in-memory searches across the indexed local library.
-///
-/// This class contains **no I/O** — it operates entirely on the
-/// [MediaLibraryState] already held in memory by [MediaLibraryService].
-/// Optimised for libraries exceeding 10,000 songs via O(n) single-pass
-/// filtering with early-exit on per-category caps.
+/// Central search repository orchestrating local fuzzy matches, YouTube results caching,
+/// search suggestions, and persistent search history in Hive.
 class SearchRepository {
-  // Per-category display caps to keep results manageable.
-  static const int _songCap = 50;
-  static const int _albumCap = 20;
-  static const int _artistCap = 20;
-  static const int _genreCap = 10;
-  static const int _playlistCap = 20;
+  final LocalSearchService localSearch = LocalSearchService();
+  final YouTubeSearchService youtubeSearch = YouTubeSearchService();
 
-  /// Searches [library] for [query] and returns grouped [SearchResults].
-  ///
-  /// Returns [SearchResults.empty] when [query] is blank.
-  /// Matching is: case-insensitive, partial (contains), prefix-weighted,
-  /// and multi-word (all space-separated words must appear in the target).
-  SearchResults search(String query, MediaLibraryState library) {
+  static const String _prefKey = 'youtube_search_history';
+  static const int _maxHistory = 10;
+
+  /// Bounded query cache preventing duplicate YouTube Explode network queries.
+  final Map<String, List<YouTubeVideo>> _youtubeCache = {};
+  static const int _maxCacheSize = 50;
+
+  Box<Object?> get _box => Hive.box<Object?>(HiveBoxes.preferences);
+
+  /// Load persistent search history.
+  List<String> getRecentSearches() {
+    final list = _box.get(_prefKey);
+    if (list is List) {
+      return list.cast<String>();
+    }
+    return const [];
+  }
+
+  /// Add query to history, maintaining a limit of 10 searches.
+  Future<void> addRecentSearch(String query) async {
     final trimmed = query.trim();
-    if (trimmed.isEmpty) return SearchResults.empty();
+    if (trimmed.isEmpty) return;
 
-    final words = trimmed.toLowerCase().split(RegExp(r'\s+'));
+    final list = List<String>.from(getRecentSearches())
+      ..removeWhere((q) => q.toLowerCase() == trimmed.toLowerCase())
+      ..insert(0, trimmed);
 
-    return SearchResults(
-      songs: _searchSongs(library.songs, words),
-      albums: _searchAlbums(library.albums, words),
-      artists: _searchArtists(library.artists, words),
-      genres: _searchGenres(library.genres, words),
-      playlists: _searchPlaylists(library.playlists, words),
-    );
+    if (list.length > _maxHistory) {
+      list.removeRange(_maxHistory, list.length);
+    }
+
+    await _box.put(_prefKey, list);
   }
 
-  // ── Per-category search helpers ─────────────────────────────────────────────
+  /// Remove single query entry.
+  Future<void> removeRecentSearch(String query) async {
+    final list = List<String>.from(getRecentSearches())
+      ..removeWhere((q) => q == query);
+    await _box.put(_prefKey, list);
+  }
 
-  List<MediaSong> _searchSongs(List<MediaSong> songs, List<String> words) {
-    final results = <MediaSong>[];
-    for (final song in songs) {
-      if (results.length >= _songCap) break;
-      if (_matchesAny(words, [song.title, song.artist, song.album])) {
-        results.add(song);
+  /// Destructively clear entire history database.
+  Future<void> clearRecentSearches() async {
+    await _box.delete(_prefKey);
+  }
+
+  /// Performs online YouTube query checking cache first.
+  Future<List<YouTubeVideo>> searchYouTube(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return const [];
+
+    if (_youtubeCache.containsKey(trimmed)) {
+      debugPrint('SearchRepository: YouTube cache hit for "$trimmed"');
+      return _youtubeCache[trimmed]!;
+    }
+
+    final results = await youtubeSearch.search(trimmed);
+    if (results.isNotEmpty) {
+      if (_youtubeCache.length >= _maxCacheSize) {
+        _youtubeCache.remove(_youtubeCache.keys.first);
       }
+      _youtubeCache[trimmed] = results;
     }
     return results;
   }
 
-  List<MediaAlbum> _searchAlbums(List<MediaAlbum> albums, List<String> words) {
-    final results = <MediaAlbum>[];
-    for (final album in albums) {
-      if (results.length >= _albumCap) break;
-      if (_matchesAny(words, [album.title, album.artist])) {
-        results.add(album);
-      }
-    }
-    return results;
+  /// Fetches auto-complete suggestions.
+  Future<List<String>> getSuggestions(String query) async {
+    return youtubeSearch.getSuggestions(query);
   }
 
-  List<MediaArtist> _searchArtists(List<MediaArtist> artists, List<String> words) {
-    final results = <MediaArtist>[];
-    for (final artist in artists) {
-      if (results.length >= _artistCap) break;
-      if (_matchesAny(words, [artist.name])) {
-        results.add(artist);
-      }
-    }
-    return results;
-  }
-
-  List<MediaGenre> _searchGenres(List<MediaGenre> genres, List<String> words) {
-    final results = <MediaGenre>[];
-    for (final genre in genres) {
-      if (results.length >= _genreCap) break;
-      if (_matchesAny(words, [genre.name])) {
-        results.add(genre);
-      }
-    }
-    return results;
-  }
-
-  List<MediaPlaylist> _searchPlaylists(
-      List<MediaPlaylist> playlists, List<String> words) {
-    final results = <MediaPlaylist>[];
-    for (final playlist in playlists) {
-      if (results.length >= _playlistCap) break;
-      if (_matchesAny(words, [playlist.name])) {
-        results.add(playlist);
-      }
-    }
-    return results;
-  }
-
-  // ── Matching logic ──────────────────────────────────────────────────────────
-
-  /// Returns true if ALL [words] appear in at least one of the [targets].
-  ///
-  /// Each target is lowercased before comparison. A word "appears" if any
-  /// target contains it as a substring (prefix match is a special case of this).
-  bool _matchesAny(List<String> words, List<String> targets) {
-    final lowerTargets = targets.map((t) => t.toLowerCase()).toList();
-    for (final word in words) {
-      // Every word must be found in at least one target field.
-      final wordFound = lowerTargets.any((t) => t.contains(word));
-      if (!wordFound) return false;
-    }
-    return true;
+  /// Disposes open connections.
+  void dispose() {
+    youtubeSearch.dispose();
   }
 }

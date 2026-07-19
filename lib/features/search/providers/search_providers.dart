@@ -1,151 +1,163 @@
 import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../media/providers/media_providers.dart';
 import '../data/search_repository.dart';
-import '../domain/search_results.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-
-/// Debounce duration — short enough to feel instant, long enough to avoid
-/// excessive re-computation while the user is still typing.
-const _kDebounceDuration = Duration(milliseconds: 280);
-
-// ── Repository provider ───────────────────────────────────────────────────────
+import '../domain/search_state.dart';
 
 /// Singleton [SearchRepository] provider.
 final searchRepositoryProvider = Provider<SearchRepository>((ref) {
-  return SearchRepository();
+  final repo = SearchRepository();
+  ref.onDispose(() => repo.dispose());
+  return repo;
 });
 
-// ── Search state ──────────────────────────────────────────────────────────────
-
-/// Snapshot of the search feature state.
-class SearchState {
-  /// The current raw query string.
-  final String query;
-
-  /// Grouped results for the current query.
-  final SearchResults results;
-
-  /// True while the 280ms debounce timer is running.
-  final bool isLoading;
-
-  const SearchState({
-    this.query = '',
-    this.results = const SearchResults(),
-    this.isLoading = false,
-  });
-
-  SearchState copyWith({
-    String? query,
-    SearchResults? results,
-    bool? isLoading,
-  }) =>
-      SearchState(
-        query: query ?? this.query,
-        results: results ?? this.results,
-        isLoading: isLoading ?? this.isLoading,
-      );
-
-  bool get hasQuery => query.trim().isNotEmpty;
-}
-
-// ── Search notifier ───────────────────────────────────────────────────────────
-
-/// Manages search query lifecycle with debounce and synchronous in-memory search.
+/// Manages the debounced local and online search logic.
 class SearchNotifier extends StateNotifier<SearchState> {
   final SearchRepository _repo;
   final Ref _ref;
   Timer? _debounceTimer;
+  Timer? _suggestionDebounceTimer;
 
-  SearchNotifier(this._repo, this._ref) : super(const SearchState());
+  SearchNotifier(this._repo, this._ref) : super(const SearchState()) {
+    _loadRecentSearches();
+  }
 
-  /// Called every time the search bar text changes.
-  ///
-  /// Sets loading immediately, then debounces the actual search.
+  void _loadRecentSearches() {
+    state = state.copyWith(recentSearches: _repo.getRecentSearches());
+  }
+
+  /// Updates search text query, running debounced suggestions (150ms) and searches (300ms).
   void updateQuery(String query) {
     _debounceTimer?.cancel();
+    _suggestionDebounceTimer?.cancel();
 
-    if (query.trim().isEmpty) {
-      state = const SearchState();
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      state = state.copyWith(
+        query: '',
+        suggestions: const [],
+        localSongs: const [],
+        localAlbums: const [],
+        localArtists: const [],
+        localPlaylists: const [],
+        youtubeResults: const [],
+        isLocalLoading: false,
+        isYouTubeLoading: false,
+        errorMessage: null,
+      );
       return;
     }
 
-    state = state.copyWith(query: query, isLoading: true);
+    state = state.copyWith(
+      query: query,
+      isLocalLoading: true,
+      isYouTubeLoading: true,
+      errorMessage: null,
+    );
 
-    _debounceTimer = Timer(_kDebounceDuration, () {
-      _runSearch(query);
+    // Suggestions autocomplete updates (150ms)
+    _suggestionDebounceTimer = Timer(const Duration(milliseconds: 150), () async {
+      if (state.query != query) return;
+      final suggestions = await _repo.getSuggestions(trimmed);
+      if (state.query == query) {
+        state = state.copyWith(suggestions: suggestions);
+      }
+    });
+
+    // Main search debounce (300ms)
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _runSearch(trimmed);
     });
   }
 
-  /// Forces an immediate search without waiting for the debounce.
-  ///
-  /// Use this on search bar submit / keyboard done action.
+  /// Forces an immediate search, bypassing debounce.
   void searchNow(String query) {
     _debounceTimer?.cancel();
-    if (query.trim().isEmpty) {
+    _suggestionDebounceTimer?.cancel();
+
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
       state = const SearchState();
       return;
     }
-    state = state.copyWith(query: query, isLoading: true);
-    _runSearch(query);
+
+    state = state.copyWith(
+      query: query,
+      isLocalLoading: true,
+      isYouTubeLoading: true,
+      errorMessage: null,
+    );
+
+    _runSearch(trimmed);
+    addHistory(trimmed);
   }
 
-  void _runSearch(String query) {
+  Future<void> _runSearch(String query) async {
+    // 1. Run Local Database Search (In-memory, synchronous feel)
     final library = _ref.read(mediaLibraryServiceProvider);
-    final results = _repo.search(query, library);
-    state = state.copyWith(results: results, isLoading: false);
+    final songs = _repo.localSearch.searchSongs(library.songs, query);
+    final albums = _repo.localSearch.searchAlbums(library.albums, query);
+    final artists = _repo.localSearch.searchArtists(library.artists, query);
+    final playlists = _repo.localSearch.searchPlaylists(library.playlists, query);
+
+    if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+      state = state.copyWith(
+        localSongs: songs,
+        localAlbums: albums,
+        localArtists: artists,
+        localPlaylists: playlists,
+        isLocalLoading: false,
+      );
+    }
+
+    // 2. Run YouTube Search (Network API)
+    try {
+      final youtube = await _repo.searchYouTube(query);
+      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+        state = state.copyWith(
+          youtubeResults: youtube,
+          isYouTubeLoading: false,
+        );
+      }
+    } catch (e) {
+      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+        state = state.copyWith(
+          isYouTubeLoading: false,
+          errorMessage: e.toString(),
+        );
+      }
+    }
   }
 
-  /// Clears the current query and results.
-  void clear() {
-    _debounceTimer?.cancel();
-    state = const SearchState();
+  /// Stores query in recent searches.
+  Future<void> addHistory(String query) async {
+    await _repo.addRecentSearch(query);
+    _loadRecentSearches();
+  }
+
+  /// Removes single search history entry.
+  Future<void> removeHistory(String query) async {
+    await _repo.removeRecentSearch(query);
+    _loadRecentSearches();
+  }
+
+  /// Wipes entire search history box.
+  Future<void> clearHistory() async {
+    await _repo.clearRecentSearches();
+    _loadRecentSearches();
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _suggestionDebounceTimer?.cancel();
     super.dispose();
   }
 }
 
-/// Primary search provider — UI widgets read this for query, results, loading.
+/// riverpod state provider for unified search handling.
 final searchNotifierProvider =
     StateNotifierProvider<SearchNotifier, SearchState>((ref) {
   final repo = ref.watch(searchRepositoryProvider);
   return SearchNotifier(repo, ref);
-});
-
-// ── Convenience derived providers ─────────────────────────────────────────────
-
-/// True while the debounce timer is running.
-final searchLoadingProvider = Provider<bool>((ref) {
-  return ref.watch(searchNotifierProvider).isLoading;
-});
-
-/// The current [SearchResults] (empty when no query is active).
-final searchResultsProvider = Provider<SearchResults>((ref) {
-  return ref.watch(searchNotifierProvider).results;
-});
-
-/// The raw query string currently in the search bar.
-final searchQueryProvider = Provider<String>((ref) {
-  return ref.watch(searchNotifierProvider).query;
-});
-
-/// Fetches search query suggestions from YouTube Explode.
-final searchSuggestionsProvider = FutureProvider.family<List<String>, String>((ref, query) async {
-  if (query.trim().isEmpty) return const [];
-  
-  final yt = YoutubeExplode();
-  try {
-    final suggestions = await yt.search.getQuerySuggestions(query);
-    yt.close();
-    return suggestions;
-  } catch (e) {
-    yt.close();
-    return const [];
-  }
 });
