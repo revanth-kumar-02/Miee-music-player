@@ -7,12 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_spacing.dart';
 import '../../library/providers/library_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../../core/audio/providers.dart';
-import '../../../core/audio/playback_state.dart';
 import '../../../shared/widgets/widgets.dart';
 import 'settings_controller.dart';
 
@@ -170,7 +168,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final devUnlocked = ref.watch(devModeUnlockedProvider);
 
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final favorites = ref.watch(favoritesProvider);
     final profile = ref.watch(profileProvider);
 
     return Scaffold(

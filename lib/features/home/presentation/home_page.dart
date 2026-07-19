@@ -6,13 +6,11 @@ import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_shadows.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
-import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
-import '../../../core/widgets/empty_state.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../library/providers/library_providers.dart';
 
@@ -58,14 +56,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-
     // Listen to real device music providers
     final localSongs = ref.watch(songsProvider);
     final localAlbums = ref.watch(albumsProvider);
     final localArtists = ref.watch(artistsProvider);
     final profile = ref.watch(profileProvider);
-    final favorites = ref.watch(favoritesProvider);
 
     final hour = DateTime.now().hour;
     final greetingPrefix = hour < 12 ? 'Good Morning' : (hour < 17 ? 'Good Afternoon' : 'Good Evening');

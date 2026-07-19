@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,7 +41,6 @@ class PlayerPage extends ConsumerWidget {
       return '$minutes:${twoDigits(seconds)}';
     }
 
-    final blurBackingUrl = hasTrack ? currentTrack.imageUrl : '';
 
     return Scaffold(
       body: Stack(

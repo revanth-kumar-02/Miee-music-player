@@ -10,8 +10,6 @@ import '../../../app/theme/app_shadows.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/audio/providers.dart';
-import '../../../core/audio/playback_state.dart';
 import '../../media/providers/media_providers.dart';
 import '../../library/providers/library_providers.dart';
 import '../domain/playlist_model.dart';
@@ -157,8 +155,6 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
   Widget build(BuildContext context) {
     final playlists = ref.watch(allPlaylistsProvider);
     final localSongs = ref.watch(songsProvider);
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-    final favorites = ref.watch(favoritesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,

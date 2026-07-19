@@ -205,34 +205,42 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         
         debugPrint('PLAYBACK: YouTube Video ID parsed: $videoId');
 
-        // Check if there is a valid local cached file
-        final cachedFile = await YouTubeAudioResolver.instance.getCachedFile(videoId);
-        if (cachedFile != null) {
-          debugPrint('PLAYBACK: Cache HIT! Playing YouTube audio from local file: ${cachedFile.path}');
-          await _player.setAudioSource(AudioSource.file(cachedFile.path));
-        } else {
-          debugPrint('PLAYBACK: Cache MISS. Fetching stream manifest for YouTube ID: $videoId...');
-          String audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
-          debugPrint('PLAYBACK: Selected audio stream URL: $audioUrl');
-          
-          // Trigger background download to local cache
-          YouTubeAudioResolver.instance.startBackgroundDownload(videoId, audioUrl);
+        // On Web: skip local file cache (dart:io not available)
+        if (!kIsWeb) {
+          final cachedFile = await YouTubeAudioResolver.instance.getCachedFile(videoId);
+          if (cachedFile != null) {
+            debugPrint('PLAYBACK: Cache HIT! Playing YouTube audio from local file: ${cachedFile.path}');
+            await _player.setAudioSource(AudioSource.file(cachedFile.path));
+            debugPrint('PLAYBACK: Audio source loaded successfully for YouTube ID: $videoId');
+            return;
+          }
+        }
 
-          try {
-            debugPrint('PLAYBACK: Loading audio URL into just_audio with browser headers...');
-            await _player.setUrl(
-              audioUrl,
-              headers: {
-                'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
-                'Accept': '*/*',
-                'Connection': 'keep-alive',
-              },
-            );
-          } catch (loadErr) {
-            debugPrint('PLAYBACK WARNING: Initial setUrl failed: $loadErr. Clearing video cache, deleting files, and retrying...');
-            YouTubeAudioResolver.instance.clearVideoCache(videoId);
-            
-            // Delete potentially corrupted cache files
+        debugPrint('PLAYBACK: Cache MISS. Fetching stream manifest for YouTube ID: $videoId...');
+        String audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+        debugPrint('PLAYBACK: Selected audio stream URL: $audioUrl');
+        
+        // Trigger background download to local cache (mobile only)
+        if (!kIsWeb) {
+          YouTubeAudioResolver.instance.startBackgroundDownload(videoId, audioUrl);
+        }
+
+        try {
+          debugPrint('PLAYBACK: Loading audio URL into just_audio...');
+          await _player.setUrl(
+            audioUrl,
+            headers: {
+              'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+              'Accept': '*/*',
+              'Connection': 'keep-alive',
+            },
+          );
+        } catch (loadErr) {
+          debugPrint('PLAYBACK WARNING: Initial setUrl failed: $loadErr. Re-resolving...');
+          YouTubeAudioResolver.instance.clearVideoCache(videoId);
+          
+          // Delete potentially corrupted cache files (mobile only)
+          if (!kIsWeb) {
             try {
               final cacheDir = await getTemporaryDirectory();
               final targetFile = File('${cacheDir.path}/yt_cache_$videoId.m4a');
@@ -240,27 +248,27 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
                 await targetFile.delete();
               }
             } catch (_) {}
-
-            audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
-            debugPrint('PLAYBACK: Retrying selected audio stream URL: $audioUrl');
-            
-            await _player.setUrl(
-              audioUrl,
-              headers: {
-                'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
-                'Accept': '*/*',
-                'Connection': 'keep-alive',
-              },
-            );
           }
+
+          audioUrl = await YouTubeAudioResolver.instance.resolve(videoId);
+          debugPrint('PLAYBACK: Retrying selected audio stream URL: $audioUrl');
+          
+          await _player.setUrl(
+            audioUrl,
+            headers: {
+              'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+              'Accept': '*/*',
+              'Connection': 'keep-alive',
+            },
+          );
         }
         
         debugPrint('PLAYBACK: Audio source loaded successfully for YouTube ID: $videoId');
-      } else if (path.isNotEmpty && !path.startsWith('http')) {
+      } else if (!kIsWeb && path.isNotEmpty && !path.startsWith('http')) {
         debugPrint('PLAYBACK: Loading local file audio source: $path');
         await _player.setAudioSource(AudioSource.file(path));
         debugPrint('PLAYBACK: Local audio source loaded successfully.');
-      } else if (path.isNotEmpty) {
+      } else if (path.isNotEmpty && path.startsWith('http')) {
         debugPrint('PLAYBACK: Loading remote URL audio source: $path');
         await _player.setUrl(path);
         debugPrint('PLAYBACK: Remote audio source loaded successfully.');

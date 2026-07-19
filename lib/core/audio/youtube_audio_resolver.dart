@@ -123,8 +123,9 @@ class YouTubeAudioResolver {
   }
 
   /// Returns the File object representing the cached audio file if it exists and is valid.
-  /// Otherwise, returns null.
+  /// Always returns null on Flutter Web (dart:io not available).
   Future<File?> getCachedFile(String videoId) async {
+    if (kIsWeb) return null;
     try {
       final cacheDir = await getTemporaryDirectory();
       final targetFile = File('${cacheDir.path}/yt_cache_$videoId.m4a');
@@ -138,7 +139,9 @@ class YouTubeAudioResolver {
   }
 
   /// Downloads the resolved YouTube stream URL in the background.
+  /// No-op on Flutter Web (dart:io not available).
   void startBackgroundDownload(String videoId, String streamUrl) {
+    if (kIsWeb) return;
     // Spin up background downloader task without blocking caller thread
     Future.microtask(() async {
       try {

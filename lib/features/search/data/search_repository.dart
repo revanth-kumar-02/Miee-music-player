@@ -21,12 +21,18 @@ class SearchRepository {
   Box<Object?> get _box => Hive.box<Object?>(HiveBoxes.preferences);
 
   /// Load persistent search history.
+  /// Safely handles cases where Hive returns a _JsonMap instead of a List.
   List<String> getRecentSearches() {
-    final list = _box.get(_prefKey);
-    if (list is List) {
-      return list.cast<String>();
+    try {
+      final raw = _box.get(_prefKey);
+      if (raw == null) return const [];
+      if (raw is List) {
+        return raw.whereType<String>().toList();
+      }
+      return const [];
+    } catch (_) {
+      return const [];
     }
-    return const [];
   }
 
   /// Add query to history, maintaining a limit of 10 searches.

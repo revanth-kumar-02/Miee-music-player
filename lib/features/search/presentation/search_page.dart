@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,7 +15,6 @@ import '../../../shared/widgets/widgets.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../providers/search_providers.dart';
 import '../domain/search_state.dart';
-import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
 
 final selectedGenreProvider = StateProvider<String>((ref) => 'All');
