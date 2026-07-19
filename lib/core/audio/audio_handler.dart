@@ -223,7 +223,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             await _player.setUrl(
               audioUrl,
               headers: {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+                'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
                 'Accept': '*/*',
                 'Connection': 'keep-alive',
               },
@@ -247,7 +247,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             await _player.setUrl(
               audioUrl,
               headers: {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+                'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
                 'Accept': '*/*',
                 'Connection': 'keep-alive',
               },

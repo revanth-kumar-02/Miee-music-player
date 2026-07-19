@@ -49,9 +49,8 @@ class YouTubeAudioResolver {
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
         ytClients: [
-          YoutubeApiClient.ios,
-          YoutubeApiClient.androidMusic,
           YoutubeApiClient.androidSdkless,
+          YoutubeApiClient.ios,
         ],
       );
 
@@ -157,7 +156,7 @@ class YouTubeAudioResolver {
         final client = HttpClient();
         client.connectionTimeout = const Duration(seconds: 10);
         final request = await client.getUrl(Uri.parse(streamUrl));
-        request.headers.set('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1');
+        request.headers.set('User-Agent', 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip');
         final response = await request.close();
         
         if (response.statusCode != 200) {
