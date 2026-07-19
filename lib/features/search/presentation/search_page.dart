@@ -443,7 +443,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: _ResultListTile(
                   imageUrl: null,
                   title: playlist.name,
-                  subtitle: '${playlist.songIds.length} songs',
+                  subtitle: '${playlist.trackCount} songs',
                   icon: Icons.playlist_play_outlined,
                   onTap: () => context.push('/playlist/${playlist.id}'),
                 ),
