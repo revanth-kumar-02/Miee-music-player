@@ -205,8 +205,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               AppSpacing.heightLg,
 
                // Live search results when a query is active
-              if (isSearching) ...[
-                _buildLiveSearchResults(favorites)
+              if (_searchFocusNode.hasFocus && _searchQuery.isNotEmpty) ...[
+                _SearchSuggestionsList(
+                  query: _searchQuery,
+                  onSelect: (suggestion) {
+                    _searchController.text = suggestion;
+                    _searchFocusNode.unfocus();
+                    _handleSearchSubmit(suggestion);
+                  },
+                ),
+              ] else if (isSearching) ...[
+                _SearchResultsSection(query: _searchQuery),
               ] else if (selectedGenre != 'All') ...[
                 // Render list of tracks matching the selected genre filter
                 genreSongIdsAsync.when(

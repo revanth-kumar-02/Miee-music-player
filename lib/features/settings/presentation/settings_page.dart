@@ -325,7 +325,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ListTile(
                       leading: const Icon(Icons.folder_open_outlined),
                       title: const Text('Music Folder Location'),
-                      subtitle: Text(settings.customMusicPath ?? 'Default system music directory'),
+                      subtitle: const Text('Default system music directory'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () async {
                         // Folder picker placeholder

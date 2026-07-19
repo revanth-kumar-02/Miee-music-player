@@ -268,11 +268,11 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
 
             // Playlists Grid Layout
             if (playlists.isEmpty)
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 48.0),
+                    padding: const EdgeInsets.symmetric(vertical: 48.0),
                     child: EmptyState(
                       title: 'No playlists',
                       message: 'Create your first custom playlist above.',
