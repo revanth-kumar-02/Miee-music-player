@@ -2,26 +2,21 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../../youtube/domain/youtube_model.dart';
+import '../../youtube/data/youtube_repository.dart';
 import 'local_search_service.dart';
-import 'youtube_search_service.dart';
 
-/// Central search repository orchestrating local fuzzy matches, YouTube results caching,
+/// Central search repository orchestrating local fuzzy matches, YouTube API queries,
 /// search suggestions, and persistent search history in Hive.
 class SearchRepository {
   final LocalSearchService localSearch = LocalSearchService();
-  final YouTubeSearchService youtubeSearch = YouTubeSearchService();
+  final YouTubeRepository youtubeRepository = YouTubeRepository();
 
   static const String _prefKey = 'youtube_search_history';
   static const int _maxHistory = 10;
 
-  /// Bounded query cache preventing duplicate YouTube Explode network queries.
-  final Map<String, List<YouTubeVideo>> _youtubeCache = {};
-  static const int _maxCacheSize = 50;
-
   Box<Object?> get _box => Hive.box<Object?>(HiveBoxes.preferences);
 
   /// Load persistent search history.
-  /// Safely handles cases where Hive returns a _JsonMap instead of a List.
   List<String> getRecentSearches() {
     try {
       final raw = _box.get(_prefKey);
@@ -63,33 +58,21 @@ class SearchRepository {
     await _box.delete(_prefKey);
   }
 
-  /// Performs online YouTube query checking cache first.
+  /// Performs online YouTube query using official YouTube Data API v3.
   Future<List<YouTubeVideo>> searchYouTube(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return const [];
-
-    if (_youtubeCache.containsKey(trimmed)) {
-      debugPrint('SearchRepository: YouTube cache hit for "$trimmed"');
-      return _youtubeCache[trimmed]!;
-    }
-
-    final results = await youtubeSearch.search(trimmed);
-    if (results.isNotEmpty) {
-      if (_youtubeCache.length >= _maxCacheSize) {
-        _youtubeCache.remove(_youtubeCache.keys.first);
-      }
-      _youtubeCache[trimmed] = results;
-    }
-    return results;
+    return youtubeRepository.search(query);
   }
 
   /// Fetches auto-complete suggestions.
   Future<List<String>> getSuggestions(String query) async {
-    return youtubeSearch.getSuggestions(query);
+    // Basic offline/historical autocomplete suggestions
+    final trimmed = query.trim().toLowerCase();
+    if (trimmed.isEmpty) return const [];
+    final history = getRecentSearches();
+    return history.where((s) => s.toLowerCase().contains(trimmed)).toList();
   }
 
-  /// Disposes open connections.
   void dispose() {
-    youtubeSearch.dispose();
+    youtubeRepository.clearCache();
   }
 }

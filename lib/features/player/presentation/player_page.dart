@@ -11,6 +11,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/models/track.dart';
 import '../../library/providers/library_providers.dart';
+import '../../../core/audio/youtube_player_widget.dart';
 // import '../../lyrics/presentation/widgets/lyrics_overlay.dart';
 
 // final showLyricsProvider = StateProvider.autoDispose<bool>((ref) => false);
@@ -105,28 +106,46 @@ class PlayerPage extends ConsumerWidget {
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final artworkSize = constraints.maxWidth * 0.8;
+                              if (!hasTrack) {
+                                return Center(
+                                  child: Container(
+                                    width: artworkSize,
+                                    height: artworkSize,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceContainerHigh,
+                                      borderRadius: BorderRadius.circular(32.0),
+                                      boxShadow: AppShadows.shadowHigh,
+                                    ),
+                                    child: Icon(
+                                      Icons.music_note,
+                                      size: artworkSize * 0.4,
+                                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              if (currentTrack.isYoutube) {
+                                final videoId = currentTrack.id.startsWith('youtube_')
+                                    ? currentTrack.id.replaceFirst('youtube_', '')
+                                    : currentTrack.id;
+                                return Center(
+                                  child: MieeYouTubePlayerWidget(
+                                    videoId: videoId,
+                                    width: artworkSize,
+                                    height: artworkSize * 0.7,
+                                    borderRadius: BorderRadius.circular(24.0),
+                                  ),
+                                );
+                              }
+
                               return Center(
-                                child: hasTrack
-                                    ? AlbumArtwork(
-                                        imageUrl: currentTrack.imageUrl,
-                                        size: artworkSize,
-                                        borderRadius: BorderRadius.circular(32.0),
-                                        hasShadow: true,
-                                      )
-                                    : Container(
-                                        width: artworkSize,
-                                        height: artworkSize,
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surfaceContainerHigh,
-                                          borderRadius: BorderRadius.circular(32.0),
-                                          boxShadow: AppShadows.shadowHigh,
-                                        ),
-                                        child: Icon(
-                                          Icons.music_note,
-                                          size: artworkSize * 0.4,
-                                          color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
-                                        ),
-                                      ),
+                                child: AlbumArtwork(
+                                  imageUrl: currentTrack.imageUrl,
+                                  size: artworkSize,
+                                  borderRadius: BorderRadius.circular(32.0),
+                                  hasShadow: true,
+                                ),
                               );
                             },
                           ),

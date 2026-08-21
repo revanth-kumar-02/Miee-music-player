@@ -8,6 +8,7 @@ import '../../app/theme/app_typography.dart';
 import '../../core/audio/playback_state.dart' as pb;
 import '../../core/audio/providers.dart';
 import '../../features/profile/presentation/profile_controller.dart';
+import '../../shared/widgets/miee_logo.dart';
 import '../../shared/widgets/widgets.dart';
 
 /// The unified Shell Layout wrapper for Miee Web v2.
@@ -207,14 +208,12 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   ? MainAxisAlignment.center
                   : MainAxisAlignment.spaceBetween,
               children: [
-                if (!_isSidebarCollapsed)
-                  Text(
-                    'MIEE',
-                    style: AppTypography.headlineMedium.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
+                if (_isSidebarCollapsed)
+                  // Compact "ee" mark when sidebar is collapsed
+                  const MieeCompactIcon(size: 32, color: Colors.white)
+                else
+                  // Full wordmark when expanded
+                  const MieeWordmark(width: 100, color: Colors.white),
                 IconButton(
                   icon: Icon(
                     _isSidebarCollapsed ? Icons.menu_open : Icons.menu,
@@ -395,14 +394,8 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
         child: Row(
           children: [
-            const Icon(Icons.music_note, color: AppColors.primary),
-            const SizedBox(width: 8.0),
-            Text(
-              'Miee v2',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            // New brand wordmark in topbar
+            const MieeWordmark(width: 80, color: Colors.white),
             const Spacer(),
             // Search field link
             GestureDetector(

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 
+
 /// Splash screen that handles branding visualization and triggers background cloud sync.
 class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
@@ -41,7 +42,7 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   Widget build(BuildContext context) {
     debugPrint('STARTUP: SplashPage.build() entered');
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
@@ -65,3 +66,4 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     );
   }
 }
+

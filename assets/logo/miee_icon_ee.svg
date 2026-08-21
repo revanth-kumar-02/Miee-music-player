@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" fill="none">
+  <!--
+    Miee Compact "ee" Icon — App Launcher & Favicon Mark
+    The two connected "e" characters with the distinctive crosshair grid signature.
+    Works at 16px favicon up to 1024px launcher icon.
+    Dark background version.
+  -->
+  <rect width="160" height="160" rx="36" fill="#0D0D0D"/>
+
+  <!-- First "e" with crosshair -->
+  <g transform="translate(8, 40)">
+    <path d="M60 40 C60 18 46 2 28 2 C10 2 0 18 0 40 C0 62 10 78 28 78 C41 78 53 69 58 56"
+          stroke="#F0EDE8" stroke-width="11" stroke-linecap="round" fill="none"/>
+    <line x1="0" y1="40" x2="60" y2="40" stroke="#F0EDE8" stroke-width="9" stroke-linecap="round"/>
+    <line x1="28" y1="2" x2="28" y2="78" stroke="#F0EDE8" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <!-- Second "e" with crosshair, slightly overlapping -->
+  <g transform="translate(86, 40)">
+    <path d="M60 40 C60 18 46 2 28 2 C10 2 0 18 0 40 C0 62 10 78 28 78 C41 78 53 69 58 56"
+          stroke="#F0EDE8" stroke-width="11" stroke-linecap="round" fill="none"/>
+    <line x1="0" y1="40" x2="60" y2="40" stroke="#F0EDE8" stroke-width="9" stroke-linecap="round"/>
+    <line x1="28" y1="2" x2="28" y2="78" stroke="#F0EDE8" stroke-width="9" stroke-linecap="round"/>
+  </g>
+</svg>

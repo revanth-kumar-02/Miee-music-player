@@ -13,3 +13,4 @@ export 'mini_player.dart';
 export 'playback_controls.dart';
 export 'waveform_widget.dart';
 export 'main_app_shell.dart';
+export 'miee_logo.dart';

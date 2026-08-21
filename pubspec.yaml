@@ -33,7 +33,6 @@ dependencies:
 
   supabase_flutter: ^2.6.0
   connectivity_plus: ^7.2.0
-  youtube_explode_dart: ^3.1.0
 
 dev_dependencies:
   flutter_test:
@@ -48,7 +47,12 @@ flutter:
 flutter_launcher_icons:
   android: launcher_icon
   ios: true
-  image_path: assets/logo.png
+  image_path: assets/logo/miee_launcher_1024.png
   min_sdk_android: 21
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/logo.png
+  adaptive_icon_background: "#0D0D0D"
+  adaptive_icon_foreground: assets/logo/miee_launcher_1024.png
+  web:
+    generate: true
+    image_path: assets/logo/miee_launcher_1024.png
+    background_color: "#0D0D0D"
+    theme_color: "#0D0D0D"

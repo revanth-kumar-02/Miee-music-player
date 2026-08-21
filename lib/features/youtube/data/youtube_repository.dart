@@ -1,235 +1,186 @@
 import 'package:flutter/foundation.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-
 import '../domain/youtube_model.dart';
+import 'youtube_data_source.dart';
 
-/// Repository responsible for querying YouTube search results.
-///
-/// Uses [YoutubeExplode]'s search API — no web scraping, no custom regex,
-/// no Dio. Works reliably with the current YouTube backend.
+/// Repository responsible for searching YouTube via YouTube Data API v3,
+/// applying smart music video heuristics, and mapping responses to [YouTubeVideo].
 class YouTubeRepository {
-  /// Shared [YoutubeExplode] instance — keep alive for the app's lifetime
-  /// so the underlying HTTP client is reused across searches.
-  final YoutubeExplode _yt;
+  final YouTubeDataSource _dataSource;
 
-  /// In-memory query → results cache (bounded to 50 entries).
+  /// In-memory search cache (bounded to 50 queries)
   final Map<String, List<YouTubeVideo>> _searchCache = {};
   static const int _maxCacheSize = 50;
 
-  YouTubeRepository({YoutubeExplode? yt}) : _yt = yt ?? YoutubeExplode();
+  YouTubeRepository({YouTubeDataSource? dataSource})
+      : _dataSource = dataSource ?? YouTubeDataSource();
 
-  /// Searches YouTube for [query] and returns up to 20 video results.
-  ///
-  /// Throws a descriptive exception on network failure, rate limiting, or
-  /// empty results caused by a bad response. Never silently swallows errors.
+  /// Searches YouTube for [query] using official YouTube Data API v3.
   Future<List<YouTubeVideo>> search(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
-    // Return cached results if available.
     if (_searchCache.containsKey(cleanQuery)) {
-      debugPrint('YouTubeRepository: cache hit for "$cleanQuery"');
+      debugPrint('YouTubeRepository: Cache hit for "$cleanQuery"');
       return _searchCache[cleanQuery]!;
     }
 
-    debugPrint('YouTubeRepository: searching for "$cleanQuery"');
+    debugPrint('YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery"');
 
-    try {
-      // Use youtube_explode_dart's official search API.
-      // TypeFilters.video restricts results to videos only.
-      final searchResults = await _yt.search.search(
-        cleanQuery,
-        filter: TypeFilters.video,
-      );
+    final rawItems = await _dataSource.searchVideos(cleanQuery, maxResults: 25);
+    if (rawItems.isEmpty) return [];
 
-      // Exclude live streams, videos under 30s or over 10 minutes, and specific unwanted content types.
-      // We allow 'mix', 'slowed', and 'reverb' versions as requested.
-      final excludedKeywords = [
-        'live',
-        'livestream',
-        'podcast',
-        'interview',
-        'full movie',
-        'documentary',
-        'compilation',
-        'reaction',
-        'karaoke',
-        '8d',
-        'lyrics',
-      ];
-
-      final filteredResults = searchResults.where((video) {
-        // 1. Duration check (30s < duration <= 10m)
-        final duration = video.duration;
-        if (duration == null ||
-            duration <= const Duration(seconds: 30) ||
-            duration > const Duration(minutes: 10)) {
-          return false;
+    // Extract video IDs to fetch duration & statistics
+    final videoIds = <String>[];
+    for (final item in rawItems) {
+      final idObj = item['id'];
+      if (idObj is Map && idObj['kind'] == 'youtube#video') {
+        final videoId = idObj['videoId'] as String?;
+        if (videoId != null && videoId.isNotEmpty) {
+          videoIds.add(videoId);
         }
-
-        // 2. Not live stream
-        if (video.isLive) {
-          return false;
-        }
-
-        // 3. Excluded keywords check
-        final titleLower = video.title.toLowerCase();
-        final authorLower = video.author.toLowerCase();
-        final descLower = video.description.toLowerCase();
-
-        final hasExcluded = excludedKeywords.any((kw) =>
-            titleLower.contains(kw) ||
-            authorLower.contains(kw) ||
-            descLower.contains(kw));
-
-        return !hasExcluded;
-      }).toList();
-
-      // Heuristic scoring to sort official audio and music videos first.
-      int calculateScore(Video video) {
-        int score = 0;
-        final titleLower = video.title.toLowerCase();
-        final authorLower = video.author.toLowerCase();
-
-        // 1. Channel authority check
-        if (authorLower.contains('- topic')) {
-          score += 100; // Auto-generated official audio release channels
-        }
-        if (authorLower.contains('vevo')) {
-          score += 90; // VEVO channel releases
-        }
-        if (authorLower.contains('official')) {
-          score += 50; // Official channel
-        }
-
-        // 2. Title authority check
-        if (titleLower.contains('official audio')) {
-          score += 80;
-        }
-        if (titleLower.contains('official music video') ||
-            titleLower.contains('official video')) {
-          score += 75;
-        }
-        if (titleLower.contains('official mv') || titleLower.contains(' mv ')) {
-          score += 70;
-        }
-        if (titleLower.contains('music video') || titleLower.contains('mv')) {
-          score += 40;
-        }
-        if (titleLower.contains('audio')) {
-          score += 30;
-        }
-
-        return score;
       }
-
-      // Sort by score descending (higher score = more official/relevant track)
-      filteredResults.sort((a, b) => calculateScore(b).compareTo(calculateScore(a)));
-
-      debugPrint(
-        'YouTubeRepository: filtered & sorted results count = ${filteredResults.length}',
-      );
-
-      if (filteredResults.isEmpty) {
-        debugPrint('YouTubeRepository: filtered search returned 0 results for "$cleanQuery"');
-        return [];
-      }
-
-      final videos = filteredResults
-          .map((video) => _videoToModel(video))
-          .where((v) => v != null)
-          .cast<YouTubeVideo>()
-          .toList();
-
-      debugPrint(
-        'YouTubeRepository: mapped ${videos.length} valid YouTubeVideo models for "$cleanQuery"',
-      );
-
-      // Cache and return.
-      if (videos.isNotEmpty) {
-        if (_searchCache.length >= _maxCacheSize) {
-          _searchCache.remove(_searchCache.keys.first);
-        }
-        _searchCache[cleanQuery] = videos;
-      }
-
-      return videos;
-    } on YoutubeExplodeException catch (e, stack) {
-      debugPrint('YouTubeRepository: YoutubeExplodeException: ${e.message}');
-      if (kDebugMode) debugPrintStack(stackTrace: stack);
-      throw Exception('YouTube search failed: ${e.message}');
-    } catch (e, stack) {
-      debugPrint('YouTubeRepository: unexpected error during search: $e');
-      if (kDebugMode) debugPrintStack(stackTrace: stack);
-
-      // Distinguish network errors from other failures.
-      final msg = e.toString();
-      if (msg.contains('SocketException') ||
-          msg.contains('NetworkException') ||
-          msg.contains('Failed host lookup')) {
-        throw Exception('No internet connection. Please go online to search YouTube.');
-      }
-      if (msg.contains('429') || msg.contains('rate limit')) {
-        throw Exception('YouTube rate limit reached. Please wait a moment and try again.');
-      }
-      throw Exception('YouTube search error: $e');
     }
+
+    // Fetch details (duration & stats)
+    final detailsMap = await _dataSource.getVideoDetails(videoIds);
+
+    final excludedKeywords = [
+      'live',
+      'livestream',
+      'podcast',
+      'interview',
+      'full movie',
+      'documentary',
+      'compilation',
+      'reaction',
+      'karaoke',
+      '8d',
+      'lyrics',
+    ];
+
+    final candidateVideos = <YouTubeVideo>[];
+
+    for (final item in rawItems) {
+      final idObj = item['id'];
+      if (idObj is! Map || idObj['kind'] != 'youtube#video') continue;
+      final videoId = idObj['videoId'] as String?;
+      if (videoId == null || videoId.isEmpty) continue;
+
+      final snippet = item['snippet'] as Map<String, dynamic>? ?? {};
+      final title = snippet['title'] as String? ?? '';
+      final channelTitle = snippet['channelTitle'] as String? ?? '';
+      final description = snippet['description'] as String? ?? '';
+      final liveBroadcast = snippet['liveBroadcastContent'] as String? ?? 'none';
+
+      // 1. Exclude live streams
+      if (liveBroadcast != 'none') continue;
+
+      // 2. Exclude non-music keyword matches
+      final titleLower = title.toLowerCase();
+      final channelLower = channelTitle.toLowerCase();
+      final descLower = description.toLowerCase();
+
+      final hasExcluded = excludedKeywords.any((kw) =>
+          titleLower.contains(kw) ||
+          channelLower.contains(kw) ||
+          descLower.contains(kw));
+
+      if (hasExcluded) continue;
+
+      // Extract thumbnails
+      final thumbnails = snippet['thumbnails'] as Map<String, dynamic>? ?? {};
+      String thumbnailUrl = '';
+      if (thumbnails['high'] != null) {
+        thumbnailUrl = thumbnails['high']['url'] as String? ?? '';
+      } else if (thumbnails['medium'] != null) {
+        thumbnailUrl = thumbnails['medium']['url'] as String? ?? '';
+      } else if (thumbnails['default'] != null) {
+        thumbnailUrl = thumbnails['default']['url'] as String? ?? '';
+      }
+      if (thumbnailUrl.isEmpty) {
+        thumbnailUrl = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+      }
+
+      // Details metadata
+      final detail = detailsMap[videoId];
+      String durationStr = '3:30';
+      String viewCountStr = '';
+
+      if (detail != null) {
+        final contentDetails = detail['contentDetails'] as Map<String, dynamic>?;
+        final statistics = detail['statistics'] as Map<String, dynamic>?;
+
+        if (contentDetails != null) {
+          final isoDuration = contentDetails['duration'] as String?;
+          durationStr = _parseIso8601Duration(isoDuration);
+        }
+
+        if (statistics != null) {
+          final viewsRaw = int.tryParse(statistics['viewCount'] as String? ?? '');
+          if (viewsRaw != null) {
+            viewCountStr = _formatViewCount(viewsRaw);
+          }
+        }
+      }
+
+      candidateVideos.add(
+        YouTubeVideo(
+          id: videoId,
+          title: _unescapeHtml(title),
+          channelTitle: _unescapeHtml(channelTitle),
+          thumbnailUrl: thumbnailUrl,
+          duration: durationStr,
+          viewCount: viewCountStr,
+        ),
+      );
+    }
+
+    // Heuristic scoring to prioritize official audio / releases
+    int calculateScore(YouTubeVideo video) {
+      int score = 0;
+      final titleLower = video.title.toLowerCase();
+      final channelLower = video.channelTitle.toLowerCase();
+
+      if (channelLower.contains('- topic')) score += 100;
+      if (channelLower.contains('vevo')) score += 90;
+      if (channelLower.contains('official')) score += 50;
+
+      if (titleLower.contains('official audio')) score += 80;
+      if (titleLower.contains('official music video') || titleLower.contains('official video')) score += 75;
+      if (titleLower.contains('music video') || titleLower.contains('mv')) score += 40;
+      if (titleLower.contains('audio')) score += 30;
+
+      return score;
+    }
+
+    candidateVideos.sort((a, b) => calculateScore(b).compareTo(calculateScore(a)));
+
+    if (candidateVideos.isNotEmpty) {
+      if (_searchCache.length >= _maxCacheSize) {
+        _searchCache.remove(_searchCache.keys.first);
+      }
+      _searchCache[cleanQuery] = candidateVideos;
+    }
+
+    return candidateVideos;
   }
 
-  /// Converts a [Video] from youtube_explode_dart to our [YouTubeVideo] model.
-  YouTubeVideo? _videoToModel(Video video) {
-    try {
-      final id = video.id.value;
-      final title = video.title;
+  String _parseIso8601Duration(String? isoDuration) {
+    if (isoDuration == null || isoDuration.isEmpty) return '0:00';
+    final regex = RegExp(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?');
+    final match = regex.firstMatch(isoDuration);
+    if (match == null) return '0:00';
 
-      if (id.isEmpty || title.isEmpty) {
-        debugPrint('YouTubeRepository: skipping video with empty id/title');
-        return null;
-      }
+    final hours = int.tryParse(match.group(1) ?? '') ?? 0;
+    final minutes = int.tryParse(match.group(2) ?? '') ?? 0;
+    final seconds = int.tryParse(match.group(3) ?? '') ?? 0;
 
-      // Duration: format as M:SS or H:MM:SS.
-      final duration = _formatDuration(video.duration);
-
-      // Thumbnail: highResUrl (hqdefault.jpg) is always available.
-      // maxResUrl may return a 404 for some videos, so prefer highRes.
-      final thumbnailUrl = video.thumbnails.highResUrl;
-
-      // View count — non-nullable int.
-      final viewCount = _formatViewCount(video.engagement.viewCount);
-
-      debugPrint(
-        'YouTubeRepository: [$id] title="$title" duration="$duration" '
-        'views="$viewCount" thumb="${thumbnailUrl.substring(0, 40)}…"',
-      );
-
-      return YouTubeVideo(
-        id: id,
-        title: title,
-        channelTitle: video.author,
-        thumbnailUrl: thumbnailUrl,
-        duration: duration,
-        viewCount: viewCount,
-      );
-    } catch (e, stack) {
-      debugPrint('YouTubeRepository: error mapping video: $e');
-      if (kDebugMode) debugPrintStack(stackTrace: stack);
-      return null;
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     }
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
-  /// Formats a [Duration] as "M:SS" or "H:MM:SS".
-  String _formatDuration(Duration? duration) {
-    if (duration == null) return '0:00';
-    final h = duration.inHours;
-    final m = duration.inMinutes.remainder(60);
-    final s = duration.inSeconds.remainder(60);
-    if (h > 0) {
-      return '$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-    }
-    return '$m:${s.toString().padLeft(2, '0')}';
-  }
-
-  /// Formats a raw view count integer to a human-readable string.
   String _formatViewCount(int views) {
     if (views >= 1000000000) {
       return '${(views / 1000000000).toStringAsFixed(1)}B views';
@@ -241,9 +192,14 @@ class YouTubeRepository {
     return '$views views';
   }
 
-  /// Clears the in-memory search cache.
-  void clearCache() => _searchCache.clear();
+  String _unescapeHtml(String text) {
+    return text
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'");
+  }
 
-  /// Closes the underlying HTTP client. Call only on app shutdown.
-  void dispose() => _yt.close();
+  void clearCache() => _searchCache.clear();
 }

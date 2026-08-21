@@ -11,6 +11,7 @@ import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../shared/widgets/miee_logo.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../library/providers/library_providers.dart';
 
@@ -69,7 +70,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       extendBody: true,
       appBar: AppHeader(
-        title: 'Miee',
+        title: 'miee',
+        titleWidget: const MieeWordmark(width: 72, color: Colors.white),
         isScrolled: _isScrolled,
       ),
       body: SafeArea(

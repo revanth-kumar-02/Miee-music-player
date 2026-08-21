@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 160" fill="none">
+  <!--
+    Miee Wordmark — Direction 1
+    Lowercase "miee" typographic wordmark.
+    The two "e" characters carry a distinctive crosshair/grid signature
+    formed by a horizontal bar bisecting the circular counter and a vertical bar
+    through the centre — referencing the brand's audio/waveform identity.
+    Color: off-white #F0EDE8 on transparent (compose over dark #0D0D0D background).
+  -->
+
+  <!-- m -->
+  <!-- Left vertical stem -->
+  <rect x="20" y="32" width="22" height="96" rx="11" fill="#F0EDE8"/>
+  <!-- Left arch -->
+  <path d="M42 68 C42 48 62 32 84 32 C106 32 122 48 122 68" stroke="#F0EDE8" stroke-width="22" stroke-linecap="round" fill="none"/>
+  <!-- Center stem (between arches) -->
+  <rect x="111" y="32" width="22" height="96" rx="11" fill="#F0EDE8"/>
+  <!-- Right arch -->
+  <path d="M133 68 C133 48 153 32 175 32 C197 32 213 48 213 68" stroke="#F0EDE8" stroke-width="22" stroke-linecap="round" fill="none"/>
+  <!-- Right stem -->
+  <rect x="202" y="32" width="22" height="96" rx="11" fill="#F0EDE8"/>
+
+  <!-- i -->
+  <!-- Dot -->
+  <circle cx="271" cy="24" r="12" fill="#F0EDE8"/>
+  <!-- Stem -->
+  <rect x="260" y="48" width="22" height="80" rx="11" fill="#F0EDE8"/>
+
+  <!-- e (first) — with crosshair signature -->
+  <g transform="translate(308, 48)">
+    <!-- "e" body: circle with mid-bar opening -->
+    <!-- Outer ring (full circle minus right opening) -->
+    <path d="M80 40 C80 18 62 0 40 0 C18 0 0 18 0 40 C0 62 18 80 40 80 C57 80 72 69 78 54"
+          stroke="#F0EDE8" stroke-width="22" stroke-linecap="round" fill="none"/>
+    <!-- Horizontal mid-bar (the distinctive "ee" crosshair) -->
+    <line x1="0" y1="40" x2="80" y2="40" stroke="#F0EDE8" stroke-width="14" stroke-linecap="round"/>
+    <!-- Vertical crosshair bar through centre -->
+    <line x1="40" y1="0" x2="40" y2="80" stroke="#F0EDE8" stroke-width="14" stroke-linecap="round"/>
+  </g>
+
+  <!-- e (second) — same crosshair signature -->
+  <g transform="translate(416, 48)">
+    <!-- Outer ring -->
+    <path d="M80 40 C80 18 62 0 40 0 C18 0 0 18 0 40 C0 62 18 80 40 80 C57 80 72 69 78 54"
+          stroke="#F0EDE8" stroke-width="22" stroke-linecap="round" fill="none"/>
+    <!-- Horizontal mid-bar -->
+    <line x1="0" y1="40" x2="80" y2="40" stroke="#F0EDE8" stroke-width="14" stroke-linecap="round"/>
+    <!-- Vertical crosshair bar -->
+    <line x1="40" y1="0" x2="40" y2="80" stroke="#F0EDE8" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>
