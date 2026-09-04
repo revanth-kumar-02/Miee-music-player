@@ -189,23 +189,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
       state = state.copyWith(currentTrack: resolvedTrack);
 
-      if (resolvedTrack.isYoutube) {
-        // YouTube track -> use OnlinePlaybackService
-        await _handler.pause();
-        final videoId = resolvedTrack.id.startsWith('youtube_')
-            ? resolvedTrack.id.replaceFirst('youtube_', '')
-            : resolvedTrack.id;
-
-        await _onlineService.loadVideo(videoId);
-        await _onlineService.play();
-        state = state.copyWith(status: PlaybackStatus.playing);
-      } else {
-        // Local track -> use MieeAudioHandler / just_audio
-        await _onlineService.stop();
-        final queue = _queueManager.queue;
-        await _handler.loadQueue(queue, startIndex: index >= 0 ? index : 0);
-        await _handler.play();
-      }
+      final queue = _queueManager.queue;
+      await _handler.loadQueue(queue, startIndex: index >= 0 ? index : 0);
+      await _handler.play();
     } catch (e) {
       state = state.copyWith(
         status: PlaybackStatus.error,
@@ -263,39 +249,24 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   Future<void> play() async {
-    if (state.currentTrack != null && state.currentTrack!.isYoutube) {
-      await _onlineService.play();
-      state = state.copyWith(status: PlaybackStatus.playing);
+    if (state.status == PlaybackStatus.idle && state.currentTrack != null) {
+      await playTrack(state.currentTrack!);
     } else {
-      if (state.status == PlaybackStatus.idle && state.currentTrack != null) {
-        await playTrack(state.currentTrack!);
-      } else {
-        await _handler.play();
-      }
+      await _handler.play();
     }
   }
 
   Future<void> pause() async {
-    if (state.currentTrack != null && state.currentTrack!.isYoutube) {
-      await _onlineService.pause();
-      state = state.copyWith(status: PlaybackStatus.paused);
-    } else {
-      await _handler.pause();
-    }
+    await _handler.pause();
   }
 
   Future<void> stop() async {
-    await _onlineService.stop();
     await _handler.stop();
     state = state.copyWith(status: PlaybackStatus.idle, position: Duration.zero);
   }
 
   Future<void> seek(Duration position) async {
-    if (state.currentTrack != null && state.currentTrack!.isYoutube) {
-      await _onlineService.seek(position);
-    } else {
-      await _handler.seek(position);
-    }
+    await _handler.seek(position);
     state = state.copyWith(position: position);
   }
 

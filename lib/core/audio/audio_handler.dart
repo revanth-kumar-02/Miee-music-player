@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../shared/models/music_item.dart';
+import 'youtube_audio_service.dart';
 
 /// Duration for fast-forward and rewind operations.
 const _kSkipDuration = Duration(seconds: 10);
@@ -180,27 +181,39 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     debugPrint('PLAYBACK: Selected Track ID: ${track.id}, Title: "${track.title}" by "${track.artist}"');
     mediaItem.add(_trackToMediaItem(track));
 
-    if (track.isYoutube) {
-      // For YouTube tracks, just_audio is kept paused.
-      // OnlinePlaybackService handles video player playback.
-      await _player.pause();
-      _pushPlaybackState(playerState: PlayerState(false, ProcessingState.ready));
-      return;
-    }
-
     _pushPlaybackState(playerState: PlayerState(false, ProcessingState.loading));
     try {
-      final path = track.filePath;
-      if (!kIsWeb && path.isNotEmpty && !path.startsWith('http')) {
-        debugPrint('PLAYBACK: Loading local file audio source: $path');
-        await _player.setAudioSource(AudioSource.file(path));
-        debugPrint('PLAYBACK: Local audio source loaded successfully.');
-      } else if (path.isNotEmpty && path.startsWith('http')) {
-        debugPrint('PLAYBACK: Loading remote URL audio source: $path');
-        await _player.setUrl(path);
-        debugPrint('PLAYBACK: Remote audio source loaded successfully.');
+      if (track.isYoutube) {
+        debugPrint('PLAYBACK: Resolving YouTube direct audio stream URL for: ${track.id}');
+        final streamUrl = await YouTubeAudioService().getAudioStreamUrl(track.id);
+        if (streamUrl != null && streamUrl.isNotEmpty) {
+          debugPrint('PLAYBACK: Setting YouTube direct audio stream in just_audio');
+          await _player.setAudioSource(
+            AudioSource.uri(
+              Uri.parse(streamUrl),
+              headers: {
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+            ),
+          );
+          debugPrint('PLAYBACK: YouTube direct stream loaded successfully.');
+        } else {
+          throw Exception('Unable to resolve audio stream for YouTube track "${track.title}".');
+        }
       } else {
-        throw Exception('Track "${track.title}" has no valid file path or source.');
+        final path = track.filePath;
+        if (!kIsWeb && path.isNotEmpty && !path.startsWith('http')) {
+          debugPrint('PLAYBACK: Loading local file audio source: $path');
+          await _player.setAudioSource(AudioSource.file(path));
+          debugPrint('PLAYBACK: Local audio source loaded successfully.');
+        } else if (path.isNotEmpty && path.startsWith('http')) {
+          debugPrint('PLAYBACK: Loading remote URL audio source: $path');
+          await _player.setUrl(path);
+          debugPrint('PLAYBACK: Remote audio source loaded successfully.');
+        } else {
+          throw Exception('Track "${track.title}" has no valid file path or source.');
+        }
       }
     } on PlayerException catch (e, stack) {
       debugPrint('PLAYBACK ERROR: just_audio PlayerException! Code: ${e.code}, Message: ${e.message}');
@@ -242,11 +255,6 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> play() async {
-    final current = mediaItem.value;
-    if (current != null && current.id.startsWith('youtube_')) {
-      // YouTube playback handled outside just_audio
-      return;
-    }
     try {
       await _player.play();
     } catch (e, stack) {

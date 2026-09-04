@@ -7,7 +7,6 @@ import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/audio/playback_state.dart' as pb;
 import '../../core/audio/providers.dart';
-import '../../core/audio/youtube_player_widget.dart';
 import '../../features/profile/presentation/profile_controller.dart';
 import '../../shared/widgets/miee_logo.dart';
 import '../../shared/widgets/widgets.dart';
@@ -37,14 +36,6 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     final isDesktop = screenWidth >= 900;
 
     final playback = ref.watch(playerControllerProvider);
-    final currentTrack = playback.currentTrack;
-    final isYoutube = currentTrack != null && currentTrack.isYoutube;
-    final videoId = isYoutube
-        ? (currentTrack.id.startsWith('youtube_')
-            ? currentTrack.id.replaceFirst('youtube_', '')
-            : currentTrack.id)
-        : null;
-
     final uriPath = GoRouterState.of(context).uri.path;
     final isNowPlaying = location == '/player' || uriPath == '/player';
 
@@ -65,18 +56,6 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
-            if (isYoutube && !isNowPlaying && videoId != null)
-              Positioned(
-                left: -9999,
-                top: -9999,
-                width: 1,
-                height: 1,
-                child: MieeYouTubePlayerWidget(
-                  videoId: videoId,
-                  width: 1,
-                  height: 1,
-                ),
-              ),
             // Floating MiniPlayer (Visible on all screens EXCEPT Now Playing when track is loaded)
             if (!isNowPlaying)
               Positioned(
