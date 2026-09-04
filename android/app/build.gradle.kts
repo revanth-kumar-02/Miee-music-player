@@ -6,8 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.miee"
-    compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    compileSdk = flutter.compileSdkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

@@ -128,17 +128,11 @@ class _WaveformPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final barCount = baseHeights.length;
-    if (barCount == 0) return;
+    if (barCount == 0 || size.width <= 0) return;
 
-    // Draw fewer, wider bars with cleaner spacing
-    const double barWidth = 6.0;
+    // Dynamically calculate bar width so bars span the entire width of the painter area
     const double gap = 4.0;
-
-    // Total width occupied by the waveform
-    final totalWaveformWidth = (barCount * barWidth) + ((barCount - 1) * gap);
-    
-    // Centering the waveform horizontally
-    final startX = (size.width - totalWaveformWidth) / 2.0;
+    final double barWidth = (size.width - (barCount - 1) * gap) / barCount;
 
     final paint = Paint()..style = PaintingStyle.fill;
 
@@ -157,12 +151,12 @@ class _WaveformPainter extends CustomPainter {
       final height = baseHeights[i] * osc;
 
       // Center vertically within the painter canvas
-      final left = startX + i * (barWidth + gap);
+      final left = i * (barWidth + gap);
       final top = (size.height - height) / 2.0;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(left, top, barWidth, height),
+          Rect.fromLTWH(left, top, math.max(1.0, barWidth), height),
           const Radius.circular(99.0),
         ),
         paint,

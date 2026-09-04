@@ -11,7 +11,6 @@ import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
-import '../../../shared/widgets/miee_logo.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../library/providers/library_providers.dart';
 
@@ -26,35 +25,6 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  late final ScrollController _scrollController;
-  bool _isScrolled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_handleScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_handleScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _handleScroll() {
-    if (_scrollController.offset > 0 && !_isScrolled) {
-      setState(() {
-        _isScrolled = true;
-      });
-    } else if (_scrollController.offset <= 0 && _isScrolled) {
-      setState(() {
-        _isScrolled = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Listen to real device music providers
@@ -69,14 +39,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppHeader(
-        title: 'miee',
-        titleWidget: const MieeWordmark(width: 72, color: Colors.white),
-        isScrolled: _isScrolled,
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          controller: _scrollController,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
           physics: const BouncingScrollPhysics(),
           child: Column(

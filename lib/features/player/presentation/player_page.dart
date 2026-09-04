@@ -274,8 +274,8 @@ class PlayerPage extends ConsumerWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   // Symmetrical Waveform progress tracker
-                                  FractionallySizedBox(
-                                    widthFactor: 0.85,
+                                  SizedBox(
+                                    width: double.infinity,
                                     child: WaveformWidget(
                                       isPlaying: isPlaying,
                                       activeProgress: progress,

@@ -1,18 +1,51 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'online_playback_service.dart';
 
 class PlatformYouTubePlaybackService implements OnlinePlaybackService {
+  static final PlatformYouTubePlaybackService _instance =
+      PlatformYouTubePlaybackService._internal();
+  factory PlatformYouTubePlaybackService() => _instance;
+  PlatformYouTubePlaybackService._internal();
+
+  YoutubePlayerController? _controller;
+  StreamSubscription<YoutubePlayerValue>? _sub;
+
   final _positionController = StreamController<Duration>.broadcast();
   final _durationController = StreamController<Duration>.broadcast();
   final _isPlayingController = StreamController<bool>.broadcast();
   final _errorController = StreamController<String?>.broadcast();
 
   String? _videoId;
-  bool _isPlaying = false;
-  Timer? _ticker;
-  Duration _pos = Duration.zero;
-  Duration _dur = const Duration(minutes: 3, seconds: 30);
+  String? _pendingVideoId;
+  bool _pendingPlay = false;
+
+  void attachController(YoutubePlayerController controller) {
+    _sub?.cancel();
+    _controller = controller;
+    _sub = _controller?.stream.listen((value) {
+      if (value.playerState == PlayerState.playing) {
+        _isPlayingController.add(true);
+      } else if (value.playerState == PlayerState.paused ||
+          value.playerState == PlayerState.ended) {
+        _isPlayingController.add(false);
+      }
+
+      if (value.hasError) {
+        _errorController.add('Playback Error: ${value.error}');
+      }
+    });
+
+    if (_pendingVideoId != null) {
+      _controller?.loadVideoById(videoId: _pendingVideoId!);
+      _pendingVideoId = null;
+      if (_pendingPlay) {
+        _controller?.playVideo();
+        _pendingPlay = false;
+      }
+    }
+  }
 
   @override
   Stream<Duration> get positionStream => _positionController.stream;
@@ -32,54 +65,45 @@ class PlatformYouTubePlaybackService implements OnlinePlaybackService {
   @override
   Future<void> loadVideo(String videoId) async {
     _videoId = videoId;
-    _pos = Duration.zero;
-    _positionController.add(_pos);
-    _durationController.add(_dur);
-    _isPlaying = false;
-    _isPlayingController.add(false);
+    if (_controller != null) {
+      _controller!.loadVideoById(videoId: videoId);
+    } else {
+      _pendingVideoId = videoId;
+    }
   }
 
   @override
   Future<void> play() async {
-    _isPlaying = true;
-    _isPlayingController.add(true);
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isPlaying) return;
-      _pos += const Duration(seconds: 1);
-      _positionController.add(_pos);
-      if (_pos >= _dur) {
-        pause();
-      }
-    });
+    if (_controller != null) {
+      _controller!.playVideo();
+    } else {
+      _pendingPlay = true;
+    }
   }
 
   @override
   Future<void> pause() async {
-    _isPlaying = false;
-    _isPlayingController.add(false);
-    _ticker?.cancel();
+    _controller?.pauseVideo();
   }
 
   @override
   Future<void> stop() async {
-    await pause();
-    _pos = Duration.zero;
-    _positionController.add(_pos);
+    _controller?.pauseVideo();
   }
 
   @override
   Future<void> seek(Duration position) async {
-    _pos = position;
-    _positionController.add(_pos);
+    _controller?.seekTo(seconds: position.inSeconds.toDouble());
   }
 
   @override
-  Future<void> setVolume(double volume) async {}
+  Future<void> setVolume(double volume) async {
+    _controller?.setVolume((volume * 100).clamp(0, 100).toInt());
+  }
 
   @override
   void dispose() {
-    _ticker?.cancel();
+    _sub?.cancel();
     _positionController.close();
     _durationController.close();
     _isPlayingController.close();
@@ -87,24 +111,78 @@ class PlatformYouTubePlaybackService implements OnlinePlaybackService {
   }
 }
 
-Widget buildPlatformYouTubeWidget({required String videoId, double? width, double? height}) {
-  return Container(
-    width: width,
-    height: height,
-    decoration: BoxDecoration(
-      color: Colors.black,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.play_circle_fill, color: Colors.white, size: 48),
-        const SizedBox(height: 8),
-        Text(
-          'YouTube Video: $videoId',
-          style: const TextStyle(color: Colors.white, fontSize: 12),
+Widget buildPlatformYouTubeWidget({
+  required String videoId,
+  double? width,
+  double? height,
+}) {
+  return MobileYouTubeWidget(videoId: videoId, width: width, height: height);
+}
+
+class MobileYouTubeWidget extends StatefulWidget {
+  final String videoId;
+  final double? width;
+  final double? height;
+
+  const MobileYouTubeWidget({
+    super.key,
+    required this.videoId,
+    this.width,
+    this.height,
+  });
+
+  @override
+  State<MobileYouTubeWidget> createState() => _MobileYouTubeWidgetState();
+}
+
+class _MobileYouTubeWidgetState extends State<MobileYouTubeWidget> {
+  late YoutubePlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.videoId,
+      autoPlay: true,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: false,
+        mute: false,
+      ),
+    );
+    PlatformYouTubePlaybackService().attachController(_controller);
+  }
+
+  @override
+  void didUpdateWidget(covariant MobileYouTubeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.videoId != widget.videoId) {
+      _controller.loadVideoById(videoId: widget.videoId);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: widget.width ?? double.infinity,
+      height: widget.height ?? 220,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: YoutubePlayer(
+          controller: _controller,
+          aspectRatio: 16 / 9,
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }

@@ -48,6 +48,7 @@ app.*.map.json
 /android/app/build/
 /android/build/
 /android/.kotlin/
+*.apk
 
 # VSCode and debug logs
 .vscode/

@@ -342,7 +342,7 @@ class QueuePage extends ConsumerWidget {
                   trailingIcon: Icons.remove_circle_outline,
                   onMoreTap: () {
                     final fullIndex = activeIndex + 1 + index;
-                    controller.removeTrackFromQueue(fullIndex);
+                    controller.removeTrackAt(fullIndex);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Removed "${track.title}" from queue'),

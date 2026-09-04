@@ -7,6 +7,7 @@ import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
 import '../../core/audio/playback_state.dart' as pb;
 import '../../core/audio/providers.dart';
+import '../../core/audio/youtube_player_widget.dart';
 import '../../features/profile/presentation/profile_controller.dart';
 import '../../shared/widgets/miee_logo.dart';
 import '../../shared/widgets/widgets.dart';
@@ -35,8 +36,20 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 900;
 
-    // Full screen routes on mobile that should not show bottom bars
-    final isFullScreenMobile = (location == '/player' ||
+    final playback = ref.watch(playerControllerProvider);
+    final currentTrack = playback.currentTrack;
+    final isYoutube = currentTrack != null && currentTrack.isYoutube;
+    final videoId = isYoutube
+        ? (currentTrack.id.startsWith('youtube_')
+            ? currentTrack.id.replaceFirst('youtube_', '')
+            : currentTrack.id)
+        : null;
+
+    final uriPath = GoRouterState.of(context).uri.path;
+    final isNowPlaying = location == '/player' || uriPath == '/player';
+
+    // Detail screens where bottom navigation bar is hidden
+    final hideBottomNav = (isNowPlaying ||
         location == '/queue' ||
         location == '/' ||
         location.startsWith('/playlist/') ||
@@ -52,14 +65,28 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
-            // Floating MiniPlayer + Bottom Navigation
-            if (!isFullScreenMobile) ...[
+            if (isYoutube && !isNowPlaying && videoId != null)
+              Positioned(
+                left: -9999,
+                top: -9999,
+                width: 1,
+                height: 1,
+                child: MieeYouTubePlayerWidget(
+                  videoId: videoId,
+                  width: 1,
+                  height: 1,
+                ),
+              ),
+            // Floating MiniPlayer (Visible on all screens EXCEPT Now Playing when track is loaded)
+            if (!isNowPlaying)
               Positioned(
                 left: AppSpacing.sm,
                 right: AppSpacing.sm,
-                bottom: 88.0 + MediaQuery.of(context).padding.bottom,
+                bottom: (hideBottomNav ? 12.0 : 88.0) + MediaQuery.of(context).padding.bottom,
                 child: _buildMobileMiniPlayer(context),
               ),
+            // Bottom Navigation
+            if (!hideBottomNav)
               Positioned(
                 left: 0,
                 right: 0,
@@ -69,14 +96,12 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   onTap: (index) => _handleNavigation(context, index),
                 ),
               ),
-            ],
           ],
         ),
       );
     }
 
     // ── DESKTOP LAYOUT ──
-    final playback = ref.watch(playerControllerProvider);
     final hasTrack = playback.currentTrack != null;
 
     return Scaffold(
