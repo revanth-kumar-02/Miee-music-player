@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
 import '../domain/youtube_model.dart';
 import 'youtube_data_source.dart';
 
-/// Repository responsible for searching YouTube via YouTube Data API v3,
-/// applying smart music video heuristics, and mapping responses to [YouTubeVideo].
+/// Repository responsible for searching YouTube via YouTube Data API v3 or
+/// falling back to YoutubeExplode when no API key is provided.
 class YouTubeRepository {
   final YouTubeDataSource _dataSource;
 
@@ -14,7 +15,7 @@ class YouTubeRepository {
   YouTubeRepository({YouTubeDataSource? dataSource})
       : _dataSource = dataSource ?? YouTubeDataSource();
 
-  /// Searches YouTube for [query] using official YouTube Data API v3.
+  /// Searches YouTube for [query].
   Future<List<YouTubeVideo>> search(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
@@ -24,8 +25,83 @@ class YouTubeRepository {
       return _searchCache[cleanQuery]!;
     }
 
-    debugPrint('YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery"');
+    List<YouTubeVideo> results = [];
 
+    if (_dataSource.isConfigured) {
+      try {
+        debugPrint('YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery"');
+        results = await _searchWithDataApi(cleanQuery);
+      } catch (e) {
+        debugPrint('YouTubeRepository: Data API search failed ($e), falling back to YoutubeExplode');
+        results = [];
+      }
+    }
+
+    if (results.isEmpty) {
+      try {
+        debugPrint('YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery"');
+        results = await _searchWithExplode(cleanQuery);
+      } catch (e, stack) {
+        debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
+        if (kDebugMode) debugPrintStack(stackTrace: stack);
+      }
+    }
+
+    if (results.isNotEmpty) {
+      if (_searchCache.length >= _maxCacheSize) {
+        _searchCache.remove(_searchCache.keys.first);
+      }
+      _searchCache[cleanQuery] = results;
+    }
+
+    return results;
+  }
+
+  Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery) async {
+    final yt = yte.YoutubeExplode();
+    try {
+      final searchList = await yt.search.search(cleanQuery);
+      final candidateVideos = <YouTubeVideo>[];
+
+      for (final video in searchList) {
+        final videoId = video.id.value;
+        if (videoId.isEmpty) continue;
+
+        final title = video.title;
+        final channelTitle = video.author;
+
+        final durationStr = video.duration != null
+            ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
+            : '3:30';
+
+        final viewCountStr = _formatViewCount(video.engagement.viewCount);
+
+        String thumbnailUrl = video.thumbnails.highResUrl;
+        if (thumbnailUrl.isEmpty) {
+          thumbnailUrl = video.thumbnails.mediumResUrl;
+        }
+        if (thumbnailUrl.isEmpty) {
+          thumbnailUrl = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+        }
+
+        candidateVideos.add(
+          YouTubeVideo(
+            id: videoId,
+            title: _unescapeHtml(title),
+            channelTitle: _unescapeHtml(channelTitle),
+            thumbnailUrl: thumbnailUrl,
+            duration: durationStr,
+            viewCount: viewCountStr,
+          ),
+        );
+      }
+      return candidateVideos;
+    } finally {
+      yt.close();
+    }
+  }
+
+  Future<List<YouTubeVideo>> _searchWithDataApi(String cleanQuery) async {
     final rawItems = await _dataSource.searchVideos(cleanQuery, maxResults: 25);
     if (rawItems.isEmpty) return [];
 
@@ -154,14 +230,6 @@ class YouTubeRepository {
     }
 
     candidateVideos.sort((a, b) => calculateScore(b).compareTo(calculateScore(a)));
-
-    if (candidateVideos.isNotEmpty) {
-      if (_searchCache.length >= _maxCacheSize) {
-        _searchCache.remove(_searchCache.keys.first);
-      }
-      _searchCache[cleanQuery] = candidateVideos;
-    }
-
     return candidateVideos;
   }
 
