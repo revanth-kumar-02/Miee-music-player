@@ -39,10 +39,11 @@ class _WaveformWidgetState extends State<WaveformWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
 
-  // 18 centered, wider base heights forming a premium double-peak audio waveform pattern.
+  // 28 balanced base heights with tapered edges for a refined music-player waveform
   static const List<double> _baseHeights = [
-    12.0, 18.0, 26.0, 38.0, 46.0, 42.0, 32.0, 22.0, 16.0,
-    16.0, 22.0, 32.0, 42.0, 46.0, 38.0, 26.0, 18.0, 12.0,
+    4.0, 6.0, 10.0, 15.0, 20.0, 25.0, 28.0, 24.0, 18.0, 13.0,
+    15.0, 21.0, 26.0, 28.0, 24.0, 18.0, 14.0, 19.0, 25.0, 27.0,
+    22.0, 16.0, 12.0, 15.0, 10.0, 6.0, 4.0, 3.0,
   ];
 
   @override
@@ -89,7 +90,7 @@ class _WaveformWidgetState extends State<WaveformWidget>
           onHorizontalDragUpdate: (details) => _handleScrub(width, details.localPosition.dx),
           onTapDown: (details) => _handleScrub(width, details.localPosition.dx),
           child: CustomPaint(
-            size: const Size(double.infinity, 52.0),
+            size: const Size(double.infinity, 38.0),
             painter: _WaveformPainter(
               animation: _animationController,
               activeProgress: widget.activeProgress,
@@ -105,7 +106,15 @@ class _WaveformWidgetState extends State<WaveformWidget>
 
   void _handleScrub(double width, double localX) {
     if (widget.onScrub == null || width <= 0) return;
-    final fraction = (localX / width).clamp(0.0, 1.0);
+    const double gap = 3.0;
+    const double maxBarWidth = 4.0;
+    final barCount = _baseHeights.length;
+    final totalGaps = (barCount - 1) * gap;
+    final desiredWaveformWidth = barCount * maxBarWidth + totalGaps;
+    final actualWaveformWidth = math.min(desiredWaveformWidth, width);
+    final startX = (width - actualWaveformWidth) / 2.0;
+
+    final fraction = ((localX - startX) / actualWaveformWidth).clamp(0.0, 1.0);
     widget.onScrub!(fraction);
   }
 }
@@ -130,34 +139,36 @@ class _WaveformPainter extends CustomPainter {
     final barCount = baseHeights.length;
     if (barCount == 0 || size.width <= 0) return;
 
-    // Dynamically calculate bar width so bars span the entire width of the painter area
-    const double gap = 4.0;
-    final double barWidth = (size.width - (barCount - 1) * gap) / barCount;
+    const double gap = 3.0;
+    const double maxBarWidth = 4.0;
+    final double totalGaps = (barCount - 1) * gap;
+
+    // Calculate bar width and total waveform width to ensure it is centered and bounded
+    final double maxAvailableForBars = size.width - totalGaps;
+    final double barWidth = math.min(maxBarWidth, maxAvailableForBars / barCount);
+    final double totalWaveformWidth = barCount * barWidth + totalGaps;
+    final double startX = (size.width - totalWaveformWidth) / 2.0;
 
     final paint = Paint()..style = PaintingStyle.fill;
-
     final animationValue = animation.value;
 
     for (int i = 0; i < barCount; i++) {
-      // Determine active color status
       final barProgress = i / barCount;
       final isBarActive = barProgress <= activeProgress;
       paint.color = isBarActive ? activeColor : inactiveColor;
 
-      // Phase offset for a wavy, rolling visual effect
-      final phase = (i * 0.45) + (animationValue * 2.0 * math.pi);
-      // Smooth oscillation between [0.35, 1.0] of base height
-      final osc = 0.35 + 0.65 * math.sin(phase).abs();
+      // Smooth oscillation offset per bar
+      final phase = (i * 0.4) + (animationValue * 2.0 * math.pi);
+      final osc = 0.5 + 0.5 * math.sin(phase).abs();
       final height = baseHeights[i] * osc;
 
-      // Center vertically within the painter canvas
-      final left = i * (barWidth + gap);
+      final left = startX + i * (barWidth + gap);
       final top = (size.height - height) / 2.0;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(left, top, math.max(1.0, barWidth), height),
-          const Radius.circular(99.0),
+          const Radius.circular(2.0),
         ),
         paint,
       );

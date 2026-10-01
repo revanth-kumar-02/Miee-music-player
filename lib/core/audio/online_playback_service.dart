@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 
 /// Abstract service interface for online YouTube video playback across Web and Mobile.
 abstract class OnlinePlaybackService {

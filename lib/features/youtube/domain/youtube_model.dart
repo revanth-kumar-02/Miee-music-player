@@ -1,5 +1,6 @@
 import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
+import 'youtube_metadata_cleaner.dart';
 
 /// Strongly-typed domain model representing a YouTube search result.
 class YouTubeVideo implements MusicItem {
@@ -43,10 +44,14 @@ class YouTubeVideo implements MusicItem {
   /// Converts this YouTube result into a standard [Track] model so it can be
   /// played or queued by Miee's playback engine.
   Track toTrack() {
+    final cleaned = YouTubeMetadataCleaner.clean(
+      rawTitle: title,
+      rawChannel: channelTitle,
+    );
     return Track(
       id: 'youtube_$id',
-      title: title,
-      artist: channelTitle,
+      title: cleaned.title,
+      artist: cleaned.artist,
       imageUrl: thumbnailUrl,
       duration: duration,
       filePath: videoUrl, // Playback engine will recognize this is a YouTube stream URL

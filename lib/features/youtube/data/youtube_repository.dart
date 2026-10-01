@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
 import '../domain/youtube_model.dart';
+import '../domain/youtube_metadata_cleaner.dart';
 import 'youtube_data_source.dart';
 
 /// Repository responsible for searching YouTube via YouTube Data API v3 or
@@ -84,11 +85,16 @@ class YouTubeRepository {
           thumbnailUrl = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
         }
 
+        final cleaned = YouTubeMetadataCleaner.clean(
+          rawTitle: title,
+          rawChannel: channelTitle,
+        );
+
         candidateVideos.add(
           YouTubeVideo(
             id: videoId,
-            title: _unescapeHtml(title),
-            channelTitle: _unescapeHtml(channelTitle),
+            title: cleaned.title,
+            channelTitle: cleaned.artist,
             thumbnailUrl: thumbnailUrl,
             duration: durationStr,
             viewCount: viewCountStr,
@@ -199,11 +205,16 @@ class YouTubeRepository {
         }
       }
 
+      final cleaned = YouTubeMetadataCleaner.clean(
+        rawTitle: title,
+        rawChannel: channelTitle,
+      );
+
       candidateVideos.add(
         YouTubeVideo(
           id: videoId,
-          title: _unescapeHtml(title),
-          channelTitle: _unescapeHtml(channelTitle),
+          title: cleaned.title,
+          channelTitle: cleaned.artist,
           thumbnailUrl: thumbnailUrl,
           duration: durationStr,
           viewCount: viewCountStr,
@@ -258,15 +269,6 @@ class YouTubeRepository {
       return '${(views / 1000).toStringAsFixed(0)}K views';
     }
     return '$views views';
-  }
-
-  String _unescapeHtml(String text) {
-    return text
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'");
   }
 
   void clearCache() => _searchCache.clear();

@@ -24,7 +24,13 @@ Future<void> main() async {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.miee.music.channel.audio',
         androidNotificationChannelName: 'Miee Music',
+        // ongoing=true: notification cannot be dismissed by the user while
+        // audio is active. Requires stopForegroundOnPause=true per audio_service
+        // constraint (otherwise the combination is a compile-time assertion error).
         androidNotificationOngoing: true,
+        // stopForegroundOnPause=true: foreground service is demoted when paused
+        // (Android 12+ requires this), but the process remains alive so playback
+        // can resume immediately. The notification stays visible in the shade.
         androidStopForegroundOnPause: true,
       ),
     );

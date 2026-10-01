@@ -2,14 +2,11 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart' hide PlaybackState;
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../shared/models/music_item.dart';
 import 'audio_handler.dart';
-import 'online_playback_service.dart';
-import 'youtube_player_widget.dart';
 import 'playback_state.dart';
 import 'queue_manager.dart';
 import '../../features/media/providers/media_providers.dart';
@@ -17,13 +14,20 @@ import '../../features/media/domain/models.dart';
 import '../../features/youtube/providers/youtube_providers.dart';
 import '../../features/library/providers/library_providers.dart';
 
-/// Single orchestrator bridging local [MieeAudioHandler] and [OnlinePlaybackService]
-/// with unified Riverpod state.
+/// Single orchestrator bridging [MieeAudioHandler] with unified Riverpod state.
+///
+/// CRITICAL DESIGN CONTRACT:
+/// [MieeAudioHandler] owns [ProcessingState.completed] and advances the queue
+/// via [skipToNext] internally. [PlayerController] must NOT also handle
+/// completed → next, as that causes a double-skip (two tracks are skipped).
+///
+/// [PlayerController] only handles:
+/// - RepeatMode.one on completed (seek + play, no skip)
+/// - RepeatMode.all wrap-around only when handler signals end-of-queue
 class PlayerController extends StateNotifier<PlaybackState> {
   final MieeAudioHandler _handler;
   final QueueManager _queueManager;
   final Ref _ref;
-  final OnlinePlaybackService _onlineService;
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -32,14 +36,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
   StreamSubscription<MediaItem?>? _mediaItemSub;
   StreamSubscription<String>? _errorSub;
 
-  StreamSubscription<Duration>? _onlinePosSub;
-  StreamSubscription<Duration>? _onlineDurSub;
-  StreamSubscription<bool>? _onlinePlayingSub;
-  StreamSubscription<String?>? _onlineErrorSub;
-
   PlayerController(this._handler, this._queueManager, this._ref)
-      : _onlineService = createOnlinePlaybackService(),
-        super(PlaybackState.initial()) {
+      : super(PlaybackState.initial()) {
     _init();
   }
 
@@ -47,48 +45,54 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _queueManager.setQueue([]);
     state = PlaybackState.initial();
 
-    // 1. Mirror local audio handler streams into Riverpod state
+    // ── Position stream ───────────────────────────────────────────────────────
+    // If the player is actually producing position updates while the UI shows
+    // an error, recover the UI state automatically.
     _positionSub = _handler.positionStream.listen((pos) {
-      if (state.currentTrack != null && !state.currentTrack!.isYoutube) {
-        if (state.status == PlaybackStatus.error && pos > Duration.zero) {
-          state = state.copyWith(status: PlaybackStatus.playing, errorMessage: null);
-        }
-        state = state.copyWith(position: pos);
+      if (state.status == PlaybackStatus.error && pos > Duration.zero) {
+        debugLog('[Playback] Position > 0 while in error state — auto-recovering UI');
+        state = state.copyWith(
+          status: PlaybackStatus.playing,
+          clearErrorMessage: true,
+        );
       }
+      state = state.copyWith(position: pos);
     });
 
+    // ── Duration stream ───────────────────────────────────────────────────────
     _durationSub = _handler.durationStream.listen((dur) {
-      if (state.currentTrack != null && !state.currentTrack!.isYoutube && dur != null) {
+      if (dur != null && dur > Duration.zero) {
         state = state.copyWith(duration: dur);
       }
     });
 
+    // ── Buffered position stream ──────────────────────────────────────────────
     _bufferedSub = _handler.bufferedPositionStream.listen((buf) {
-      if (state.currentTrack != null && !state.currentTrack!.isYoutube) {
-        state = state.copyWith(bufferedPosition: buf);
-      }
+      state = state.copyWith(bufferedPosition: buf);
     });
 
+    // ── Error stream ──────────────────────────────────────────────────────────
     _errorSub = _handler.errorStream.listen((errorMsg) {
+      debugLog('[Playback] Error received in controller: $errorMsg');
       state = state.copyWith(
         status: PlaybackStatus.error,
         errorMessage: errorMsg,
       );
     });
 
+    // ── MediaItem stream (track metadata sync) ────────────────────────────────
     _mediaItemSub = _handler.mediaItem.listen((mediaItem) {
       if (mediaItem != null) {
-        final queue = _queueManager.queue;
-        final index = queue.indexWhere((t) => t.id == mediaItem.id);
+        final queueList = _queueManager.queue;
+        final index = queueList.indexWhere((t) => t.id == mediaItem.id);
         if (index >= 0) {
-          state = state.copyWith(currentTrack: queue[index]);
+          state = state.copyWith(currentTrack: queueList[index]);
         }
       }
     });
 
+    // ── PlayerState stream (the authoritative playback state source) ──────────
     _playerStateSub = _handler.playerStateStream.listen((playerState) {
-      if (state.currentTrack != null && state.currentTrack!.isYoutube) return;
-
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
 
@@ -111,50 +115,36 @@ class PlayerController extends StateNotifier<PlaybackState> {
           break;
       }
 
-      state = state.copyWith(status: status);
+      final isHealthy = status == PlaybackStatus.playing ||
+          status == PlaybackStatus.buffering ||
+          status == PlaybackStatus.paused;
 
+      state = state.copyWith(
+        status: status,
+        // Clear any stale error message when playback is healthy
+        clearErrorMessage: isHealthy,
+      );
+
+      // ── Completion handling ───────────────────────────────────────────────
+      // IMPORTANT: MieeAudioHandler.skipToNext() is already called by the
+      // handler on completed. PlayerController must NOT call next() here.
+      //
+      // The ONLY thing PlayerController handles on completed is RepeatMode.one:
+      // seek to start and re-play the same track without involving the handler's
+      // skip logic.
       if (status == PlaybackStatus.completed) {
         if (state.repeatMode == RepeatMode.one) {
+          debugLog('[Playback] RepeatMode.one — seeking to start');
           seek(Duration.zero);
           play();
-        } else {
-          next();
         }
-      }
-    });
-
-    // 2. Mirror online YouTube player streams into Riverpod state
-    _onlinePosSub = _onlineService.positionStream.listen((pos) {
-      if (state.currentTrack != null && state.currentTrack!.isYoutube) {
-        state = state.copyWith(position: pos);
-      }
-    });
-
-    _onlineDurSub = _onlineService.durationStream.listen((dur) {
-      if (state.currentTrack != null && state.currentTrack!.isYoutube) {
-        state = state.copyWith(duration: dur);
-      }
-    });
-
-    _onlinePlayingSub = _onlineService.isPlayingStream.listen((isPlaying) {
-      if (state.currentTrack != null && state.currentTrack!.isYoutube) {
-        state = state.copyWith(
-          status: isPlaying ? PlaybackStatus.playing : PlaybackStatus.paused,
-        );
-      }
-    });
-
-    _onlineErrorSub = _onlineService.errorStream.listen((err) {
-      if (err != null) {
-        state = state.copyWith(
-          status: PlaybackStatus.error,
-          errorMessage: err,
-        );
+        // RepeatMode.all and RepeatMode.off are handled entirely in
+        // MieeAudioHandler.skipToNext() — do NOT duplicate here.
       }
     });
   }
 
-  // -- Queue management --------------------------------------------------------
+  // ── Queue management ─────────────────────────────────────────────────────
 
   void setQueue(List<MusicItem> tracks, {int startIndex = 0}) {
     _queueManager.setQueue(tracks, startIndex: startIndex);
@@ -169,14 +159,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     setQueue(currentList, startIndex: index >= 0 ? index : 0);
   }
 
-  // -- Playback ----------------------------------------------------------------
+  // ── Playback ──────────────────────────────────────────────────────────────
 
   Future<void> playTrack(MusicItem track) async {
     state = state.copyWith(
       status: PlaybackStatus.loading,
       currentTrack: track,
       position: Duration.zero,
-      errorMessage: null,
+      clearErrorMessage: true,
     );
 
     try {
@@ -189,17 +179,20 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
       state = state.copyWith(currentTrack: resolvedTrack);
 
-      final queue = _queueManager.queue;
-      await _handler.loadQueue(queue, startIndex: index >= 0 ? index : 0);
+      final queueSnapshot = _queueManager.queue;
+      final startIdx = index >= 0 ? index : 0;
+      await _handler.loadQueue(queueSnapshot, startIndex: startIdx);
       await _handler.play();
     } catch (e) {
+      debugLog('[Playback] playTrack failed: $e');
       state = state.copyWith(
         status: PlaybackStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
 
+  /// Resolves the best source for [track] based on the user's source preference.
   Future<MusicItem> _resolveSource(MusicItem track) async {
     final mode = _ref.read(sourceSelectionProvider);
 
@@ -217,6 +210,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       return track;
     }
 
+    // Default: prefer local
     final localMatch = _findLocalVersion(track.title, track.artist);
     if (localMatch != null) return localMatch;
     return track;
@@ -227,7 +221,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
       final localSongs = _ref.read(songsProvider);
       final cleanTitle = title.trim().toLowerCase();
       final cleanArtist = artist.trim().toLowerCase();
-
       for (final song in localSongs) {
         if (song.title.trim().toLowerCase() == cleanTitle &&
             song.artist.trim().toLowerCase() == cleanArtist) {
@@ -241,8 +234,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   Future<MusicItem?> _findYouTubeVersion(String title, String artist) async {
     try {
       final repo = _ref.read(youtubeRepositoryProvider);
-      final query = '$title $artist';
-      final results = await repo.search(query);
+      final results = await repo.search('$title $artist');
       if (results.isNotEmpty) return results.first;
     } catch (_) {}
     return null;
@@ -262,7 +254,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   Future<void> stop() async {
     await _handler.stop();
-    state = state.copyWith(status: PlaybackStatus.idle, position: Duration.zero);
+    state = state.copyWith(
+      status: PlaybackStatus.idle,
+      position: Duration.zero,
+    );
   }
 
   Future<void> seek(Duration position) async {
@@ -270,16 +265,16 @@ class PlayerController extends StateNotifier<PlaybackState> {
     state = state.copyWith(position: position);
   }
 
-  // -- Navigation --------------------------------------------------------------
+  // ── Navigation ─────────────────────────────────────────────────────────────
 
   Future<void> next() async {
     if (state.isShuffleEnabled) {
-      final queue = _queueManager.queue;
-      if (queue.length > 1) {
+      final queueList = _queueManager.queue;
+      if (queueList.length > 1) {
         final random = Random();
         int nextIndex = _queueManager.currentIndex;
         while (nextIndex == _queueManager.currentIndex) {
-          nextIndex = random.nextInt(queue.length);
+          nextIndex = random.nextInt(queueList.length);
         }
         _queueManager.setIndex(nextIndex);
         final nextTrack = _queueManager.currentTrack;
@@ -291,7 +286,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     final nextTrack = _queueManager.next();
     if (nextTrack != null) {
       await playTrack(nextTrack);
-    } else if (state.repeatMode == RepeatMode.all && _queueManager.queue.isNotEmpty) {
+    } else if (state.repeatMode == RepeatMode.all &&
+        _queueManager.queue.isNotEmpty) {
       _queueManager.setIndex(0);
       final firstTrack = _queueManager.currentTrack;
       if (firstTrack != null) await playTrack(firstTrack);
@@ -305,12 +301,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
 
     if (state.isShuffleEnabled) {
-      final queue = _queueManager.queue;
-      if (queue.length > 1) {
+      final queueList = _queueManager.queue;
+      if (queueList.length > 1) {
         final random = Random();
         int prevIndex = _queueManager.currentIndex;
         while (prevIndex == _queueManager.currentIndex) {
-          prevIndex = random.nextInt(queue.length);
+          prevIndex = random.nextInt(queueList.length);
         }
         _queueManager.setIndex(prevIndex);
         final prevTrack = _queueManager.currentTrack;
@@ -322,7 +318,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     final prevTrack = _queueManager.previous();
     if (prevTrack != null) {
       await playTrack(prevTrack);
-    } else if (state.repeatMode == RepeatMode.all && _queueManager.queue.isNotEmpty) {
+    } else if (state.repeatMode == RepeatMode.all &&
+        _queueManager.queue.isNotEmpty) {
       final lastIdx = _queueManager.queue.length - 1;
       _queueManager.setIndex(lastIdx);
       final lastTrack = _queueManager.currentTrack;
@@ -330,19 +327,22 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
   }
 
-  // -- Modes -------------------------------------------------------------------
+  // ── Modes ──────────────────────────────────────────────────────────────────
 
   Future<void> toggleShuffle() async {
     final isShuffle = !state.isShuffleEnabled;
     state = state.copyWith(isShuffleEnabled: isShuffle);
     await _handler.setShuffleMode(
-      isShuffle ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
+      isShuffle
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
     );
+    debugLog('[Playback] Shuffle toggled: $isShuffle');
   }
 
   Future<void> toggleRepeatMode() async {
-    RepeatMode nextMode = RepeatMode.off;
-    AudioServiceRepeatMode serviceMode = AudioServiceRepeatMode.none;
+    RepeatMode nextMode;
+    AudioServiceRepeatMode serviceMode;
 
     switch (state.repeatMode) {
       case RepeatMode.off:
@@ -361,6 +361,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     state = state.copyWith(repeatMode: nextMode);
     await _handler.setRepeatMode(serviceMode);
+    debugLog('[Playback] Repeat mode toggled: $nextMode');
   }
 
   Future<void> addTrackToQueue(MusicItem track) async {
@@ -392,7 +393,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   void clearQueue() {
     _queueManager.clear();
-    _onlineService.stop();
     state = state.copyWith(
       currentTrack: null,
       status: PlaybackStatus.idle,
@@ -400,6 +400,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       duration: Duration.zero,
     );
   }
+
+  // ── Disposal ───────────────────────────────────────────────────────────────
 
   @override
   void dispose() {
@@ -409,12 +411,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _playerStateSub?.cancel();
     _mediaItemSub?.cancel();
     _errorSub?.cancel();
-
-    _onlinePosSub?.cancel();
-    _onlineDurSub?.cancel();
-    _onlinePlayingSub?.cancel();
-    _onlineErrorSub?.cancel();
-    _onlineService.dispose();
     super.dispose();
   }
 }
+
+// ignore: avoid_print
+void debugLog(String msg) => print(msg);

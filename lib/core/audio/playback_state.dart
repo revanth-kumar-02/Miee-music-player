@@ -1,6 +1,5 @@
 import '../../shared/models/music_item.dart';
 
-
 /// Strongly typed playback status.
 enum PlaybackStatus {
   idle,
@@ -47,6 +46,12 @@ class PlaybackState {
         status: PlaybackStatus.idle,
       );
 
+  /// Returns a copy with updated fields.
+  ///
+  /// To explicitly clear [errorMessage] to null, pass [clearErrorMessage]=true.
+  /// Passing [errorMessage]=null without the flag preserves the existing value,
+  /// because the `??` operator cannot distinguish "null as a value" from
+  /// "not supplied" without a sentinel.
   PlaybackState copyWith({
     PlaybackStatus? status,
     Duration? position,
@@ -56,6 +61,7 @@ class PlaybackState {
     bool? isShuffleEnabled,
     RepeatMode? repeatMode,
     String? errorMessage,
+    bool clearErrorMessage = false,
   }) {
     return PlaybackState(
       status: status ?? this.status,
@@ -65,8 +71,8 @@ class PlaybackState {
       currentTrack: currentTrack ?? this.currentTrack,
       isShuffleEnabled: isShuffleEnabled ?? this.isShuffleEnabled,
       repeatMode: repeatMode ?? this.repeatMode,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage:
+          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
-

@@ -11,7 +11,6 @@ import '../../../shared/widgets/widgets.dart';
 import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/models/track.dart';
 import '../../library/providers/library_providers.dart';
-import '../../../core/audio/youtube_player_widget.dart';
 // import '../../lyrics/presentation/widgets/lyrics_overlay.dart';
 
 // final showLyricsProvider = StateProvider.autoDispose<bool>((ref) => false);
@@ -121,20 +120,6 @@ class PlayerPage extends ConsumerWidget {
                                       size: artworkSize * 0.4,
                                       color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
                                     ),
-                                  ),
-                                );
-                              }
-
-                              if (currentTrack.isYoutube) {
-                                final videoId = currentTrack.id.startsWith('youtube_')
-                                    ? currentTrack.id.replaceFirst('youtube_', '')
-                                    : currentTrack.id;
-                                return Center(
-                                  child: MieeYouTubePlayerWidget(
-                                    videoId: videoId,
-                                    width: artworkSize,
-                                    height: artworkSize * 0.7,
-                                    borderRadius: BorderRadius.circular(24.0),
                                   ),
                                 );
                               }
@@ -274,22 +259,25 @@ class PlayerPage extends ConsumerWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   // Symmetrical Waveform progress tracker
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: WaveformWidget(
-                                      isPlaying: isPlaying,
-                                      activeProgress: progress,
-                                      onScrub: hasTrack
-                                          ? (frac) {
-                                              final seekPos = Duration(
-                                                milliseconds: (frac *
-                                                        totalDuration
-                                                            .inMilliseconds)
-                                                    .toInt(),
-                                              );
-                                              controller.seek(seekPos);
-                                            }
-                                          : null,
+                                  Center(
+                                    child: Container(
+                                      constraints: const BoxConstraints(maxWidth: 320.0),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      child: WaveformWidget(
+                                        isPlaying: isPlaying,
+                                        activeProgress: progress,
+                                        onScrub: hasTrack
+                                            ? (frac) {
+                                                final seekPos = Duration(
+                                                  milliseconds: (frac *
+                                                          totalDuration
+                                                              .inMilliseconds)
+                                                      .toInt(),
+                                                );
+                                                controller.seek(seekPos);
+                                              }
+                                            : null,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 12.0),

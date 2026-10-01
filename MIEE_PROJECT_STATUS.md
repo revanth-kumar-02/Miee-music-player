@@ -1,6 +1,6 @@
 # Miee – Project Status & Phase Tracker
 
-> **Last Updated:** 2026-08-21  
+> **Last Updated:** 2026-10-01  
 > **Version:** 1.0.0+1  
 > **Flutter:** 3.47.1 (stable) · Dart 3.13.1  
 > **Branch:** `main`
