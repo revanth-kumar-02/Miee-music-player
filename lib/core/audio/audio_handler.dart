@@ -285,22 +285,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   /// Loads a YouTube track with bounded retry (up to [_kMaxYouTubeRetries] fresh resolutions).
   Future<void> _loadYouTubeTrack(MusicItem track) async {
     final videoId = _extractYouTubeVideoId(track.id);
-    debugPrint('[YouTubeResolver] START loading videoId=$videoId');
+    debugPrint('[AudioHandler] Loading YouTube track: videoId=$videoId ("${track.title}")');
 
     String? streamUrl =
         await YouTubeAudioService().getAudioStreamUrl(videoId);
 
     if (streamUrl == null || streamUrl.isEmpty) {
-      debugPrint('[YouTubeResolver] Initial resolution failed for $videoId, retrying fresh');
+      debugPrint('[AudioHandler] Initial resolution failed for $videoId, retrying fresh (attempt 2/2)');
       streamUrl = await YouTubeAudioService()
           .getAudioStreamUrl(videoId, forceRefresh: true);
     }
 
     if (streamUrl == null || streamUrl.isEmpty) {
-      throw Exception('Unable to resolve audio stream for "${track.title}" (videoId=$videoId)');
+      throw Exception('Unable to resolve audio stream for "${track.title}". Please try again.');
     }
 
-    debugPrint('[YouTubeResolver] Loading audio source for $videoId');
     try {
       await _setAudioSourceUrl(streamUrl);
       debugPrint('[Playback] YouTube audio source loaded successfully for $videoId');
@@ -313,13 +312,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           .getAudioStreamUrl(videoId, forceRefresh: true);
 
       if (freshUrl != null && freshUrl.isNotEmpty) {
-        debugPrint('[YouTubeResolver] Retry 1: loading fresh URL for $videoId');
         await _setAudioSourceUrl(freshUrl);
         debugPrint('[Playback] YouTube audio source loaded on retry for $videoId');
       } else {
         throw Exception(
-          'YouTube stream failed after retry for "${track.title}" '
-          '(PlayerException code=${pe.code})',
+          'Playback failed for "${track.title}": ${pe.message ?? "network stream error"} (code ${pe.code})',
         );
       }
     }
@@ -347,9 +344,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       AudioSource.uri(
         Uri.parse(url),
         headers: const {
-          'User-Agent':
-              'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
+          'User-Agent': kYouTubeAndroidUserAgent,
           'Referer': 'https://www.youtube.com/',
           'Origin': 'https://www.youtube.com',
         },

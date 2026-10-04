@@ -1,7 +1,40 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Client Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The Android client version used for `androidSdkless` requests.
+///
+/// NOTE: YouTube periodically updates its client versions and may reject or throttle
+/// outdated versions in the future. If stream resolution fails or requires updating,
+/// update this constant to match the latest Android client version from yt-dlp:
+/// https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_base.py
+const String kYouTubeAndroidClientVersion = '20.10.38';
+
+/// The Android user-agent header matching [kYouTubeAndroidClientVersion].
+const String kYouTubeAndroidUserAgent =
+    'com.google.android.youtube/$kYouTubeAndroidClientVersion (Linux; U; Android 11) gzip';
+
+/// Based on yt-dlp's `android_sdkless` client definition.
+/// Omits `androidSdkVersion` to bypass YouTube's Play Integrity / PoToken and
+/// signature deciphering requirements for direct audio-only streams.
+const YoutubeApiClient kAndroidSdklessClient = YoutubeApiClient({
+  'context': {
+    'client': {
+      'clientName': 'ANDROID',
+      'clientVersion': kYouTubeAndroidClientVersion,
+      'userAgent': kYouTubeAndroidUserAgent,
+      'hl': 'en',
+      'timeZone': 'UTC',
+      'utcOffsetMinutes': 0,
+      'osName': 'Android',
+      'osVersion': '11',
+    },
+  },
+}, 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache entry
@@ -15,79 +48,30 @@ class _CachedStream {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Resolution result (carries source tag for logging)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ResolvedStream {
-  final String url;
-  final String source;
-  const _ResolvedStream({required this.url, required this.source});
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // YouTubeAudioService
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Resolves direct audio-only stream URLs for YouTube video IDs.
-///
-/// Resolution waterfall (most stable → least stable):
-///   1. Piped API   — server-side cipher/signature, no Google CDN 403s
-///   2. Invidious   — independent instance network, same benefit
-///   3. youtube_explode_dart — last resort (direct YT CDN, 403-prone)
+/// Resolves direct audio-only stream URLs for YouTube video IDs using `youtube_explode_dart`
+/// with the `androidSdkless` client as primary resolver.
 ///
 /// Guarantees:
-///   • Audio-only streams preferred (no video+audio mux).
-///   • Expired URLs are evicted automatically on access.
+///   • Fast resolution (~2-4 seconds) without dead proxy waterfall blocking.
+///   • Audio-only streams preferred (AAC/M4A).
+///   • In-memory stream URL cache bounded with ~1-hour expiry.
 ///   • Concurrent calls for the same video ID are deduplicated.
-///   • Cache bounded to [_maxCacheSize] entries.
 class YouTubeAudioService {
   static final YouTubeAudioService _instance = YouTubeAudioService._internal();
   factory YouTubeAudioService() => _instance;
   YouTubeAudioService._internal();
 
-  // ── Piped public instances (tried in order, skipped on failure) ────────────
-  static const List<String> _pipedInstances = [
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi.tokhmi.xyz',
-    'https://pipedapi.moomoo.me',
-    'https://piped-api.garudalinux.org',
-    'https://api.piped.yt',
-  ];
-
-  // ── Invidious public instances ─────────────────────────────────────────────
-  static const List<String> _invidiousInstances = [
-    'https://yewtu.be',
-    'https://invidious.kavin.rocks',
-    'https://inv.riverside.rocks',
-    'https://invidious.nerdvpn.de',
-    'https://invidious.snopyta.org',
-  ];
-
-  static const int _maxCacheSize = 60;
-  static const Duration _httpTimeout = Duration(seconds: 12);
-
-  // ── Shared Dio client ──────────────────────────────────────────────────────
-  late final Dio _dio = Dio(
-    BaseOptions(
-      connectTimeout: _httpTimeout,
-      receiveTimeout: _httpTimeout,
-      sendTimeout: _httpTimeout,
-      headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      validateStatus: (_) => true, // handle status manually
-    ),
-  );
+  static const int _maxCacheSize = 100;
+  static const Duration _cacheTtl = Duration(hours: 1);
 
   // ── Cache & in-flight deduplication ───────────────────────────────────────
   final Map<String, _CachedStream> _urlCache = {};
   final Map<String, Future<String?>> _inFlight = {};
 
-  // ── youtube_explode_dart (last resort) ────────────────────────────────────
+  // ── youtube_explode_dart client ───────────────────────────────────────────
   final YoutubeExplode _yt = YoutubeExplode();
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -104,7 +88,7 @@ class YouTubeAudioService {
   }) {
     final videoId = _extractVideoId(videoIdOrUrl);
     if (videoId == null || videoId.isEmpty) {
-      debugPrint('[YouTubeResolver] Invalid video ID: "$videoIdOrUrl"');
+      debugPrint('[YouTubeAudioService] Invalid video ID: "$videoIdOrUrl"');
       return Future.value(null);
     }
 
@@ -121,11 +105,11 @@ class YouTubeAudioService {
 
     // Deduplicate concurrent resolution calls
     if (_inFlight.containsKey(videoId)) {
-      debugPrint('[YouTubeResolver] In-flight dedup for $videoId');
+      debugPrint('[YouTubeAudioService] In-flight dedup for $videoId');
       return _inFlight[videoId]!;
     }
 
-    final future = _resolveWithFallback(videoId).whenComplete(() {
+    final future = _resolveStream(videoId).whenComplete(() {
       _inFlight.remove(videoId);
     });
     _inFlight[videoId] = future;
@@ -153,7 +137,6 @@ class YouTubeAudioService {
   }
 
   /// Evicts [videoIdOrUrl] from the URL cache.
-  /// Call this when a playback error suggests the cached URL is stale.
   void invalidateCache(String videoIdOrUrl) {
     final videoId = _extractVideoId(videoIdOrUrl);
     if (videoId != null && _urlCache.containsKey(videoId)) {
@@ -169,145 +152,53 @@ class YouTubeAudioService {
 
   void dispose() {
     _yt.close();
-    _dio.close(force: false);
-    debugPrint('[YouTubeResolver] Disposed');
+    debugPrint('[YouTubeAudioService] Disposed');
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Resolution waterfall
+  // Core stream resolution
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<String?> _resolveWithFallback(String videoId) async {
-    debugPrint('[YouTubeResolver] START resolving $videoId');
+  Future<String?> _resolveStream(String videoId) async {
+    debugPrint('[YouTubeAudioService] Resolving audio stream for $videoId');
 
-    // ── Layer 1: Piped API ─────────────────────────────────────────────────
-    for (final instance in _pipedInstances) {
-      try {
-        final result = await _resolveViaPiped(videoId, instance);
-        if (result != null) {
-          debugPrint('[YouTubeResolver] ✓ Piped ($instance) for $videoId');
-          _cacheUrl(videoId, result.url, ttlMinutes: 80);
-          return result.url;
-        }
-      } catch (e) {
-        debugPrint('[YouTubeResolver] ✗ Piped $instance: $e');
-      }
-    }
-    debugPrint('[YouTubeResolver] All Piped instances failed for $videoId');
-
-    // ── Layer 2: Invidious API ─────────────────────────────────────────────
-    for (final instance in _invidiousInstances) {
-      try {
-        final result = await _resolveViaInvidious(videoId, instance);
-        if (result != null) {
-          debugPrint('[YouTubeResolver] ✓ Invidious ($instance) for $videoId');
-          _cacheUrl(videoId, result.url, ttlMinutes: 80);
-          return result.url;
-        }
-      } catch (e) {
-        debugPrint('[YouTubeResolver] ✗ Invidious $instance: $e');
-      }
-    }
-    debugPrint('[YouTubeResolver] All Invidious instances failed for $videoId');
-
-    // ── Layer 3: youtube_explode_dart ─────────────────────────────────────
+    // Primary attempt: androidSdkless client
     try {
-      debugPrint('[YouTubeResolver] Trying youtube_explode_dart for $videoId');
-      final result = await _resolveViaExplode(videoId);
-      if (result != null) {
-        debugPrint('[YouTubeResolver] ✓ youtube_explode_dart for $videoId');
-        _cacheUrl(videoId, result.url, ttlMinutes: 50);
-        return result.url;
+      final manifest = await _yt.videos.streamsClient.getManifest(
+        videoId,
+        ytClients: [kAndroidSdklessClient],
+      );
+      final streamUrl = _selectBestAudioUrl(manifest);
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        debugPrint('[YouTubeAudioService] Resolved stream via androidSdkless for $videoId');
+        _cacheUrl(videoId, streamUrl);
+        return streamUrl;
       }
     } catch (e) {
-      debugPrint('[YouTubeResolver] ✗ youtube_explode_dart: $e');
+      debugPrint('[YouTubeAudioService] androidSdkless attempt failed for $videoId: $e');
     }
 
-    debugPrint('[YouTubeResolver] ALL layers exhausted for $videoId');
+    // Fallback attempt: android standard client
+    try {
+      final manifest = await _yt.videos.streamsClient.getManifest(
+        videoId,
+        ytClients: [YoutubeApiClient.android],
+      );
+      final streamUrl = _selectBestAudioUrl(manifest);
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        debugPrint('[YouTubeAudioService] Resolved stream via fallback android client for $videoId');
+        _cacheUrl(videoId, streamUrl);
+        return streamUrl;
+      }
+    } catch (e) {
+      debugPrint('[YouTubeAudioService] Fallback android client failed for $videoId: $e');
+    }
+
+    debugPrint('[YouTubeAudioService] Stream resolution failed for $videoId');
     return null;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Layer 1 — Piped API
-  // GET {instance}/streams/{videoId}
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Future<_ResolvedStream?> _resolveViaPiped(
-      String videoId, String instance) async {
-    final url = '$instance/streams/$videoId';
-    debugPrint('[Piped] GET $url');
-
-    final resp = await _dio.get<Map<String, dynamic>>(url);
-
-    if (resp.statusCode != 200 || resp.data == null) {
-      debugPrint('[Piped] HTTP ${resp.statusCode} from $instance');
-      return null;
-    }
-
-    final data = resp.data!;
-    if (data.containsKey('message') || data.containsKey('error')) {
-      debugPrint('[Piped] Error body: ${data['message'] ?? data['error']}');
-      return null;
-    }
-
-    final audioStreams = (data['audioStreams'] as List<dynamic>?) ?? [];
-    if (audioStreams.isEmpty) return null;
-
-    return _pickBestAudio(
-      audioStreams,
-      mimeKey: 'mimeType',
-      urlKey: 'url',
-      bitrateKey: 'bitrate',
-      source: 'piped:$instance',
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Layer 2 — Invidious API
-  // GET {instance}/api/v1/videos/{videoId}?fields=adaptiveFormats
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Future<_ResolvedStream?> _resolveViaInvidious(
-      String videoId, String instance) async {
-    final url = '$instance/api/v1/videos/$videoId?fields=adaptiveFormats';
-    debugPrint('[Invidious] GET $url');
-
-    final resp = await _dio.get<Map<String, dynamic>>(url);
-
-    if (resp.statusCode != 200 || resp.data == null) {
-      debugPrint('[Invidious] HTTP ${resp.statusCode} from $instance');
-      return null;
-    }
-
-    final data = resp.data!;
-    if (data.containsKey('error')) {
-      debugPrint('[Invidious] Error body: ${data['error']}');
-      return null;
-    }
-
-    final formats = (data['adaptiveFormats'] as List<dynamic>?) ?? [];
-    // Keep only audio-only adaptive formats
-    final audioFormats =
-        formats.where((f) => ((f as Map)['type'] as String? ?? '').startsWith('audio')).toList();
-
-    if (audioFormats.isEmpty) return null;
-
-    return _pickBestAudio(
-      audioFormats,
-      mimeKey: 'type',
-      urlKey: 'url',
-      bitrateKey: 'bitrate',
-      source: 'invidious:$instance',
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Layer 3 — youtube_explode_dart
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Future<_ResolvedStream?> _resolveViaExplode(String videoId) async {
-    final manifest =
-        await _yt.videos.streamsClient.getManifest(videoId);
+  String? _selectBestAudioUrl(StreamManifest manifest) {
     final audioStreams = manifest.audioOnly;
     if (audioStreams.isEmpty) return null;
 
@@ -322,93 +213,36 @@ class YouTubeAudioService {
         : audioStreams.withHighestBitrate();
 
     final url = selected.url.toString();
-    if (url.isEmpty) return null;
-
-    debugPrint(
-      '[yt-explode] Selected: ${selected.container.name} '
-      '${selected.audioCodec} ${selected.bitrate}',
-    );
-    return _ResolvedStream(url: url, source: 'yt-explode');
+    return url.isNotEmpty ? url : null;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Shared helpers
-  // ─────────────────────────────────────────────────────────────────────────
-
-  /// Picks the best audio stream from a list, preferring AAC/MP4 over others.
-  _ResolvedStream? _pickBestAudio(
-    List<dynamic> streams, {
-    required String mimeKey,
-    required String urlKey,
-    required String bitrateKey,
-    required String source,
-  }) {
-    Map<String, dynamic>? aacBest;
-    int aacBitrate = 0;
-    Map<String, dynamic>? anyBest;
-    int anyBitrate = 0;
-
-    for (final s in streams) {
-      final stream = s as Map<String, dynamic>;
-      final mime = (stream[mimeKey] as String? ?? '').toLowerCase();
-      final bitrate = (stream[bitrateKey] as num? ?? 0).toInt();
-      final url = stream[urlKey] as String? ?? '';
-      if (url.isEmpty) continue;
-
-      final isAac = mime.contains('mp4') || mime.contains('aac') || mime.contains('m4a');
-      if (isAac && bitrate > aacBitrate) {
-        aacBitrate = bitrate;
-        aacBest = stream;
-      }
-      if (bitrate > anyBitrate) {
-        anyBitrate = bitrate;
-        anyBest = stream;
-      }
-    }
-
-    final chosen = aacBest ?? anyBest;
-    if (chosen == null) return null;
-
-    final url = chosen[urlKey] as String? ?? '';
-    if (url.isEmpty || !isUrlValid(url)) return null;
-
-    debugPrint(
-      '[Resolver] Picked: mime=${chosen[mimeKey]} bitrate=${chosen[bitrateKey]} src=$source',
-    );
-    return _ResolvedStream(url: url, source: source);
-  }
-
-  void _cacheUrl(String videoId, String url, {int ttlMinutes = 80}) {
-    // Evict oldest entry if at capacity
+  void _cacheUrl(String videoId, String url) {
     if (_urlCache.length >= _maxCacheSize) {
       final oldest = _urlCache.keys.first;
       _urlCache.remove(oldest);
     }
 
-    // Use URL's own `expire` param when present (more accurate)
-    DateTime expiresAt;
+    // Cache with ~1-hour expiry, respecting URL expire param if earlier
+    DateTime expiresAt = DateTime.now().add(_cacheTtl);
     try {
       final uri = Uri.parse(url);
       final exp = uri.queryParameters['expire'];
       if (exp != null) {
         final secs = int.tryParse(exp);
         if (secs != null) {
-          // 3-minute safety buffer before actual expiry
-          expiresAt = DateTime.fromMillisecondsSinceEpoch(secs * 1000)
+          final urlExpiry = DateTime.fromMillisecondsSinceEpoch(secs * 1000)
               .subtract(const Duration(minutes: 3));
-          _urlCache[videoId] =
-              _CachedStream(url: url, expiresAt: expiresAt);
-          debugPrint(
-              '[StreamCache] STORED $videoId (expires ${expiresAt.toIso8601String()})');
-          return;
+          if (urlExpiry.isBefore(expiresAt)) {
+            expiresAt = urlExpiry;
+          }
         }
       }
     } catch (_) {}
 
-    expiresAt = DateTime.now().add(Duration(minutes: ttlMinutes));
     _urlCache[videoId] = _CachedStream(url: url, expiresAt: expiresAt);
     debugPrint(
-        '[StreamCache] STORED $videoId (TTL ${ttlMinutes}min | cache=${_urlCache.length})');
+      '[StreamCache] STORED $videoId (TTL: ~1hr | expires: ${expiresAt.toIso8601String()} | cache size: ${_urlCache.length})',
+    );
   }
 
   String? _extractVideoId(String input) {
