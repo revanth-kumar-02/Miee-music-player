@@ -63,13 +63,23 @@ class SearchRepository {
     return youtubeRepository.search(query);
   }
 
-  /// Fetches auto-complete suggestions.
+  /// Fetches auto-complete suggestions from history and online provider.
   Future<List<String>> getSuggestions(String query) async {
-    // Basic offline/historical autocomplete suggestions
-    final trimmed = query.trim().toLowerCase();
+    final trimmed = query.trim();
     if (trimmed.isEmpty) return const [];
-    final history = getRecentSearches();
-    return history.where((s) => s.toLowerCase().contains(trimmed)).toList();
+    final lower = trimmed.toLowerCase();
+    final history = getRecentSearches()
+        .where((s) => s.toLowerCase().contains(lower))
+        .toList();
+    if (history.length >= 5) return history.take(5).toList();
+
+    try {
+      final online = await youtubeRepository.getSuggestions(trimmed);
+      final combined = <String>{...history, ...online}.toList();
+      return combined.take(6).toList();
+    } catch (_) {
+      return history;
+    }
   }
 
   void dispose() {

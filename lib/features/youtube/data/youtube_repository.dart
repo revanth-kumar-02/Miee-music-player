@@ -45,6 +45,7 @@ class YouTubeRepository {
       } catch (e, stack) {
         debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
         if (kDebugMode) debugPrintStack(stackTrace: stack);
+        rethrow;
       }
     }
 
@@ -269,6 +270,21 @@ class YouTubeRepository {
       return '${(views / 1000).toStringAsFixed(0)}K views';
     }
     return '$views views';
+  }
+
+  /// Fetches online search query suggestions via YoutubeExplode.
+  Future<List<String>> getSuggestions(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return const [];
+    final yt = yte.YoutubeExplode();
+    try {
+      return await yt.search.getQuerySuggestions(cleanQuery);
+    } catch (e) {
+      debugPrint('YouTubeRepository: Failed to fetch query suggestions: $e');
+      return const [];
+    } finally {
+      yt.close();
+    }
   }
 
   void clearCache() => _searchCache.clear();

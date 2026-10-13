@@ -117,13 +117,24 @@ class SearchNotifier extends StateNotifier<SearchState> {
         state = state.copyWith(
           youtubeResults: youtube,
           isYouTubeLoading: false,
+          errorMessage: null,
         );
       }
     } catch (e) {
       if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+        final errStr = e.toString().toLowerCase();
+        final message = (errStr.contains('socketexception') ||
+                errStr.contains('failed host lookup') ||
+                errStr.contains('network') ||
+                errStr.contains('connection refused') ||
+                errStr.contains('connection timed out') ||
+                errStr.contains('clientexception'))
+            ? 'No internet connection. Please check your network and try again.'
+            : e.toString().replaceFirst('Exception: ', '');
         state = state.copyWith(
+          youtubeResults: const [],
           isYouTubeLoading: false,
-          errorMessage: e.toString(),
+          errorMessage: message,
         );
       }
     }

@@ -102,6 +102,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _handleSearchSubmit(String query) {
     if (query.trim().isEmpty) return;
+    _searchFocusNode.unfocus();
     ref.read(searchNotifierProvider.notifier).searchNow(query);
   }
 
@@ -111,6 +112,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       TextPosition(offset: query.length),
     );
     setState(() => _searchQuery = query);
+    _searchFocusNode.unfocus();
     ref.read(searchNotifierProvider.notifier).searchNow(query);
   }
 
@@ -126,8 +128,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final genreSongIdsAsync = ref.watch(genreSongIdsProvider(selectedGenre));
 
     final isSearching = searchState.hasQuery;
-    final showSuggestions = _searchFocusNode.hasFocus && _searchQuery.isNotEmpty;
-    final showRecentSearches = _searchFocusNode.hasFocus && _searchQuery.isEmpty && searchState.recentSearches.isNotEmpty;
+    final showSuggestions = _searchFocusNode.hasFocus &&
+        _searchQuery.isNotEmpty &&
+        searchState.suggestions.isNotEmpty;
+    final showRecentSearches = _searchFocusNode.hasFocus &&
+        _searchQuery.isEmpty &&
+        searchState.recentSearches.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -346,6 +352,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final isDoneLoading = !state.isLocalLoading && !state.isYouTubeLoading;
 
     if (isDoneLoading && state.isEmpty) {
+      if (state.errorMessage != null) {
+        return EmptyState(
+          title: 'Search failed',
+          message: state.errorMessage!,
+          icon: Icons.wifi_off_outlined,
+        );
+      }
       return const EmptyState(
         title: 'No results found',
         message: 'Try searching with different terms or check spelling.',
@@ -461,7 +474,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             actionLabel: '${state.youtubeResults.length} found',
           ),
           AppSpacing.heightMd,
-          ...state.youtubeResults.take(6).map((video) => Padding(
+          ...state.youtubeResults.map((video) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: YouTubeResultTile(video: video),
               )),
@@ -469,9 +482,33 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ] else if (state.errorMessage != null) ...[
           const SectionHeader(title: 'YouTube'),
           AppSpacing.heightMd,
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: AppRadius.radiusMd,
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.wifi_off_outlined, color: Colors.redAccent, size: 24),
+                AppSpacing.widthMd,
+                Expanded(
+                  child: Text(
+                    state.errorMessage!,
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppSpacing.heightLg,
+        ] else if (!state.isYouTubeLoading) ...[
+          const SectionHeader(title: 'YouTube'),
+          AppSpacing.heightMd,
           Text(
-            'Online search failed: ${state.errorMessage}',
-            style: const TextStyle(color: Colors.red),
+            'No online results found for "${state.query}"',
+            style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant),
           ),
           AppSpacing.heightLg,
         ],
