@@ -6,12 +6,30 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 // Client Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// The Android client version used for `androidSdkless` requests.
-///
-/// NOTE: YouTube periodically updates its client versions and may reject or throttle
-/// outdated versions in the future. If stream resolution fails or requires updating,
-/// update this constant to match the latest Android client version from yt-dlp:
-/// https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_base.py
+/// The Apple Vision Pro client definition (based on InterTune / yt-dlp).
+/// Exempt from YouTube's GVS proof-of-origin (PoToken) token requirements,
+/// avoiding the ~1MB cap and HTTP 403 response on media playback.
+const String kYouTubeVisionOsUserAgent =
+    'com.google.ios.youtube/1.02 (RealityDevice17,1; U; visionOS 2_3)';
+
+const YoutubeApiClient kVisionOsClient = YoutubeApiClient({
+  'context': {
+    'client': {
+      'clientName': 'VISIONOS',
+      'clientVersion': '1.02',
+      'userAgent': kYouTubeVisionOsUserAgent,
+      'hl': 'en',
+      'timeZone': 'UTC',
+      'utcOffsetMinutes': 0,
+      'osName': 'visionOS',
+      'osVersion': '2.3.21O5565d',
+      'deviceMake': 'Apple',
+      'deviceModel': 'RealityDevice17,1',
+    },
+  },
+}, 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
+
+/// The Android client version used for `androidSdkless` requests (fallback).
 const String kYouTubeAndroidClientVersion = '20.10.38';
 
 /// The Android user-agent header matching [kYouTubeAndroidClientVersion].
@@ -19,8 +37,6 @@ const String kYouTubeAndroidUserAgent =
     'com.google.android.youtube/$kYouTubeAndroidClientVersion (Linux; U; Android 11) gzip';
 
 /// Based on yt-dlp's `android_sdkless` client definition.
-/// Omits `androidSdkVersion` to bypass YouTube's Play Integrity / PoToken and
-/// signature deciphering requirements for direct audio-only streams.
 const YoutubeApiClient kAndroidSdklessClient = YoutubeApiClient({
   'context': {
     'client': {
@@ -72,7 +88,7 @@ class YouTubeAudioService {
   final Map<String, Future<String?>> _inFlight = {};
 
   // ── youtube_explode_dart client ───────────────────────────────────────────
-  final YoutubeExplode _yt = YoutubeExplode();
+  YoutubeExplode _yt = YoutubeExplode();
 
   // ─────────────────────────────────────────────────────────────────────────
   // Public API
@@ -152,6 +168,7 @@ class YouTubeAudioService {
 
   void dispose() {
     _yt.close();
+    _yt = YoutubeExplode();
     debugPrint('[YouTubeAudioService] Disposed');
   }
 
@@ -162,7 +179,23 @@ class YouTubeAudioService {
   Future<String?> _resolveStream(String videoId) async {
     debugPrint('[YouTubeAudioService] Resolving audio stream for $videoId');
 
-    // Primary attempt: androidSdkless client
+    // Primary attempt: VISIONOS client (exempt from GVS PoToken 1MB cap / 403 errors)
+    try {
+      final manifest = await _yt.videos.streamsClient.getManifest(
+        videoId,
+        ytClients: [kVisionOsClient],
+      );
+      final streamUrl = _selectBestAudioUrl(manifest);
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        debugPrint('[YouTubeAudioService] Resolved stream via VISIONOS for $videoId');
+        _cacheUrl(videoId, streamUrl);
+        return streamUrl;
+      }
+    } catch (e) {
+      debugPrint('[YouTubeAudioService] VISIONOS attempt failed for $videoId: $e');
+    }
+
+    // Fallback attempt 1: androidSdkless client
     try {
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
@@ -178,20 +211,17 @@ class YouTubeAudioService {
       debugPrint('[YouTubeAudioService] androidSdkless attempt failed for $videoId: $e');
     }
 
-    // Fallback attempt: android standard client
+    // Fallback attempt 2: default getManifest client chain
     try {
-      final manifest = await _yt.videos.streamsClient.getManifest(
-        videoId,
-        ytClients: [YoutubeApiClient.android],
-      );
+      final manifest = await _yt.videos.streamsClient.getManifest(videoId);
       final streamUrl = _selectBestAudioUrl(manifest);
       if (streamUrl != null && streamUrl.isNotEmpty) {
-        debugPrint('[YouTubeAudioService] Resolved stream via fallback android client for $videoId');
+        debugPrint('[YouTubeAudioService] Resolved stream via default manifest for $videoId');
         _cacheUrl(videoId, streamUrl);
         return streamUrl;
       }
     } catch (e) {
-      debugPrint('[YouTubeAudioService] Fallback android client failed for $videoId: $e');
+      debugPrint('[YouTubeAudioService] Default getManifest failed for $videoId: $e');
     }
 
     debugPrint('[YouTubeAudioService] Stream resolution failed for $videoId');

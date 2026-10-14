@@ -338,15 +338,13 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  /// Sets the audio source from a URL with the required YouTube headers.
+  /// Sets the audio source from a URL with the required headers.
   Future<void> _setAudioSourceUrl(String url) async {
     await _player.setAudioSource(
       AudioSource.uri(
         Uri.parse(url),
         headers: const {
-          'User-Agent': kYouTubeAndroidUserAgent,
-          'Referer': 'https://www.youtube.com/',
-          'Origin': 'https://www.youtube.com',
+          'User-Agent': kYouTubeVisionOsUserAgent,
         },
       ),
     );
