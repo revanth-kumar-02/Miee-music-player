@@ -29,6 +29,8 @@ class PlaybackState {
   final bool isShuffleEnabled;
   final RepeatMode repeatMode;
   final String? errorMessage;
+  final double volume;
+  final String? playingFrom;
 
   const PlaybackState({
     required this.status,
@@ -39,6 +41,8 @@ class PlaybackState {
     this.isShuffleEnabled = false,
     this.repeatMode = RepeatMode.off,
     this.errorMessage,
+    this.volume = 1.0,
+    this.playingFrom,
   });
 
   /// Factory constructor for initial empty state.
@@ -62,6 +66,8 @@ class PlaybackState {
     RepeatMode? repeatMode,
     String? errorMessage,
     bool clearErrorMessage = false,
+    double? volume,
+    String? playingFrom,
   }) {
     return PlaybackState(
       status: status ?? this.status,
@@ -73,6 +79,8 @@ class PlaybackState {
       repeatMode: repeatMode ?? this.repeatMode,
       errorMessage:
           clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      volume: volume ?? this.volume,
+      playingFrom: playingFrom ?? this.playingFrom,
     );
   }
 }

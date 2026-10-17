@@ -13,6 +13,10 @@ import '../../features/media/providers/media_providers.dart';
 import '../../features/media/domain/models.dart';
 import '../../features/youtube/providers/youtube_providers.dart';
 import '../../features/library/providers/library_providers.dart';
+import '../../features/auth/providers/auth_providers.dart';
+import '../../features/history/providers/history_providers.dart';
+
+import 'playback_diagnostics.dart';
 
 /// Single orchestrator bridging [MieeAudioHandler] with unified Riverpod state.
 ///
@@ -28,6 +32,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
   final MieeAudioHandler _handler;
   final QueueManager _queueManager;
   final Ref _ref;
+
+  /// Monotonically increasing token to ignore stale async playTrack calls.
+  int _playRequestToken = 0;
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -133,6 +140,17 @@ class PlayerController extends StateNotifier<PlaybackState> {
       // seek to start and re-play the same track without involving the handler's
       // skip logic.
       if (status == PlaybackStatus.completed) {
+        final current = state.currentTrack;
+        if (current != null) {
+          final authUser = _ref.read(currentAuthUserProvider);
+          _ref.read(listeningHistoryRepositoryProvider).recordListeningEvent(
+                uid: authUser?.uid,
+                track: current,
+                listenedSec: state.position.inSeconds,
+                durationSec: state.duration.inSeconds,
+              );
+        }
+
         if (state.repeatMode == RepeatMode.one) {
           debugLog('[Playback] RepeatMode.one — seeking to start');
           seek(Duration.zero);
@@ -146,31 +164,46 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   // ── Queue management ─────────────────────────────────────────────────────
 
-  void setQueue(List<MusicItem> tracks, {int startIndex = 0}) {
+  void setQueue(List<MusicItem> tracks, {int startIndex = 0, String? playingFrom}) {
     _queueManager.setQueue(tracks, startIndex: startIndex);
     final track = _queueManager.currentTrack;
     if (track != null) {
-      playTrack(track);
+      playTrack(track, playingFrom: playingFrom);
     }
   }
 
-  void selectTrack(MusicItem track, List<MusicItem> currentList) {
+  void selectTrack(MusicItem track, List<MusicItem> currentList, {String? playingFrom}) {
     final index = currentList.indexWhere((t) => t.id == track.id);
-    setQueue(currentList, startIndex: index >= 0 ? index : 0);
+    setQueue(currentList, startIndex: index >= 0 ? index : 0, playingFrom: playingFrom);
   }
 
   // ── Playback ──────────────────────────────────────────────────────────────
 
-  Future<void> playTrack(MusicItem track) async {
+  Future<void> playTrack(MusicItem track, {String? playingFrom}) async {
+    final token = ++_playRequestToken;
+
+    PlaybackDiagnostics().recordTap(
+      trackId: track.id,
+      title: track.title,
+      isYoutube: track.isYoutube,
+    );
+
+    // 1. Immediately update UI state with selected track and loading status
     state = state.copyWith(
       status: PlaybackStatus.loading,
       currentTrack: track,
       position: Duration.zero,
+      playingFrom: playingFrom ?? state.playingFrom,
       clearErrorMessage: true,
     );
+    PlaybackDiagnostics().recordSelectedTrackUpdated(track.id);
 
     try {
       final resolvedTrack = await _resolveSource(track);
+      if (token != _playRequestToken) {
+        debugLog('[Playback] Superseded by newer track selection (token $token vs $_playRequestToken)');
+        return;
+      }
 
       final index = _queueManager.currentIndex;
       if (index >= 0 && index < _queueManager.queue.length) {
@@ -182,8 +215,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
       final queueSnapshot = _queueManager.queue;
       final startIdx = index >= 0 ? index : 0;
       await _handler.loadQueue(queueSnapshot, startIndex: startIdx);
+      if (token != _playRequestToken) return;
       await _handler.play();
     } catch (e) {
+      if (token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
       state = state.copyWith(
         status: PlaybackStatus.error,
@@ -263,6 +298,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
   Future<void> seek(Duration position) async {
     await _handler.seek(position);
     state = state.copyWith(position: position);
+  }
+
+  Future<void> setVolume(double volume) async {
+    await _handler.setVolume(volume);
+    state = state.copyWith(volume: volume.clamp(0.0, 1.0));
   }
 
   // ── Navigation ─────────────────────────────────────────────────────────────

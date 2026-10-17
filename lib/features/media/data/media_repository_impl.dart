@@ -36,7 +36,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<bool> checkAndRequestPermissions() async {
-    if (!Platform.isAndroid) return true;
+    if (kIsWeb || !Platform.isAndroid) return true;
     
     if (await Permission.audio.request().isGranted) {
       return true;
@@ -119,6 +119,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<List<MediaSong>> getSongs({bool forceRefresh = false}) async {
+    if (kIsWeb) return [];
     if (!forceRefresh) {
       if (_cachedSongs != null) {
         return _cachedSongs!;
@@ -232,6 +233,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<List<MediaAlbum>> getAlbums({bool forceRefresh = false}) async {
+    if (kIsWeb) return [];
     if (!forceRefresh && _cachedAlbums != null) {
       return _cachedAlbums!;
     }
@@ -322,6 +324,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<List<MediaArtist>> getArtists({bool forceRefresh = false}) async {
+    if (kIsWeb) return [];
     if (!forceRefresh && _cachedArtists != null) {
       return _cachedArtists!;
     }
@@ -370,6 +373,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<List<MediaGenre>> getGenres({bool forceRefresh = false}) async {
+    if (kIsWeb) return [];
     if (!forceRefresh && _cachedGenres != null) {
       return _cachedGenres!;
     }
@@ -419,6 +423,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<List<MediaPlaylist>> getPlaylists({bool forceRefresh = false}) async {
+    if (kIsWeb) return [];
     if (!forceRefresh && _cachedPlaylists != null) {
       return _cachedPlaylists!;
     }
@@ -448,6 +453,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
   @override
   Future<List<MediaFolder>> getFolders({bool forceRefresh = false}) async {
+    if (kIsWeb) return [];
     if (!forceRefresh && _cachedFolders != null) {
       return _cachedFolders!;
     }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'playback_diagnostics.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Client Constants
@@ -68,13 +69,14 @@ class _CachedStream {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Resolves direct audio-only stream URLs for YouTube video IDs using `youtube_explode_dart`
-/// with the `androidSdkless` client as primary resolver.
+/// with the `VISIONOS` client as primary resolver.
 ///
 /// Guarantees:
-///   • Fast resolution (~2-4 seconds) without dead proxy waterfall blocking.
+///   • Fast resolution (~1-2 seconds on cache miss, <1ms on cache hit).
 ///   • Audio-only streams preferred (AAC/M4A).
-///   • In-memory stream URL cache bounded with ~1-hour expiry.
+///   • In-memory stream URL cache bounded with safe expiration.
 ///   • Concurrent calls for the same video ID are deduplicated.
+///   • Bounded per-attempt timeouts to prevent indefinite hanging.
 class YouTubeAudioService {
   static final YouTubeAudioService _instance = YouTubeAudioService._internal();
   factory YouTubeAudioService() => _instance;
@@ -94,6 +96,14 @@ class YouTubeAudioService {
   // Public API
   // ─────────────────────────────────────────────────────────────────────────
 
+  /// Checks if a valid, unexpired stream URL is currently cached for [videoIdOrUrl].
+  bool isCached(String videoIdOrUrl) {
+    final videoId = _extractVideoId(videoIdOrUrl);
+    if (videoId == null) return false;
+    final cached = _urlCache[videoId];
+    return cached != null && !cached.isExpired && isUrlValid(cached.url);
+  }
+
   /// Returns an audio-only stream URL for [videoIdOrUrl].
   ///
   /// Serves from cache if valid; deduplicates concurrent calls for the same ID.
@@ -111,23 +121,42 @@ class YouTubeAudioService {
     // Serve valid cache entry unless caller forces refresh
     if (!forceRefresh && _urlCache.containsKey(videoId)) {
       final cached = _urlCache[videoId]!;
-      if (!cached.isExpired) {
+      if (!cached.isExpired && isUrlValid(cached.url)) {
         debugPrint('[StreamCache] HIT for $videoId');
+        PlaybackDiagnostics().recordStreamResolutionEnd(
+          videoId,
+          fromCache: true,
+          success: true,
+        );
         return Future.value(cached.url);
       }
       debugPrint('[StreamCache] EXPIRED for $videoId, evicting');
       _urlCache.remove(videoId);
     }
 
-    // Deduplicate concurrent resolution calls
+    // Deduplicate concurrent in-flight resolution calls
     if (_inFlight.containsKey(videoId)) {
       debugPrint('[YouTubeAudioService] In-flight dedup for $videoId');
       return _inFlight[videoId]!;
     }
 
-    final future = _resolveStream(videoId).whenComplete(() {
+    final future = _resolveStream(videoId).timeout(
+      const Duration(seconds: 12),
+      onTimeout: () {
+        debugPrint('[YouTubeAudioService] Overall stream resolution timed out for $videoId');
+        return null;
+      },
+    ).then((url) {
+      PlaybackDiagnostics().recordStreamResolutionEnd(
+        videoId,
+        fromCache: false,
+        success: url != null && url.isNotEmpty,
+      );
+      return url;
+    }).whenComplete(() {
       _inFlight.remove(videoId);
     });
+
     _inFlight[videoId] = future;
     return future;
   }
@@ -184,7 +213,7 @@ class YouTubeAudioService {
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
         ytClients: [kVisionOsClient],
-      );
+      ).timeout(const Duration(seconds: 7));
       final streamUrl = _selectBestAudioUrl(manifest);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         debugPrint('[YouTubeAudioService] Resolved stream via VISIONOS for $videoId');
@@ -200,7 +229,7 @@ class YouTubeAudioService {
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
         ytClients: [kAndroidSdklessClient],
-      );
+      ).timeout(const Duration(seconds: 5));
       final streamUrl = _selectBestAudioUrl(manifest);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         debugPrint('[YouTubeAudioService] Resolved stream via androidSdkless for $videoId');
@@ -213,7 +242,8 @@ class YouTubeAudioService {
 
     // Fallback attempt 2: default getManifest client chain
     try {
-      final manifest = await _yt.videos.streamsClient.getManifest(videoId);
+      final manifest = await _yt.videos.streamsClient.getManifest(videoId)
+          .timeout(const Duration(seconds: 5));
       final streamUrl = _selectBestAudioUrl(manifest);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         debugPrint('[YouTubeAudioService] Resolved stream via default manifest for $videoId');

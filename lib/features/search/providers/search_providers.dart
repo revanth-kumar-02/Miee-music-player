@@ -11,7 +11,7 @@ final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   return repo;
 });
 
-/// Manages the debounced local and online search logic.
+/// Manages the debounced local and unified online search logic.
 class SearchNotifier extends StateNotifier<SearchState> {
   final SearchRepository _repo;
   final Ref _ref;
@@ -24,6 +24,11 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
   void _loadRecentSearches() {
     state = state.copyWith(recentSearches: _repo.getRecentSearches());
+  }
+
+  /// Sets the active category filter ('All', 'Songs', 'Artists', 'Albums').
+  void setFilter(String filter) {
+    state = state.copyWith(activeFilter: filter);
   }
 
   /// Updates search text query, running debounced suggestions (150ms) and searches (300ms).
@@ -41,8 +46,11 @@ class SearchNotifier extends StateNotifier<SearchState> {
         localArtists: const [],
         localPlaylists: const [],
         youtubeResults: const [],
+        onlineArtists: const [],
+        onlineAlbums: const [],
         isLocalLoading: false,
         isYouTubeLoading: false,
+        isArtistsLoading: false,
         errorMessage: null,
       );
       return;
@@ -52,6 +60,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
       query: query,
       isLocalLoading: true,
       isYouTubeLoading: true,
+      isArtistsLoading: true,
       errorMessage: null,
     );
 
@@ -85,6 +94,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
       query: query,
       isLocalLoading: true,
       isYouTubeLoading: true,
+      isArtistsLoading: true,
       errorMessage: null,
     );
 
@@ -93,7 +103,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
   }
 
   Future<void> _runSearch(String query) async {
-    // 1. Run Local Database Search (In-memory, synchronous feel)
+    // 1. Run Local Database Search (In-memory, instant)
     final library = _ref.read(mediaLibraryServiceProvider);
     final songs = _repo.localSearch.searchSongs(library.songs, query);
     final albums = _repo.localSearch.searchAlbums(library.albums, query);
@@ -110,7 +120,30 @@ class SearchNotifier extends StateNotifier<SearchState> {
       );
     }
 
-    // 2. Run YouTube Search (Network API)
+    // 2. Concurrently run Online Artists + Albums search
+    try {
+      final artists = await _repo.searchArtists(query);
+      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+        state = state.copyWith(
+          onlineArtists: artists,
+          isArtistsLoading: false,
+        );
+      }
+
+      // If artist matches exist, fetch albums
+      final onlineAlbums = await _repo.searchAlbums(query, matchedArtists: artists);
+      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+        state = state.copyWith(
+          onlineAlbums: onlineAlbums,
+        );
+      }
+    } catch (_) {
+      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+        state = state.copyWith(isArtistsLoading: false);
+      }
+    }
+
+    // 3. Run YouTube Song Search (Network API)
     try {
       final youtube = await _repo.searchYouTube(query);
       if (state.query.trim().toLowerCase() == query.toLowerCase()) {
@@ -166,7 +199,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
   }
 }
 
-/// riverpod state provider for unified search handling.
+/// Riverpod state provider for unified search handling.
 final searchNotifierProvider =
     StateNotifierProvider<SearchNotifier, SearchState>((ref) {
   final repo = ref.watch(searchRepositoryProvider);

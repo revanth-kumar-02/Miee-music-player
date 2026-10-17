@@ -4,7 +4,9 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../shared/models/music_item.dart';
+import '../../features/youtube/data/web_music_discovery_source.dart';
 import 'youtube_audio_service.dart';
+import 'playback_diagnostics.dart';
 
 /// Duration for fast-forward and rewind operations.
 const _kSkipDuration = Duration(seconds: 10);
@@ -30,8 +32,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   final List<MusicItem> _queue = [];
   int _currentIndex = -1;
 
-  /// Guards against concurrent _loadCurrentTrack calls for the same index.
-  bool _isLoading = false;
+  /// Monotonically increasing token to discard stale in-flight loads
+  /// when a user rapidly selects a different song.
+  int _activeLoadToken = 0;
 
   /// Controller to stream playback errors to PlayerController.
   final StreamController<String> _errorController =
@@ -93,10 +96,6 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       },
       onError: (Object e, StackTrace stack) async {
         debugPrint('[Playback] playbackEventStream error: $e');
-        if (_isLoading) {
-          debugPrint('[Playback] Already loading — skipping event-stream recovery');
-          return;
-        }
         if (_currentIndex >= 0 && _currentIndex < _queue.length) {
           final current = _queue[_currentIndex];
           if (current.isYoutube) {
@@ -124,6 +123,13 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       'processing=${playerState.processingState}',
     );
     _pushPlaybackState(playerState: playerState);
+
+    // Record confirmed playing latency metric
+    if (playerState.playing && playerState.processingState == ProcessingState.ready) {
+      if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+        PlaybackDiagnostics().recordConfirmedPlaying(_queue[_currentIndex].id);
+      }
+    }
 
     // Handle track completion — advance to next track.
     // NOTE: PlayerController must NOT also handle completed, as that causes double-skip.
@@ -253,88 +259,149 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Future<void> _loadCurrentTrack() async {
     if (_queue.isEmpty || _currentIndex < 0) return;
-    if (_isLoading) {
-      debugPrint('[AudioHandler] _loadCurrentTrack skipped — already loading');
-      return;
-    }
 
+    final token = ++_activeLoadToken;
     final track = _queue[_currentIndex];
-    debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id})');
+    debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id}, token=$token)');
+
+    // 1. Immediately update mediaItem and loading state for OS, lock screen, and UI
     mediaItem.add(_trackToMediaItem(track));
     _pushPlaybackState(playerState: PlayerState(false, ProcessingState.loading));
 
-    _isLoading = true;
     try {
       if (track.isYoutube) {
-        await _loadYouTubeTrack(track);
+        await _loadYouTubeTrack(track, token);
       } else {
-        await _loadLocalTrack(track);
+        await _loadLocalTrack(track, token);
       }
     } catch (e, stack) {
+      if (token != _activeLoadToken) {
+        debugPrint('[Playback] Ignoring error for superseded track (token $token vs $_activeLoadToken)');
+        return;
+      }
       debugPrint('[Playback] _loadCurrentTrack failed for "${track.title}": $e');
       if (kDebugMode) debugPrintStack(stackTrace: stack);
       playbackState.add(
         playbackState.value.copyWith(processingState: AudioProcessingState.error),
       );
       _errorController.add(e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      _isLoading = false;
     }
   }
 
   /// Loads a YouTube track with bounded retry (up to [_kMaxYouTubeRetries] fresh resolutions).
-  Future<void> _loadYouTubeTrack(MusicItem track) async {
-    final videoId = _extractYouTubeVideoId(track.id);
-    debugPrint('[AudioHandler] Loading YouTube track: videoId=$videoId ("${track.title}")');
+  Future<void> _loadYouTubeTrack(MusicItem track, int token) async {
+    // 1. If track already has a direct playable audio stream URL, load immediately
+    if (track.filePath.isNotEmpty &&
+        track.filePath.startsWith('http') &&
+        !track.filePath.contains('youtube.com/watch')) {
+      debugPrint('[AudioHandler] Playing direct audio stream URL for "${track.title}"');
+      PlaybackDiagnostics().recordPlayerLoadStart(track.id);
+      try {
+        await _setAudioSourceUrl(track.filePath);
+        if (token != _activeLoadToken) return;
+        PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: true);
+        debugPrint('[Playback] Direct stream loaded successfully for "${track.title}"');
+        return;
+      } catch (e) {
+        debugPrint('[Playback] Direct stream load error: $e, falling back to stream resolution');
+      }
+    }
 
+    final videoId = _extractYouTubeVideoId(track.id);
+    debugPrint('[AudioHandler] Loading YouTube track: videoId=$videoId ("${track.title}", token=$token)');
+
+    PlaybackDiagnostics().recordStreamResolutionStart(track.id);
     String? streamUrl =
         await YouTubeAudioService().getAudioStreamUrl(videoId);
+
+    if (token != _activeLoadToken) {
+      debugPrint('[AudioHandler] Discarding stale YouTube resolution for $videoId ($token vs $_activeLoadToken)');
+      return;
+    }
 
     if (streamUrl == null || streamUrl.isEmpty) {
       debugPrint('[AudioHandler] Initial resolution failed for $videoId, retrying fresh (attempt 2/2)');
       streamUrl = await YouTubeAudioService()
           .getAudioStreamUrl(videoId, forceRefresh: true);
+      if (token != _activeLoadToken) return;
+    }
+
+    // Web fallback: if YouTubeExplode stream resolution failed on Web (e.g. CORS), resolve via WebMusicDiscoverySource
+    if ((streamUrl == null || streamUrl.isEmpty) && kIsWeb) {
+      debugPrint('[AudioHandler] Falling back to WebMusicDiscoverySource for "${track.title}"');
+      streamUrl = await WebMusicDiscoverySource().resolveStreamForTrack(track.title, track.artist);
+      if (token != _activeLoadToken) return;
     }
 
     if (streamUrl == null || streamUrl.isEmpty) {
+      PlaybackDiagnostics().recordError(track.id, 'Unable to resolve audio stream');
       throw Exception('Unable to resolve audio stream for "${track.title}". Please try again.');
     }
 
+    PlaybackDiagnostics().recordPlayerLoadStart(track.id);
     try {
       await _setAudioSourceUrl(streamUrl);
+      if (token != _activeLoadToken) {
+        debugPrint('[AudioHandler] Discarding stale player load for $videoId ($token vs $_activeLoadToken)');
+        return;
+      }
+      PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: true);
       debugPrint('[Playback] YouTube audio source loaded successfully for $videoId');
     } on PlayerException catch (pe) {
+      if (token != _activeLoadToken) return;
       debugPrint('[Playback] PlayerException on first load (code=${pe.code}): ${pe.message}');
       debugPrint('[StreamCache] Invalidating and re-resolving for $videoId (retry 1/$_kMaxYouTubeRetries)');
       YouTubeAudioService().invalidateCache(videoId);
 
       final freshUrl = await YouTubeAudioService()
           .getAudioStreamUrl(videoId, forceRefresh: true);
+      if (token != _activeLoadToken) return;
 
       if (freshUrl != null && freshUrl.isNotEmpty) {
         await _setAudioSourceUrl(freshUrl);
+        if (token != _activeLoadToken) return;
+        PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: true);
         debugPrint('[Playback] YouTube audio source loaded on retry for $videoId');
       } else {
+        PlaybackDiagnostics().recordError(track.id, pe.message ?? 'PlayerException');
         throw Exception(
           'Playback failed for "${track.title}": ${pe.message ?? "network stream error"} (code ${pe.code})',
         );
       }
+    } catch (e) {
+      if (token != _activeLoadToken) return;
+      PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: false);
+      rethrow;
     }
   }
 
   /// Loads a local or remote non-YouTube source.
-  Future<void> _loadLocalTrack(MusicItem track) async {
+  Future<void> _loadLocalTrack(MusicItem track, int token) async {
+    PlaybackDiagnostics().recordPlayerLoadStart(track.id);
     final path = track.filePath;
-    if (!kIsWeb && path.isNotEmpty && !path.startsWith('http')) {
-      debugPrint('[Playback] Loading local file: $path');
-      await _player.setAudioSource(AudioSource.file(path));
-      debugPrint('[Playback] Local file loaded successfully');
-    } else if (path.isNotEmpty && path.startsWith('http')) {
-      debugPrint('[Playback] Loading remote URL: $path');
-      await _player.setUrl(path);
-      debugPrint('[Playback] Remote URL loaded successfully');
-    } else {
-      throw Exception('Track "${track.title}" has no valid file path or source');
+    try {
+      if (!kIsWeb && path.isNotEmpty && !path.startsWith('http')) {
+        debugPrint('[Playback] Loading local file: $path (token=$token)');
+        if (token != _activeLoadToken) return;
+        await _player.setAudioSource(AudioSource.file(path));
+        if (token != _activeLoadToken) return;
+        PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: true);
+        debugPrint('[Playback] Local file loaded successfully');
+      } else if (path.isNotEmpty && path.startsWith('http')) {
+        debugPrint('[Playback] Loading remote URL: $path (token=$token)');
+        if (token != _activeLoadToken) return;
+        await _player.setUrl(path);
+        if (token != _activeLoadToken) return;
+        PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: true);
+        debugPrint('[Playback] Remote URL loaded successfully');
+      } else {
+        PlaybackDiagnostics().recordError(track.id, 'No valid file path or source');
+        throw Exception('Track "${track.title}" has no valid file path or source');
+      }
+    } catch (e) {
+      if (token != _activeLoadToken) return;
+      PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: false);
+      rethrow;
     }
   }
 
@@ -472,6 +539,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     await _player.seek(position);
     debugPrint('[Playback] seek(${position.inSeconds}s)');
   }
+
+  Future<void> setVolume(double volume) async {
+    await _player.setVolume(volume.clamp(0.0, 1.0));
+  }
+
+  double get volume => _player.volume;
 
   @override
   Future<void> skipToNext() async {

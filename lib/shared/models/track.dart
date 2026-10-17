@@ -18,6 +18,12 @@ class Track implements MusicItem {
   final bool isPlaying;
   final bool isFavorited;
 
+  /// Original source title preserved for diagnostics and parser debugging.
+  final String? rawTitle;
+
+  /// Original source artist / author preserved for diagnostics.
+  final String? rawArtist;
+
   const Track({
     required this.id,
     required this.title,
@@ -28,6 +34,8 @@ class Track implements MusicItem {
     this.progress = 0.0,
     this.isPlaying = false,
     this.isFavorited = false,
+    this.rawTitle,
+    this.rawArtist,
   }) : localFilePath = filePath;
 
   @override

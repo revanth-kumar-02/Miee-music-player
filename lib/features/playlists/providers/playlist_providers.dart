@@ -122,16 +122,26 @@ class PlaylistController extends StateNotifier<PlaylistsState> {
 
   /// Loads all playlist tracks into [PlayerController] and starts playing.
   void playPlaylist(String playlistId) {
+    final playlist = _repo.getPlaylist(playlistId);
     final tracks = _repo.getPlaylistTracks(playlistId);
     if (tracks.isEmpty) return;
-    _ref.read(playerControllerProvider.notifier).selectTrack(tracks.first, tracks);
+    _ref.read(playerControllerProvider.notifier).selectTrack(
+          tracks.first,
+          tracks,
+          playingFrom: playlist?.name ?? 'Playlist',
+        );
   }
 
   /// Loads playlist tracks shuffled into [PlayerController].
   void shufflePlaylist(String playlistId) {
+    final playlist = _repo.getPlaylist(playlistId);
     final tracks = List<MusicItem>.from(_repo.getPlaylistTracks(playlistId))..shuffle();
     if (tracks.isEmpty) return;
-    _ref.read(playerControllerProvider.notifier).selectTrack(tracks.first, tracks);
+    _ref.read(playerControllerProvider.notifier).selectTrack(
+          tracks.first,
+          tracks,
+          playingFrom: playlist?.name ?? 'Playlist',
+        );
   }
 
 

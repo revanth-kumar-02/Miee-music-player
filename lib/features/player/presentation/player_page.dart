@@ -1,39 +1,46 @@
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_shadows.dart';
 import '../../../app/theme/app_spacing.dart';
-import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
-import '../../../shared/widgets/widgets.dart';
-import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/models/track.dart';
+import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../library/providers/library_providers.dart';
-// import '../../lyrics/presentation/widgets/lyrics_overlay.dart';
+import '../../../shared/widgets/waveform_widget.dart';
 
-// final showLyricsProvider = StateProvider.autoDispose<bool>((ref) => false);
-
-/// Miee Now Playing Screen.
-/// Observes active states (track details, position progress, buffering, playing status, and mode changes)
-/// from Riverpod PlayerController providers and updates views.
+/// Recreated Now Playing Screen matching the reference design:
+/// - Cocoa Plum background (#3A252B)
+/// - Top header with down chevron, "PLAYING FROM", and 3-dots menu
+/// - Prominent square album artwork with rounded corners
+/// - Song title (Playfair Display) + artist + heart action
+/// - Clean slider with Dusty Rose active track and timestamps
+/// - Playback controls with circular Dusty Rose play button
+/// - "Lyrics" pill at the bottom
 class PlayerPage extends ConsumerWidget {
   const PlayerPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
-    final isPlaying = ref.watch(playerControllerProvider.select((s) => s.status == PlaybackStatus.playing));
-    final isShuffleEnabled = ref.watch(playerControllerProvider.select((s) => s.isShuffleEnabled));
-    final repeatMode = ref.watch(playerControllerProvider.select((s) => s.repeatMode));
-    final status = ref.watch(playerControllerProvider.select((s) => s.status));
-    final errorMessage = ref.watch(playerControllerProvider.select((s) => s.errorMessage));
+    final playback = ref.watch(playerControllerProvider);
+    final currentTrack = playback.currentTrack;
+    final isPlaying = playback.status == PlaybackStatus.playing;
+    final isShuffleEnabled = playback.isShuffleEnabled;
+    final repeatMode = playback.repeatMode;
     final controller = ref.read(playerControllerProvider.notifier);
 
     final hasTrack = currentTrack != null;
+    final favorites = ref.watch(favoritesProvider);
+    final isLiked = hasTrack ? favorites.any((t) => t.id == currentTrack.id) : false;
 
-    // Format Duration Helper
+    final progress = (hasTrack && playback.duration.inMilliseconds > 0)
+        ? (playback.position.inMilliseconds / playback.duration.inMilliseconds)
+            .clamp(0.0, 1.0)
+        : 0.0;
+
     String formatDuration(Duration duration) {
       String twoDigits(int n) => n.toString().padLeft(2, '0');
       final minutes = duration.inMinutes;
@@ -41,316 +48,361 @@ class PlayerPage extends ConsumerWidget {
       return '$minutes:${twoDigits(seconds)}';
     }
 
-
     return Scaffold(
-      body: Stack(
-        children: [
-          // 1. Clean white minimalist background
-          Positioned.fill(
-            child: Container(
-              color: Colors.white,
-            ),
-          ),
-
-          // 2. Foreground content scaffold
-          Positioned.fill(
-            child: SafeArea(
+      backgroundColor: AppColors.cocoaPlum,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Now Playing Header AppBar
-                  AppHeader(
-                    title: 'Now Playing',
-                    titleWidget: Text(
-                      'NOW PLAYING',
-                      style: AppTypography.labelSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        color: AppColors.onSurfaceVariant,
-                      ),
+              // ── 1. Top Header Bar ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 28,
+                      color: AppColors.vanillaCream,
                     ),
-                    leading: IconButton(
-                      icon: const Icon(Icons.expand_more),
-                      onPressed: () => context.pop(),
-                      splashRadius: 20.0,
-                    ),
-                    actions: [
-                      // IconButton(
-                      //   icon: const Icon(Icons.lyrics_outlined),
-                      //   onPressed: hasTrack
-                      //       ? () => ref.read(showLyricsProvider.notifier).update((s) => !s)
-                      //       : null,
-                      //   splashRadius: 20.0,
-                      // ),
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSpacing.sm),
-                        child: IconButton(
-                          icon: const Icon(Icons.queue_music),
-                          onPressed: hasTrack ? () => context.push('/queue') : null,
-                          splashRadius: 20.0,
-                        ),
-                      ),
-                    ],
+                    onPressed: () => context.pop(),
                   ),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'PLAYING FROM',
+                          style: GoogleFonts.geist(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                            color: AppColors.softClay.withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          playback.playingFrom ?? 'Now Playing',
+                          style: GoogleFonts.geist(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.vanillaCream,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
 
-                  // Main content column
+              const Spacer(flex: 1),
+
+              // ── 2. Prominent Square Album Artwork ──
+              Center(
+                child: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(maxWidth: 320, maxHeight: 320),
+                  child: AspectRatio(
+                    aspectRatio: 1.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.35),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: hasTrack
+                            ? Image.network(
+                                currentTrack.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: AppColors.softClay,
+                                  child: const Icon(
+                                    Icons.music_note_rounded,
+                                    size: 80,
+                                    color: AppColors.cocoaPlum,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: AppColors.softClay,
+                                child: const Icon(
+                                  Icons.music_note_rounded,
+                                  size: 80,
+                                  color: AppColors.cocoaPlum,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const Spacer(flex: 1),
+
+              // ── 3. Title & Artist + Like and Overflow Buttons ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: IconButton(
+                      icon: Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border,
+                        size: 24,
+                        color: isLiked
+                            ? AppColors.dustyRose
+                            : AppColors.vanillaCream,
+                      ),
+                      onPressed: hasTrack
+                          ? () {
+                              final favNotifier =
+                                  ref.read(favoritesProvider.notifier);
+                              if (isLiked) {
+                                favNotifier.removeFavorite(currentTrack.id);
+                              } else {
+                                favNotifier.addFavorite(
+                                Track(
+                                  id: currentTrack.id,
+                                  title: currentTrack.title,
+                                  artist: currentTrack.artist,
+                                  imageUrl: currentTrack.imageUrl,
+                                  duration: currentTrack.duration,
+                                  filePath: currentTrack.filePath,
+                                ),
+                              );
+                              }
+                            }
+                          : null,
+                    ),
+                  ),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.marginMobile,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Large album cover artwork centered
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final artworkSize = constraints.maxWidth * 0.8;
-                              if (!hasTrack) {
-                                return Center(
-                                  child: Container(
-                                    width: artworkSize,
-                                    height: artworkSize,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.surfaceContainerHigh,
-                                      borderRadius: BorderRadius.circular(32.0),
-                                      boxShadow: AppShadows.shadowHigh,
-                                    ),
-                                    child: Icon(
-                                      Icons.music_note,
-                                      size: artworkSize * 0.4,
-                                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              return Center(
-                                child: AlbumArtwork(
-                                  imageUrl: currentTrack.imageUrl,
-                                  size: artworkSize,
-                                  borderRadius: BorderRadius.circular(32.0),
-                                  hasShadow: true,
-                                ),
-                              );
-                            },
+                          Text(
+                            hasTrack ? currentTrack.title : 'No track selected',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.vanillaCream,
+                            ),
                           ),
-
-                          // Song Information flanked by favorite and options buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Consumer(
-                                builder: (context, ref, child) {
-                                  if (!hasTrack) {
-                                    return IconButton(
-                                      icon: const Icon(Icons.favorite_border),
-                                      color: AppColors.onSurfaceVariant,
-                                      onPressed: null,
-                                      splashRadius: 20.0,
-                                    );
-                                  }
-                                  final isFav = ref.watch(
-                                    favoritesProvider.select((list) => list.any((t) => t.id == currentTrack.id)),
-                                  );
-                                  return IconButton(
-                                    icon: Icon(isFav ? Icons.favorite : Icons.favorite_border),
-                                    color: isFav ? AppColors.primary : AppColors.onSurfaceVariant,
-                                    onPressed: () async {
-                                      final notifier = ref.read(favoritesProvider.notifier);
-                                      if (isFav) {
-                                        await notifier.removeFavorite(currentTrack.id);
-                                      } else {
-                                        final track = Track(
-                                          id: currentTrack.id,
-                                          title: currentTrack.title,
-                                          artist: currentTrack.artist,
-                                          imageUrl: currentTrack.imageUrl,
-                                          duration: currentTrack.duration,
-                                          filePath: currentTrack.filePath,
-                                        );
-                                        await notifier.addFavorite(track);
-                                      }
-                                    },
-                                    splashRadius: 20.0,
-                                  );
-                                },
-                              ),
-                              Expanded(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (status == PlaybackStatus.error && errorMessage != null) ...[
-                                      Text(
-                                        'Playback Error',
-                                        style: AppTypography.labelSmall.copyWith(
-                                          color: AppColors.error,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.0,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4.0),
-                                      Text(
-                                        errorMessage,
-                                        style: AppTypography.bodyMedium.copyWith(
-                                          color: AppColors.onSurfaceVariant,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ] else ...[
-                                      Text(
-                                        hasTrack ? currentTrack.title : 'No song selected',
-                                        style: AppTypography.headlineLargeMobile.copyWith(
-                                          color: AppColors.onSurface,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      AppSpacing.heightXs,
-                                      Text(
-                                        hasTrack ? currentTrack.artist : '—',
-                                        style: AppTypography.bodyMedium.copyWith(
-                                          color: AppColors.onSurfaceVariant,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.more_horiz),
-                                color: AppColors.onSurfaceVariant,
-                                onPressed: hasTrack
-                                    ? () => showAddToPlaylistSheet(
-                                          context,
-                                          currentTrack,
-                                        )
-                                    : null,
-                                splashRadius: 20.0,
-                              ),
-                            ],
-                          ),
-
-                           // ── Symmetrical Waveform Progress ──
-                          Consumer(
-                            builder: (context, ref, child) {
-                              final state = ref.watch(playerControllerProvider);
-                              final currentPosition = hasTrack
-                                  ? state.position
-                                  : Duration.zero;
-                              final totalDuration = hasTrack
-                                  ? state.duration
-                                  : Duration.zero;
-                              final isPlaying =
-                                  state.status == PlaybackStatus.playing;
-
-                              final progress = totalDuration.inMilliseconds > 0
-                                  ? (currentPosition.inMilliseconds /
-                                          totalDuration.inMilliseconds)
-                                      .clamp(0.0, 1.0)
-                                  : 0.0;
-
-                              return Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Symmetrical Waveform progress tracker
-                                  Center(
-                                    child: Container(
-                                      constraints: const BoxConstraints(maxWidth: 320.0),
-                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                      child: WaveformWidget(
-                                        isPlaying: isPlaying,
-                                        activeProgress: progress,
-                                        onScrub: hasTrack
-                                            ? (frac) {
-                                                final seekPos = Duration(
-                                                  milliseconds: (frac *
-                                                          totalDuration
-                                                              .inMilliseconds)
-                                                      .toInt(),
-                                                );
-                                                controller.seek(seekPos);
-                                              }
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12.0),
-                                  // Duration timestamps
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        formatDuration(currentPosition),
-                                        style: AppTypography.labelSmall,
-                                      ),
-                                      Text(
-                                        formatDuration(totalDuration),
-                                        style: AppTypography.labelSmall,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-
-                          // Playback circular control rows
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm),
-                            child: PlaybackControls(
-                              isPlaying: isPlaying,
-                              isShuffleActive: isShuffleEnabled,
-                              isRepeatActive: repeatMode != RepeatMode.off,
-                              onPlayPauseTap: hasTrack
-                                  ? () {
-                                      if (isPlaying) {
-                                        controller.pause();
-                                      } else {
-                                        controller.play();
-                                      }
-                                    }
-                                  : null,
-                              onPrevTap: hasTrack ? controller.previous : null,
-                              onNextTap: hasTrack ? controller.next : null,
-                              onShuffleTap: hasTrack ? controller.toggleShuffle : null,
-                              onRepeatTap: hasTrack ? controller.toggleRepeatMode : null,
+                          const SizedBox(height: 4),
+                          Text(
+                            hasTrack
+                                ? currentTrack.artist
+                                : 'Select a song to play',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.geist(
+                              fontSize: 14,
+                              color: AppColors.softClay.withOpacity(0.85),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-
-                  // Bottom padding spacer above device safe areas
-                  AppSpacing.heightLg,
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.more_horiz,
+                        size: 24,
+                        color: AppColors.vanillaCream,
+                      ),
+                      onPressed: hasTrack
+                          ? () => showAddToPlaylistSheet(context, currentTrack)
+                          : null,
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ),
 
-          // 3. Lyrics Overlay layer
-          // Consumer(
-          //   builder: (context, ref, child) {
-          //     final showLyrics = ref.watch(showLyricsProvider);
-          //     if (!showLyrics || !hasTrack) return const SizedBox.shrink();
-          //     return Positioned.fill(
-          //       child: LyricsOverlay(
-          //         track: currentTrack,
-          //         onClose: () => ref.read(showLyricsProvider.notifier).state = false,
-          //       ),
-          //     );
-          //   },
-          // ),
-        ],
+              const SizedBox(height: 16),
+
+              // ── 4. Signature Interactive Waveform & Timestamps ──
+              Center(
+                child: SizedBox(
+                  width: 260.0,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      WaveformWidget(
+                        height: 38.0,
+                        isPlaying: isPlaying,
+                        activeProgress: progress,
+                        activeColor: AppColors.dustyRose,
+                        inactiveColor: AppColors.white.withOpacity(0.2),
+                        onScrub: hasTrack
+                            ? (val) {
+                                final seekPos = Duration(
+                                  milliseconds: (val *
+                                          playback.duration.inMilliseconds)
+                                      .toInt(),
+                                );
+                                controller.seek(seekPos);
+                              }
+                            : null,
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            hasTrack
+                                ? formatDuration(playback.position)
+                                : '0:00',
+                            style: GoogleFonts.geist(
+                              fontSize: 11,
+                              color: AppColors.vanillaCream.withOpacity(0.65),
+                            ),
+                          ),
+                          Text(
+                            hasTrack
+                                ? formatDuration(playback.duration)
+                                : '0:00',
+                            style: GoogleFonts.geist(
+                              fontSize: 11,
+                              color: AppColors.vanillaCream.withOpacity(0.65),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ── 5. Playback Controls Row ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shuffle_rounded),
+                    iconSize: 22,
+                    color: isShuffleEnabled
+                        ? AppColors.dustyRose
+                        : AppColors.vanillaCream.withOpacity(0.6),
+                    onPressed: () => controller.toggleShuffle(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous_rounded),
+                    iconSize: 32,
+                    color: AppColors.vanillaCream,
+                    onPressed: () => controller.previous(),
+                  ),
+
+                  // Large Circular Dusty Rose Play Button
+                  Material(
+                    color: AppColors.dustyRose,
+                    shape: const CircleBorder(),
+                    elevation: 4,
+                    shadowColor: AppColors.dustyRose.withOpacity(0.5),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () {
+                        if (isPlaying) {
+                          controller.pause();
+                        } else {
+                          controller.play();
+                        }
+                      },
+                      child: Container(
+                        width: 58,
+                        height: 58,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          size: 34,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  IconButton(
+                    icon: const Icon(Icons.skip_next_rounded),
+                    iconSize: 32,
+                    color: AppColors.vanillaCream,
+                    onPressed: () => controller.next(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.repeat_rounded),
+                    iconSize: 22,
+                    color: repeatMode != RepeatMode.off
+                        ? AppColors.dustyRose
+                        : AppColors.vanillaCream.withOpacity(0.6),
+                    onPressed: () => controller.toggleRepeatMode(),
+                  ),
+                ],
+              ),
+
+              const Spacer(flex: 1),
+
+              // ── 6. Bottom "Lyrics" Pill ──
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.lyrics_outlined,
+                      size: 16,
+                      color: AppColors.vanillaCream,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Lyrics',
+                      style: GoogleFonts.geist(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.vanillaCream,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

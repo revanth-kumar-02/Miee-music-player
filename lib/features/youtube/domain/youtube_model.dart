@@ -13,6 +13,9 @@ class YouTubeVideo implements MusicItem {
   @override
   final String duration; // e.g. "3:45"
   final String viewCount; // e.g. "124K views" or "1.2M views"
+  final String? rawTitle;
+  final String? rawChannelTitle;
+  final String? audioStreamUrl;
 
   const YouTubeVideo({
     required this.id,
@@ -21,6 +24,9 @@ class YouTubeVideo implements MusicItem {
     required this.thumbnailUrl,
     required this.duration,
     required this.viewCount,
+    this.rawTitle,
+    this.rawChannelTitle,
+    this.audioStreamUrl,
   });
 
   /// The standard watch page URL for this video.
@@ -36,17 +42,19 @@ class YouTubeVideo implements MusicItem {
   String get imageUrl => thumbnailUrl;
 
   @override
-  String get filePath => videoUrl;
+  String get filePath => audioStreamUrl ?? videoUrl;
 
   @override
-  bool get isYoutube => true;
+  bool get isYoutube => audioStreamUrl == null || !audioStreamUrl!.startsWith('http') || audioStreamUrl!.contains('youtube.com');
 
   /// Converts this YouTube result into a standard [Track] model so it can be
   /// played or queued by Miee's playback engine.
-  Track toTrack() {
+  Track toTrack({String? reliableArtist, String? reliableTitle}) {
     final cleaned = YouTubeMetadataCleaner.clean(
-      rawTitle: title,
-      rawChannel: channelTitle,
+      rawTitle: rawTitle ?? title,
+      rawChannel: rawChannelTitle ?? channelTitle,
+      reliableArtist: reliableArtist,
+      reliableTitle: reliableTitle,
     );
     return Track(
       id: 'youtube_$id',
@@ -54,8 +62,10 @@ class YouTubeVideo implements MusicItem {
       artist: cleaned.artist,
       imageUrl: thumbnailUrl,
       duration: duration,
-      filePath: videoUrl, // Playback engine will recognize this is a YouTube stream URL
+      filePath: audioStreamUrl ?? videoUrl, // Playback engine will recognize direct audio stream or YouTube URL
       isFavorited: false,
+      rawTitle: rawTitle ?? title,
+      rawArtist: rawChannelTitle ?? channelTitle,
     );
   }
 }

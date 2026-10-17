@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/media_repository_impl.dart';
 import '../domain/media_repository.dart';
@@ -69,6 +70,10 @@ class MediaLibraryService extends StateNotifier<MediaLibraryState> {
 
   /// Request permissions and scan the local device for music folders and files.
   Future<void> scanDevice({bool forceRefresh = false}) async {
+    if (kIsWeb) {
+      state = state.copyWith(isLoading: false, hasPermission: true);
+      return;
+    }
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {

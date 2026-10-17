@@ -31,6 +31,7 @@ class AuthState {
 }
 
 class AuthController extends StateNotifier<AuthState> {
+  // ignore: unused_field
   final Ref _ref;
 
   AuthController(this._ref) : super(const AuthState()) {
@@ -41,7 +42,7 @@ class AuthController extends StateNotifier<AuthState> {
     if (SupabaseConfig.hasActiveSupabase) {
       final client = Supabase.instance.client;
       state = AuthState(user: client.auth.currentUser);
-      
+
       client.auth.onAuthStateChange.listen((data) {
         state = state.copyWith(user: data.session?.user);
       });
@@ -72,7 +73,7 @@ class AuthController extends StateNotifier<AuthState> {
         return true;
       } else {
         // Mock offline sign in
-        state = AuthState(
+        state = const AuthState(
           isOfflineMock: true,
           user: null,
         );
@@ -97,7 +98,7 @@ class AuthController extends StateNotifier<AuthState> {
         state = AuthState(user: response.user);
         return true;
       } else {
-        state = AuthState(
+        state = const AuthState(
           isOfflineMock: true,
           user: null,
         );
@@ -122,6 +123,7 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
+final authControllerProvider =
+    StateNotifierProvider<AuthController, AuthState>((ref) {
   return AuthController(ref);
 });

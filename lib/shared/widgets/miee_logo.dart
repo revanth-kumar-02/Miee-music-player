@@ -238,6 +238,112 @@ class _MieeCompactPainter extends CustomPainter {
 
   double _deg(double degrees) => degrees * (3.141592653589793 / 180.0);
 
-  @override
+    @override
   bool shouldRepaint(_MieeCompactPainter old) => old.color != color;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reference Design Logo with Signature Music-Wave Symbol
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Signature Miee diagonal music-wave ribbon mark (Dusty Rose).
+class MieeWaveSymbol extends StatelessWidget {
+  final double size;
+  final Color? color;
+
+  const MieeWaveSymbol({
+    super.key,
+    this.size = 28,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size * 1.15,
+      height: size,
+      child: CustomPaint(
+        painter: _MieeWavePainter(
+          color: color ?? const Color(0xFFD78D9B), // Dusty Rose
+        ),
+      ),
+    );
+  }
+}
+
+class _MieeWavePainter extends CustomPainter {
+  final Color color;
+  _MieeWavePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = (h * 0.14).clamp(2.5, 5.0);
+
+    final path = Path();
+    // Flowing diagonal sound-wave ribbon
+    path.moveTo(w * 0.12, h * 0.80);
+    path.cubicTo(w * 0.18, h * 0.50, w * 0.24, h * 0.18, w * 0.34, h * 0.18);
+    path.cubicTo(w * 0.42, h * 0.18, w * 0.36, h * 0.82, w * 0.46, h * 0.82);
+    path.cubicTo(w * 0.54, h * 0.82, w * 0.58, h * 0.18, w * 0.68, h * 0.18);
+    path.cubicTo(w * 0.76, h * 0.18, w * 0.72, h * 0.82, w * 0.82, h * 0.82);
+    path.cubicTo(w * 0.88, h * 0.82, w * 0.94, h * 0.55, w * 0.98, h * 0.45);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_MieeWavePainter old) => old.color != color;
+}
+
+/// The complete Miee logo combining the signature music-wave symbol and "miee" serif wordmark.
+class MieeReferenceLogo extends StatelessWidget {
+  final double symbolSize;
+  final double fontSize;
+  final Color? symbolColor;
+  final Color? textColor;
+  final bool isDarkBackground;
+
+  const MieeReferenceLogo({
+    super.key,
+    this.symbolSize = 28,
+    this.fontSize = 24,
+    this.symbolColor,
+    this.textColor,
+    this.isDarkBackground = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sColor = symbolColor ?? const Color(0xFFD78D9B); // Dusty Rose
+    final tColor = textColor ??
+        (isDarkBackground ? const Color(0xFFF8F1E8) : const Color(0xFF3A252B));
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        MieeWaveSymbol(size: symbolSize, color: sColor),
+        const SizedBox(width: 8),
+        Text(
+          'miee',
+          style: TextStyle(
+            fontFamily: 'Playfair Display',
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+            color: tColor,
+          ),
+        ),
+      ],
+    );
+  }
+}
+

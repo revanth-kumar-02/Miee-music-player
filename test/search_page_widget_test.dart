@@ -8,9 +8,19 @@ import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/core/audio/providers.dart';
 import 'package:Miee/core/audio/playback_state.dart';
 import 'package:Miee/core/audio/player_controller.dart';
+import 'package:Miee/shared/models/track.dart';
+import 'package:Miee/features/library/providers/library_providers.dart';
+import 'package:Miee/features/media/providers/media_providers.dart';
 
 class MockPlayerController extends StateNotifier<PlaybackState> implements PlayerController {
   MockPlayerController() : super(PlaybackState.initial());
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class MockFavoritesNotifier extends StateNotifier<List<Track>> implements FavoritesNotifier {
+  MockFavoritesNotifier() : super([]);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -31,6 +41,10 @@ void main() {
       ProviderScope(
         overrides: [
           playerControllerProvider.overrideWith((ref) => MockPlayerController()),
+          favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+          songsProvider.overrideWith((ref) => []),
+          artistsProvider.overrideWith((ref) => []),
+          albumsProvider.overrideWith((ref) => []),
           searchNotifierProvider.overrideWith((ref) => MockSearchNotifier(
                 const SearchState(
                   query: 'Imagine Dragons Believer',
@@ -60,6 +74,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          playerControllerProvider.overrideWith((ref) => MockPlayerController()),
+          favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+          songsProvider.overrideWith((ref) => []),
+          artistsProvider.overrideWith((ref) => []),
+          albumsProvider.overrideWith((ref) => []),
           searchNotifierProvider.overrideWith((ref) => MockSearchNotifier(
                 const SearchState(
                   query: 'Imagine Dragons Believer',
@@ -84,6 +103,9 @@ void main() {
 
 class MockSearchNotifier extends StateNotifier<SearchState> implements SearchNotifier {
   MockSearchNotifier(super.state);
+
+  @override
+  void setFilter(String filter) {}
 
   @override
   void updateQuery(String query) {}

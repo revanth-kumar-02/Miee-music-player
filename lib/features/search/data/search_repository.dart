@@ -1,15 +1,26 @@
-import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../../../core/storage/hive_boxes.dart';
+import '../domain/search_deduplicator.dart';
+import '../../onboarding/data/artist_discovery_repository.dart';
+import '../../onboarding/domain/artist_model.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/data/youtube_repository.dart';
 import 'local_search_service.dart';
 
 /// Central search repository orchestrating local fuzzy matches, YouTube API queries,
-/// search suggestions, and persistent search history in Hive.
+/// online artist discovery, suggestions, and persistent search history in Hive.
 class SearchRepository {
-  final LocalSearchService localSearch = LocalSearchService();
-  final YouTubeRepository youtubeRepository = YouTubeRepository();
+  final LocalSearchService localSearch;
+  final YouTubeRepository youtubeRepository;
+  final ArtistRepository artistRepository;
+
+  SearchRepository({
+    LocalSearchService? localSearch,
+    YouTubeRepository? youtubeRepository,
+    ArtistRepository? artistRepository,
+  })  : localSearch = localSearch ?? LocalSearchService(),
+        youtubeRepository = youtubeRepository ?? YouTubeRepository(),
+        artistRepository = artistRepository ?? DeezerArtistRepository();
 
   static const String _prefKey = 'youtube_search_history';
   static const int _maxHistory = 10;
@@ -58,9 +69,39 @@ class SearchRepository {
     await _box.delete(_prefKey);
   }
 
-  /// Performs online YouTube query using official YouTube Data API v3.
+  /// Performs online YouTube query and applies canonical-song deduplication and ranking.
   Future<List<YouTubeVideo>> searchYouTube(String query) async {
-    return youtubeRepository.search(query);
+    final rawVideos = await youtubeRepository.search(query);
+    return SearchDeduplicator.deduplicateAndRank(rawVideos, query: query);
+  }
+
+  /// Searches verified online artists via Deezer / curated catalog.
+  Future<List<ArtistModel>> searchArtists(String query) async {
+    return artistRepository.searchArtists(query);
+  }
+
+  /// Searches verified online albums for matching artist entities.
+  Future<List<ArtistAlbum>> searchAlbums(String query, {List<ArtistModel>? matchedArtists}) async {
+    final cleanQuery = query.trim().toLowerCase();
+    final artists = (matchedArtists != null && matchedArtists.isNotEmpty)
+        ? matchedArtists
+        : await artistRepository.searchArtists(cleanQuery);
+
+    final resultAlbums = <ArtistAlbum>[];
+    final seenAlbumTitles = <String>{};
+
+    for (final artist in artists.take(2)) {
+      try {
+        final albums = await artistRepository.getArtistAlbums(artist.id);
+        for (final alb in albums) {
+          if (seenAlbumTitles.add(alb.title.toLowerCase())) {
+            resultAlbums.add(alb);
+          }
+        }
+      } catch (_) {}
+    }
+
+    return resultAlbums;
   }
 
   /// Fetches auto-complete suggestions from history and online provider.

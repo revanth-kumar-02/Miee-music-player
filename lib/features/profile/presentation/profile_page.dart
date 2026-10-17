@@ -8,9 +8,6 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../shared/widgets/profile_avatar.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../library/providers/library_providers.dart';
-import '../../media/providers/media_providers.dart';
-import '../../../../core/audio/providers.dart';
-import '../../../../core/audio/playback_state.dart';
 import '../../../../core/storage/adapters/history_entry.dart';
 import '../../../../core/sync/sync_state.dart';
 import '../../../../core/sync/sync_manager.dart';
@@ -35,7 +32,6 @@ class ProfilePage extends ConsumerWidget {
     final syncManager = ref.read(syncManagerProvider);
 
     // Watch dynamic data for listening statistics calculation
-    final localSongs = ref.watch(songsProvider);
     final playlists = ref.watch(userPlaylistsProvider);
     final favorites = ref.watch(favoritesProvider);
     final recentlyPlayedAsync = ref.watch(recentlyPlayedProvider);
@@ -66,13 +62,10 @@ class ProfilePage extends ConsumerWidget {
           splashRadius: 20.0,
         ),
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              bottom: false,
-              child: SingleChildScrollView(
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -282,77 +275,12 @@ class ProfilePage extends ConsumerWidget {
                   ],
                 ),
               ),
-              SizedBox(height: 160.0 + bottomInset),
+              SizedBox(height: 100.0 + bottomInset),
             ],
           ),
         ),
       ),
-    ),
-      Positioned(
-        left: AppSpacing.marginMobile,
-        right: AppSpacing.marginMobile,
-        bottom: 80.0 + bottomInset + AppSpacing.sm,
-        child: Consumer(
-          builder: (context, ref, child) {
-            final playbackState = ref.watch(playerControllerProvider);
-            final controller = ref.read(playerControllerProvider.notifier);
-            final currentTrack = playbackState.currentTrack;
-
-            if (currentTrack == null) {
-              return const SizedBox.shrink();
-            }
-
-            final isPlaying = playbackState.status == PlaybackStatus.playing;
-            final total = playbackState.duration.inMilliseconds;
-            final pos = playbackState.position.inMilliseconds;
-            final progress = total > 0 ? pos / total : 0.0;
-
-            return MiniPlayer(
-              musicItem: currentTrack,
-              progress: progress,
-              isPlaying: isPlaying,
-              isFavorited: favorites.any((t) => t.id == currentTrack.id),
-              isDark: true, // Black backing color matches Stitch HTML design
-              onTap: () => context.push('/player'),
-              onPlayPauseTap: () {
-                if (isPlaying) {
-                  controller.pause();
-                } else {
-                  controller.play();
-                }
-              },
-              onFavoriteTap: () {},
-            );
-          },
-        ),
-      ),
-      Positioned(
-        left: 0,
-        right: 0,
-        bottom: 0,
-        child: BottomNavigation(
-          currentIndex: 3, // Setting/Profile is tab 3
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                context.go('/home');
-                break;
-              case 1:
-                context.go('/search');
-                break;
-              case 2:
-                context.go('/playlists');
-                break;
-              case 3:
-                context.go('/settings');
-                break;
-            }
-          },
-        ),
-      ),
-    ],
-  ),
-);
+    );
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {

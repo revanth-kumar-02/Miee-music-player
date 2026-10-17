@@ -14,7 +14,7 @@
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true">
 
-        <service android:name="com.ryanheise.audioservice.AudioServiceService"
+        <service android:name="com.ryanheise.audioservice.AudioService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="true">
             <intent-filter>

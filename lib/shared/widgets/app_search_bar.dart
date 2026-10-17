@@ -1,36 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_radius.dart';
-import '../../app/theme/app_shadows.dart';
-import '../../app/theme/app_spacing.dart';
-import '../../app/theme/app_typography.dart';
 
-/// Reusable Search Bar input.
-/// Handles active focus states internally to transition color backings and outline borders.
+/// Reusable Search Bar input styled for Miee's reference design.
+/// Clean white/cream pill container with search icon, clear button, and refined typography.
 class AppSearchBar extends StatefulWidget {
-  /// Optional text editing controller.
   final TextEditingController? controller;
-
-  /// Callback when query changes.
   final ValueChanged<String>? onChanged;
-
-  /// Placeholder hint text. Defaults to "Artists, songs, or podcasts".
   final String placeholder;
-
-  /// Callback when search field is clicked.
   final VoidCallback? onTap;
-
-  /// Optional focus node.
   final FocusNode? focusNode;
-
-  /// Callback when the user submits the search (keyboard done / enter).
   final ValueChanged<String>? onSubmitted;
 
   const AppSearchBar({
     super.key,
     this.controller,
     this.onChanged,
-    this.placeholder = 'Artists, songs, or podcasts',
+    this.placeholder = 'Search songs, artists, albums...',
     this.onTap,
     this.focusNode,
     this.onSubmitted,
@@ -69,50 +55,74 @@ class _AppSearchBarState extends State<AppSearchBar> {
 
   @override
   Widget build(BuildContext context) {
+    final hasText = widget.controller?.text.isNotEmpty ?? false;
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      height: 56.0,
+      duration: const Duration(milliseconds: 180),
+      height: 46.0,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _hasFocus
-            ? AppColors.surfaceContainerLowest
-            : AppColors.surfaceContainerHighest,
-        borderRadius: AppRadius.radiusFull,
-        border: _hasFocus
-            ? Border.all(color: AppColors.primary, width: 2.0)
-            : null,
-        boxShadow: _hasFocus ? AppShadows.shadowLow : null,
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24.0),
+        border: Border.all(
+          color: _hasFocus ? AppColors.cocoaPlum : AppColors.oatBeige,
+          width: _hasFocus ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.cocoaPlum.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: 14.0),
       child: Row(
         children: [
-          Icon(
-            Icons.search,
-            color: _hasFocus ? AppColors.onSurface : AppColors.outline,
+          const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: AppColors.mutedMauve,
           ),
-          AppSpacing.widthSm,
+          const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: widget.controller,
               focusNode: _effectiveFocusNode,
-              onChanged: widget.onChanged,
+              onChanged: (text) {
+                setState(() {});
+                widget.onChanged?.call(text);
+              },
               onTap: widget.onTap,
               onSubmitted: widget.onSubmitted,
               textInputAction: TextInputAction.search,
-              style: AppTypography.bodyMedium.copyWith(
-                color: AppColors.onSurface,
+              style: GoogleFonts.geist(
+                fontSize: 14,
+                color: AppColors.cocoaPlum,
               ),
               decoration: InputDecoration(
                 hintText: widget.placeholder,
-                hintStyle: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.onSurfaceVariant,
+                hintStyle: GoogleFonts.geist(
+                  fontSize: 13.5,
+                  color: AppColors.mutedMauve.withOpacity(0.8),
                 ),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
+          if (hasText)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: AppColors.mutedMauve,
+              splashRadius: 16,
+              onPressed: () {
+                widget.controller?.clear();
+                widget.onChanged?.call('');
+                setState(() {});
+              },
+            ),
         ],
       ),
     );

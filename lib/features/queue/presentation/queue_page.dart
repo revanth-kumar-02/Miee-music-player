@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,9 +7,8 @@ import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/playback_state.dart';
-import '../../../core/audio/providers.dart';
 import '../../../core/audio/player_controller.dart';
-import '../../../shared/models/track.dart';
+import '../../../core/audio/providers.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
 
@@ -39,9 +37,9 @@ class QueuePage extends ConsumerWidget {
         ? queueList.sublist(activeIndex + 1)
         : queueList;
 
-    // Simulated Now Playing background cover URL
-    final simulatedCoverUrl = currentTrack?.imageUrl ??
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuDAC6tJm3nZhSGqIOKjl0S003HV0Gn0UHctE2JMK_FEyKgZQX7CFOVHTG2cB9YFtr1yCUcSOirzoTdENtI5zCzxWKkmrIiZo7yqJAWYmHDpYTbnHm538CqwSvnSa7bJb2DpfFRNfKh317H4LJT4Z0DHjPVfR7ENuErZAQe577iwgx8sVRSQzdr5Xn5RJR6bNhNItA9sGOkN1gGzrnLECKATtkuGvxKDY0I4OZ4rMwJX_KtVETCA6xW7-QIRueuaXtsKb0ge6IZumSYY';
+    // Real Now Playing background cover URL
+    final coverUrl = currentTrack?.imageUrl;
+    final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty;
 
     return Scaffold(
       body: Stack(
@@ -58,15 +56,9 @@ class QueuePage extends ConsumerWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12.0),
-                        child: simulatedCoverUrl.startsWith('http')
+                        child: hasValidCover && coverUrl.startsWith('http')
                             ? Image.network(
-                                simulatedCoverUrl,
-                                width: 256.0,
-                                height: 256.0,
-                                fit: BoxFit.cover,
-                              )
-                            : Image.file(
-                                File(simulatedCoverUrl),
+                                coverUrl,
                                 width: 256.0,
                                 height: 256.0,
                                 fit: BoxFit.cover,
@@ -79,6 +71,16 @@ class QueuePage extends ConsumerWidget {
                                     color: AppColors.onSurfaceVariant,
                                     size: 64.0,
                                   ),
+                                ),
+                              )
+                            : Container(
+                                width: 256.0,
+                                height: 256.0,
+                                color: AppColors.surfaceContainerHigh,
+                                child: const Icon(
+                                  Icons.music_note,
+                                  color: AppColors.onSurfaceVariant,
+                                  size: 64.0,
                                 ),
                               ),
                       ),

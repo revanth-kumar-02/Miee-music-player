@@ -50,8 +50,8 @@ class PlaybackControls extends StatelessWidget {
           icon: Icon(
             Icons.shuffle,
             color: onShuffleTap == null
-                ? AppColors.onSurfaceVariant.withOpacity(0.3)
-                : (isShuffleActive ? AppColors.accentIndigo : AppColors.onSurfaceVariant),
+                ? AppColors.onBackground.withOpacity(0.3)
+                : (isShuffleActive ? AppColors.accentIndigo : AppColors.onBackground),
             size: 24.0,
           ),
           onPressed: onShuffleTap,
@@ -78,7 +78,7 @@ class PlaybackControls extends StatelessWidget {
             decoration: BoxDecoration(
               color: onPlayPauseTap == null
                   ? AppColors.surfaceContainerHigh
-                  : AppColors.inverseSurface, // `#313030`
+                  : AppColors.inverseSurface,
               shape: BoxShape.circle,
               boxShadow: onPlayPauseTap == null
                   ? null
@@ -116,8 +116,8 @@ class PlaybackControls extends StatelessWidget {
           icon: Icon(
             Icons.repeat,
             color: onRepeatTap == null
-                ? AppColors.onSurfaceVariant.withOpacity(0.3)
-                : (isRepeatActive ? AppColors.accentIndigo : AppColors.onSurfaceVariant),
+                ? AppColors.onBackground.withOpacity(0.3)
+                : (isRepeatActive ? AppColors.accentIndigo : AppColors.onBackground),
             size: 24.0,
           ),
           onPressed: onRepeatTap,

@@ -2,21 +2,28 @@ import 'package:flutter/foundation.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
 import '../domain/youtube_model.dart';
 import '../domain/youtube_metadata_cleaner.dart';
+import '../domain/youtube_failures.dart';
 import 'youtube_data_source.dart';
+import 'web_music_discovery_source.dart';
 
-/// Repository responsible for searching YouTube via YouTube Data API v3 or
-/// falling back to YoutubeExplode when no API key is provided.
+/// Repository responsible for searching YouTube via YouTube Data API v3,
+/// falling back to WebMusicDiscoverySource on web (to respect browser CORS),
+/// or falling back to YoutubeExplode on native platforms when no API key is configured.
 class YouTubeRepository {
   final YouTubeDataSource _dataSource;
+  final WebMusicDiscoverySource _webDiscoverySource;
 
   /// In-memory search cache (bounded to 50 queries)
   final Map<String, List<YouTubeVideo>> _searchCache = {};
   static const int _maxCacheSize = 50;
 
-  YouTubeRepository({YouTubeDataSource? dataSource})
-      : _dataSource = dataSource ?? YouTubeDataSource();
+  YouTubeRepository({
+    YouTubeDataSource? dataSource,
+    WebMusicDiscoverySource? webDiscoverySource,
+  })  : _dataSource = dataSource ?? YouTubeDataSource(),
+        _webDiscoverySource = webDiscoverySource ?? WebMusicDiscoverySource();
 
-  /// Searches YouTube for [query].
+  /// Searches for music tracks matching [query].
   Future<List<YouTubeVideo>> search(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
@@ -28,24 +35,43 @@ class YouTubeRepository {
 
     List<YouTubeVideo> results = [];
 
+    // 1. Primary: YouTube Data API v3 if configured
     if (_dataSource.isConfigured) {
       try {
         debugPrint('YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery"');
         results = await _searchWithDataApi(cleanQuery);
       } catch (e) {
-        debugPrint('YouTubeRepository: Data API search failed ($e), falling back to YoutubeExplode');
+        debugPrint('YouTubeRepository: Data API search failed ($e), falling back to alternative discovery');
         results = [];
       }
     }
 
+    // 2. Secondary: WebMusicDiscoverySource on web (CORS-safe) or YoutubeExplode on native
     if (results.isEmpty) {
-      try {
-        debugPrint('YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery"');
-        results = await _searchWithExplode(cleanQuery);
-      } catch (e, stack) {
-        debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
-        if (kDebugMode) debugPrintStack(stackTrace: stack);
-        rethrow;
+      if (kIsWeb) {
+        debugPrint('[YouTubeRepository] Web environment detected. Direct browser scraping of youtube.com is restricted by browser CORS policy.');
+        try {
+          debugPrint('[YouTubeRepository] Querying WebMusicDiscoverySource for "$cleanQuery"');
+          results = await _webDiscoverySource.searchVideos(cleanQuery);
+        } catch (e) {
+          debugPrint('[YouTubeRepository] WebMusicDiscoverySource search failed ($e)');
+          throw YouTubeSearchFailure('Web music discovery failed for "$cleanQuery": $e');
+        }
+      } else {
+        try {
+          debugPrint('YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery"');
+          results = await _searchWithExplode(cleanQuery);
+        } catch (e, stack) {
+          debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
+          if (kDebugMode) debugPrintStack(stackTrace: stack);
+          // Fallback to WebMusicDiscoverySource on native if explode fails
+          try {
+            debugPrint('YouTubeRepository: Falling back to WebMusicDiscoverySource for "$cleanQuery"');
+            results = await _webDiscoverySource.searchVideos(cleanQuery);
+          } catch (_) {
+            rethrow;
+          }
+        }
       }
     }
 
@@ -99,6 +125,8 @@ class YouTubeRepository {
             thumbnailUrl: thumbnailUrl,
             duration: durationStr,
             viewCount: viewCountStr,
+            rawTitle: title,
+            rawChannelTitle: channelTitle,
           ),
         );
       }
@@ -219,6 +247,8 @@ class YouTubeRepository {
           thumbnailUrl: thumbnailUrl,
           duration: durationStr,
           viewCount: viewCountStr,
+          rawTitle: title,
+          rawChannelTitle: channelTitle,
         ),
       );
     }

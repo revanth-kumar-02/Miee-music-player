@@ -26,6 +26,9 @@ class SongTile extends StatelessWidget {
   /// Controls the active highlighted playing style. Defaults to false.
   final bool isPlaying;
 
+  /// Controls the active loading state (shows spinner on artwork). Defaults to false.
+  final bool isLoading;
+
   /// Callback when the tile is tapped.
   final VoidCallback? onTap;
 
@@ -49,6 +52,7 @@ class SongTile extends StatelessWidget {
     this.imageUrl,
     this.index,
     this.isPlaying = false,
+    this.isLoading = false,
     this.onTap,
     this.onMoreTap,
     this.onLongPress,
@@ -61,54 +65,99 @@ class SongTile extends StatelessWidget {
     // Left-most leading element (Equalizer vs Number vs Artwork)
     Widget leadingWidget;
 
-    if (isPlaying) {
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      leadingWidget = ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            imageUrl!.startsWith('http')
+                ? Image.network(
+                    imageUrl!,
+                    width: 48.0,
+                    height: 48.0,
+                    fit: BoxFit.cover,
+                    cacheWidth: 120,
+                    cacheHeight: 120,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 48.0,
+                      height: 48.0,
+                      color: AppColors.surfaceContainerHigh,
+                      child: const Icon(
+                        Icons.music_note,
+                        color: AppColors.onSurfaceVariant,
+                        size: 20.0,
+                      ),
+                    ),
+                  )
+                : Image.file(
+                    File(imageUrl!),
+                    width: 48.0,
+                    height: 48.0,
+                    fit: BoxFit.cover,
+                    cacheWidth: 120,
+                    cacheHeight: 120,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 48.0,
+                      height: 48.0,
+                      color: AppColors.surfaceContainerHigh,
+                      child: const Icon(
+                        Icons.music_note,
+                        color: AppColors.onSurfaceVariant,
+                        size: 20.0,
+                      ),
+                    ),
+                  ),
+            if (isLoading)
+              Container(
+                width: 48.0,
+                height: 48.0,
+                color: Colors.black.withOpacity(0.55),
+                child: const Center(
+                  child: SizedBox(
+                    width: 20.0,
+                    height: 20.0,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                ),
+              )
+            else if (isPlaying)
+              Container(
+                width: 48.0,
+                height: 48.0,
+                color: Colors.black.withOpacity(0.35),
+                child: const Center(
+                  child: _EqualizerAnimation(),
+                ),
+              ),
+          ],
+        ),
+      );
+    } else if (isLoading) {
+      leadingWidget = const SizedBox(
+        width: 48.0,
+        height: 48.0,
+        child: Center(
+          child: SizedBox(
+            width: 20.0,
+            height: 20.0,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ),
+      );
+    } else if (isPlaying) {
       leadingWidget = const SizedBox(
         width: 48.0,
         height: 48.0,
         child: Center(
           child: _EqualizerAnimation(),
         ),
-      );
-    } else if (imageUrl != null && imageUrl!.isNotEmpty) {
-      leadingWidget = ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
-        child: imageUrl!.startsWith('http')
-            ? Image.network(
-                imageUrl!,
-                width: 48.0,
-                height: 48.0,
-                fit: BoxFit.cover,
-                cacheWidth: 120,
-                cacheHeight: 120,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 48.0,
-                  height: 48.0,
-                  color: AppColors.surfaceContainerHigh,
-                  child: const Icon(
-                    Icons.music_note,
-                    color: AppColors.onSurfaceVariant,
-                    size: 20.0,
-                  ),
-                ),
-              )
-            : Image.file(
-                File(imageUrl!),
-                width: 48.0,
-                height: 48.0,
-                fit: BoxFit.cover,
-                cacheWidth: 120,
-                cacheHeight: 120,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 48.0,
-                  height: 48.0,
-                  color: AppColors.surfaceContainerHigh,
-                  child: const Icon(
-                    Icons.music_note,
-                    color: AppColors.onSurfaceVariant,
-                    size: 20.0,
-                  ),
-                ),
-              ),
       );
     } else if (index != null) {
       leadingWidget = SizedBox(
@@ -126,8 +175,10 @@ class SongTile extends StatelessWidget {
       leadingWidget = const SizedBox.shrink();
     }
 
+    final isHighlighted = isPlaying || isLoading;
+
     return Semantics(
-      label: 'Song: $title by $artist, duration $duration${isPlaying ? ", currently playing" : ""}',
+      label: 'Song: $title by $artist, duration $duration${isPlaying ? ", currently playing" : (isLoading ? ", currently loading" : "")}',
       button: true,
       enabled: onTap != null,
       child: InkWell(
@@ -149,7 +200,7 @@ class SongTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: isPlaying
+                    style: isHighlighted
                         ? AppTypography.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
@@ -187,8 +238,8 @@ class SongTile extends StatelessWidget {
             Text(
               duration,
               style: AppTypography.labelSmall.copyWith(
-                color: isPlaying ? AppColors.primary : AppColors.onSurfaceVariant,
-                fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
+                color: isHighlighted ? AppColors.primary : AppColors.onSurfaceVariant,
+                fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
               ),
             ),
             if (onMoreTap != null)

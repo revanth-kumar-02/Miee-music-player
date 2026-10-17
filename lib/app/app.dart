@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
 /// Root Widget of the Miee Music Player application.
-class MieeApp extends StatefulWidget {
+class MieeApp extends ConsumerStatefulWidget {
   const MieeApp({super.key});
 
   @override
-  State<MieeApp> createState() => _MieeAppState();
+  ConsumerState<MieeApp> createState() => _MieeAppState();
 }
 
-class _MieeAppState extends State<MieeApp> with WidgetsBindingObserver {
+class _MieeAppState extends ConsumerState<MieeApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -46,12 +47,12 @@ class _MieeAppState extends State<MieeApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     debugPrint('STARTUP: MieeApp.build() entered');
-    debugPrint('STARTUP: MaterialApp.router() building');
+    final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'Miee Music Player',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      routerConfig: appRouter,
+      routerConfig: router,
     );
   }
 }
