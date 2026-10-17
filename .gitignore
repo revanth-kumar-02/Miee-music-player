@@ -54,3 +54,7 @@ app.*.map.json
 # VSCode and debug logs
 .vscode/
 build_debug.txt
+
+# Node / Playwright
+node_modules/
+.chrome_data/

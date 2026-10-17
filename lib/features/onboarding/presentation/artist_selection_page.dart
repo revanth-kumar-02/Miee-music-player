@@ -340,36 +340,44 @@ class _ArtistSelectionPageState extends ConsumerState<ArtistSelectionPage> {
               Expanded(
                 child: SizedBox(
                   height: 48,
-                  child: ElevatedButton(
-                    onPressed: canContinue ? _handleContinue : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      disabledBackgroundColor: AppColors.surfaceContainerHigh,
-                      disabledForegroundColor: AppColors.outline,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: AppRadius.radiusMd,
+                  child: Semantics(
+                    button: true,
+                    enabled: canContinue,
+                    label: selectedCount < 3
+                        ? 'Pick ${3 - selectedCount} more'
+                        : 'Continue to Music',
+                    child: ElevatedButton(
+                      key: const Key('continue_button'),
+                      onPressed: canContinue ? _handleContinue : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.onPrimary,
+                        disabledBackgroundColor: AppColors.surfaceContainerHigh,
+                        disabledForegroundColor: AppColors.outline,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppRadius.radiusMd,
+                        ),
                       ),
+                      child: onboardingState.isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              selectedCount < 3
+                                  ? 'Pick ${3 - selectedCount} more'
+                                  : 'Continue to Music',
+                              style: AppTypography.labelMedium.copyWith(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
                     ),
-                    child: onboardingState.isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(
-                            selectedCount < 3
-                                ? 'Pick ${3 - selectedCount} more'
-                                : 'Continue to Music',
-                            style: AppTypography.labelMedium.copyWith(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
                   ),
                 ),
               ),
@@ -470,9 +478,13 @@ class _ArtistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
+    return Semantics(
+      button: true,
+      label: 'Select ${artist.name}',
+      selected: isSelected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
@@ -532,6 +544,7 @@ class _ArtistCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

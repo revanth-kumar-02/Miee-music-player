@@ -30,7 +30,7 @@ void main() {
 
     print('Lana Del Rey West Coast standard tracks returned: ${ldrWestCoastStandard.length}');
     for (final track in ldrWestCoastStandard) {
-      print('  -> [${track.id}] "${track.title}" by "${track.channelTitle}"');
+      print('  -> [${track.id}] title: "${track.title}" | rawTitle: "${track.rawTitle}" | channel: "${track.channelTitle}" | rawChannel: "${track.rawChannelTitle}"');
     }
 
     // Must be exactly 1 canonical representative!

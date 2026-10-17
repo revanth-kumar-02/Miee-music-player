@@ -29,6 +29,30 @@ class YouTubeVideo implements MusicItem {
     this.audioStreamUrl,
   });
 
+  YouTubeVideo copyWith({
+    String? id,
+    String? title,
+    String? channelTitle,
+    String? thumbnailUrl,
+    String? duration,
+    String? viewCount,
+    String? rawTitle,
+    String? rawChannelTitle,
+    String? audioStreamUrl,
+  }) {
+    return YouTubeVideo(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      channelTitle: channelTitle ?? this.channelTitle,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      duration: duration ?? this.duration,
+      viewCount: viewCount ?? this.viewCount,
+      rawTitle: rawTitle ?? this.rawTitle,
+      rawChannelTitle: rawChannelTitle ?? this.rawChannelTitle,
+      audioStreamUrl: audioStreamUrl ?? this.audioStreamUrl,
+    );
+  }
+
   /// The standard watch page URL for this video.
   String get videoUrl => 'https://www.youtube.com/watch?v=$id';
 

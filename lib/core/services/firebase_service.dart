@@ -1,6 +1,7 @@
-import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+
+import '../../firebase_options.dart';
 
 enum FirebaseInitStatus {
   uninitialized,
@@ -12,8 +13,7 @@ enum FirebaseInitStatus {
 /// Manages singleton initialization of Firebase across platforms.
 ///
 /// Ensures Firebase is initialized exactly once, catching missing configuration
-/// files (e.g. google-services.json) gracefully so the app displays a clear setup
-/// banner rather than hanging or crashing.
+/// files gracefully so the app displays a clear setup banner rather than hanging or crashing.
 class FirebaseService {
   static FirebaseInitStatus _status = FirebaseInitStatus.uninitialized;
   static String? _errorMessage;
@@ -27,7 +27,9 @@ class FirebaseService {
 
     try {
       debugPrint('[FirebaseService] Initializing Firebase...');
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       _status = FirebaseInitStatus.configured;
       debugPrint('[FirebaseService] Firebase successfully initialized.');
     } catch (e, stack) {

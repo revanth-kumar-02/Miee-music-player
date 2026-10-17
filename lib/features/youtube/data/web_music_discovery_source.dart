@@ -18,8 +18,8 @@ class WebMusicDiscoverySource {
 
   final Dio _dio = Dio(
     BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
       headers: {
         'Accept': 'application/json',
       },
@@ -45,8 +45,40 @@ class WebMusicDiscoverySource {
     }
 
     try {
-      debugPrint('[WebMusicDiscovery] Querying supported discovery provider for "$cleanQuery"');
-      final response = await _dio.get<dynamic>(
+      return await _fetchFromProvider(cleanQuery, limit: limit, cacheKey: cacheKey);
+    } catch (e) {
+      debugPrint('[WebMusicDiscovery] First attempt failed ($e), retrying once...');
+      try {
+        return await _fetchFromProvider(cleanQuery, limit: limit, cacheKey: cacheKey);
+      } catch (e2) {
+        debugPrint('[WebMusicDiscovery] Retry also failed: $e2');
+        rethrow;
+      }
+    }
+  }
+
+  Future<List<YouTubeVideo>> _fetchFromProvider(
+    String cleanQuery, {
+    required int limit,
+    required String cacheKey,
+  }) async {
+    try {
+      Response<dynamic>? response;
+      if (kIsWeb) {
+      try {
+        debugPrint('[WebMusicDiscovery] Querying local/proxy API for "$cleanQuery"');
+        response = await _dio.get<dynamic>(
+          '/api/search',
+          queryParameters: {'q': cleanQuery},
+        );
+      } catch (e) {
+        debugPrint('[WebMusicDiscovery] Proxy request failed ($e), falling back to direct provider');
+      }
+    }
+
+    if (response == null || response.statusCode != 200 || response.data == null) {
+      debugPrint('[WebMusicDiscovery] Querying direct discovery provider for "$cleanQuery"');
+      response = await _dio.get<dynamic>(
         'https://itunes.apple.com/search',
         queryParameters: {
           'term': cleanQuery,
@@ -54,10 +86,11 @@ class WebMusicDiscoverySource {
           'limit': limit,
         },
       );
+    }
 
-      if (response.statusCode != 200 || response.data == null) {
-        throw Exception('Discovery provider returned status ${response.statusCode}');
-      }
+    if (response.statusCode != 200 || response.data == null) {
+      throw Exception('Discovery provider returned status ${response.statusCode}');
+    }
 
       final Map<String, dynamic> data;
       if (response.data is String) {

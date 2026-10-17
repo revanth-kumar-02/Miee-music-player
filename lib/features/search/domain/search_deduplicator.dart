@@ -62,13 +62,64 @@ class SearchDeduplicator {
       final orderIndex = groupFirstIndex[key] ?? 0;
 
       final bestVideo = _selectBestCandidate(candidates, query: query);
-      representatives.add((orderIndex: orderIndex, video: bestVideo));
+      final rawOrCleanTitle = (bestVideo.rawTitle != null && bestVideo.rawTitle!.isNotEmpty)
+          ? bestVideo.rawTitle!
+          : bestVideo.title;
+      final versionInfo = _extractVersion(rawOrCleanTitle, bestVideo.title);
+      final finalizedVideo = _ensureVersionInTitle(bestVideo, versionInfo.type);
+
+      representatives.add((orderIndex: orderIndex, video: finalizedVideo));
     }
 
     // 4. Sort the representatives by original discovery relevance order
     representatives.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
     return representatives.map((item) => item.video).toList();
+  }
+
+  /// Appends appropriate version suffix to track title if it was stripped by metadata cleaning.
+  static YouTubeVideo _ensureVersionInTitle(YouTubeVideo video, VersionType type) {
+    final lowerTitle = video.title.toLowerCase();
+    switch (type) {
+      case VersionType.slowed:
+        if (!lowerTitle.contains('slowed')) {
+          return video.copyWith(title: '${video.title} (Slowed)');
+        }
+        break;
+      case VersionType.spedUp:
+        if (!lowerTitle.contains('sped') && !lowerTitle.contains('speed')) {
+          return video.copyWith(title: '${video.title} (Sped Up)');
+        }
+        break;
+      case VersionType.live:
+        if (!lowerTitle.contains('live')) {
+          return video.copyWith(title: '${video.title} (Live)');
+        }
+        break;
+      case VersionType.remix:
+        if (!lowerTitle.contains('remix')) {
+          return video.copyWith(title: '${video.title} (Remix)');
+        }
+        break;
+      case VersionType.acoustic:
+        if (!lowerTitle.contains('acoustic')) {
+          return video.copyWith(title: '${video.title} (Acoustic)');
+        }
+        break;
+      case VersionType.instrumental:
+        if (!lowerTitle.contains('instrumental')) {
+          return video.copyWith(title: '${video.title} (Instrumental)');
+        }
+        break;
+      case VersionType.cover:
+        if (!lowerTitle.contains('cover')) {
+          return video.copyWith(title: '${video.title} (Cover)');
+        }
+        break;
+      case VersionType.standard:
+        break;
+    }
+    return video;
   }
 
   /// Computes a canonical key: `canonical_title|canonical_artist|version_tag`
@@ -137,7 +188,7 @@ class SearchDeduplicator {
     }
 
     // Check slowed / reverb
-    final slowedRegex = RegExp(r'\b(slowed(\s+(\+|&|and)\s+reverb)?|slowed\s+down)\b', caseSensitive: false);
+    final slowedRegex = RegExp(r"\b(slowed(\s*(\+|&|and|n|'n'|\/)\s*reverb)?|slowed\s+down|reverb)\b", caseSensitive: false);
     if (slowedRegex.hasMatch(combined)) {
       return (type: VersionType.slowed, tag: 'slowed');
     }
@@ -158,17 +209,24 @@ class SearchDeduplicator {
     // 1. Remove version markers from brackets/parentheses so that different uploads of the same version
     // share the identical base song title (e.g. "West Coast (Live at Coachella)" -> "West Coast")
     final versionBracketRegex = RegExp(
-      r'[\(\[\{]\s*(live(\s+[^\)\]\}]+)?|remix|acoustic(\s+version)?|sped\s+up(\s+[^\)\]\}]+)?|slowed(\s+[^\)\]\}]+)?|instrumental|cover(\s+[^\)\]\}]+)?)\s*[\)\]\}]',
+      r'[\(\[\{]\s*(live(\s+[^\)\]\}]+)?|remix(\s+[^\)\]\}]+)?|acoustic(\s+version)?|sped\s+up(\s+[^\)\]\}]+)?|slowed(\s+[^\)\]\}]+)?|instrumental|cover(\s+[^\)\]\}]+)?)\s*[\)\]\}]',
       caseSensitive: false,
     );
     title = title.replaceAll(versionBracketRegex, ' ');
 
-    // 2. Remove bracketed upload packaging noise (e.g. [Official Video], (Lyrics), (Audio), etc.)
+    // 2. Remove bracketed upload packaging noise (e.g. [Official Video], (Lyrics), (Visualizer + HQ + SFX), etc.)
     final bracketNoiseRegex = RegExp(
-      r'[\(\[\{]\s*(official\s+music\s+video|official\s+video|official\s+audio|official\s+visualizer|official|music\s+video|video|audio|lyric\s+video|lyrics|with\s+lyrics|visualizer|mv|hd|4k|hq|1080p|remastered|remaster|full\s+song|complete\s+track|high\s+quality|explicit|clean)\s*[\)\]\}]',
+      r'[\(\[\{][^\)\]\}]*(official|music\s+video|video|audio|lyric|visualizer|mv|hd|4k|hq|1080p|remaster|high\s+quality|explicit|clean|sfx)[^\)\]\}]*[\)\]\}]',
       caseSensitive: false,
     );
     title = title.replaceAll(bracketNoiseRegex, ' ');
+
+    // 2b. Remove common parenthetical commentary noise (e.g. "(but your life will be changed)", "(listen with headphones)")
+    final commentaryBracketRegex = RegExp(
+      r'[\(\[\{]\s*(but\s+|you\s+|feeling\s+|listening\s+|read\s+|listen\s+|pov\s*[\:\-]|headphones)[^\)\]\}]*[\)\]\}]',
+      caseSensitive: false,
+    );
+    title = title.replaceAll(commentaryBracketRegex, ' ');
 
     // 3. Remove trailing upload noise (e.g. " - Official Audio", " | Lyric Video")
     final trailingNoiseRegex = RegExp(

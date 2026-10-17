@@ -947,20 +947,22 @@ class _HomePageState extends ConsumerState<HomePage> {
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final event = sections.recentlyPlayed[index];
+              final m = event.durationSec ~/ 60;
+              final s = event.durationSec % 60;
+              final dur = '$m:${s.toString().padLeft(2, '0')}';
               return SongTile(
-                title: event.trackTitle,
-                artist: event.trackArtist,
-                duration: event.formattedDuration,
-                imageUrl: event.trackImageUrl,
+                title: event.title,
+                artist: event.artist,
+                duration: dur,
+                imageUrl: null,
                 isPlaying: currentTrack?.id == event.trackId,
                 onTap: () {
                   final track = Track(
                     id: event.trackId,
-                    title: event.trackTitle,
-                    artist: event.trackArtist,
-                    imageUrl: event.trackImageUrl,
-                    duration: event.formattedDuration,
-                    filePath: event.trackFilePath,
+                    title: event.title,
+                    artist: event.artist,
+                    imageUrl: '',
+                    duration: dur,
                   );
                   ref
                       .read(playerControllerProvider.notifier)

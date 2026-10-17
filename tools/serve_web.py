@@ -17,6 +17,46 @@ class FlutterSpaHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=BUILD_DIR, **kwargs)
 
+    def do_GET(self):
+        # Dedicated CORS-free backend discovery proxy
+        if self.path.startswith('/api/search'):
+            import urllib.parse
+            import urllib.request
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            query = params.get('q', [''])[0].strip()
+            if not query:
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(b'{"results":[]}')
+                return
+
+            try:
+                enc = urllib.parse.quote(query)
+                lim = params.get('limit', ['25'])[0]
+                url = f"https://itunes.apple.com/search?term={enc}&entity=song&limit={lim}"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Miee-Backend/1.0'})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    content = resp.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content)
+                return
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                err_msg = str(e).encode('utf-8')
+                self.wfile.write(b'{"error": "' + err_msg + b'"}')
+                return
+
+        return super().do_GET()
+
     def send_head(self):
         # Resolve target filesystem path
         clean_path = self.path.split('?')[0].split('#')[0]
