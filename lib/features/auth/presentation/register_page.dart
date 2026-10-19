@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/auth_providers.dart';
+import '../../profile/domain/user_profile.dart';
+import '../../profile/providers/profile_providers.dart';
+import '../../profile/presentation/profile_controller.dart';
 import 'widgets/auth_components.dart';
 
 /// Recreated Register Screen strictly matching Stitch:
@@ -56,11 +59,32 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     try {
       final authRepo = ref.read(authRepositoryProvider);
-      await authRepo.signUpWithEmailAndPassword(
+      final rawName = _nameController.text.trim();
+      final authUser = await authRepo.signUpWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        displayName: _nameController.text.trim(),
+        displayName: rawName,
       );
+
+      // Immediately persist user's chosen display name
+      final chosenName = rawName.isNotEmpty ? rawName : (authUser.displayName ?? '');
+      if (chosenName.isNotEmpty) {
+        final initialProfile = UserProfile.initial(
+          uid: authUser.uid,
+          email: authUser.email,
+          displayName: chosenName,
+        );
+        final userProfileRepo = ref.read(userProfileRepositoryProvider);
+        await userProfileRepo.saveUserProfile(initialProfile);
+        ref.read(userProfileNotifierProvider.notifier).updateProfileLocally(initialProfile);
+
+        final localProfile = ref.read(profileProvider);
+        await ref.read(profileProvider.notifier).updateProfile(
+          displayName: chosenName,
+          favoriteGenre: localProfile.favoriteGenre,
+          favoriteArtist: localProfile.favoriteArtist,
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() {

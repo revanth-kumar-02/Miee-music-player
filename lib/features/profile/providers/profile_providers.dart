@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../data/firestore_user_profile_repository.dart';
@@ -60,9 +61,38 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   Future<void> loadProfile(String uid) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final profile = await _repository.getUserProfile(uid);
+      var profile = await _repository.getUserProfile(uid);
+      if (!mounted) return;
+      final currentUser = _ref.read(currentAuthUserProvider);
+
+      if (currentUser != null && currentUser.uid == uid) {
+        final authName = currentUser.displayName?.trim();
+        final isPlaceholder = profile == null ||
+            profile.displayName.isEmpty ||
+            profile.displayName == 'Miee Listener' ||
+            profile.displayName == 'Miee User';
+        if (isPlaceholder && authName != null && authName.isNotEmpty) {
+          final updated = (profile ??
+                  UserProfile.initial(
+                    uid: uid,
+                    email: currentUser.email,
+                    displayName: authName,
+                  ))
+              .copyWith(
+            displayName: authName,
+            email: currentUser.email.isNotEmpty
+                ? currentUser.email
+                : (profile?.email ?? ''),
+          );
+          profile = updated;
+          await _repository.saveUserProfile(updated);
+        }
+      }
+
+      if (!mounted) return;
       state = UserProfileState(profile: profile, isLoading: false);
     } catch (e) {
+      if (!mounted) return;
       state = UserProfileState(
         profile: null,
         isLoading: false,
@@ -75,9 +105,13 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     state = state.copyWith(isLoading: true);
     try {
       await _repository.saveUserProfile(profile);
-      state = UserProfileState(profile: profile, isLoading: false);
+      if (mounted) {
+        state = UserProfileState(profile: profile, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      }
       rethrow;
     }
   }

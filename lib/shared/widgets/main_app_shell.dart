@@ -7,6 +7,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../core/audio/playback_state.dart' as pb;
 import '../../core/audio/providers.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../features/playlists/presentation/widgets/create_playlist_dialog.dart';
 import '../../features/playlists/providers/playlist_providers.dart';
 import '../../features/profile/presentation/profile_controller.dart';
@@ -490,9 +491,22 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
   Widget _buildTopHeaderBar(BuildContext context) {
     final localProfile = ref.watch(profileProvider);
     final cloudProfile = ref.watch(currentUserProfileProvider);
-    final effectiveName = (cloudProfile?.displayName.trim().isNotEmpty ?? false)
+    final authUser = ref.watch(currentAuthUserProvider);
+    final effectiveName = (cloudProfile?.displayName.trim().isNotEmpty == true &&
+            cloudProfile?.displayName != 'Miee Listener' &&
+            cloudProfile?.displayName != 'Miee User')
         ? cloudProfile!.displayName
-        : localProfile.displayName;
+        : (authUser?.displayName?.trim().isNotEmpty == true &&
+                authUser?.displayName != 'Miee Listener' &&
+                authUser?.displayName != 'Miee User')
+            ? authUser!.displayName!
+            : (localProfile.displayName.isNotEmpty &&
+                    localProfile.displayName != 'Miee User' &&
+                    localProfile.displayName != 'Miee Listener')
+                ? localProfile.displayName
+                : (authUser?.email.isNotEmpty == true
+                    ? authUser!.email.split('@').first
+                    : localProfile.displayName);
 
     final globalQuery = ref.watch(searchNotifierProvider.select((s) => s.query));
     if (_topSearchController.text != globalQuery && _topSearchController.selection.baseOffset <= 0) {

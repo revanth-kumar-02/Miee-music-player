@@ -12,7 +12,9 @@ import '../../../../core/storage/adapters/history_entry.dart';
 import '../../../../core/sync/sync_state.dart';
 import '../../../../core/sync/sync_manager.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../domain/profile_model.dart';
+import '../providers/profile_providers.dart';
 import 'profile_controller.dart';
 
 /// User Profile screen detailing stats, custom details, preferences, and offline-first cloud sync actions.
@@ -24,6 +26,30 @@ class ProfilePage extends ConsumerWidget {
     final theme = Theme.of(context);
     final profile = ref.watch(profileProvider);
     final profileNotifier = ref.read(profileProvider.notifier);
+    final cloudProfile = ref.watch(currentUserProfileProvider);
+    final authUser = ref.watch(currentAuthUserProvider);
+
+    final resolvedDisplayName = (cloudProfile?.displayName.trim().isNotEmpty == true &&
+            cloudProfile?.displayName != 'Miee Listener' &&
+            cloudProfile?.displayName != 'Miee User')
+        ? cloudProfile!.displayName
+        : (authUser?.displayName?.trim().isNotEmpty == true &&
+                authUser?.displayName != 'Miee Listener' &&
+                authUser?.displayName != 'Miee User')
+            ? authUser!.displayName!
+            : (profile.displayName.isNotEmpty &&
+                    profile.displayName != 'Miee User' &&
+                    profile.displayName != 'Miee Listener')
+                ? profile.displayName
+                : (authUser?.email.isNotEmpty == true
+                    ? authUser!.email.split('@').first
+                    : profile.displayName);
+
+    final resolvedUsername = (profile.username != null && profile.username!.isNotEmpty)
+        ? profile.username!
+        : (resolvedDisplayName != 'Miee User' && resolvedDisplayName != 'Miee Listener')
+            ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
+            : null;
 
     // Watch auth and sync states
     final authState = ref.watch(authControllerProvider);
@@ -93,14 +119,14 @@ class ProfilePage extends ConsumerWidget {
               const SizedBox(height: 16.0),
 
               Text(
-                profile.displayName,
+                resolvedDisplayName,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (profile.username != null && profile.username!.isNotEmpty)
+              if (resolvedUsername != null && resolvedUsername.isNotEmpty)
                 Text(
-                  '@${profile.username}',
+                  '@$resolvedUsername',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

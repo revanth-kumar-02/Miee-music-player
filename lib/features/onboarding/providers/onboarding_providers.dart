@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../profile/domain/user_profile.dart';
 import '../../profile/providers/profile_providers.dart';
+import '../../profile/presentation/profile_controller.dart';
 import '../data/artist_discovery_repository.dart';
 import '../domain/artist_model.dart';
 
@@ -233,10 +234,25 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       final updatedProfile = await profileRepo.completeOnboarding(
         uid: user.uid,
         artists: state.selectedArtists,
+        displayName: user.displayName,
+        email: user.email,
       );
 
       // Update the user profile notifier state immediately
       _ref.read(userProfileNotifierProvider.notifier).updateProfileLocally(updatedProfile);
+
+      // Also ensure the local ProfileController is updated with the real name
+      final effectiveName = updatedProfile.displayName.trim();
+      if (effectiveName.isNotEmpty &&
+          effectiveName != 'Miee Listener' &&
+          effectiveName != 'Miee User') {
+        final currentLocal = _ref.read(profileProvider);
+        await _ref.read(profileProvider.notifier).updateProfile(
+          displayName: effectiveName,
+          favoriteGenre: currentLocal.favoriteGenre,
+          favoriteArtist: currentLocal.favoriteArtist,
+        );
+      }
 
       state = state.copyWith(isSaving: false);
       return updatedProfile;

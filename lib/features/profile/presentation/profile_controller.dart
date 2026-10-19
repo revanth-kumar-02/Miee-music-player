@@ -4,8 +4,12 @@ import 'package:hive/hive.dart';
 import '../../../../core/storage/hive_boxes.dart';
 import '../../../../core/sync/sync_manager.dart';
 import '../../../../core/sync/offline_operation.dart';
+import '../../auth/domain/auth_user.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../domain/profile_model.dart';
 import '../domain/profile_repository.dart';
+import '../domain/user_profile.dart';
+import '../providers/profile_providers.dart';
 import '../data/hive_profile_repository.dart';
 
 /// Notifier that manages active profile data reactively and persists changes to Hive with background sync.
@@ -14,7 +18,36 @@ class ProfileController extends StateNotifier<ProfileModel> {
   final Ref _ref;
 
   ProfileController(this._repository, this._ref, ProfileModel initialProfile) : super(initialProfile) {
-    // _recordLastOpened();
+    _ref.listen<UserProfile?>(currentUserProfileProvider, (previous, next) {
+      if (next != null &&
+          next.displayName.trim().isNotEmpty &&
+          next.displayName != 'Miee Listener' &&
+          next.displayName != 'Miee User' &&
+          state.displayName != next.displayName) {
+        updateProfile(
+          displayName: next.displayName,
+          username: next.displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+          favoriteGenre: state.favoriteGenre,
+          favoriteArtist: state.favoriteArtist,
+        );
+      }
+    });
+
+    _ref.listen<AuthUser?>(currentAuthUserProvider, (previous, next) {
+      if (next != null &&
+          next.displayName != null &&
+          next.displayName!.trim().isNotEmpty &&
+          next.displayName != 'Miee Listener' &&
+          next.displayName != 'Miee User' &&
+          state.displayName != next.displayName) {
+        updateProfile(
+          displayName: next.displayName!,
+          username: next.displayName!.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+          favoriteGenre: state.favoriteGenre,
+          favoriteArtist: state.favoriteArtist,
+        );
+      }
+    });
   }
 
   Future<void> _recordLastOpened() async {
@@ -170,14 +203,52 @@ final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>((
   final box = Hive.box(HiveBoxes.profile);
   
   final data = box.get('active_profile');
+  final authUser = ref.read(currentAuthUserProvider);
+  final candidateAuthName = (authUser?.displayName?.trim().isNotEmpty == true &&
+          authUser?.displayName != 'Miee Listener' &&
+          authUser?.displayName != 'Miee User')
+      ? authUser!.displayName!.trim()
+      : null;
+
   ProfileModel initialProfile;
   if (data == null || data is! Map) {
     initialProfile = ProfileModel.defaultProfile();
+    if (candidateAuthName != null) {
+      initialProfile = ProfileModel(
+        displayName: candidateAuthName,
+        username: candidateAuthName.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+        favoriteGenre: initialProfile.favoriteGenre,
+        favoriteArtist: initialProfile.favoriteArtist,
+        createdDate: initialProfile.createdDate,
+        lastOpened: initialProfile.lastOpened,
+        playbackSpeed: initialProfile.playbackSpeed,
+        preferredSource: initialProfile.preferredSource,
+        defaultShuffle: initialProfile.defaultShuffle,
+        defaultRepeat: initialProfile.defaultRepeat,
+        resumePlayback: initialProfile.resumePlayback,
+        backgroundPlayback: initialProfile.backgroundPlayback,
+        mediaNotification: initialProfile.mediaNotification,
+        lockScreenControls: initialProfile.lockScreenControls,
+        gaplessPlayback: initialProfile.gaplessPlayback,
+        crossfade: initialProfile.crossfade,
+      );
+    }
   } else {
     final Map<dynamic, dynamic> map = data;
+    final savedName = map['displayName'] as String?;
+    final effectiveDisplayName = (savedName != null &&
+            savedName.isNotEmpty &&
+            savedName != 'Miee User' &&
+            savedName != 'Miee Listener')
+        ? savedName
+        : (candidateAuthName ?? 'Miee User');
+
     initialProfile = ProfileModel(
-      displayName: map['displayName'] as String? ?? 'Miee User',
-      username: map['username'] as String?,
+      displayName: effectiveDisplayName,
+      username: map['username'] as String? ??
+          (candidateAuthName != null
+              ? candidateAuthName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
+              : null),
       profilePicturePath: map['profilePicturePath'] as String?,
       favoriteGenre: map['favoriteGenre'] as String? ?? 'Acoustic',
       favoriteArtist: map['favoriteArtist'] as String? ?? 'Unknown Artist',
@@ -197,6 +268,6 @@ final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>((
     );
   }
 
-  debugPrint('STARTUP: profileProvider initialProfile loaded');
+  debugPrint('STARTUP: profileProvider initialProfile loaded (displayName: ${initialProfile.displayName})');
   return ProfileController(repo, ref, initialProfile);
 });

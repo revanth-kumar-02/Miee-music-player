@@ -9,6 +9,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../library/providers/library_providers.dart';
 import '../../media/providers/media_providers.dart';
+import '../../auth/providers/auth_providers.dart';
+import '../../profile/providers/profile_providers.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/widgets/widgets.dart';
@@ -169,6 +171,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final profile = ref.watch(profileProvider);
+    final cloudProfile = ref.watch(currentUserProfileProvider);
+    final authUser = ref.watch(currentAuthUserProvider);
+
+    final resolvedDisplayName = (cloudProfile?.displayName.trim().isNotEmpty == true &&
+            cloudProfile?.displayName != 'Miee Listener' &&
+            cloudProfile?.displayName != 'Miee User')
+        ? cloudProfile!.displayName
+        : (authUser?.displayName?.trim().isNotEmpty == true &&
+                authUser?.displayName != 'Miee Listener' &&
+                authUser?.displayName != 'Miee User')
+            ? authUser!.displayName!
+            : (profile.displayName.isNotEmpty &&
+                    profile.displayName != 'Miee User' &&
+                    profile.displayName != 'Miee Listener')
+                ? profile.displayName
+                : (authUser?.email.isNotEmpty == true
+                    ? authUser!.email.split('@').first
+                    : profile.displayName);
+
+    final resolvedUsername = (profile.username as String?)?.isNotEmpty == true
+        ? profile.username as String
+        : (resolvedDisplayName != 'Miee User' && resolvedDisplayName != 'Miee Listener')
+            ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
+            : null;
 
     return Scaffold(
       extendBody: true,
@@ -182,7 +208,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Profile Card ──
-              _buildSettingsProfileCard(context, profile),
+              _buildSettingsProfileCard(
+                context,
+                profile,
+                displayName: resolvedDisplayName,
+                username: resolvedUsername,
+              ),
               const SizedBox(height: 4.0),
 
               // About/Header Block
@@ -642,8 +673,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  Widget _buildSettingsProfileCard(BuildContext context, dynamic profile) {
+  Widget _buildSettingsProfileCard(
+    BuildContext context,
+    dynamic profile, {
+    String? displayName,
+    String? username,
+  }) {
     final theme = Theme.of(context);
+    final effectiveDisplayName = (displayName != null && displayName.isNotEmpty)
+        ? displayName
+        : (profile.displayName as String);
+    final effectiveUsername = (username != null && username.isNotEmpty)
+        ? username
+        : (profile.username as String?);
+
     return Card(
       elevation: 0,
       color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
@@ -681,14 +724,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    profile.displayName as String,
+                    effectiveDisplayName,
                     style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if ((profile.username as String?)?.isNotEmpty == true)
+                  if (effectiveUsername != null && effectiveUsername.isNotEmpty)
                     Text(
-                      '@${profile.username}',
+                      '@$effectiveUsername',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

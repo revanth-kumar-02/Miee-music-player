@@ -12,6 +12,8 @@ abstract class UserProfileRepository {
   Future<UserProfile> completeOnboarding({
     required String uid,
     required List<ArtistSummary> artists,
+    String? displayName,
+    String? email,
   });
   Future<void> clearCache(String uid);
 }
@@ -90,6 +92,8 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   Future<UserProfile> completeOnboarding({
     required String uid,
     required List<ArtistSummary> artists,
+    String? displayName,
+    String? email,
   }) async {
     if (artists.length < 3 || artists.length > 5) {
       throw ArgumentError('You must select between 3 and 5 favorite artists.');
@@ -99,8 +103,39 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
     final existing = await getUserProfile(uid);
     final artistIds = artists.map((a) => a.id).toList();
 
-    final updated = (existing ?? UserProfile.initial(uid: uid, email: '', displayName: ''))
-        .copyWith(
+    final cleanDisplayName = (displayName != null &&
+            displayName.trim().isNotEmpty &&
+            displayName.trim() != 'Miee Listener' &&
+            displayName.trim() != 'Miee User')
+        ? displayName.trim()
+        : null;
+    final cleanExistingName = (existing != null &&
+            existing.displayName.trim().isNotEmpty &&
+            existing.displayName.trim() != 'Miee Listener' &&
+            existing.displayName.trim() != 'Miee User')
+        ? existing.displayName.trim()
+        : null;
+
+    final effectiveName = cleanDisplayName ??
+        cleanExistingName ??
+        (existing?.displayName.isNotEmpty == true
+            ? existing!.displayName
+            : 'Miee Listener');
+
+    final cleanEmail = (email != null && email.trim().isNotEmpty)
+        ? email.trim()
+        : (existing?.email ?? '');
+
+    final base = existing ??
+        UserProfile.initial(
+          uid: uid,
+          email: cleanEmail,
+          displayName: effectiveName,
+        );
+
+    final updated = base.copyWith(
+      displayName: effectiveName,
+      email: cleanEmail,
       onboardingCompleted: true,
       selectedArtistIds: artistIds,
       selectedArtists: artists,
