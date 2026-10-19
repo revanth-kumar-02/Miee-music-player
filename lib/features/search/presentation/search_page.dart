@@ -5,11 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/widgets/widgets.dart';
-import '../../../core/widgets/empty_state.dart';
 import '../providers/search_providers.dart';
 import '../domain/search_state.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
@@ -113,6 +113,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
 
+    // Sync search input controller with global search query when not focused
+    if (_searchController.text != searchState.query && !_searchFocusNode.hasFocus) {
+      _searchController.text = searchState.query;
+      _searchQuery = searchState.query;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.vanillaCream,
       body: SingleChildScrollView(
@@ -125,18 +131,79 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Search Input Bar
-            AppSearchBar(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              placeholder: 'Search songs, artists, albums...',
-              onSubmitted: _handleSearchSubmit,
-            ),
-            const SizedBox(height: 14),
+            // On mobile, show the search input bar. On desktop, the search bar is in the top header.
+            if (!isDesktop) ...[
+              AppSearchBar(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                placeholder: 'Search songs, artists, albums...',
+                onSubmitted: _handleSearchSubmit,
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // Filter Chips Row
             _buildFilterChips(searchState.activeFilter),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // Active Query Header (Editorial indicator when searching)
+            if (isSearching)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Row(
+                  children: [
+                    Text(
+                      'Results for ',
+                      style: GoogleFonts.geist(
+                        fontSize: 14,
+                        color: AppColors.mutedMauve,
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        '"${searchState.query}"',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.cocoaPlum,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        _searchController.clear();
+                        ref.read(searchNotifierProvider.notifier).updateQuery('');
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.oatBeige.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.close_rounded, size: 14, color: AppColors.mutedMauve),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Clear',
+                              style: GoogleFonts.geist(
+                                fontSize: 11.5,
+                                color: AppColors.mutedMauve,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // 1. Suggestions autocomplete
             if (showSuggestions) ...[
@@ -216,7 +283,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   Widget _buildTopResultCard({
     required String name,
+    String? subtitle,
     String? imageUrl,
+    bool isSong = false,
     required VoidCallback onTap,
     required VoidCallback onPlay,
   }) {
@@ -250,37 +319,43 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             child: Row(
               children: [
-                // Round Artist Avatar with clean border
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.softClay, width: 2),
-                    image: (imageUrl != null && imageUrl.isNotEmpty)
-                        ? DecorationImage(
-                            image: NetworkImage(imageUrl),
+                // Avatar (Circle for Artist, Rounded rect for Song)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(isSong ? 12 : 36),
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.softClay, width: 2),
+                      color: AppColors.softClay,
+                    ),
+                    child: (imageUrl != null && imageUrl.isNotEmpty)
+                        ? Image.network(
+                            imageUrl,
                             fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Icon(
+                                isSong ? Icons.music_note_rounded : Icons.person_rounded,
+                                color: AppColors.cocoaPlum,
+                                size: 32,
+                              ),
+                            ),
                           )
-                        : null,
-                    color: AppColors.softClay,
-                  ),
-                  child: (imageUrl == null || imageUrl.isEmpty)
-                      ? Center(
-                          child: Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : 'A',
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.cocoaPlum,
+                        : Center(
+                            child: Text(
+                              name.isNotEmpty ? name[0].toUpperCase() : 'M',
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.cocoaPlum,
+                              ),
                             ),
                           ),
-                        )
-                      : null,
+                  ),
                 ),
                 const SizedBox(width: 20),
 
-                // Name & "Artist" Badge
+                // Name & Subtitle / Badge
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,18 +365,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.playfairDisplay(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: AppColors.vanillaCream,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Artist',
+                        subtitle ?? (isSong ? 'Song' : 'Artist'),
                         style: GoogleFonts.geist(
                           fontSize: 13,
                           color: AppColors.softClay,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -344,6 +421,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     List<Track> favorites,
     RecommendationSections? recs,
   ) {
+    final playback = ref.watch(playerControllerProvider);
+
     // Determine Top Result
     String? topArtistName;
     String? topArtistImage;
@@ -498,8 +577,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
           const SizedBox(height: 12),
 
-          for (final item in songsToDisplay)
-            Padding(
+          ...songsToDisplay.map((item) {
+            final itemId = item is MediaSong
+                ? item.id
+                : (item is Track ? item.id : (item as MusicItem).id);
+            final isItemPlaying = playback.currentTrack?.id == itemId &&
+                playback.status == PlaybackStatus.playing;
+
+            return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: SongTile(
                 title: item is MediaSong
@@ -520,7 +605,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     : (item is Track
                         ? item.imageUrl
                         : (item as MusicItem).imageUrl),
-                isPlaying: false,
+                isPlaying: isItemPlaying,
                 onTap: () {
                   if (item is MediaSong) {
                     ref.read(playerControllerProvider.notifier).selectTrack(
@@ -541,10 +626,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           playingFrom: 'For You',
                         );
                   }
-                  context.push('/player');
                 },
               ),
-            ),
+            );
+          }),
           const SizedBox(height: 28),
         ],
 
@@ -699,13 +784,80 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final isDoneLoading = !state.isLocalLoading &&
         !state.isYouTubeLoading &&
         !state.isArtistsLoading;
+    final isLoading = state.isLocalLoading || state.isYouTubeLoading || state.isArtistsLoading;
     final filter = state.activeFilter;
 
+    if (isLoading && state.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 48.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Searching for "${state.query}"...',
+                style: GoogleFonts.geist(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.mutedMauve,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (isDoneLoading && state.isEmpty) {
-      return EmptyState(
-        title: 'No results found',
-        message: 'No matches found for "${state.query}". Try searching another title.',
-        icon: Icons.search_off,
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 48.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.softClay,
+                ),
+                child: const Icon(
+                  Icons.search_off_rounded,
+                  size: 32,
+                  color: AppColors.cocoaPlum,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'No results found',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.cocoaPlum,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No matches found for "${state.query}". Try searching another title.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.geist(
+                  fontSize: 13.5,
+                  color: AppColors.mutedMauve,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -714,10 +866,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final showSongs = filter == 'All' || filter == 'Songs' || filter == 'Videos';
     final showAlbums = filter == 'All' || filter == 'Albums';
 
+    final playback = ref.watch(playerControllerProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Top Result Card (if top online or local artist exists)
+        // 1. Top Result Card (Featured Artist or Featured Song)
         if (showArtists && (state.onlineArtists.isNotEmpty || state.localArtists.isNotEmpty)) ...[
           _buildTopResultCard(
             name: state.onlineArtists.isNotEmpty
@@ -741,6 +895,24 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             },
           ),
           const SizedBox(height: 28),
+        ] else if (showSongs && state.youtubeResults.isNotEmpty) ...[
+          _buildTopResultCard(
+            name: state.youtubeResults.first.title,
+            subtitle: state.youtubeResults.first.channelTitle,
+            imageUrl: state.youtubeResults.first.thumbnailUrl,
+            isSong: true,
+            onTap: () {
+              ref
+                  .read(playerControllerProvider.notifier)
+                  .selectTrack(state.youtubeResults.first, state.youtubeResults);
+            },
+            onPlay: () {
+              ref
+                  .read(playerControllerProvider.notifier)
+                  .selectTrack(state.youtubeResults.first, state.youtubeResults);
+            },
+          ),
+          const SizedBox(height: 28),
         ],
 
         // 2. Songs Section
@@ -750,7 +922,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Songs',
+                  'Local Songs',
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -768,22 +940,25 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 12),
             ...state.localSongs.take(5).map(
-                  (song) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: SongTile(
-                      title: song.title,
-                      artist: song.artist,
-                      duration: song.duration,
-                      imageUrl: song.artworkPath,
-                      isPlaying: false,
-                      onTap: () {
-                        ref
-                            .read(playerControllerProvider.notifier)
-                            .selectTrack(song, state.localSongs);
-                        context.push('/player');
-                      },
-                    ),
-                  ),
+                  (song) {
+                    final isPlaying = playback.currentTrack?.id == song.id &&
+                        playback.status == PlaybackStatus.playing;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SongTile(
+                        title: song.title,
+                        artist: song.artist,
+                        duration: song.duration,
+                        imageUrl: song.artworkPath,
+                        isPlaying: isPlaying,
+                        onTap: () {
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .selectTrack(song, state.localSongs);
+                        },
+                      ),
+                    );
+                  },
                 ),
             const SizedBox(height: 16),
           ],
@@ -792,7 +967,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'YouTube',
+                  state.localSongs.isEmpty ? 'Songs' : 'Online Tracks',
                   style: GoogleFonts.playfairDisplay(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -855,7 +1030,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     child: _buildAlbumCard(
                       album.title,
                       album.artist,
-                      album.artworkPath ?? '',
+                      album.artworkPath,
                     ),
                   ),
                 ),

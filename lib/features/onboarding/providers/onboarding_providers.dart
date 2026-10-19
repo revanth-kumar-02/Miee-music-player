@@ -18,6 +18,7 @@ class OnboardingState {
   final String? errorMessage;
   final String searchQuery;
   final String selectedLanguage;
+  final Set<String> selectedLanguages;
   final List<String> supportedLanguages;
 
   const OnboardingState({
@@ -28,14 +29,17 @@ class OnboardingState {
     this.errorMessage,
     this.searchQuery = '',
     this.selectedLanguage = 'All',
+    this.selectedLanguages = const {'Tamil', 'Hindi', 'English'},
     this.supportedLanguages = const [
-      'All',
       'Tamil',
       'Hindi',
+      'English',
       'Telugu',
       'Malayalam',
       'Kannada',
-      'English',
+      'Punjabi',
+      'Bengali',
+      'Marathi',
     ],
   });
 
@@ -43,6 +47,36 @@ class OnboardingState {
       selectedArtists.length >= 3 && selectedArtists.length <= 5 && !isSaving;
 
   String get counterText => '${selectedArtists.length} of 5 selected';
+
+  String get helperText {
+    if (selectedArtists.length < 3) {
+      final remaining = 3 - selectedArtists.length;
+      return 'Select $remaining more to continue';
+    }
+    return 'Ready to continue';
+  }
+
+  /// Groups artists by language according to the currently active languages
+  Map<String, List<ArtistModel>> get groupedArtists {
+    final Map<String, List<ArtistModel>> grouped = {};
+    final query = searchQuery.trim().toLowerCase();
+
+    for (final lang in supportedLanguages) {
+      if (!selectedLanguages.contains(lang)) continue;
+
+      final artistsForLang = discoveredArtists.where((artist) {
+        final matchesLang = artist.languages.contains(lang);
+        if (!matchesLang) return false;
+        if (query.isEmpty) return true;
+        return artist.name.toLowerCase().contains(query);
+      }).toList();
+
+      if (artistsForLang.isNotEmpty) {
+        grouped[lang] = artistsForLang;
+      }
+    }
+    return grouped;
+  }
 
   OnboardingState copyWith({
     List<ArtistSummary>? selectedArtists,
@@ -52,6 +86,7 @@ class OnboardingState {
     String? errorMessage,
     String? searchQuery,
     String? selectedLanguage,
+    Set<String>? selectedLanguages,
     List<String>? supportedLanguages,
     bool clearError = false,
   }) {
@@ -63,6 +98,7 @@ class OnboardingState {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       searchQuery: searchQuery ?? this.searchQuery,
       selectedLanguage: selectedLanguage ?? this.selectedLanguage,
+      selectedLanguages: selectedLanguages ?? this.selectedLanguages,
       supportedLanguages: supportedLanguages ?? this.supportedLanguages,
     );
   }
@@ -74,19 +110,14 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Timer? _debounceTimer;
 
   OnboardingNotifier(this._ref, this._repository)
-      : super(OnboardingState(
-          isLoading: true,
-          supportedLanguages: _repository.getSupportedLanguages(),
-        )) {
-    loadPopularArtists();
+      : super(const OnboardingState(isLoading: true)) {
+    loadAllArtists();
   }
 
-  Future<void> loadPopularArtists() async {
+  Future<void> loadAllArtists() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final artists = await _repository.getPopularArtists(
-        language: state.selectedLanguage,
-      );
+      final artists = await _repository.getPopularArtists();
       state = state.copyWith(
         discoveredArtists: artists,
         isLoading: false,
@@ -99,14 +130,29 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     }
   }
 
-  void setLanguage(String language) {
-    if (language == state.selectedLanguage) return;
-    state = state.copyWith(selectedLanguage: language);
-
-    if (state.searchQuery.trim().isEmpty) {
-      loadPopularArtists();
+  void toggleLanguage(String language) {
+    final current = Set<String>.from(state.selectedLanguages);
+    if (current.contains(language)) {
+      if (current.length > 1) {
+        current.remove(language);
+      }
     } else {
-      _executeSearch(state.searchQuery);
+      current.add(language);
+    }
+    state = state.copyWith(selectedLanguages: current);
+  }
+
+  void setLanguage(String language) {
+    if (language == 'All') {
+      state = state.copyWith(
+        selectedLanguage: 'All',
+        selectedLanguages: Set<String>.from(state.supportedLanguages),
+      );
+    } else {
+      state = state.copyWith(
+        selectedLanguage: language,
+        selectedLanguages: {language},
+      );
     }
   }
 
@@ -115,11 +161,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     state = state.copyWith(searchQuery: query);
 
     if (query.trim().isEmpty) {
-      loadPopularArtists();
+      loadAllArtists();
       return;
     }
 
-    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
       _executeSearch(query);
     });
   }
@@ -127,10 +173,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Future<void> _executeSearch(String query) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final results = await _repository.searchArtists(
-        query,
-        language: state.selectedLanguage,
-      );
+      final results = await _repository.searchArtists(query);
       state = state.copyWith(
         discoveredArtists: results,
         isLoading: false,
@@ -153,7 +196,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     } else {
       if (current.length >= 5) {
         state = state.copyWith(
-          errorMessage: 'You can select up to 5 favorite artists.',
+          errorMessage: 'Maximum 5 artists selected. Deselect one to add another.',
         );
         return;
       }
@@ -200,7 +243,8 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     } catch (e) {
       state = state.copyWith(
         isSaving: false,
-        errorMessage: 'Failed to save preferences: ${e.toString().replaceFirst("Exception: ", "")}',
+        errorMessage:
+            'Failed to save preferences: ${e.toString().replaceFirst("Exception: ", "")}',
       );
       return null;
     }

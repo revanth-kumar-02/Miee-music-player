@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-secondary-fixed-variant": "#920025", "on-primary-container": "#f77788", "surface-dim": "#dadad8", "on-background": "#1a1c1b", "surface-variant": "#e3e2e0", "secondary-fixed": "#ffdada", "on-secondary-fixed": "#40000b", "background": "#faf9f7", "tertiary-fixed-dim": "#cac6c1", "on-surface": "#1a1c1b", "on-tertiary": "#ffffff", "on-secondary": "#ffffff", "outline": "#897173", "surface-container-lowest": "#ffffff", "surface-container-highest": "#e3e2e0", "on-tertiary-fixed-variant": "#494643", "secondary-container": "#e41944", "secondary-fixed-dim": "#ffb3b5", "tertiary": "#22211e", "on-primary-fixed": "#400010", "secondary": "#ba0032", "on-surface-variant": "#564243", "error-container": "#ffdad6", "inverse-surface": "#2f3130", "surface-container-high": "#e9e8e6", "on-tertiary-container": "#a39f9a", "primary-fixed-dim": "#ffb2b9", "primary": "#4b0014", "primary-fixed": "#ffdadc", "on-tertiary-fixed": "#1d1b18", "surface-container": "#efeeec", "surface-bright": "#faf9f7", "primary-container": "#6e0d25", "surface-tint": "#a4384a", "on-primary": "#ffffff", "on-primary-fixed-variant": "#852034", "tertiary-container": "#383633", "inverse-primary": "#ffb2b9", "tertiary-fixed": "#e7e2dc", "on-error-container": "#93000a", "surface": "#faf9f7", "surface-container-low": "#f4f3f1", "inverse-on-surface": "#f1f1ef", "on-error": "#ffffff", "error": "#ba1a1a", "outline-variant": "#ddc0c1", "on-secondary-container": "#fffbff" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-3xl": "3rem", "space-xl": "1.5rem", "space-2xl": "2rem", "margin-desktop": "2rem", "gutter": "1.25rem", "space-xs": "0.25rem", "gutter-desktop": "1.5rem", "margin-tablet": "1.5rem", "space-lg": "1rem", "space-sm": "0.5rem", "space-md": "0.75rem", "margin": "1rem" }, "fontFamily": { "body-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "headline-xl-mobile": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "caption": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"] }, "fontSize": { "body-sm": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }], "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0.005em", "fontWeight": "600" }], "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "600" }], "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "500" }], "body-md": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "0em", "fontWeight": "400" }], "headline-xl-mobile": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-sm": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "600" }], "caption": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.025em", "fontWeight": "500" }], "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-xl": ["2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.03em", "fontWeight": "700" }] } } } };</script><style>@layer base { html, body { width: 100vw; margin: 0; padding: 0; } body { overscroll-behavior-y: none; } .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); } .pt-safe { padding-top: env(safe-area-inset-top, 0px); } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style></head><body class="bg-surface font-body-md text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)]"><div class="h-16 px-margin flex items-center justify-between"><button aria-label="Go back" class="w-11 h-11 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[20px]">arrow_back</span></button><h1 class="font-label-md text-label-md text-on-surface tracking-tight text-center truncate px-space-sm max-w-[200px]">Artist Profile</h1><div class="flex items-center gap-space-xs"><button aria-label="Share" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[20px]">share</span></button><button aria-label="More options" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[20px]">more_vert</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-space-xs"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-24 bg-surface"><div class="flex flex-col w-full pb-36">
+<!-- Top Artist Hero Section -->
+<section class="relative w-full px-margin pt-space-md flex flex-col items-center text-center">
+<!-- Ambient Radial Halo -->
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-72 bg-gradient-to-b from-primary-fixed-dim/25 via-surface-container-low/40 to-transparent rounded-full blur-3xl pointer-events-none -z-10"></div>
+<!-- Artist Portrait -->
+<div class="relative group mt-space-xs">
+<div class="w-36 h-36 rounded-full overflow-hidden shadow-md bg-surface-container flex items-center justify-center p-1 bg-surface-container-lowest">
+<img alt="Classic studio portrait photography of jazz icon Miles Davis" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVTL01C_BYUzoYJY0Jc5pMr25Rlr-BwVEvhMcINd_TXRWMbIpUW5eZRn_Uwongsr_fJgmse3PXpLDJeZJS9452uccum9iVhtta0ZkfxjiZBh-IFIJs4SgGfHr9k7C3xynbVRd_jEfEk0RG8N2ORjh063icpCCURT7Oi-eXBGOIPNPn_-g_t5QakINJ02WrP5JKTzLfD8OLWjVvujjoU9_51hKEd7S1aCT1lC_fWx7XAZbRoSfdmw-I"/>
+</div>
+<div class="absolute bottom-1 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+</div>
+<!-- Artist Identification & Metadata -->
+<div class="mt-space-md flex flex-col items-center max-w-xs">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-headline-xl-mobile text-headline-xl-mobile text-on-surface tracking-tight">Miles Davis</h2>
+</div>
+<span class="inline-flex items-center gap-1.5 px-space-md py-0.5 mt-space-xs rounded-full bg-surface-container text-on-surface-variant font-caption text-caption uppercase tracking-wider">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+        Pioneering Trumpeter &amp; Bandleader
+      </span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-space-sm flex items-center gap-1.5 justify-center">
+<span>3,842,910 monthly listeners</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span>Hard Bop • Cool Jazz</span>
+</p>
+</div>
+<!-- Action Buttons Row -->
+<div class="w-full max-w-sm mt-space-xl flex items-center gap-space-sm px-space-xs">
+<button class="flex-1 h-12 bg-primary-container text-on-primary rounded-full font-label-md text-label-md flex items-center justify-center gap-space-xs shadow-sm hover:opacity-95 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span>Play</span>
+</button>
+<button class="flex-1 h-12 bg-surface-container-low text-on-surface rounded-full font-label-md text-label-md flex items-center justify-center gap-space-xs hover:bg-surface-container active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[18px]">shuffle</span>
+<span>Shuffle</span>
+</button>
+<button aria-label="Follow artist" class="w-12 h-12 rounded-full bg-surface-container-low text-on-surface flex items-center justify-center hover:bg-surface-container active:scale-[0.95] transition-all flex-shrink-0" id="follow-toggle">
+<span class="material-symbols-outlined text-[20px]" id="follow-icon">person_add</span>
+</button>
+</div>
+</section>
+<!-- Popular Tracks Section -->
+<section class="mt-space-2xl px-margin flex flex-col">
+<div class="flex items-baseline justify-between mb-space-md">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Popular Tracks</h3>
+<p class="font-caption text-caption text-on-surface-variant">Most played this month</p>
+</div>
+<button class="font-label-sm text-label-sm text-primary hover:text-primary-container transition-colors">
+        Full catalog
+      </button>
+</div>
+<div class="flex flex-col gap-space-xs">
+<!-- Track 1: So What (Active Highlight) -->
+<div class="group flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest shadow-sm hover:bg-surface-container-low transition-all">
+<div class="flex items-center gap-space-md min-w-0 flex-1">
+<div class="w-5 flex items-center justify-center flex-shrink-0">
+<span class="font-caption text-caption text-primary-container font-semibold group-hover:hidden">1</span>
+<span class="material-symbols-outlined text-[16px] text-primary-container hidden group-hover:block" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-sm bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Vintage acoustic vinyl artwork sleeve of Miles Davis Kind of Blue record against soft studio chalkboard background with rich deep blue tonal accents and typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0jP6lrf6cZSbITTWHVvLyDHiA5gPpwyU5UpZ1oWurpHNe89TRzat6yT8hQR-tkC0DdUi4_FW_qBkuuaB_oGfYoCXI4Hbw1fZ1G83ufzvHn6HU-fYKCg5D81_eShcgKDSiw-cx3KkwFc8ug9yVI3GDFV5IFIbFyNChs66_NCrZiCfvRqLBKOpefmHmWthRQPM5BMNbD5o_ICU9z9q6Y0Ki-0Y2omcXDwjP9ppS1jsLsK5vMg5CdHxy"/>
+</div>
+<div class="flex flex-col min-w-0 flex-1 pr-space-xs">
+<div class="flex items-center gap-1.5 truncate">
+<span class="font-label-md text-label-md text-on-surface truncate">So What</span>
+<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary-fixed text-primary tracking-wide leading-none flex-shrink-0">MASTER</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Kind of Blue</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant font-mono">9:22</span>
+<button aria-label="Favorite" class="w-8 h-8 rounded-full flex items-center justify-center text-secondary hover:text-secondary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<button aria-label="Options" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Track 2: Blue in Green -->
+<div class="group flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all">
+<div class="flex items-center gap-space-md min-w-0 flex-1">
+<div class="w-5 flex items-center justify-center flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant group-hover:hidden">2</span>
+<span class="material-symbols-outlined text-[16px] text-primary-container hidden group-hover:block" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-sm bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Moody atmospheric jazz piano and trumpet sleeve visual aesthetic with soft focus bokeh warm lighting and warm parchment styling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkKGgTcC7IV8TUbLDDMXLKdzQ6R9DdJmhE_tbbXC51N9uCKJf2jqU5HrsOxOSU1RArcKtYSG6RITZjWom9_HKtO4UOZFy0CI0iYAW1e41nIzmVVa5phO8DJSBmN0HLlle45Q7wucArGTenOlu2NiQF0JNnFre_sWPXKX2tUJsUL7lxtP4lsGLuzfE10QRTLVjkPpgQ0-wl9SjBuqc_Db9DA9I_nWmJjTL8EkfiMPv6N9NzfCAF6-cy"/>
+</div>
+<div class="flex flex-col min-w-0 flex-1 pr-space-xs">
+<span class="font-label-md text-label-md text-on-surface truncate">Blue in Green</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Bill Evans, Miles Davis • Kind of Blue</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant font-mono">5:37</span>
+<button aria-label="Favorite" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button aria-label="Options" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Track 3: Flamenco Sketches -->
+<div class="group flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all">
+<div class="flex items-center gap-space-md min-w-0 flex-1">
+<div class="w-5 flex items-center justify-center flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant group-hover:hidden">3</span>
+<span class="material-symbols-outlined text-[16px] text-primary-container hidden group-hover:block" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-sm bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Classical acoustic jazz arrangement aesthetic graphic with subtle crimson and chalk texture warm tonal minimalist design" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBLK4Mvmv2TpLtAEFooNv9Zbpbl9-8KDmkfwIUTXROxFvd7lazMZ6N6iw9IzofM6ewr0AvdA3UuP6cRlRMdk2RhHdNLQXHjF3Tx8lIba6urj1-tj-RrCUa-7GvO566rL40AHwU6MdSMXN5hFjxUGyeN5VHVGk8UB2ZAKcJkC1asWFqg6AQGEbRenhIdIqO2L9LH4hNDAlbGKCzk0-Ogl1om5-r6t7412DTwi3zaJV-SL3SGpeX8dwSk"/>
+</div>
+<div class="flex flex-col min-w-0 flex-1 pr-space-xs">
+<span class="font-label-md text-label-md text-on-surface truncate">Flamenco Sketches</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Kind of Blue</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant font-mono">9:26</span>
+<button aria-label="Favorite" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button aria-label="Options" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Track 4: Milestones -->
+<div class="group flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all">
+<div class="flex items-center gap-space-md min-w-0 flex-1">
+<div class="w-5 flex items-center justify-center flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant group-hover:hidden">4</span>
+<span class="material-symbols-outlined text-[16px] text-primary-container hidden group-hover:block" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-sm bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Graphic modernist jazz record cover geometry in bordeaux vermilion and chalk white featuring brass trumpet abstraction" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaqwcVAHlfAy_QOD4mp9XqaKC72eTtfENayJfjnexRhmzCChGaJgPXCvOmv4e1NKb6RjRLT7hpZzE2V2kC1JjkqH9JD0F6AfCO4HXCeYq26h44ggDal6iNrTwawcivjU6sZdlLKboJNpBc7VB5Cc05g7YaE35vErUvTiggnVQkxyTd9AHiYoimg1K2jyyrlfvLr6tG_If3AwAX0DA-UAZ0UDcnkX36MmMCSTJx1YTcLfzSX3AwkM26"/>
+</div>
+<div class="flex flex-col min-w-0 flex-1 pr-space-xs">
+<span class="font-label-md text-label-md text-on-surface truncate">Milestones</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Milestones</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant font-mono">5:44</span>
+<button aria-label="Favorite" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button aria-label="Options" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Track 5: 'Round Midnight -->
+<div class="group flex items-center justify-between p-space-sm rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all">
+<div class="flex items-center gap-space-md min-w-0 flex-1">
+<div class="w-5 flex items-center justify-center flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant group-hover:hidden">5</span>
+<span class="material-symbols-outlined text-[16px] text-primary-container hidden group-hover:block" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div class="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-sm bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Late night jazz club atmosphere muted warm red and deep amber lighting silhouette of trumpet bell on dark paper" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwd7HdQ1MKlhrg2oCaseWA2oqXPcmWkLIP5A246McZKjeTcy5EZwrPzL1nTEeR11VrfdyWaV5Jkhqqhjb2qi_3cfjl49Q9cYgFp1csJUb5yyyygVYY4Pr8YBs2s6F8iWfk7vp-iYVLsPhs4TI8MvAhSDL414UhmiZqf2Xo9tiAWu8XSTrOs_7GfaRVvwd4axgLcl2XD_Pahh1dy11ylYjKzmgBACV_vUN_0FIHjUbjy6jnxAxe5aR5"/>
+</div>
+<div class="flex flex-col min-w-0 flex-1 pr-space-xs">
+<span class="font-label-md text-label-md text-on-surface truncate">'Round Midnight</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">'Round About Midnight</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant font-mono">5:58</span>
+<button aria-label="Favorite" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button aria-label="Options" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Albums & Discography Carousel -->
+<section class="mt-space-2xl flex flex-col">
+<div class="flex items-baseline justify-between px-margin mb-space-md">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Discography &amp; Albums</h3>
+<p class="font-caption text-caption text-on-surface-variant">Essential studio recordings</p>
+</div>
+<button class="font-label-sm text-label-sm text-primary flex items-center gap-0.5 hover:text-primary-container transition-colors">
+<span>See all</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+</button>
+</div>
+<!-- Scrollable Carousel Container -->
+<div class="flex overflow-x-auto gap-space-md px-margin pb-space-sm pt-space-xs no-scrollbar">
+<!-- Album 1: Kind of Blue -->
+<div class="flex flex-col w-[130px] flex-shrink-0 group cursor-pointer">
+<div class="relative w-[130px] h-[130px] rounded-xl overflow-hidden shadow-sm bg-surface-container group-hover:shadow-md transition-shadow">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Kind of Blue album artwork jacket photograph of Miles Davis playing trumpet with rich cobalt shadows and crisp typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLmtnHfZaLQdNSyTUyz_cnan9gSApgOYTOkOpmVryDMIzSzYMVyGP9Lg_r_PsNoFVFA-CuDXSTX7kRJ6hLJLidcJYi5sJe152BdfArewBuF7xHSSXcbbJN58ck8DNxu05RiuAAjFUiRNEZsAPyTNi8eai6g5aGpKuNiF0mvziLXv549QQJae76bAmSrbfesM4mxVNx4tiIRJdUmvmysKNvZBcAX4XoDQyvUe5yz_u4sAw56MdximK0"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition-opacity">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<span class="font-label-md text-label-md text-on-surface mt-space-sm truncate group-hover:text-primary transition-colors">Kind of Blue</span>
+<span class="font-caption text-caption text-on-surface-variant truncate">1959 • 5 tracks</span>
+</div>
+<!-- Album 2: In a Silent Way -->
+<div class="flex flex-col w-[130px] flex-shrink-0 group cursor-pointer">
+<div class="relative w-[130px] h-[130px] rounded-xl overflow-hidden shadow-sm bg-surface-container group-hover:shadow-md transition-shadow">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="In a Silent Way iconic album cover vintage typography artistic studio lighting warm electric jazz mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoEez7EgnTZsylKEHq7_BSqL0vwWba8XUwk8fCSZAqziiY6AY3nnN4qQFFNJVq1gQWl_CKUTgm9IegevKcfgsLnT6F4cSw9qDIucvxepAIqlSQjzsnZR2N4DQuzEQIcThVfSEEKBZLY8xGlICcORAFZLCn9RWd4wMaIG_Zs-uAigqS0fEQ7NCRuIvxVo2m86Y0NzD_wGV6fyk2l8OlLZRkHCIjgc8D9Bx7253tsidEooBpN2Xed6FH"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition-opacity">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<span class="font-label-md text-label-md text-on-surface mt-space-sm truncate group-hover:text-primary transition-colors">In a Silent Way</span>
+<span class="font-caption text-caption text-on-surface-variant truncate">1969 • 2 tracks</span>
+</div>
+<!-- Album 3: Milestones -->
+<div class="flex flex-col w-[130px] flex-shrink-0 group cursor-pointer">
+<div class="relative w-[130px] h-[130px] rounded-xl overflow-hidden shadow-sm bg-surface-container group-hover:shadow-md transition-shadow">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Milestones studio record sleeve graphic modernist typography with warm sepia portrait and clean border lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCv18TFrZYl9xsvqvqiRNTdgsNb-1g7KwRaBkxFgiyZFdvWoJnyAon0hqZ3z_1w9xjj_83F9DEmvYaHzUfnE_1cYB-4sUZUuBUUkxGNZcFM0w1ELOSYlSHDpmSkNEKrk9wFgdqtaL6Z1ZNvpkwbryz99Te7pR-Z74qUe5-P1GbwN5MXHHR0Cu__c-1v8RxNy205CfbXc5HZzZThr5Vc0Gym8Mn4mSlMN7eZtIOWtlDK4Qpno_1kUb3l"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition-opacity">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<span class="font-label-md text-label-md text-on-surface mt-space-sm truncate group-hover:text-primary transition-colors">Milestones</span>
+<span class="font-caption text-caption text-on-surface-variant truncate">1958 • 6 tracks</span>
+</div>
+<!-- Album 4: Birth of the Cool -->
+<div class="flex flex-col w-[130px] flex-shrink-0 group cursor-pointer">
+<div class="relative w-[130px] h-[130px] rounded-xl overflow-hidden shadow-sm bg-surface-container group-hover:shadow-md transition-shadow">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Birth of the Cool iconic compilation album cover jazz musicians in vintage monochrome print style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASvZe-oK9UQPSWANtU3yivLn2cNUg-DtpWLljpCbd8z4rsf8WqalpMLcxHK9GvAp9mcwTR2iemLWQyJpSOFGZ820GoJgeomBRumHsRJGGqI36JTNTvwyV9h7XttHUeTSkPoX77u821lywIXke-PmpX2u7m_XRdpMi-Wm9sD-eKzxwHTZrv3Zr1Xvyt6Zw19RF3yC_JItHz7xyMBvC1_Pzf9iyRccsgZF6_400m9N8_BSjpo4KdqYq1"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition-opacity">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<span class="font-label-md text-label-md text-on-surface mt-space-sm truncate group-hover:text-primary transition-colors">Birth of the Cool</span>
+<span class="font-caption text-caption text-on-surface-variant truncate">1957 • 12 tracks</span>
+</div>
+</div>
+</section>
+<!-- Editorial Artist Quote / Delight Card -->
+<section class="mt-space-2xl px-margin">
+<div class="relative w-full rounded-2xl bg-surface-container-low p-space-lg overflow-hidden">
+<div class="absolute -right-4 -bottom-4 text-surface-container-high/40 select-none pointer-events-none">
+<span class="material-symbols-outlined text-[120px]">format_quote</span>
+</div>
+<div class="relative z-10">
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-primary font-semibold">Artist Notes</span>
+<p class="font-headline-sm text-headline-sm text-on-surface mt-space-xs italic leading-relaxed">
+          “Don't play what's there, play what's not there.”
+        </p>
+<span class="font-caption text-caption text-on-surface-variant mt-space-sm block">Inducted into the Rock &amp; Roll Hall of Fame • 9x Grammy Winner</span>
+</div>
+</div>
+</section>
+</div>
+<script>
+  // Simple micro-interaction for follow toggle
+  const followBtn = document.getElementById('follow-toggle');
+  const followIcon = document.getElementById('follow-icon');
+  let isFollowing = false;
+
+  if (followBtn && followIcon) {
+    followBtn.addEventListener('click', () => {
+      isFollowing = !isFollowing;
+      if (isFollowing) {
+        followBtn.classList.remove('bg-surface-container-low', 'text-on-surface');
+        followBtn.classList.add('bg-primary', 'text-on-primary');
+        followIcon.textContent = 'check';
+      } else {
+        followBtn.classList.remove('bg-primary', 'text-on-primary');
+        followBtn.classList.add('bg-surface-container-low', 'text-on-surface');
+        followIcon.textContent = 'person_add';
+      }
+    });
+  }
+</script></main><aside class="fixed bottom-0 w-full z-40 pb-safe px-margin pointer-events-none"><div class="pointer-events-auto w-full max-w-md mx-auto mb-space-sm h-[60px] bg-surface-container-lowest/95 backdrop-blur-xl rounded-xl shadow-[0_4px_20px_rgba(26,15,18,0.08)] px-space-md flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md min-w-0 flex-1"><div class="relative w-10 h-10 rounded-lg overflow-hidden bg-surface-container flex-shrink-0"><div class="w-full h-full bg-primary-container/20 flex items-center justify-center"><span class="material-symbols-outlined text-primary-container text-[20px]">music_note</span></div></div><div class="flex flex-col min-w-0"><span class="font-label-md text-label-md text-on-surface truncate">Céleste</span><span class="font-body-sm text-body-sm text-on-surface-variant truncate">Komorebi Trio</span></div></div><div class="flex items-center gap-space-xs flex-shrink-0"><button class="w-11 h-11 flex items-center justify-center rounded-full text-secondary hover:text-secondary-container transition-colors"><span class="material-symbols-outlined text-[22px]">favorite</span></button><button class="w-11 h-11 flex items-center justify-center rounded-full bg-primary-container text-on-primary hover:opacity-95 shadow-sm transition-transform active:scale-95"><span class="material-symbols-outlined text-[20px]">pause</span></button></div></div></aside></body></html>

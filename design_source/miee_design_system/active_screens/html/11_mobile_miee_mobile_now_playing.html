@@ -1,0 +1,186 @@
+<!DOCTYPE html><html class="h-full bg-[#F2F0EB]" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<title>Miee — Now Playing</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              chalk: '#F9F8F6',
+              charcoal: '#1A0F12',
+              bordeaux: '#6E0D25',
+              bordeauxDark: '#540A1C',
+              highlight: '#FF3355',
+              border: '#EBE8E3',
+              subtle: '#8C8386',
+              unplayed: '#D5CDD0'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          boxShadow: {
+            'art': '0 20px 40px -15px rgba(26, 15, 18, 0.15)',
+            'play-btn': '0 12px 28px -4px rgba(110, 13, 37, 0.45)',
+          }
+        }
+      }
+    };
+  </script>
+<style data-purpose="custom-scroll-and-tap">
+    /* Disable default mobile callout and tap highlight */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+  </style>
+</head>
+<body class="h-full font-sans antialiased bg-[#ECEAE5] flex items-center justify-center p-0 md:p-6 text-brand-charcoal overflow-x-hidden">
+<!-- BEGIN: MobileDeviceFrame -->
+<main class="w-full max-w-[400px] h-full md:h-[844px] md:max-h-[95vh] bg-brand-chalk flex flex-col justify-between relative md:rounded-[46px] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] md:border-[8px] md:border-[#1F1E1D] overflow-hidden px-6 pt-3 pb-8" data-purpose="mobile-player-shell">
+<!-- BEGIN: TopBar -->
+<header class="w-full pt-2 flex items-center justify-between shrink-0 z-20" data-purpose="top-navigation">
+<!-- Back / Chevron Down -->
+<button aria-label="Collapse player" class="w-10 h-10 -ml-2 flex items-center justify-center text-brand-charcoal active:scale-90 transition-transform" type="button">
+<svg class="w-5 h-5 stroke-[2.2] stroke-current fill-none" viewBox="0 0 24 24">
+<path d="m19.5 8.25-7.5 7.5-7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Center: NOW PLAYING -->
+<div class="text-center">
+<span class="text-[11px] font-bold tracking-[0.22em] text-brand-charcoal uppercase">NOW PLAYING</span>
+</div>
+<!-- Right: Queue / Playlist with Music Note Icon -->
+<button aria-label="Playback queue" class="w-10 h-10 -mr-2 flex items-center justify-center text-brand-charcoal active:scale-90 transition-transform" type="button">
+<svg class="w-5 h-5 stroke-[2] stroke-current fill-none" viewBox="0 0 24 24">
+<line stroke-linecap="round" x1="4" x2="15" y1="6" y2="6"></line>
+<line stroke-linecap="round" x1="4" x2="13" y1="12" y2="12"></line>
+<line stroke-linecap="round" x1="4" x2="11" y1="18" y2="18"></line>
+<path d="M19 6v8a2 2 0 1 1-2-2h2" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</header>
+<!-- END: TopBar -->
+<!-- BEGIN: CenteredAlbumArt -->
+<div class="flex-1 flex items-center justify-center py-2" data-purpose="artwork-section">
+<div class="w-[280px] h-[280px] sm:w-[290px] sm:h-[290px] rounded-[28px] overflow-hidden shadow-art"><img alt="Album Cover - Nightlights" class="w-full h-full object-cover object-center" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0lFOoVKpMljm50uLLaZFSpDsEdv6WT3mNPRi2OmgPZDn0CYqKVePXRwWn-rWUzlCKw3kVdsROXH6t1gitG3YoRMtEsQ34jVa9tj2S4ctQMeC1vGonF0Scv2e4IMogkl1Zw2nB5KTlf8ngojc9nnCL5Qdqvd9ynmG76jVp-uuilh3TJVSa8MYaCnpqnTdi-_y4DK91X5wcn7ZzxKIkAyW-gRZmWBt20U3S0gqWTVI49nBaNLJeEO4L"></div>
+</div>
+<!-- END: CenteredAlbumArt -->
+<!-- BEGIN: TrackDetailsAndActions -->
+<div class="w-full shrink-0 mt-1 mb-2" data-purpose="track-header"><div class="flex items-center justify-between">
+<button aria-label="Favorite song" class="w-10 h-10 flex items-center justify-center text-brand-charcoal hover:text-brand-bordeaux active:scale-90 transition-transform shrink-0" type="button">
+<svg class="w-6 h-6 stroke-[1.8] stroke-current fill-none hover:fill-brand-bordeaux hover:text-brand-bordeaux" viewBox="0 0 24 24">
+<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<div class="text-center px-2 flex-1 min-w-0 flex flex-col justify-center items-center">
+<h1 class="text-[20px] font-extrabold tracking-tight text-brand-charcoal leading-snug">Nightlights</h1>
+<p class="text-xs font-semibold text-stone-500 mt-1 tracking-wide">Aura</p>
+</div>
+<button aria-label="More options" class="w-10 h-10 flex items-center justify-center text-brand-charcoal active:scale-90 transition-transform shrink-0" type="button">
+<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+<circle cx="5" cy="12" r="1.75"></circle>
+<circle cx="12" cy="12" r="1.75"></circle>
+<circle cx="19" cy="12" r="1.75"></circle>
+</svg>
+</button>
+</div></div>
+<!-- END: TrackDetailsAndActions -->
+<!-- BEGIN: MinimalWaveformTimeline -->
+<div class="w-full shrink-0 px-2 mt-4 mb-3" data-purpose="waveform-timeline">
+<!-- Waveform Dots & Bars Visualizer -->
+<div aria-label="Audio Timeline" aria-valuemax="309" aria-valuemin="0" aria-valuenow="56" class="h-8 w-full flex items-center justify-center gap-[3px] cursor-pointer" role="slider">
+<!-- Played Segment (Bordeaux #6E0D25) with leading dots & bars matching reference -->
+<div class="w-[3px] h-[3px] rounded-full bg-brand-bordeaux"></div>
+<div class="w-[3px] h-[3px] rounded-full bg-brand-bordeaux"></div>
+<div class="w-[3px] h-2.5 rounded-full bg-brand-bordeaux"></div>
+<div class="w-[3px] h-4 rounded-full bg-brand-bordeaux"></div>
+<div class="w-[3px] h-3 rounded-full bg-brand-bordeaux"></div>
+<div class="w-[3px] h-5 rounded-full bg-brand-bordeaux"></div>
+<div class="w-[3.2px] h-6 rounded-full bg-brand-bordeaux"></div>
+<!-- Unplayed Segment (#D5CDD0) with soft rhythmic amplitudes and trailing dots -->
+<div class="w-[3px] h-5 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-3 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-4 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-[3.5px] rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-3.5 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-5 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-4 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-3.5 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-2 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-4 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-3 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-5 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-6 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-4.5 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-3 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-2.5 rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-[3px] rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-[3px] rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-[3px] rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-[3px] rounded-full bg-brand-unplayed"></div>
+<div class="w-[3px] h-[3px] rounded-full bg-brand-unplayed"></div>
+</div>
+<!-- Timestamps directly beneath waveform -->
+<div class="flex items-center justify-between text-[11px] font-bold text-stone-500 mt-2 px-1">
+<span class="tabular-nums">0:56</span>
+<span class="tabular-nums">5:09</span>
+</div>
+</div>
+<!-- END: MinimalWaveformTimeline -->
+<!-- BEGIN: PrimaryPlaybackControls -->
+<div class="w-full shrink-0 flex items-center justify-between px-3 pt-4 pb-4" data-purpose="transport-playback-controls">
+<!-- Shuffle Toggle Button -->
+<button aria-label="Shuffle" class="p-2.5 text-brand-charcoal hover:text-brand-bordeaux active:scale-95 transition-all" type="button">
+<svg class="w-5 h-5 stroke-[2] stroke-current fill-none" viewBox="0 0 24 24">
+<polyline points="16 3 21 3 21 8"></polyline>
+<line x1="4" x2="21" y1="20" y2="3"></line>
+<polyline points="21 16 21 21 16 21"></polyline>
+<line x1="15" x2="21" y1="15" y2="21"></line>
+<line x1="4" x2="9" y1="4" y2="9"></line>
+</svg>
+</button>
+<!-- Previous Track Button -->
+<button aria-label="Previous track" class="p-2 text-brand-charcoal active:scale-90 transition-transform" type="button">
+<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+<path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path>
+</svg>
+</button>
+<!-- Prominent Bordeaux Circular Pause / Play Button -->
+<button aria-label="Pause playback" class="w-16 h-16 rounded-full bg-brand-bordeaux hover:bg-brand-bordeauxDark text-white flex items-center justify-center shadow-play-btn active:scale-95 transition-all" type="button">
+<svg class="w-7 h-7 fill-current" viewBox="0 0 24 24">
+<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+</svg>
+</button>
+<!-- Next Track Button -->
+<button aria-label="Next track" class="p-2 text-brand-charcoal active:scale-90 transition-transform" type="button">
+<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+<path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"></path>
+</svg>
+</button>
+<!-- Repeat / Loop Button -->
+<button aria-label="Repeat mode" class="p-2.5 text-brand-charcoal hover:text-brand-bordeaux active:scale-95 transition-all" type="button">
+<svg class="w-5 h-5 stroke-[2] stroke-current fill-none" viewBox="0 0 24 24">
+<polyline points="17 1 21 5 17 9"></polyline>
+<path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+<polyline points="7 23 3 19 7 15"></polyline>
+<path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+</svg>
+</button>
+</div>
+<!-- END: PrimaryPlaybackControls -->
+<!-- Home Indicator -->
+<div class="w-32 h-1 bg-stone-300 rounded-full mx-auto mt-2"></div>
+</main>
+<!-- END: MobileDeviceFrame -->
+
+
+</body></html>

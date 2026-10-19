@@ -3,17 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../app/theme/app_colors.dart';
 import '../providers/auth_providers.dart';
 import 'widgets/auth_components.dart';
 
-/// Recreated Register Screen matching the reference design.
-/// - Oversized warm-toned abstract shapes background
-/// - Miee wave ribbon mark + "miee" serif wordmark
-/// - "Create Account" serif heading
-/// - Name, Email, Password, and Confirm Password fields
-/// - Solid Cocoa Plum "Create Account" button
-/// - "Already have an account? Sign In" link in Dusty Rose
+/// Recreated Register Screen strictly matching Stitch:
+/// - Mobile: `02_mobile_miee_mobile_register.html`
+/// - Desktop / Web: `12_desktop_miee_web_register.html`
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
@@ -78,349 +73,517 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 900;
+
     return AuthScaffold(
-      child: AuthCard(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Miee Brand Header
-              AuthBrandHeader(
-                title: 'Create Account',
-                subtitle: 'Sign up to start your sound sanctuary.',
-                onBack: () {
+      desktopHeader: const AuthDesktopHeader(),
+      desktopFooter: const AuthDesktopFooter(),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isDesktop ? 1140 : 440,
+          ),
+          child: isDesktop
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Left Column: Register Form
+                    Expanded(
+                      flex: 5,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 56.0),
+                        child: _buildFormContent(isDesktop: true),
+                      ),
+                    ),
+                    // Right Column: Editorial Showcase
+                    Expanded(
+                      flex: 6,
+                      child: _buildDesktopShowcaseCard(),
+                    ),
+                  ],
+                )
+              : _buildFormContent(isDesktop: false),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormContent({required bool isDesktop}) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Mobile Top Back Nav
+          if (!isDesktop) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () {
                   if (context.canPop()) {
                     context.pop();
                   } else {
                     context.go('/login');
                   }
                 },
+                tooltip: 'Go to login',
+                color: AuthPalette.textPrimary,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
-
-              // Error Banner
-              if (_errorMessage != null)
+            ),
+            const SizedBox(height: 12),
+            // Mobile Brand Emblem & Wordmark Row
+            Row(
+              children: [
                 Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: AuthPalette.errorContainer,
+                    color: AuthPalette.primaryButton,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AuthPalette.errorRed.withOpacity(0.3),
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      height: 14,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildBar(height: 8),
+                          const SizedBox(width: 2),
+                          _buildBar(height: 14),
+                          const SizedBox(width: 2),
+                          _buildBar(height: 6),
+                          const SizedBox(width: 2),
+                          _buildBar(height: 12),
+                        ],
+                      ),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.error_outline_rounded,
-                        color: AuthPalette.errorRed,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: GoogleFonts.geist(
-                            fontSize: 12.5,
-                            color: AuthPalette.errorRed,
-                          ),
-                        ),
+                ),
+                const SizedBox(width: 8),
+                RichText(
+                  text: TextSpan(
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                      color: AuthPalette.textPrimary,
+                    ),
+                    children: const [
+                      TextSpan(text: 'miee'),
+                      TextSpan(
+                        text: '.',
+                        style: TextStyle(color: AuthPalette.accent),
                       ),
                     ],
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ] else ...[
+            // Desktop Category Pill
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: AuthPalette.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SOUND ARCHITECTURE',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: AuthPalette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
 
-              // Name Field
-              AuthTextField(
-                label: 'Full Name',
-                hintText: 'Enter your name',
-                controller: _nameController,
-                focusNode: _nameFocusNode,
-                prefixIcon: Icons.person_outline_rounded,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
+          // Title & Subtitle
+          Text(
+            'Create your account',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: isDesktop ? 34 : 28,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+              color: AuthPalette.textPrimary,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your music, your way.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: isDesktop ? 16 : 14,
+              color: AuthPalette.textSecondary,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Error banner
+          if (_errorMessage != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: AuthPalette.errorContainer,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AuthPalette.errorRed.withValues(alpha: 0.3),
+                ),
               ),
-              const SizedBox(height: 14),
-
-              // Email Field
-              AuthTextField(
-                label: 'Email address',
-                hintText: 'Enter your email',
-                controller: _emailController,
-                focusNode: _emailFocusNode,
-                prefixIcon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!val.contains('@') || !val.contains('.')) {
-                    return 'Please enter a valid email address';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 14),
-
-              // Password Field
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    'Password',
-                    style: GoogleFonts.geist(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: AuthPalette.textCocoa,
-                    ),
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: AuthPalette.errorRed,
+                    size: 18,
                   ),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocusNode,
-                    obscureText: !_isPasswordVisible,
-                    textInputAction: TextInputAction.next,
-                    onFieldSubmitted: (_) =>
-                        _confirmPasswordFocusNode.requestFocus(),
-                    style: GoogleFonts.geist(
-                      fontSize: 14,
-                      color: AuthPalette.textCocoa,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '••••••••',
-                      hintStyle: GoogleFonts.geist(
-                        fontSize: 13.5,
-                        color: AuthPalette.textMuted.withOpacity(0.6),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.lock_outline_rounded,
-                        color: AuthPalette.textMuted,
-                        size: 19,
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: AuthPalette.textMuted,
-                          size: 19,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
-                        },
-                      ),
-                      filled: true,
-                      fillColor: AuthPalette.inputFill,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 13,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AuthPalette.inputBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AuthPalette.inputBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AuthPalette.inputFocusBorder,
-                          width: 1.5,
-                        ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AuthPalette.errorRed),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AuthPalette.errorRed,
-                          width: 1.5,
-                        ),
-                      ),
-                      errorStyle: GoogleFonts.geist(
-                        fontSize: 12,
-                        color: AuthPalette.errorRed,
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) {
-                        return 'Please enter a password';
-                      }
-                      if (val.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Confirm Password Field
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Confirm Password',
-                    style: GoogleFonts.geist(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: AuthPalette.textCocoa,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    focusNode: _confirmPasswordFocusNode,
-                    obscureText: !_isConfirmPasswordVisible,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _handleRegister(),
-                    style: GoogleFonts.geist(
-                      fontSize: 14,
-                      color: AuthPalette.textCocoa,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '••••••••',
-                      hintStyle: GoogleFonts.geist(
-                        fontSize: 13.5,
-                        color: AuthPalette.textMuted.withOpacity(0.6),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.lock_outline_rounded,
-                        color: AuthPalette.textMuted,
-                        size: 19,
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isConfirmPasswordVisible
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: AuthPalette.textMuted,
-                          size: 19,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isConfirmPasswordVisible =
-                                !_isConfirmPasswordVisible;
-                          });
-                        },
-                      ),
-                      filled: true,
-                      fillColor: AuthPalette.inputFill,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 13,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AuthPalette.inputBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AuthPalette.inputBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AuthPalette.inputFocusBorder,
-                          width: 1.5,
-                        ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AuthPalette.errorRed),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AuthPalette.errorRed,
-                          width: 1.5,
-                        ),
-                      ),
-                      errorStyle: GoogleFonts.geist(
-                        fontSize: 12,
-                        color: AuthPalette.errorRed,
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) {
-                        return 'Please confirm your password';
-                      }
-                      if (val != _passwordController.text) {
-                        return 'Passwords do not match';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 22),
-
-              // Solid Cocoa Plum Button
-              AuthPrimaryButton(
-                label: 'Create Account',
-                isLoading: _isLoading,
-                onPressed: _handleRegister,
-              ),
-              const SizedBox(height: 20),
-
-              // Link to Sign In
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Already have an account?',
-                    style: GoogleFonts.geist(
-                      fontSize: 13,
-                      color: AuthPalette.textMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/login');
-                      }
-                    },
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      'Sign In',
-                      style: GoogleFonts.geist(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AuthPalette.accent,
+                      _errorMessage!,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        color: AuthPalette.errorRed,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Full Name Input
+          AuthTextField(
+            label: 'FULL NAME',
+            hintText: 'Enter your full name',
+            controller: _nameController,
+            focusNode: _nameFocusNode,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
+            suffixIcon: const Icon(
+              Icons.person_outline_rounded,
+              color: Color(0xFF897173),
+              size: 20,
+            ),
+            borderRadius: isDesktop ? 12 : 16,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter your name';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Email Address Input
+          AuthTextField(
+            label: 'EMAIL ADDRESS',
+            hintText: 'name@example.com',
+            controller: _emailController,
+            focusNode: _emailFocusNode,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
+            suffixIcon: const Icon(
+              Icons.mail_outline_rounded,
+              color: Color(0xFF897173),
+              size: 20,
+            ),
+            borderRadius: isDesktop ? 12 : 16,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter your email';
+              }
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
+                return 'Please enter a valid email address';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Password Input
+          AuthTextField(
+            label: 'PASSWORD',
+            hintText: 'Create a password',
+            controller: _passwordController,
+            focusNode: _passwordFocusNode,
+            obscureText: !_isPasswordVisible,
+            textInputAction: TextInputAction.next,
+            onFieldSubmitted: (_) => _confirmPasswordFocusNode.requestFocus(),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isPasswordVisible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                color: AuthPalette.textSecondary,
+                size: 20,
+              ),
+              onPressed: () {
+                setState(() => _isPasswordVisible = !_isPasswordVisible);
+              },
+            ),
+            borderRadius: isDesktop ? 12 : 16,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please create a password';
+              }
+              if (value.length < 6) {
+                return 'Password must be at least 6 characters';
+              }
+              return null;
+            },
+          ),
+          if (isDesktop) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: Color(0xFF897173),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'At least 6 characters with 1 number',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    color: AuthPalette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+
+          // Confirm Password Input
+          AuthTextField(
+            label: 'CONFIRM PASSWORD',
+            hintText: 'Confirm your password',
+            controller: _confirmPasswordController,
+            focusNode: _confirmPasswordFocusNode,
+            obscureText: !_isConfirmPasswordVisible,
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _handleRegister(),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _isConfirmPasswordVisible
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                color: AuthPalette.textSecondary,
+                size: 20,
+              ),
+              onPressed: () {
+                setState(() =>
+                    _isConfirmPasswordVisible = !_isConfirmPasswordVisible);
+              },
+            ),
+            borderRadius: isDesktop ? 12 : 16,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please confirm your password';
+              }
+              if (value != _passwordController.text) {
+                return 'Passwords do not match';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
+
+          // Submit Button
+          AuthPrimaryButton(
+            label: 'Create account',
+            trailingIcon: Icons.arrow_forward_rounded,
+            isLoading: _isLoading,
+            borderRadius: isDesktop ? 12 : 9999,
+            onPressed: _handleRegister,
+          ),
+          const SizedBox(height: 18),
+
+          // Legal Disclaimer
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: Text(
+              "By creating an account, you agree to Miee's Terms of Service and Privacy Policy.",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: AuthPalette.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Footer link
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Already have an account?',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  color: AuthPalette.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/login');
+                  }
+                },
+                child: Text(
+                  'Log in',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AuthPalette.primaryButton,
+                  ),
+                ),
               ),
             ],
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBar({required double height}) {
+    return Container(
+      width: 2,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(1),
+      ),
+    );
+  }
+
+  /// Right Column Showcase for Desktop Viewport
+  Widget _buildDesktopShowcaseCard() {
+    return Container(
+      height: 560,
+      constraints: const BoxConstraints(maxWidth: 540),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F3F1),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x101A0F12),
+            blurRadius: 32,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background vinyl/analog image
+          Image.network(
+            'https://lh3.googleusercontent.com/aida-public/AB6AXuB3wYQ1jdnSkG_2SclLFg4UNR1a21HQp_Q24abM6N_z_1mFmM8RPQ5cI7Vzzi-VrR0pdfU2asKtR3_6njOwGcR4wHqpTpVJkIleus-fF_ZXWc2F2DCLfXHlPzG_5-pCr-sYtik-IH-vWV9-7VvLjyBymWipCxfQkVCWwadlTzhOJgNdZSl9_ljXogygADtf2dJwqJH9dFm5bBZXusxd5B5hC8PHziCrUZ4py1LpcDdTQk4mv7CUnDhY',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: AuthPalette.primaryButton,
+                child: const Center(
+                  child: Icon(
+                    Icons.graphic_eq_rounded,
+                    size: 80,
+                    color: Colors.white30,
+                  ),
+                ),
+              );
+            },
+          ),
+          // Warm Atmospheric Gradient Scrim
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  AuthPalette.primaryButton.withValues(alpha: 0.4),
+                  AuthPalette.primaryButton.withValues(alpha: 0.95),
+                ],
+              ),
+            ),
+          ),
+          // Editorial Overlay Details
+          Positioned(
+            left: 36,
+            right: 36,
+            bottom: 40,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Soundwave bars in white
+                SizedBox(
+                  height: 20,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildBar(height: 8),
+                      const SizedBox(width: 4),
+                      _buildBar(height: 18),
+                      const SizedBox(width: 4),
+                      _buildBar(height: 12),
+                      const SizedBox(width: 4),
+                      _buildBar(height: 20),
+                      const SizedBox(width: 4),
+                      _buildBar(height: 14),
+                      const SizedBox(width: 4),
+                      _buildBar(height: 6),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'High-Fidelity Archival Playback',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Delivering pristine lossless audio directly to your personal sound sanctuary.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.8),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

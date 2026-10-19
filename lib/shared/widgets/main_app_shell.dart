@@ -124,7 +124,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   left: 0,
                   top: topBarHeight + 16,
                   right: showDrawer ? 320.0 : 0,
-                  bottom: hasTrack ? (playerHeight + 28) : 16,
+                  bottom: (hasTrack && !isNowPlayingRoute) ? (playerHeight + 28) : 16,
                   child: widget.child,
                 ),
 
@@ -137,8 +137,8 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   child: _buildTopHeaderBar(context),
                 ),
 
-                // Persistent Bottom Player
-                if (hasTrack)
+                // Persistent Bottom Player (hidden on full Now Playing route)
+                if (hasTrack && !isNowPlayingRoute)
                   Positioned(
                     left: 20.0,
                     right: showDrawer ? 340.0 : 20.0,
@@ -494,6 +494,11 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         ? cloudProfile!.displayName
         : localProfile.displayName;
 
+    final globalQuery = ref.watch(searchNotifierProvider.select((s) => s.query));
+    if (_topSearchController.text != globalQuery && _topSearchController.selection.baseOffset <= 0) {
+      _topSearchController.text = globalQuery;
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 14, 28, 6),
       child: Row(
@@ -523,6 +528,10 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   ),
                   child: TextField(
                     controller: _topSearchController,
+                    onChanged: (query) {
+                      setState(() {});
+                      ref.read(searchNotifierProvider.notifier).updateQuery(query);
+                    },
                     onSubmitted: (query) {
                       final trimmed = query.trim();
                       if (trimmed.isNotEmpty) {
@@ -532,7 +541,9 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                         ref
                             .read(searchNotifierProvider.notifier)
                             .searchNow(trimmed);
-                        context.go('/search');
+                        if (GoRouterState.of(context).matchedLocation != '/search') {
+                          context.go('/search');
+                        }
                       }
                     },
                     style: GoogleFonts.geist(
@@ -556,6 +567,17 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                         size: 20,
                         color: AppColors.mutedMauve,
                       ),
+                      suffixIcon: _topSearchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.mutedMauve),
+                              splashRadius: 16,
+                              onPressed: () {
+                                _topSearchController.clear();
+                                ref.read(searchNotifierProvider.notifier).updateQuery('');
+                                setState(() {});
+                              },
+                            )
+                          : null,
                     ),
                   ),
                 ),
@@ -669,25 +691,24 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         children: [
           // ── Left: Artwork + Title + Artist + Like Action ──
           GestureDetector(
-            onTap: () {
-              setState(() {
-                _isNowPlayingDrawerOpen = !_isNowPlayingDrawerOpen;
-              });
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                track.imageUrl,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+            onTap: () => context.push('/player'),
+            child: Tooltip(
+              message: 'Open Now Playing',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  track.imageUrl,
                   width: 50,
                   height: 50,
-                  color: AppColors.softClay,
-                  child: const Icon(
-                    Icons.music_note_rounded,
-                    color: AppColors.cocoaPlum,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 50,
+                    height: 50,
+                    color: AppColors.softClay,
+                    child: const Icon(
+                      Icons.music_note_rounded,
+                      color: AppColors.cocoaPlum,
+                    ),
                   ),
                 ),
               ),
@@ -756,7 +777,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
           const Spacer(),
 
-          // ── Center: Playback Controls & Progress Slider ──
+          // ── Center: Playback Controls & Clean Progress Slider ──
           Expanded(
             flex: 5,
             child: Column(
@@ -849,41 +870,67 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   ],
                 ),
 
-                // Seek Progress Waveform Row
+                // Seek Progress Slider Row (Clean linear bar)
                 Row(
                   children: [
-                    Text(
-                      _formatDuration(playback.position),
-                      style: GoogleFonts.geist(
-                        fontSize: 11,
-                        color: AppColors.mutedMauve,
+                    SizedBox(
+                      width: 36,
+                      child: Text(
+                        _formatDuration(playback.position),
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.mutedMauve,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: WaveformWidget(
-                        height: 24.0,
-                        isPlaying: isPlaying,
-                        activeProgress: progress,
-                        activeColor: AppColors.dustyRose,
-                        inactiveColor: AppColors.oatBeige,
-                        onScrub: (val) {
-                          final seekPos = Duration(
-                            milliseconds:
-                                (val * playback.duration.inMilliseconds).toInt(),
-                          );
-                          ref
-                              .read(playerControllerProvider.notifier)
-                              .seek(seekPos);
-                        },
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3.5,
+                          activeTrackColor: AppColors.dustyRose,
+                          inactiveTrackColor: AppColors.oatBeige,
+                          thumbColor: AppColors.dustyRose,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 4.5,
+                            elevation: 1.0,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 10.0,
+                          ),
+                          overlayColor: AppColors.dustyRose.withOpacity(0.15),
+                        ),
+                        child: Slider(
+                          value: progress,
+                          onChanged: (val) {
+                            if (playback.duration.inMilliseconds > 0) {
+                              final seekPos = Duration(
+                                milliseconds:
+                                    (val * playback.duration.inMilliseconds).toInt(),
+                              );
+                              ref
+                                  .read(playerControllerProvider.notifier)
+                                  .seek(seekPos);
+                            }
+                          },
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _formatDuration(playback.duration),
-                      style: GoogleFonts.geist(
-                        fontSize: 11,
-                        color: AppColors.mutedMauve,
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 36,
+                      child: Text(
+                        playback.duration.inMilliseconds > 0
+                            ? _formatDuration(playback.duration)
+                            : '--:--',
+                        textAlign: TextAlign.left,
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.mutedMauve,
+                        ),
                       ),
                     ),
                   ],
@@ -894,22 +941,17 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
           const Spacer(),
 
-          // ── Right: Queue / Lyrics / Volume / Equalizer ──
+          // ── Right: Queue / Volume / Fullscreen Expand ──
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.playlist_play_rounded),
-                iconSize: 22,
-                color: _isNowPlayingDrawerOpen
-                    ? AppColors.dustyRose
-                    : AppColors.cocoaPlum,
+                icon: const Icon(Icons.queue_music_rounded),
+                iconSize: 20,
+                color: AppColors.cocoaPlum,
+                tooltip: 'Queue',
                 splashRadius: 18,
-                onPressed: () {
-                  setState(() {
-                    _isNowPlayingDrawerOpen = !_isNowPlayingDrawerOpen;
-                  });
-                },
+                onPressed: () => context.push('/queue'),
               ),
               IconButton(
                 icon: Icon(
@@ -948,11 +990,12 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.tune_rounded),
-                iconSize: 18,
+                icon: const Icon(Icons.open_in_full_rounded),
+                iconSize: 17,
                 color: AppColors.mutedMauve,
+                tooltip: 'Expand Now Playing',
                 splashRadius: 18,
-                onPressed: () => context.go('/settings'),
+                onPressed: () => context.push('/player'),
               ),
             ],
           ),
@@ -1125,23 +1168,29 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
           const SizedBox(height: 14),
 
-          // Waveform & Timestamps
+          // Linear Progress Slider & Timestamps
           Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: WaveformWidget(
-                  height: 30.0,
-                  isPlaying: isPlaying,
-                  activeProgress: progress,
-                  activeColor: AppColors.dustyRose,
-                  inactiveColor: AppColors.white.withOpacity(0.25),
-                  onScrub: (val) {
-                    final seekPos = Duration(
-                      milliseconds:
-                          (val * playback.duration.inMilliseconds).toInt(),
-                    );
-                    ref.read(playerControllerProvider.notifier).seek(seekPos);
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3.5,
+                  activeTrackColor: AppColors.dustyRose,
+                  inactiveTrackColor: AppColors.white.withOpacity(0.2),
+                  thumbColor: AppColors.dustyRose,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4.5),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10.0),
+                  overlayColor: AppColors.dustyRose.withOpacity(0.15),
+                ),
+                child: Slider(
+                  value: progress,
+                  onChanged: (val) {
+                    if (playback.duration.inMilliseconds > 0) {
+                      final seekPos = Duration(
+                        milliseconds:
+                            (val * playback.duration.inMilliseconds).toInt(),
+                      );
+                      ref.read(playerControllerProvider.notifier).seek(seekPos);
+                    }
                   },
                 ),
               ),
@@ -1158,7 +1207,9 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                       ),
                     ),
                     Text(
-                      _formatDuration(playback.duration),
+                      playback.duration.inMilliseconds > 0
+                          ? _formatDuration(playback.duration)
+                          : '--:--',
                       style: GoogleFonts.geist(
                         fontSize: 11,
                         color: AppColors.vanillaCream.withOpacity(0.6),

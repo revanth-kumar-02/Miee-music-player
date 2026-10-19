@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../domain/youtube_model.dart';
 import '../domain/youtube_metadata_cleaner.dart';
+import '../../../core/audio/youtube_audio_service.dart';
 
 /// Supported, policy-compliant music discovery source for web and fallback environments.
 ///
@@ -107,7 +108,39 @@ class WebMusicDiscoverySource {
         if (raw is! Map) continue;
         final item = Map<String, dynamic>.from(raw);
 
-        // Ensure this is an individual song
+        // 1. YouTube format (from local proxy/backend)
+        if (item.containsKey('id') && item.containsKey('title') && item['kind'] != 'song') {
+          final videoId = (item['id'] ?? '').toString();
+          if (videoId.isEmpty || !seenTrackIds.add(videoId)) continue;
+
+          final title = item['title'] as String? ?? '';
+          final artist = item['artist'] as String? ?? '';
+          final durationStr = item['duration'] as String? ?? '3:30';
+          final thumb = item['thumbnailUrl'] as String? ??
+              'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+
+          final cleaned = YouTubeMetadataCleaner.clean(
+            rawTitle: title,
+            rawChannel: artist,
+          );
+
+          candidateVideos.add(
+            YouTubeVideo(
+              id: videoId,
+              title: cleaned.title,
+              channelTitle: cleaned.artist,
+              thumbnailUrl: thumb,
+              duration: durationStr,
+              viewCount: 'Verified Song',
+              rawTitle: title,
+              rawChannelTitle: artist,
+              audioStreamUrl: null, // Full audio stream resolved on demand
+            ),
+          );
+          continue;
+        }
+
+        // 2. iTunes catalog fallback (metadata only - DO NOT use 30s previewUrl as audioStreamUrl)
         final kind = item['kind'] as String? ?? '';
         if (kind != 'song') continue;
 
@@ -118,22 +151,18 @@ class WebMusicDiscoverySource {
         final artistName = item['artistName'] as String? ?? '';
         if (trackName.isEmpty) continue;
 
-        // Duration formatting from trackTimeMillis
         final millis = item['trackTimeMillis'] as int? ?? 0;
         final totalSeconds = millis ~/ 1000;
         final minutes = totalSeconds ~/ 60;
         final seconds = totalSeconds % 60;
         final durationStr = '$minutes:${seconds.toString().padLeft(2, '0')}';
 
-        // High-resolution artwork: upgrade 100x100 to 600x600
         final art100 = item['artworkUrl100'] as String? ??
             item['artworkUrl60'] as String? ??
             '';
         final highResArt = art100.isNotEmpty
             ? art100.replaceAll('100x100bb', '600x600bb')
             : 'https://i.ytimg.com/vi/placeholder/hqdefault.jpg';
-
-        final previewUrl = item['previewUrl'] as String? ?? '';
 
         final cleaned = YouTubeMetadataCleaner.clean(
           rawTitle: trackName,
@@ -150,15 +179,9 @@ class WebMusicDiscoverySource {
             viewCount: 'Verified Song',
             rawTitle: trackName,
             rawChannelTitle: artistName,
-            audioStreamUrl: previewUrl.isNotEmpty ? previewUrl : null,
+            audioStreamUrl: null, // Never assign 30s previewUrl as audioStreamUrl
           ),
         );
-
-        // Cache stream URL for title+artist lookup
-        if (previewUrl.isNotEmpty) {
-          final streamKey = _streamKey(cleaned.title, cleaned.artist);
-          _streamCache[streamKey] = previewUrl;
-        }
       }
 
       if (candidateVideos.isNotEmpty) {
@@ -176,7 +199,8 @@ class WebMusicDiscoverySource {
     }
   }
 
-  /// Resolves an audio stream URL for a song by [title] and [artist].
+  /// Resolves a full audio stream URL for a song by [title] and [artist].
+  /// Never returns a 30-second preview clip for full song playback.
   Future<String?> resolveStreamForTrack(String title, String artist) async {
     final streamKey = _streamKey(title, artist);
     if (_streamCache.containsKey(streamKey)) {
@@ -185,17 +209,16 @@ class WebMusicDiscoverySource {
 
     try {
       final query = '$title $artist'.trim();
-      final videos = await searchVideos(query, limit: 5);
-      if (videos.isNotEmpty) {
-        for (final v in videos) {
-          if (v.audioStreamUrl != null && v.audioStreamUrl!.isNotEmpty) {
-            _streamCache[streamKey] = v.audioStreamUrl!;
-            return v.audioStreamUrl;
-          }
+      final videoId = await YouTubeAudioService().resolveVideoIdForQuery(query);
+      if (videoId != null && videoId.isNotEmpty) {
+        final fullStreamUrl = await YouTubeAudioService().getAudioStreamUrl(videoId);
+        if (fullStreamUrl != null && fullStreamUrl.isNotEmpty) {
+          _streamCache[streamKey] = fullStreamUrl;
+          return fullStreamUrl;
         }
       }
     } catch (e) {
-      debugPrint('[WebMusicDiscovery] Stream resolution fallback failed for "$title": $e');
+      debugPrint('[WebMusicDiscovery] Full stream resolution failed for "$title": $e');
     }
     return null;
   }

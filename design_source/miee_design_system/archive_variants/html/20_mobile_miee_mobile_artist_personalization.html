@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "tertiary": "#22211e", "on-secondary-container": "#fffbff", "primary-fixed": "#ffdadc", "on-background": "#1a1c1b", "on-primary": "#ffffff", "secondary": "#ba0032", "surface-container-highest": "#e3e2e0", "surface-bright": "#faf9f7", "on-error": "#ffffff", "outline": "#897173", "on-tertiary": "#ffffff", "on-surface-variant": "#564243", "on-surface": "#1a1c1b", "surface-dim": "#dadad8", "primary-container": "#6e0d25", "tertiary-fixed": "#e7e2dc", "secondary-fixed-dim": "#ffb3b5", "surface-tint": "#a4384a", "secondary-container": "#e41944", "on-secondary-fixed-variant": "#920025", "secondary-fixed": "#ffdada", "on-error-container": "#93000a", "outline-variant": "#ddc0c1", "inverse-on-surface": "#f1f1ef", "surface-container": "#efeeec", "inverse-primary": "#ffb2b9", "surface-container-high": "#e9e8e6", "error": "#ba1a1a", "primary": "#4b0014", "on-secondary-fixed": "#40000b", "inverse-surface": "#2f3130", "primary-fixed-dim": "#ffb2b9", "surface": "#faf9f7", "tertiary-container": "#383633", "on-primary-container": "#f77788", "on-tertiary-fixed-variant": "#494643", "surface-container-low": "#f4f3f1", "error-container": "#ffdad6", "on-tertiary-fixed": "#1d1b18", "on-tertiary-container": "#a39f9a", "surface-container-lowest": "#ffffff", "tertiary-fixed-dim": "#cac6c1", "on-primary-fixed-variant": "#852034", "surface-variant": "#e3e2e0", "on-secondary": "#ffffff", "background": "#faf9f7", "on-primary-fixed": "#400010" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-3xl": "3rem", "space-xl": "1.5rem", "gutter": "1.25rem", "space-sm": "0.5rem", "space-md": "0.75rem", "margin": "1rem", "gutter-desktop": "1.5rem", "space-xs": "0.25rem", "space-2xl": "2rem", "margin-tablet": "1.5rem", "space-lg": "1rem", "margin-desktop": "2rem" }, "fontFamily": { "headline-lg": ["Plus Jakarta Sans"], "headline-xl-mobile": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "caption": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"] }, "fontSize": { "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "headline-xl-mobile": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "body-md": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "0em", "fontWeight": "400" }], "label-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0.005em", "fontWeight": "600" }], "label-sm": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "600" }], "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "500" }], "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "600" }], "caption": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.025em", "fontWeight": "500" }], "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-xl": ["2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.03em", "fontWeight": "700" }], "body-sm": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }] } } } };</script><style>@layer base{html,body{width:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-14 px-margin flex items-center justify-between"><button aria-label="Navigate back" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-all" onclick="history.back()"><span class="material-symbols-outlined text-[22px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight text-center truncate px-space-sm">Favorite Artists</h1><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="flex flex-col relative w-full pt-14 pb-safe bg-surface min-h-screen"><div class="flex flex-col w-full relative pb-36">
+<!-- Progress Header & Context -->
+<div class="flex flex-col px-margin pt-space-xs">
+<!-- Step Badge & Subtle Indicator Track -->
+<div class="flex items-center justify-between mb-space-md">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm tracking-wide">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+        Step 2 of 3
+      </span>
+<div class="flex items-center gap-1.5">
+<div class="w-7 h-1.5 rounded-full bg-primary-container"></div>
+<div class="w-7 h-1.5 rounded-full bg-primary-container"></div>
+<div class="w-7 h-1.5 rounded-full bg-surface-container-highest"></div>
+</div>
+</div>
+<!-- Onboarding Headings -->
+<h2 class="font-headline-xl-mobile text-headline-xl-mobile text-on-surface tracking-tight">
+      What artists do you love?
+    </h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">
+      Choose 3–5 artists to tune your daily mixes, tactile radios, and recommendations.
+    </p>
+<!-- Dynamic Status Banner / Counter -->
+<div class="mt-space-md flex items-center justify-between p-3 rounded-xl bg-surface-container-low shadow-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">stars</span>
+<span class="font-label-md text-label-md text-on-surface" id="counter-badge">2 of 5 selected</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-medium" id="counter-helper">Pick at least 1 more</span>
+</div>
+<!-- Search Input -->
+<div class="relative mt-space-md w-full">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="w-full h-12 pl-11 pr-10 rounded-xl bg-surface-container text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant/60 focus:bg-surface-container-lowest focus:shadow-md outline-none transition-all duration-200" id="artist-search" placeholder="Search favorite artists or genres..." type="text"/>
+<button class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-on-surface active:scale-95 transition-all" id="clear-search">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- Max limit alert toast (hidden by default) -->
+<div class="hidden mx-margin mt-space-sm p-2.5 rounded-lg bg-surface-container-highest flex items-center gap-2 animate-pulse" id="max-toast">
+<span class="material-symbols-outlined text-secondary text-[18px]">info</span>
+<span class="font-caption text-caption text-on-surface-variant font-semibold">Maximum 5 artists selected. Deselect one to add another.</span>
+</div>
+<!-- Artists Grid (3 columns on standard mobile) -->
+<div class="grid grid-cols-3 gap-x-2 gap-y-4 px-margin mt-space-lg" id="artist-grid">
+<!-- 1. Miles Davis (Selected) -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 selected bg-surface-container-low shadow-sm" data-artist="Miles Davis" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-primary-container">
+<img class="w-full h-full object-cover rounded-full" data-alt="Intimate monochrome jazz portrait of Miles Davis with a trumpet, moody stage shadows, high-contrast black and white photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOLr9uwQpNBf39rD9TOTmGkdto_lAZEYoq1ow8LCHvjkQX_4RC1QNqLyo66y6_emwIUBt0Tlvn2AweY1dFc9WHVAeN1gHZDrAkOJSD0hTEWdG_uqEfKD3d54lGP5Wkh0uHt4waDtvuWmZLBwMwF1hQFhwqLj7EpiLRfPOHhJx-_1PlD7dWZGTHHwvZ1cX7gxr_SnnBECOCyBSduA1H5Q_hpOjoUZ1J0xfbrBW5N1GRUlnL-2MLfamC"/>
+<div class="check-badge absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Miles Davis</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Jazz &amp; Brass</span>
+</button>
+<!-- 2. Ella Fitzgerald (Selected) -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 selected bg-surface-container-low shadow-sm" data-artist="Ella Fitzgerald" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-primary-container">
+<img class="w-full h-full object-cover rounded-full" data-alt="Classic warm vintage portrait of Ella Fitzgerald singing into a vintage ribbon microphone, velvety stage light, timeless jazz vocalist" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCacp3dNFHAovGTn8Lc9bEo7kkMHVbaklcPd4iv-SSq5K_nCYRNijMPDWA_upiva9nCkjq0iWYSnrK66pMHR0toEHB-vRm4RTtcUPnNcMoQhU8-IGged5FsRid7mcNCMZdTgHfuQZI1oFWddowa0WMQE4M6ZJMJxPX4-J8vNfvL6Ejw3omxIMGySIYb9dSCU4hqdTLtPCdZ1U2UE0SglfR_9xl27ytyHRxdbo0ZnulEkF6daBpNZ3nz"/>
+<div class="check-badge absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Ella Fitzgerald</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Vocal Jazz</span>
+</button>
+<!-- 3. Kendrick Lamar -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Kendrick Lamar" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Cinematic editorial portrait of Kendrick Lamar in warm atmospheric lighting, thoughtful expression, rich earthy tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKBHRCjzUasF1zhCL0McB5v5hr7pJ8Id7A9sPJjcAyuzUb_PYQe4wCLEVgJpfKHWq2f-6B5pYMpD7d3erJBvtZHk9YzpUC5wQK7MxKWCRaeNS-rjFFWQdpiEpqwd6nJ8dg-0FgzO28GUSlcADZ9PXlUjLDKl9IqN9es-QpAgyfRnTufood_sz_yfyWH2246N3Wpf2cWu_L586hS4UblcEwO3yMzITJRTkdBqFQLMpdCSr4VZCEYUGr"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Kendrick Lamar</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Hip-Hop &amp; Soul</span>
+</button>
+<!-- 4. Radiohead -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Radiohead" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Atmospheric art rock band aesthetic with Thom Yorke silhouette against soft crimson and amber stage haze, cinematic mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-0eQikgi8bYlmjMqGj8D5YrZMPHvU4n9xo0HypOM3ccET_Du5UteWg44Br8Oc7wlRH6o5WPmQjJ9QUnkNpXiVssNAjET7ZGpuqnJbsnNAU97DnoYDDceE_er4IDZGnGc8Hcxws_zC5DdvF9-AywXTUstLQnuHRYntPXy0cYveAo7NuPGI6gDzuB_2T-rRo_G856s1j_lHg4h91SX0CSN96fX4KiWEe4KmcMsCY-Zn5ilsQQilaqSP"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Radiohead</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Alternative</span>
+</button>
+<!-- 5. Nina Simone -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Nina Simone" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Iconic regal portrait of Nina Simone with woven headwrap at the grand piano, deeply expressive, warm analogue grain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP94kP6b8-ZkjmvMfv6R0f4olPpZ1vsi4ehDICGB8ylARYu0mlo4RnzTzeGaSnkuk8XgHOyg_DXe7gfIa_mSgjK7S5FF9aEjH86n_yOGq19KCwUTQEMKcyzTQH3lqiqmCiJS6d6kmMpm0iGHUGHiorXUgC8YUfKG7pThLvnMFz6YvzEebXmODwnGEb0cMHJqjyaIOVON9VjKqxZxFluxgPK7iIQQ7XbanXhn0j0JWwIJU2eYEgvoxo"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Nina Simone</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Soul &amp; Blues</span>
+</button>
+<!-- 6. Norah Jones -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Norah Jones" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Soft acoustic studio portrait of Norah Jones with acoustic guitar, gentle golden hour sunlight streaming in, natural intimate mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHQTRknXhtlkJzt2QPx-3S_KaaVbZmclTAdj36nrrIDGTi6iqJLHpaXFDSEC3J1B20UQrSStQ2_hfHk7a6Ad7KyxP0J7YKxm4X9Qj0iYTaa_gbdRxiD-WkQFm2LQ01ej7W6MBh_XZhed55vtbYT1_v6czyWx0uWZMpLwf_vnvmFwCO7U8RAajkPdaX8F-Xm_MMtY45l3AtzAqQ8ZeZAp1-vZwWQSCYUyAOBhAF9qiyq6_jt3CTN8xH"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Norah Jones</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Folk &amp; Jazz</span>
+</button>
+<!-- 7. Chet Baker -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Chet Baker" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Poignant black and white portrait of Chet Baker holding a trumpet, soft focus background, quiet cool jazz melancholy" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClxHB2kuxLqIzK8CvMgHPJdWktNROzOZUFsp2vg8AJS2ZtDb30tGfFQn2QZf5kNHwMQpqKz-8ZHDDpTBdnNuDEH-3-vIAkdtVzd7YDhj7V-Plom9omQDn0kHVIi-hhUoGpyct6hawDhwga_c-XZunjQy2BLa1aUX3nfwdW3-KcamAxXkTrRCqp9smI704T_KyIRoLz92LYrQE-2LzusFnoQfp6R7g6mPl3dJuqJIS9WRFQjp2Yo9wx"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Chet Baker</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Cool Jazz</span>
+</button>
+<!-- 8. Billie Holiday -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Billie Holiday" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Lyrical close-up portrait of Billie Holiday with a white gardenia in her hair, vintage film warmth, timeless expressive jazz elegance" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_03gFX7XhTdo19pWqeZOYYh0exb0lxx-bu9_BDCyB_-7Xe8BUMvpWN1MSVSZQKggiHnIUnj6SmykOPvMhJ7eHgWtqR_NcXFZaTqAmsCAyp6HFmh7QyQceUHFmgB_o0NkAmFlTV7a-mf8yEDes9GpK-Q0ruJNnv3uthmXG-2nuvm82WpSoxVuV3Ee_uy-PKB0tuJoSeh9iEYPctYqf4iYZhX1Xfl21_nehSeNBhTYFyWPJKUgKXRGa"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Billie Holiday</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Swing &amp; Blues</span>
+</button>
+<!-- 9. Adele -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Adele" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Dramatic studio portrait of singer Adele against warm dark crimson backdrop, elegant classic lighting, soulful depth" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCveaIQvAjsUq032eRoJfn1kq_Ovk4AlbMwmhxDECyRbQa6Jg4lgTkofrvzw46q6ZDdojc3NLNeTE2e7lSHIo8JNsrOA4jLXB396_b3L9259TXkhL2u9vg6p3UR5bZ3wdQbZfBWScEm4_eAPu_GFIBTjkFbM8PJ1V5fq2I9vlkXXu7qP2AZvF5iHSdb81iBOFFMBe_ubNJI-Ibs9hGf9_K3Vwfc4Ey29geNuRJW4rc8Hjk4gxjrgahI"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Adele</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Soul &amp; Pop</span>
+</button>
+<!-- 10. The Northern Trio -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="The Northern Trio" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Nordic ambient acoustic trio musicians in warm wood cabin studio, cello and upright piano, soft organic Scandinavian warmth" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChzFQeWGAlPKzBdrFHpuFnDCfJNgn1nL2m2u9l_ZOLNZHnKLI02Tf1rBNSWRF7wGTUqql5k0SvXEim0bUSoWHnkPUQqWoAbpheRo9UZJeyy-I80VrW2JZ0HLtfVmt05zY4BI6mqjLP8l5Cpe4wHmeSSwsZRq0xJcxhgvkkmLffB-S4GmhQxgMtdOznGFpl4t5z_UkT8CJKfn8pvZ8bb71SOAgZaNg1Nho7KLE9mr1_wIaAg26vZiBC"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">The Northern Trio</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Modern Classical</span>
+</button>
+<!-- 11. Stevie Wonder -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Stevie Wonder" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Joyful 70s soulful vintage portrait of Stevie Wonder smiling broadly by a Rhodes piano, golden retro stage lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzRK2QyDmafkwa3WT7l4KWLpbRxjlZrsoekPug8fqBxjQctmceT0SiW6QNTn12wNV1XGPLCaeyvoSZQGmLn0nu4C4m0UeqG5yTdeXdbAn-wHVoJAWmt-CqkqBoqxBQACNJGIQT9p9qtwmj-80Pb2WVOQHhfnj71m70KBDMNNIBMX-qHw9tcazC6JaYbY6dX-gAhLuNMwhw9zHEnKb7cSYbjG1TNOeWRuknq0lUnl54CQPXOeyzxlIq"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Stevie Wonder</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Funk &amp; Soul</span>
+</button>
+<!-- 12. Leon Bridges -->
+<button class="artist-card group flex flex-col items-center text-center p-2 rounded-xl transition-all duration-150 active:scale-95 bg-surface-container-lowest hover:bg-surface-container-low shadow-sm" data-artist="Leon Bridges" type="button">
+<div class="relative w-[76px] h-[76px] rounded-full overflow-hidden shadow-sm transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest">
+<img class="w-full h-full object-cover rounded-full" data-alt="Warm retro portrait of Leon Bridges in tailored vintage suit, warm sepia lighting, intimate southern rhythm and blues mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmdro7uA_FjlPI08irHv7qUvHveXGnx8JnojveV7ROvutRNrm0roIvFx6DJDIDcxtXoWgND5LbeoR3hM1lcrH9RV7_f9AS66PKxCXZsGxIs5n89m9mUpRzKsF_-Ep_JpKBYL4-jO2zEEqStYRu6TY83tTbpFirtoEa4Q-owzcsmnYYYUU5b5kuPooWeh72YyXO_83P3xrQN5-yHI-7S3KPFV1Mva5rwYv7cy5sn5me_DuJtG5yZVLx"/>
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm text-on-surface truncate w-full">Leon Bridges</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">R&amp;B / Soul</span>
+</button>
+</div>
+<!-- Empty state for search if no results -->
+<div class="hidden flex-col items-center justify-center py-12 px-margin text-center" id="no-results">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant mb-2">
+<span class="material-symbols-outlined text-[24px]">music_off</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface">No artist found</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1">Try another spelling or explore our highlighted catalog above.</span>
+</div>
+<!-- Tactile Note card -->
+<div class="px-margin mt-space-xl">
+<div class="p-3.5 rounded-xl bg-surface-container-low flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-[20px] shrink-0 mt-0.5">auto_awesome</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Tuned to your ear</span>
+<span class="font-caption text-caption text-on-surface-variant mt-0.5">Miee curates analog-mastered sessions, vinyl rips, and daily artist spotlights from your picks.</span>
+</div>
+</div>
+</div>
+<!-- Fixed Bottom Sticky Deck with Scrim Gradient -->
+<div class="fixed bottom-0 inset-x-0 z-40 pb-safe pt-8 px-margin bg-gradient-to-t from-surface via-surface/95 to-transparent pointer-events-none">
+<div class="flex flex-col w-full max-w-lg mx-auto pointer-events-auto pb-4">
+<!-- Continue Button -->
+<button class="w-full h-[52px] rounded-full flex items-center justify-center gap-2 font-label-md text-label-md transition-all duration-200 shadow-md bg-surface-container-highest text-on-surface-variant cursor-not-allowed opacity-75 active:scale-[0.98]" disabled="" id="continue-button">
+<span id="continue-label">Select at least 1 more</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<!-- Subtext note -->
+<p class="text-center font-caption text-caption text-on-surface-variant mt-2.5">
+        You can always update your artist preferences in Settings.
+      </p>
+</div>
+</div>
+</div>
+<script>
+  (function initArtistSelection() {
+    const cards = document.querySelectorAll('.artist-card');
+    const counterBadge = document.getElementById('counter-badge');
+    const counterHelper = document.getElementById('counter-helper');
+    const continueBtn = document.getElementById('continue-button');
+    const continueLabel = document.getElementById('continue-label');
+    const maxToast = document.getElementById('max-toast');
+    const searchInput = document.getElementById('artist-search');
+    const clearBtn = document.getElementById('clear-search');
+    const noResults = document.getElementById('no-results');
+
+    function getSelectedCards() {
+      return Array.from(document.querySelectorAll('.artist-card.selected'));
+    }
+
+    function updateState() {
+      const selectedCount = getSelectedCards().length;
+
+      // Update counter badge
+      counterBadge.textContent = selectedCount + ' of 5 selected';
+
+      // Update helper message & Continue button state
+      if (selectedCount < 3) {
+        const needed = 3 - selectedCount;
+        counterHelper.textContent = 'Pick at least ' + needed + ' more';
+        counterHelper.className = 'font-label-sm text-label-sm text-secondary font-medium';
+
+        continueBtn.disabled = true;
+        continueBtn.className = 'w-full h-[52px] rounded-full flex items-center justify-center gap-2 font-label-md text-label-md transition-all duration-200 shadow-sm bg-surface-container-highest text-on-surface-variant cursor-not-allowed opacity-70 active:scale-[0.98]';
+        continueLabel.textContent = 'Select ' + needed + ' more to continue';
+      } else {
+        counterHelper.textContent = 'Ready to groove';
+        counterHelper.className = 'font-label-sm text-label-sm text-primary font-medium';
+
+        continueBtn.disabled = false;
+        continueBtn.className = 'w-full h-[52px] rounded-full flex items-center justify-center gap-2 font-label-md text-label-md transition-all duration-200 shadow-lg bg-primary-container text-on-primary hover:opacity-95 active:scale-[0.98]';
+        continueLabel.textContent = 'Continue';
+      }
+
+      // Hide max toast if under 5
+      if (selectedCount < 5 && !maxToast.classList.contains('hidden')) {
+        maxToast.classList.add('hidden');
+      }
+    }
+
+    // Toggle card selection
+    cards.forEach(function(card) {
+      card.addEventListener('click', function() {
+        const isSelected = card.classList.contains('selected');
+        const count = getSelectedCards().length;
+
+        if (!isSelected && count >= 5) {
+          maxToast.classList.remove('hidden');
+          setTimeout(() => {
+            maxToast.classList.add('hidden');
+          }, 3500);
+          return;
+        }
+
+        const avatarFrame = card.querySelector('.avatar-frame');
+        const badge = card.querySelector('.check-badge');
+
+        if (isSelected) {
+          card.classList.remove('selected', 'bg-surface-container-low');
+          card.classList.add('bg-surface-container-lowest');
+          avatarFrame.classList.remove('bg-primary-container');
+          avatarFrame.classList.add('bg-surface-container-highest');
+          badge.classList.add('hidden');
+          badge.classList.remove('flex');
+        } else {
+          card.classList.add('selected', 'bg-surface-container-low');
+          card.classList.remove('bg-surface-container-lowest');
+          avatarFrame.classList.add('bg-primary-container');
+          avatarFrame.classList.remove('bg-surface-container-highest');
+          badge.classList.remove('hidden');
+          badge.classList.add('flex');
+        }
+
+        updateState();
+      });
+    });
+
+    // Search filtering
+    searchInput.addEventListener('input', function(e) {
+      const query = e.target.value.toLowerCase().trim();
+      let visibleCount = 0;
+
+      if (query.length > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+
+      cards.forEach(function(card) {
+        const name = card.getAttribute('data-artist').toLowerCase();
+        const sub = card.innerText.toLowerCase();
+        if (name.includes(query) || sub.includes(query)) {
+          card.style.display = 'flex';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      if (visibleCount === 0) {
+        noResults.classList.remove('hidden');
+        noResults.classList.add('flex');
+      } else {
+        noResults.classList.add('hidden');
+        noResults.classList.remove('flex');
+      }
+    });
+
+    // Clear search
+    clearBtn.addEventListener('click', function() {
+      searchInput.value = '';
+      clearBtn.classList.add('hidden');
+      cards.forEach(card => card.style.display = 'flex');
+      noResults.classList.add('hidden');
+      noResults.classList.remove('flex');
+      searchInput.focus();
+    });
+
+    // Initial sync
+    updateState();
+  })();
+</script></main></body></html>

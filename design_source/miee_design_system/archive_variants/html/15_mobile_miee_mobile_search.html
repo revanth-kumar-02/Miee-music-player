@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Miee Mobile — Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@1,500;1,600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#FAF9F7",
+            "surface-low": "#F4F3F1",
+            "surface-card": "#FFFFFF",
+            "on-surface": "#1A0F12",
+            "on-surface-variant": "#71696B",
+            "text-muted": "#9E9799",
+            "bordeaux": "#6E0D25",
+            "bordeaux-light": "#F5EBEF",
+            "coral": "#FF3355",
+            "border-subtle": "#ECE7E4",
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            serif: ['"Playfair Display"', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .soundbar-1 { animation: soundWave 1.1s ease-in-out infinite alternate; }
+    .soundbar-2 { animation: soundWave 0.9s ease-in-out 0.2s infinite alternate; }
+    .soundbar-3 { animation: soundWave 1.3s ease-in-out 0.4s infinite alternate; }
+    @keyframes soundWave {
+      0% { height: 4px; }
+      100% { height: 16px; }
+    }
+  </style>
+<meta content="mobile_tab" name="shell-type"/><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-sans antialiased selection:bg-bordeaux selection:text-white pb-40">
+<!-- iOS Status Bar & App Header -->
+<header class="sticky top-0 z-30 bg-surface/90 backdrop-blur-md px-4 pt-2.5 pb-3 border-b border-border-subtle">
+<!-- Status Bar Time & Indicators -->
+<div class="flex items-center justify-between text-xs font-semibold tracking-tight text-on-surface mb-2.5 px-0.5">
+<span>9:41</span>
+<div class="flex items-center space-x-1.5">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.25A.75.75 0 0 0 4.9 19.5h14.2a.75.75 0 0 0 .55-1.25l-.62-.64C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9z"></path></svg>
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 24 24"><path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98A16.88 16.88 0 0 0 12 4z"></path></svg>
+<div class="w-5 h-2.5 border border-on-surface rounded-sm p-0.5 flex items-center">
+<div class="w-3 h-full bg-on-surface rounded-2xs"></div>
+</div>
+</div>
+</div>
+<!-- Header Navigation Bar -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-7 h-7 rounded-full bg-bordeaux flex items-center justify-center text-white font-bold text-sm tracking-tight shadow-sm">
+          m
+        </div>
+<span class="text-xl font-bold tracking-tight text-on-surface">Miee</span>
+</div>
+<div class="flex items-center space-x-2">
+<!-- Living Room Cast Output -->
+<button class="flex items-center space-x-1.5 bg-surface-card border border-border-subtle px-2.5 py-1 rounded-full text-xs font-medium text-on-surface-variant shadow-sm active:scale-95 transition">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+<span>Living Room</span>
+</button>
+<!-- Notification bell -->
+<button class="w-8 h-8 rounded-full border border-border-subtle bg-surface-card flex items-center justify-center text-on-surface-variant relative shadow-sm active:scale-95 transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-coral rounded-full"></span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Feed Content (Single vertical scroll column, native mobile proportions) -->
+<main class="px-4 pt-3.5 space-y-6"><div class="flex flex-col w-full pb-8">
+<!-- Search Title -->
+<div class="flex items-baseline justify-between mb-3 px-1">
+<h1 class="font-headline-xl-mobile text-headline-xl-mobile text-on-surface tracking-tight">Search</h1>
+<span class="font-caption text-caption text-on-surface-variant uppercase tracking-wider bg-surface-container px-2 py-0.5 rounded-full">Hi-Res Catalog</span>
+</div>
+<!-- Search Input Field Container -->
+<div class="relative w-full mb-4">
+<div class="flex items-center w-full h-[50px] bg-surface-container-lowest rounded-2xl shadow-sm px-3.5 space-x-2.5">
+<!-- Search Icon -->
+<span class="material-symbols-outlined text-outline text-[22px] flex-shrink-0 select-none">search</span>
+<!-- Query Display Input -->
+<div class="flex-1 min-w-0 flex items-center">
+<input class="w-full bg-transparent p-0 border-0 focus:ring-0 font-body-md text-body-md text-on-surface font-medium placeholder-outline truncate" id="search-input" placeholder="Artists, songs, albums..." type="text" value="Miles Davis"/>
+</div>
+<!-- Action Buttons: Clear & Voice Input -->
+<div class="flex items-center space-x-1.5 flex-shrink-0">
+<button aria-label="Clear search" class="w-6 h-6 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center hover:bg-surface-variant active:scale-90 transition" id="clear-btn" type="button">
+<span class="material-symbols-outlined text-[15px]">close</span>
+</button>
+<button aria-label="Voice search" class="w-8 h-8 rounded-full text-outline hover:text-primary-container active:scale-90 transition flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[20px]">mic</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Category Filter Chips (Horizontal Scrollable) -->
+<div class="-mx-4 px-4 overflow-x-auto no-scrollbar flex items-center gap-2 mb-6 py-1 select-none">
+<button class="h-9 px-4 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition">
+      Top Results
+    </button>
+<button class="h-9 px-4 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-sm text-label-sm shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition">
+      Songs
+    </button>
+<button class="h-9 px-4 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-sm text-label-sm shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition">
+      Artists
+    </button>
+<button class="h-9 px-4 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-sm text-label-sm shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition">
+      Albums
+    </button>
+<button class="h-9 px-4 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-sm text-label-sm shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition">
+      Playlists
+    </button>
+</div>
+<!-- 1. Top Result Card -->
+<section class="mb-7">
+<div class="flex items-center justify-between mb-3 px-1">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Top Result</h2>
+<span class="font-caption text-caption text-on-surface-variant">Best match</span>
+</div>
+<div class="w-full bg-surface-container-lowest rounded-2xl p-4 shadow-sm flex flex-col gap-4 relative overflow-hidden">
+<!-- Ambient aura glow -->
+<div class="absolute -top-12 -right-12 w-36 h-36 bg-primary-fixed-dim/20 rounded-full blur-2xl pointer-events-none"></div>
+<div class="flex items-center space-x-3.5 relative z-10">
+<!-- Artist Circular Portrait with Verified Badge -->
+<div class="relative w-20 h-20 flex-shrink-0">
+<div class="w-20 h-20 rounded-full overflow-hidden shadow-md bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Editorial vintage black and white studio portrait photograph of legendary jazz trumpeter Miles Davis holding a polished brass trumpet in dim moody studio lighting, warm analog film grain texture, deep shadows and soft bordeaux rim illumination, high artistic fidelity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzMo5a6KuZBEqr_hV3s8tlEQRKXb8PS3pjvJysj-K3DeKw5a9p8NI-ZaKNwnzjZ0pcWBop6aBUhekscASFOOwYCQNGeafwN4mEnmdPwoJgc30WiHV9a_alTu5B7IPAuwA-tkmdFsKm6sk_UjWoTWpesZnfbISVKaiaJm4zyrFo6kLCUx9UmODkzvH8dVo_CQH0mcbqM3SCePAfe-LDAc62VnJ-0HgBmxisvxGHsKAiGuZMEIpMPm9X"/>
+</div>
+<!-- Verified check badge -->
+<div class="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<!-- Artist Metadata -->
+<div class="min-w-0 flex-1">
+<div class="flex items-center space-x-1.5 mb-0.5">
+<span class="font-caption text-caption uppercase tracking-wider text-primary font-bold">Verified Artist</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface truncate">Miles Davis</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">3,842,910 monthly listeners</p>
+</div>
+</div>
+<!-- Actions Bar -->
+<div class="flex items-center justify-between pt-1 relative z-10">
+<div class="flex items-center space-x-2.5">
+<!-- Play Artist Radio / Discography -->
+<button aria-label="Play Miles Davis" class="w-11 h-11 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md hover:brightness-110 active:scale-95 transition" type="button">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<!-- Follow Pill -->
+<button class="h-9 px-4 rounded-full bg-surface-container-low text-on-surface font-label-sm text-label-sm shadow-sm hover:bg-surface-container active:scale-95 transition flex items-center space-x-1" type="button">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Follow</span>
+</button>
+</div>
+<!-- Overflow Options -->
+<button aria-label="More artist options" class="w-9 h-9 rounded-full bg-surface-container-lowest text-on-surface-variant flex items-center justify-center hover:bg-surface-container-low active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 2. Songs Section -->
+<section class="mb-7">
+<div class="flex items-center justify-between mb-3 px-1">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Songs</h2>
+<a class="font-label-sm text-label-sm text-primary font-bold hover:underline active:opacity-80" href="#">See all</a>
+</div>
+<!-- Song List (Single column responsive stack) -->
+<div class="w-full bg-surface-container-lowest rounded-2xl p-1.5 shadow-sm space-y-0.5">
+<!-- Song Row 1: So What (Active Highlight feel) -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-container-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-sm bg-surface-container relative">
+<img class="w-full h-full object-cover" data-alt="Iconic album cover artwork for Kind of Blue jazz album featuring close up warm amber and blue tinted photography of Miles Davis playing horn, high fidelity studio recording aesthetic, tactile paper record sleeve texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNnv1-qniGe9bSbBs7kwLIP_WXwMvkoo7yNljCQsH1wrXJUZkkwq_LpXOLXF4ABXUIUudE1cSAHZ75DeJdfnBFszXcySwMB_J9gBgpOCnFhRKqptndmLZUL4raUYMNffAAgQFeFqYOgT-n61mJYwSJQntqDJAUMhqRp53SUISHc2CbmyKx81XFhK-q8zrwxR94ST77Bmv_HCvYpmOX1b_qnrWHztJoYq50UT0GAv20JUuaY-zC8w8b"/>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center space-x-1.5">
+<span class="px-1.5 py-0.5 rounded bg-primary-fixed text-primary font-caption text-[9px] uppercase tracking-wider font-bold">Master</span>
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold">So What</p>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Miles Davis • Kind of Blue</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums font-medium">9:22</span>
+<button aria-label="Favorite song" class="p-1.5 text-secondary hover:text-secondary-container active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Song Row 2: Blue in Green -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-container-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-sm bg-surface-container relative">
+<img class="w-full h-full object-cover" data-alt="Moody minimalist jazz vinyl cover with deep cerulean blue and emerald green ambient lighting textures, artistic shadow play and soft golden typography, high fidelity audio aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCoTN3uVvR7A-CKbzs542SYmGJA7wG4k4kJC4CI3LtAmtIaH5C_HjAVcnwOpbo8Ge3ki18unDf4FiZhv2PVIJVI5g4F7u_COOTptQ9Ur2jIVG-tEWT8kFkWz4dEJiL-J-yotULRVAPSzUZIMnWIoNG2IIsCxQUIwodY1m4fEHw42EUz87n3nSApjhGLc4lmHMvQ9zir8h3Jdj87BF90X49KGSpAJFSbtIujjI-mHaRiebHPNpUIXdYq"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold">Blue in Green</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Miles Davis, Bill Evans</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums font-medium">5:37</span>
+<button aria-label="Favorite song" class="p-1.5 text-outline hover:text-secondary active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]">favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Song Row 3: You Don't Know What Love Is -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-container-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-sm bg-surface-container relative">
+<img class="w-full h-full object-cover" data-alt="Vintage mono jazz recording record jacket artwork with retro typographic serif lettering, smoky bordeaux and muted beige tones, archival vinyl collector edition" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIH06mXHDszUzCVDJQSXaLlVeZ3NPE9mJgC9nYgJN-0RlsDg6idG57gK7rPzbSnps1Hr9FeKEyqvZ6G-00_iOC3pg9t_90p9CArm48NcGrgld920Au14FiWCeqcGknyt2zcfYNdpbdYfXy9vDwQAClBHOeDDbUaVdFPoxEDiNslg9O_ojE9Vgbpv5JFCoiQhR6jmBNGRT16cEEJ_zanZDM4mSOgXVQjnkz_rAGbpdJ0KZmKHFW2Hcs"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold">You Don't Know What Love Is</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Miles Davis Quartet • Walkin'</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums font-medium">7:46</span>
+<button aria-label="Favorite song" class="p-1.5 text-outline hover:text-secondary active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]">favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Song Row 4: Flamenco Sketches -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-container-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-sm bg-surface-container relative">
+<img class="w-full h-full object-cover" data-alt="Abstract Spanish flamenco inspired album sleeve artwork with textured deep crimson red brushwork, earthy chalk undertones, and elegant jazz modernist layout" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJ8exmInxgUAVX3udwWC46FC4HnW96FZXvO-tN-QWj6MBz2pTsxDtbR8bl2A3aPGbNdf8vSyMEhFIpSlpBDqMgo3_Cz092K7D3ftlTu9Y0meqC5mc6w43jZMYt2LjN2P--HazXjXpLoRqGiSn4iZZ7OwnmlvfWiBi10i8fIgwCpcabIThY6Fux2tqjM115Gh-er5knSJnFKQfSp8RwUdYxhrjtI_dd7z9BGfQw-O9fmUCoL1WIm0dI"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold">Flamenco Sketches</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Miles Davis • Kind of Blue</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums font-medium">9:26</span>
+<button aria-label="Favorite song" class="p-1.5 text-outline hover:text-secondary active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]">favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Albums Section (Horizontal Carousel) -->
+<section class="mb-7">
+<div class="flex items-center justify-between mb-3 px-1">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Albums</h2>
+<a class="font-label-sm text-label-sm text-primary font-bold hover:underline active:opacity-80" href="#">See all</a>
+</div>
+<div class="-mx-4 px-4 overflow-x-auto no-scrollbar flex space-x-3.5 py-1">
+<!-- Album 1: Kind of Blue -->
+<div class="w-[124px] flex-shrink-0 flex flex-col group cursor-pointer active:scale-[0.98] transition">
+<div class="w-[124px] h-[124px] rounded-xl overflow-hidden shadow-sm bg-surface-container relative mb-2">
+<img class="w-full h-full object-cover" data-alt="Kind of Blue Legacy Edition album cover artwork showcasing cobalt blue ambient photography of Miles Davis on trumpet, sharp hi-fi digital remaster badge, paper matte record sleeve texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEktCfGLZL1yM_bfDMQpKC5sw226okQ7L2g5Z9UlygwFe7qLw1vm9Y1S3F0W3I5PWWftyQo4Bc-mzXpXGfj_Xc7JYI2re_rh4pePrK_0JVqa5OkAj6glhLdV2QwlbsnXlWQkANvj4h-qgIz_6IEeA_EKcBGUpQF4hY5KRl3wi5BN8RDYS0jWZYhtXIHZ0vZQptgTJPLXJaQgnEvHWM6eSdTU9Z69hwCRH5YrA2yfLX4it5K75A3MLB"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold leading-tight">Kind of Blue (Legacy)</p>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">1959 • Album</p>
+</div>
+<!-- Album 2: In a Silent Way -->
+<div class="w-[124px] flex-shrink-0 flex flex-col group cursor-pointer active:scale-[0.98] transition">
+<div class="w-[124px] h-[124px] rounded-xl overflow-hidden shadow-sm bg-surface-container relative mb-2">
+<img class="w-full h-full object-cover" data-alt="Album art of In a Silent Way by Miles Davis with psychedelic subtle warm psychedelic tones, rich cinematic jazz fusion style, high quality paper packaging texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPlCQRFG2tdhlB3EBSRiDHLPGNh6DUZ6KQlwlJujiNRXzYw3TPx91BmU1zlX7pVEhY_jemz0k5MJ1KrLVbFhkHEp1bVkPFXv082Ia3hKqo55qd5sEkqxdVhQqLfa88U6CEdC19qR6s1ftznZtsKBarI7H5Gcstd2ZUjt8YoQaiE-TknqBCnetFT-0JOo8uE_TKHhofR9HI8X0Mb7_sOHcpGV0TdkinbfOmCMw69uDGNAclzYy6jBfl"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold leading-tight">In a Silent Way</p>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">1969 • Album</p>
+</div>
+<!-- Album 3: Milestones -->
+<div class="w-[124px] flex-shrink-0 flex flex-col group cursor-pointer active:scale-[0.98] transition">
+<div class="w-[124px] h-[124px] rounded-xl overflow-hidden shadow-sm bg-surface-container relative mb-2">
+<img class="w-full h-full object-cover" data-alt="Milestones record cover graphic design with green tinted monochrome portrait of Miles Davis in vintage button down shirt holding his horn, modernist mid-century typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMEq8ipHJs56cEwCMv7p6hKOHXP-bBfVmCuy-yvRj9LAy2ER0UHaL0WC5RrAENbkXX6CTYjCeecqx1xjsSO9jcxqzVwA_UN6ppftJCscZV1-ROTRHG96teVHGuoNGWvczDQFn8l2RPUG9md32qGIJUVsuWTQAmmFQXu1XV_dzBzl5oBvb9poiBce3eCyDziF-vRo3nTSEoSTDUYCEnB5h5SeQhJX3mdrD9R-MmriW2QBsHclG3_md8"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold leading-tight">Milestones</p>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">1958 • Album</p>
+</div>
+<!-- Album 4: Sketches of Spain -->
+<div class="w-[124px] flex-shrink-0 flex flex-col group cursor-pointer active:scale-[0.98] transition">
+<div class="w-[124px] h-[124px] rounded-xl overflow-hidden shadow-sm bg-surface-container relative mb-2">
+<img class="w-full h-full object-cover" data-alt="Sketches of Spain album artwork with warm terracotta red and yellow sun gradient illustration, expressive artistic Spanish landscape and Miles Davis silhouette" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDb4TaA4wtcl15IvJvEFhoX1nQ1oMVMqdHip8fGnZzwMTAUhPKc3KB2WoPM8Pw2U5FZnlI4Dw2vpdrKJRgsTwocxVpbOOvkTlS54CIRtLv0dJfzKgegoiOHaWminm6ZQTsFQ2n4qQLXDgSir_BmnEi-5HXNYs2fbm78K89Rt32xWqaIZspAOTy9Wx_VrqVqFX_rrQnNsqaAJ2gnCmQhwJHza6zAHfnepwX2nsnrjnQz5NOHRP_P3C__"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold leading-tight">Sketches of Spain</p>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">1960 • Album</p>
+</div>
+<!-- Album 5: Round About Midnight -->
+<div class="w-[124px] flex-shrink-0 flex flex-col group cursor-pointer active:scale-[0.98] transition">
+<div class="w-[124px] h-[124px] rounded-xl overflow-hidden shadow-sm bg-surface-container relative mb-2">
+<img class="w-full h-full object-cover" data-alt="Round About Midnight jazz album cover bathed in intense moody red studio darkroom light with Miles Davis wearing dark sunglasses and trumpet resting on chin" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgFdIjNxsWF3fI8eoY-CdHEAsDcoL9DL_m3pEoxW5eHihUHMkr7lXJvhloybJ9HzTRSQhjziPPsDyymVl9D3CiFY5eg3AUfEj7gcguoqLwmcqcu_ILvaB5O2yvmpROn0XyMfPiItZsTyfnthMvYFc7NDsDB7T6_OOGTnvvTJIT0KKuTHQ685Uzp9anj5VHtZOJ2XM6JqXHI15pxm_CV1uH9cLj0Ua6BZlsru-FpwJuefY-AQjUMI8T"/>
+<div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold leading-tight">'Round About Midnight</p>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">1957 • Album</p>
+</div>
+</div>
+</section>
+<!-- 4. Fans Also Like (Artists Carousel) -->
+<section class="mb-4">
+<div class="flex items-center justify-between mb-3 px-1">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Fans Also Like</h2>
+<a class="font-label-sm text-label-sm text-primary font-bold hover:underline active:opacity-80" href="#">See all</a>
+</div>
+<div class="-mx-4 px-4 overflow-x-auto no-scrollbar flex space-x-4 py-1">
+<!-- Artist 1: John Coltrane -->
+<div class="w-20 flex-shrink-0 flex flex-col items-center text-center group cursor-pointer active:scale-95 transition">
+<div class="w-16 h-16 rounded-full overflow-hidden shadow-sm bg-surface-container mb-2 ring-2 ring-transparent group-hover:ring-primary transition">
+<img class="w-full h-full object-cover" data-alt="Warm studio sepia black and white photographic portrait of jazz saxophonist John Coltrane in deep concentration with saxophone, elegant analog lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6v6aoxu3Mh_jpXBWwYHwlP84hAg2ddcEsqURqfRBcQwOHiTCckkLSZdMQxO6eaHWr6HpodHIvjQZWvsQfRsBwIRhOAmAdwm693526JQwKrhzMfIv4e9cYDQJ8VdetzHegS0Ztrskh--IeROV35osodENEC6S56wTsgPnqRD0W_AAjtbvmauL9OfSWnfScweigNmaSBPwk6rPvzuEDidkH2b2nu9b0vu9ioENPWn6fpcFzvaCxgoMZ"/>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface truncate w-full font-semibold">John Coltrane</p>
+<p class="font-caption text-caption text-on-surface-variant truncate w-full mt-0.5">2.6M Listeners</p>
+</div>
+<!-- Artist 2: Thelonious Monk -->
+<div class="w-20 flex-shrink-0 flex flex-col items-center text-center group cursor-pointer active:scale-95 transition">
+<div class="w-16 h-16 rounded-full overflow-hidden shadow-sm bg-surface-container mb-2 ring-2 ring-transparent group-hover:ring-primary transition">
+<img class="w-full h-full object-cover" data-alt="Close up archival portrait of jazz pianist Thelonious Monk wearing his iconic fedora hat and sunglasses at the grand piano, warm vintage tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDV3AJn5p3SlJPQdN5yAmWrpkSjQVFWhOmoQ_LV_HGha_6fEts2Lu-qR6zRsF2dAXQqMWpXca4MDKVweIBTkCd3QrjEx9OTrbt-Rrixlkr1OXTDgY7wKahHtF3Nm6aaTLRU0P2qFq2s7io73ysmSkNGdCnDLxLt75jz4Y_yf_NQOtva1sjb10xB_3GPo6cjFjRQaumu8s_8e95g_sU672-n3avYn9iCJ0aWSw419tdliiQRpSknKj79"/>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface truncate w-full font-semibold">Thelonious Monk</p>
+<p class="font-caption text-caption text-on-surface-variant truncate w-full mt-0.5">1.9M Listeners</p>
+</div>
+<!-- Artist 3: Bill Evans -->
+<div class="w-20 flex-shrink-0 flex flex-col items-center text-center group cursor-pointer active:scale-95 transition">
+<div class="w-16 h-16 rounded-full overflow-hidden shadow-sm bg-surface-container mb-2 ring-2 ring-transparent group-hover:ring-primary transition">
+<img class="w-full h-full object-cover" data-alt="Intimate jazz portrait of pianist Bill Evans bowed deeply over keyboard with glasses reflecting warm candlelight studio glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbeg79uaJhFGZdfMe7xDYXckWADFrK6Kt93sNGSKGvlKQxzb4D_8lBnhwoRX5B_OeM5mfQQMrrPsK54I1Y6vIoc59DatHvWllxEDXp8clmiVvR8knmKsuSInZRQAdT2UoBQ92ANX32Z9tAUli-lpBMyulYaZLrcInZX9f6mARVGvf_7Lh2gz9awihefhLiM--Qlh0dfbBqlWq3ZWvBoLuF2KK0VlIVfM3Phw0g0s3eJSPrvcnJB40j"/>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface truncate w-full font-semibold">Bill Evans</p>
+<p class="font-caption text-caption text-on-surface-variant truncate w-full mt-0.5">2.1M Listeners</p>
+</div>
+<!-- Artist 4: Chet Baker -->
+<div class="w-20 flex-shrink-0 flex flex-col items-center text-center group cursor-pointer active:scale-95 transition">
+<div class="w-16 h-16 rounded-full overflow-hidden shadow-sm bg-surface-container mb-2 ring-2 ring-transparent group-hover:ring-primary transition">
+<img class="w-full h-full object-cover" data-alt="Moody cinematic portrait of cool jazz trumpeter and singer Chet Baker, soft shadows and atmospheric California jazz recording studio vibe" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMRYiXTDGu5QCXtJd24i5UMlSeBggQvyjlTP4anhKJjkT9Quq2vc_8xa8W4Ux8mTtzkiAdef_iHg6_tK3PnbcQVzdI3pu6uO56UPc8QCMYFOPPRHLK6xyaHsgrC7wZNJVBuA18ripr0-zXAicMruo1b0mKgb_rHCDoxIAbisE-nul151_xQCfns0qaN7cz1gaKunnEAuYn5vQ26aRvKce2CeYT0NJ4a5hzFk7IV6lk3glWf2Jg7tGL"/>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface truncate w-full font-semibold">Chet Baker</p>
+<p class="font-caption text-caption text-on-surface-variant truncate w-full mt-0.5">2.4M Listeners</p>
+</div>
+<!-- Artist 5: Herbie Hancock -->
+<div class="w-20 flex-shrink-0 flex flex-col items-center text-center group cursor-pointer active:scale-95 transition">
+<div class="w-16 h-16 rounded-full overflow-hidden shadow-sm bg-surface-container mb-2 ring-2 ring-transparent group-hover:ring-primary transition">
+<img class="w-full h-full object-cover" data-alt="Studio portrait of jazz visionary Herbie Hancock smiling near electric Rhodes piano, 1970s warm vintage audio studio tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSnlHmr9E_-b0bmfVYP46bxPr0efvbANYTHY7vkTkPzAUoNCJWC7pvSJTy7LeMauCA9-ttxUV23-1q6TJ0xq2OJtNT2bOhRQ1dKD0jOBxPBph9a1KT3pMP0hM-621A2tBZk09zYDtRADFD2KMB-4PqgtFZN9zhwsNREthmbsP96nx_-ORh7XKvOmZLLqzQn6Ozp_B3f4hTJ60VkoyipJ6e4Ps3DrTEvXDrswauV_MUd35H65TaKDwk"/>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface truncate w-full font-semibold">Herbie Hancock</p>
+<p class="font-caption text-caption text-on-surface-variant truncate w-full mt-0.5">1.8M Listeners</p>
+</div>
+</div>
+</section>
+<!-- Interactive JavaScript for micro-interactions -->
+<script>
+    (function initSearchInteractions() {
+      const searchInput = document.getElementById('search-input');
+      const clearBtn = document.getElementById('clear-btn');
+      
+      if (searchInput && clearBtn) {
+        clearBtn.addEventListener('click', function() {
+          searchInput.value = '';
+          searchInput.focus();
+        });
+      }
+
+      // Filter chips toggle interaction
+      const chips = document.querySelectorAll('button[class*="rounded-full"]');
+      chips.forEach(chip => {
+        if (chip.textContent.includes('Top Results') || chip.textContent.includes('Songs') || 
+            chip.textContent.includes('Artists') || chip.textContent.includes('Albums') || 
+            chip.textContent.includes('Playlists')) {
+          chip.addEventListener('click', function() {
+            // Reset others
+            chips.forEach(c => {
+              if (c.textContent.trim() === 'Top Results' || c.textContent.trim() === 'Songs' || 
+                  c.textContent.trim() === 'Artists' || c.textContent.trim() === 'Albums' || 
+                  c.textContent.trim() === 'Playlists') {
+                c.className = 'h-9 px-4 rounded-full bg-surface-container-lowest text-on-surface-variant font-label-sm text-label-sm shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition';
+              }
+            });
+            // Highlight current
+            this.className = 'h-9 px-4 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition';
+          });
+        }
+      });
+    })();
+  </script>
+</div></main>
+<!-- 7. Fixed Bottom Elements: Floating Mini-Player & Bottom Navigation -->
+<!-- Floating Mini Player Component (fixed above bottom nav) -->
+<div class="fixed bottom-16 inset-x-3 z-30 pointer-events-auto">
+<div class="bg-surface-card/95 backdrop-blur-md border border-border-subtle rounded-2xl p-2.5 shadow-xl flex items-center justify-between">
+<!-- Artwork & Track Info -->
+<div class="flex items-center space-x-2.5 min-w-0 flex-1 pr-2 cursor-pointer">
+<div class="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 shadow-sm bg-neutral-900">
+<img alt="Ascending Horizon" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1X6ybHOpgeoksIASiPJOLNtVNHsbKVUqWji68Jssmvwfri24SD-X3t6cREIdYtf7bwnXFK_REL1C4TS8op9XUzEBLSqEsupu-_mr1FPezDKNGh8H2Zb-NCx_9iiTYwWmZ6IlHac2LaLiYGz5pnWirkjqrOxSgGJ8dnkUjGmrvA8WS3OIxBA0QZnaPW1L6cwhutO-sGo6EiY11CiKp-wvsfNHPRddx2kiKdHR1Jr0sXEEeXsZGhGQs0Hw_Y"/>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center space-x-1.5">
+<span class="text-[9px] px-1.5 py-0.2 rounded bg-bordeaux-light text-bordeaux font-bold uppercase tracking-wider">Master</span>
+<h4 class="text-xs font-bold text-on-surface truncate">Ascending Horizon</h4>
+</div>
+<p class="text-[11px] text-on-surface-variant truncate mt-0.5">Kiasmos &amp; Ólafur Arnalds</p>
+</div>
+</div>
+<!-- Mini-Player Soundwave Bars -->
+<div class="flex items-center space-x-0.5 px-2 flex-shrink-0">
+<span class="w-0.5 bg-bordeaux rounded-full soundbar-1"></span>
+<span class="w-0.5 bg-bordeaux rounded-full soundbar-2"></span>
+<span class="w-0.5 bg-bordeaux rounded-full soundbar-3"></span>
+<span class="w-0.5 h-3 bg-bordeaux rounded-full"></span>
+<span class="w-0.5 h-2 bg-neutral-300 rounded-full"></span>
+</div>
+<!-- Controls: Favorite & Play/Pause -->
+<div class="flex items-center space-x-1.5 flex-shrink-0">
+<button class="text-bordeaux p-1.5 active:scale-90 transition">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+</button>
+<button class="w-9 h-9 rounded-full bg-bordeaux text-white flex items-center justify-center shadow-md active:scale-95 transition">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
+</button>
+</div>
+</div>
+</div>
+<!-- Persistent Bottom Navigation Bar -->
+<nav class="fixed bottom-0 inset-x-0 z-40 bg-[#FAF9F7]/95 backdrop-blur-md border-t border-black/5 py-2 px-6 flex justify-around items-center">
+<!-- Tab 1: Home (Active) -->
+<a class="flex flex-col items-center space-y-1 text-bordeaux" href="#">
+<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg>
+<span class="text-[10px] font-bold">Home</span>
+</a>
+<!-- Tab 2: Search -->
+<a class="flex flex-col items-center space-y-1 text-text-muted hover:text-on-surface transition" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="text-[10px] font-semibold">Search</span>
+</a>
+<!-- Tab 3: Playlists / Library -->
+<a class="flex flex-col items-center space-y-1 text-text-muted hover:text-on-surface transition" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="text-[10px] font-semibold">Playlists</span>
+</a>
+<!-- Tab 4: Settings -->
+<a class="flex flex-col items-center space-y-1 text-text-muted hover:text-on-surface transition" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="12" r="3"></circle></svg>
+<span class="text-[10px] font-semibold">Settings</span>
+</a>
+</nav>
+</body></html>

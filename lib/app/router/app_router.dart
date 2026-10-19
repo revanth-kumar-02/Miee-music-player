@@ -51,7 +51,7 @@ class AppRouterNotifier extends ChangeNotifier {
     // If Firebase is not configured, allow guest access to all music features
     if (authUser == null) {
       if (!FirebaseService.isConfigured) return null;
-      if (isGoingToLogin || isGoingToRegister) return null;
+      if (isGoingToLogin || isGoingToRegister || isGoingToOnboarding) return null;
       return '/login';
     }
 

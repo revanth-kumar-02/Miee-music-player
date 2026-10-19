@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary-fixed-variant":"#920025","surface-container-highest":"#f3dde1","tertiary-fixed":"#e9e0e3","tertiary-container":"#3a3538","error":"#ba1a1a","on-secondary":"#ffffff","on-primary":"#ffffff","on-primary-fixed":"#400010","surface-tint":"#a4384a","on-background":"#24181b","on-primary-fixed-variant":"#852034","on-tertiary":"#ffffff","surface-dim":"#ebd5d9","tertiary":"#242022","surface-container-low":"#fff0f2","on-tertiary-fixed":"#1e1b1d","surface-variant":"#f3dde1","surface-container":"#ffe8ec","primary":"#4b0014","tertiary-fixed-dim":"#ccc4c7","on-surface-variant":"#564243","outline":"#897173","on-error":"#ffffff","on-tertiary-fixed-variant":"#4a4548","surface-container-lowest":"#ffffff","on-surface":"#24181b","background":"#fff8f8","on-error-container":"#93000a","outline-variant":"#ddc0c1","on-secondary-container":"#fffbff","error-container":"#ffdad6","inverse-on-surface":"#ffecef","on-secondary-fixed":"#40000b","primary-fixed":"#ffdadc","secondary-container":"#e41944","inverse-primary":"#ffb2b9","secondary-fixed":"#ffdada","secondary":"#ba0032","on-primary-container":"#f77788","surface":"#fff8f8","primary-fixed-dim":"#ffb2b9","secondary-fixed-dim":"#ffb3b5","surface-container-high":"#f9e3e7","on-tertiary-container":"#a49ea0","primary-container":"#6e0d25","inverse-surface":"#3a2d30","surface-bright":"#fff8f8"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"gutter-mobile":"0.75rem","margin-mobile":"1.25rem","space-xs":"0.25rem","space-xl":"2.5rem","space-lg":"1.5rem","space-sm":"0.5rem","margin":"2.5rem","gutter":"1.25rem","space-md":"1rem"},"fontFamily":{"body-sm":["Plus Jakarta Sans"],"headline-sm":["Newsreader"],"headline-lg":["Newsreader"],"label-sm":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"label-micro":["Plus Jakarta Sans"],"headline-md":["Newsreader"],"headline-xl-mobile":["Newsreader"],"body-lg":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"headline-xl":["Newsreader"],"headline-lg-mobile":["Newsreader"]},"fontSize":{"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-sm":["20px",{"lineHeight":"26px","fontWeight":"500"}],"headline-lg":["36px",{"lineHeight":"42px","letterSpacing":"-0.015em","fontWeight":"400"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"label-micro":["9px",{"lineHeight":"12px","letterSpacing":"0.08em","fontWeight":"700"}],"headline-md":["24px",{"lineHeight":"30px","letterSpacing":"-0.01em","fontWeight":"500"}],"headline-xl-mobile":["32px",{"lineHeight":"38px","letterSpacing":"-0.015em","fontWeight":"400"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"label-md":["13px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"600"}],"headline-xl":["48px",{"lineHeight":"54px","letterSpacing":"-0.02em","fontWeight":"400"}],"headline-lg-mobile":["26px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"400"}]}}}};</script></head><body class="bg-surface text-on-surface antialiased selection:bg-primary-container selection:text-on-primary"><aside class="fixed left-0 top-0 bottom-20 w-64 bg-surface z-40 flex flex-col justify-between border-r border-outline-variant/40"><div class="flex flex-col"><div class="h-16 px-space-md border-b border-outline-variant/40 flex items-center justify-between"><div class="flex items-center gap-space-sm"><span class="font-headline-sm text-headline-sm italic font-normal tracking-tight text-primary">Miee</span><span class="font-label-micro text-label-micro uppercase tracking-widest text-outline border-l border-outline-variant/60 pl-space-xs">Ed. 24</span></div><span class="font-label-micro text-label-micro uppercase px-space-xs py-0.5 bg-surface-container-high text-on-surface rounded">Monograph</span></div><div class="pt-space-md px-space-sm"><div class="px-space-sm pb-space-xs font-label-micro text-label-micro uppercase tracking-widest text-outline">Index</div><nav class="flex flex-col gap-0.5" data-active-classes="text-primary-container font-semibold bg-surface-container-low border-r-2 border-primary-container"><a class="flex items-center px-space-sm py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-md text-body-md rounded-l" data-path="home" href="#">Home</a><a aria-current="page" class="flex items-center px-space-sm py-2 transition-colors rounded-l text-primary-container font-semibold bg-surface-container-low border-r-2 border-primary-container" data-path="search" href="#">Search</a><a class="flex items-center px-space-sm py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-md text-body-md rounded-l" data-path="library" href="#">Library</a></nav></div><div class="pt-space-md px-space-sm"><div class="px-space-sm pb-space-xs font-label-micro text-label-micro uppercase tracking-widest text-outline">Pressing Archive</div><nav class="flex flex-col gap-0.5" data-active-classes="text-primary-container font-semibold bg-surface-container-low border-r-2 border-primary-container"><a class="flex items-center px-space-sm py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-md text-body-md rounded-l" data-path="curations" href="#">Curations</a><a class="flex items-center px-space-sm py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-md text-body-md rounded-l" data-path="recent-rotations" href="#">Recent Rotations</a><a class="flex items-center px-space-sm py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-md text-body-md rounded-l" data-path="archived-presses" href="#">Archived Presses</a></nav></div></div><div class="p-space-md border-t border-outline-variant/40"><div class="flex items-center justify-between text-outline"><span class="font-label-micro text-label-micro tracking-wider uppercase">Format</span><span class="font-label-micro text-label-micro font-medium text-on-surface">Pure Analogue / DSD</span></div></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface/90 backdrop-blur-md border-b border-outline-variant/40 z-30 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-xs text-outline font-label-sm text-label-sm"><span class="hover:text-on-surface cursor-pointer">Miee</span><span class="text-outline-variant">/</span><span class="text-on-surface font-medium">Rotations</span></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs text-outline font-label-micro text-label-micro uppercase"><span class="w-1.5 h-1.5 rounded-full bg-secondary-container"></span><span>Deck A Online</span></div><button class="flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">tune</span></button><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1XNCkJXpOIxQSZHEU0jCIbBQTXMoDZziedZiufn1sCc7I8O5_WRoOuJSrc8ubC_8vY_9SIxNoiEDhmK9ArtSQ6Mwddlr4aUb4UBN9pymjuJwX2iYxiTr0eH9q0U1NyZUtPzc5cPJo84f4E6yHLFLIJgs1EDY6mwwHnkyj9G65MTlrmZ3I8lVm75fNakdK-DSE7VgJwdxkkKwOkqUHvgF6JsklWy_oXdhQdO6BY8whSE7W80E1b8aHgd-yA"/></div></header><main class="relative pt-16 pb-28 min-h-screen bg-surface"><div class="flex flex-col w-full">
+<div class="px-margin pt-space-lg pb-space-xl flex flex-col gap-space-xl max-w-7xl">
+<!-- Section 1: Search Console & Archival Filters -->
+<div class="flex flex-col gap-space-md">
+<!-- Search Bar -->
+<div class="relative flex items-center bg-surface-container-lowest shadow-sm rounded-lg px-space-md py-space-sm focus-within:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-outline text-[20px] select-none mr-space-sm">search</span>
+<input class="flex-1 bg-transparent font-headline-md text-headline-md text-on-surface placeholder:text-outline/60 focus:outline-none" id="catalog-search" placeholder="Search albums, movements, catalog numbers, or artists..." type="text" value="Miles Davis"/>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-micro text-label-micro uppercase tracking-widest text-outline bg-surface-container-high px-space-xs py-0.5 rounded">Catalog 7054</span>
+<button class="w-6 h-6 flex items-center justify-center text-outline hover:text-on-surface transition-colors" id="clear-search-btn">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- Tactile Segmented Filters -->
+<div class="flex items-center justify-between flex-wrap gap-space-sm select-none">
+<div class="flex items-center gap-space-xs">
+<button class="px-space-md py-1.5 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md transition-all active:scale-95 shadow-sm">
+            All Results
+          </button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-md text-label-md">
+            Releases &amp; Albums <span class="text-outline font-normal ml-0.5">(6)</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-md text-label-md">
+            Compositions <span class="text-outline font-normal ml-0.5">(42)</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-md text-label-md">
+            Artists <span class="text-outline font-normal ml-0.5">(2)</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-md text-label-md">
+            Playlists &amp; Curations <span class="text-outline font-normal ml-0.5">(3)</span>
+</button>
+</div>
+<div class="flex items-center gap-space-xs font-label-micro text-label-micro text-outline uppercase tracking-wider">
+<span>Sort By:</span>
+<span class="text-primary font-semibold cursor-pointer hover:underline">Archival Index</span>
+</div>
+</div>
+</div>
+<!-- Section 2: Split Monograph Card & Key Master Tapes -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-stretch">
+<!-- Left: Top Artist Match Monograph -->
+<div class="lg:col-span-5 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between relative overflow-hidden group">
+<div class="absolute -right-12 -top-12 w-48 h-48 bg-surface-container rounded-full opacity-40 pointer-events-none"></div>
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<span class="font-label-micro text-label-micro uppercase tracking-widest text-outline">Primary Monograph Match</span>
+<span class="font-label-micro text-label-micro uppercase px-1.5 py-0.5 rounded bg-surface-container-high text-primary-container font-semibold">Master Tape Catalog</span>
+</div>
+<div class="flex items-start gap-space-md mb-space-md">
+<div class="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-high relative shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Monochrome, high contrast archival portrait of Miles Davis performing trumpet under dramatic stage spotlight with smoky atmosphere, deep rich shadows and warm grain vintage film aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZOBL2gh4EjJ1TLyMCmyErPM9aQ9n2T3SvAy7RNeuhNe-1tG0AhCKKITMkaPoughGDpIK_1q4e6OCy9KRB32BuS7yTekCfTRipg4AlZu9Zg9c6L-9YMScwCgoJGBwaeY9z2BbQoicl2G6DWg3RXx5iRMnces9TJ6tmUFw8zU2y-Rf24EsUQ-xWDJGYUFyjPPNlXh6JPdQR6g-nwLKQVJ61KCSAsuu_FM6VQIEYPPoDdTf2Qxv4H-Rs"/>
+<div class="absolute inset-0 bg-primary/10 mix-blend-multiply"></div>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-headline-lg text-headline-lg text-on-surface leading-tight">Miles Davis</h2>
+</div>
+<p class="font-body-sm text-body-sm text-outline mt-0.5">Trumpeter, Composer, Bandleader (1926–1991)</p>
+<div class="flex items-center gap-space-sm mt-space-sm">
+<span class="font-label-micro text-label-micro uppercase text-on-surface-variant bg-surface-container px-space-xs py-0.5 rounded">28 Master Releases</span>
+<span class="font-label-micro text-label-micro uppercase text-on-surface-variant bg-surface-container px-space-xs py-0.5 rounded">Prestige / Columbia</span>
+</div>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed line-clamp-3">
+            Architect of post-bop, modal jazz, and fusion. Defining recordings captured onto primary analogue stereo reels at Van Gelder Studio and Columbia 30th Street Studio.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm mt-space-lg pt-space-md bg-surface-container-lowest">
+<button class="flex-1 flex items-center justify-center gap-space-xs py-2 px-space-md rounded-lg bg-primary-container text-on-primary font-label-md text-label-md hover:opacity-95 active:scale-[0.99] transition-all shadow-sm">
+<span class="material-symbols-outlined text-[18px]">play_arrow</span>
+<span>Play Catalog</span>
+</button>
+<button class="flex items-center justify-center gap-space-xs py-2 px-space-md rounded-lg bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+<span>View Discography</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Right: Key Works & Master Tapes Highlighting Blue Haze Sleeve -->
+<div class="lg:col-span-7 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-micro text-label-micro uppercase tracking-widest text-outline">Featured Master Tapes</span>
+<span class="font-label-micro text-label-micro text-outline">/</span>
+<span class="font-label-micro text-label-micro uppercase text-secondary font-semibold">1:1 Flat Transfers</span>
+</div>
+<span class="font-label-micro text-label-micro text-outline tracking-wider">3 Selected Entries</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Item 1: Blue Haze (Inspiration Reference) -->
+<div class="flex flex-col group cursor-pointer bg-surface rounded-lg p-space-sm hover:bg-surface-container-low transition-colors">
+<div class="relative aspect-square w-full rounded overflow-hidden shadow-sm bg-surface-container-high mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" data-alt="Miles Davis Blue Haze vintage jazz vinyl album sleeve, monochromatic dark charcoal design with saxophonist silhouette under moody stage light, prestige records layout style, pure analogue aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5yeuZ783EqPF0XstRJxFNH-_Oloxkrbnpgl0qjXnzDnKdKPQnr1DCMdeaInqfvasfOtsK7YPVj3DMSO3bpTW5teqjJhwWr2xWjc6_ZcFi9rBKvsvpMbI3j2wQ0zp85Uh93lrLQ1ChP3oKD6i_ICySvGchqQUtStfBzkHYZp3Meat-PlzO_Qs0oGwYdi5rLltVA_Qu2reHaP4xmF2WCS-ruoQ0bTYaQWMQ7eBJnSqDyDs5gnp14ign"/>
+<div class="absolute bottom-1.5 left-1.5 bg-tertiary/80 backdrop-blur-sm text-on-tertiary px-1 py-0.5 rounded text-[8px] font-label-micro uppercase tracking-wider">
+                Prestige 7054
+              </div>
+</div>
+<div class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Blue Haze</div>
+<div class="font-body-sm text-body-sm text-outline truncate">1954 • DSD 64 Tape Transfer</div>
+</div>
+<!-- Item 2: Kind of Blue Master Sound -->
+<div class="flex flex-col group cursor-pointer bg-surface rounded-lg p-space-sm hover:bg-surface-container-low transition-colors">
+<div class="relative aspect-square w-full rounded overflow-hidden shadow-sm bg-surface-container-high mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" data-alt="Legendary Kind of Blue jazz vinyl album sleeve artwork, deep cyan and midnight blue tones, Miles Davis with trumpet, classic Columbia master sound vintage record cover." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxlrIpCE3A_7y7EBuGoraxJ6hZ7rdbtDWYVPscdwcEAqU3yVo7QI3_ZPMCHEpmiUDpiBFQdvlFYpN7lMzh4awpggYsRJhm0ipdqWaKZzfBZtKu6NGpv0YHsZv8KqQiBCjWMpdekGfXcaarQX71jqezwOiTpew_HPVOYgPZKlV9HpCWnhjpMic1gfmNnCJE4pnZ-cAs465-YiZ3Wvg9Ky6ugIn5WvPLWZ_UBPAS8OH-bLZokRvX6ULI"/>
+<div class="absolute bottom-1.5 left-1.5 bg-primary-container text-on-primary px-1 py-0.5 rounded text-[8px] font-label-micro uppercase tracking-wider">
+                Master 24/192
+              </div>
+</div>
+<div class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Kind of Blue</div>
+<div class="font-body-sm text-body-sm text-outline truncate">1959 • 3-Track Direct Transfer</div>
+</div>
+<!-- Item 3: In a Silent Way -->
+<div class="flex flex-col group cursor-pointer bg-surface rounded-lg p-space-sm hover:bg-surface-container-low transition-colors">
+<div class="relative aspect-square w-full rounded overflow-hidden shadow-sm bg-surface-container-high mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" data-alt="Miles Davis In a Silent Way album cover aesthetic, late sixties minimalist typography, psychological color spectrum warm amber and bordeaux hues, archival pressing art." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW2P4Nq6WqIIbYFS6wVUQAP6kpW49wb92o08jBoLpU6002f0-jvTkFzxtFKGhH8kvVvO7-bYaP_Uqq7n2yad5gRYyEKGqhiTIzRxVx-ToKzmUNAuAtWEHHHnJpKyJ1KTBH39acXKyZ7TnElqdDw6uXLETCghnZWHh_0mfjXdrRP6BLGjRTn3PlXCnvuSvoTjSKydAXekj5pZy_f5jSeX9gEf-7rOKwkYjqOlu1BP2pxb0eQGrAv_HF"/>
+<div class="absolute bottom-1.5 left-1.5 bg-tertiary/80 backdrop-blur-sm text-on-tertiary px-1 py-0.5 rounded text-[8px] font-label-micro uppercase tracking-wider">
+                Columbia CS 9875
+              </div>
+</div>
+<div class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">In a Silent Way</div>
+<div class="font-body-sm text-body-sm text-outline truncate">1969 • Van Gelder Tape Remaster</div>
+</div>
+</div>
+<!-- Archival Status Indicator -->
+<div class="mt-space-md pt-space-xs flex items-center justify-between text-outline font-label-micro text-label-micro">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+            A-to-D 5.6MHz Bitstream Validated
+          </span>
+<span class="uppercase tracking-widest text-primary cursor-pointer hover:underline">Explore Reel Session Log →</span>
+</div>
+</div>
+</div>
+<!-- Section 3: Songs / Compositions Result List -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col">
+<div class="flex items-center justify-between pb-space-md">
+<div>
+<span class="font-label-micro text-label-micro uppercase tracking-widest text-outline">Archival Index</span>
+<h3 class="font-headline-md text-headline-md text-on-surface mt-0.5">Compositions &amp; Master Tracks</h3>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="font-label-micro text-label-micro uppercase text-outline hover:text-on-surface transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">filter_list</span> Filter Sessions
+          </button>
+</div>
+</div>
+<!-- Table Header -->
+<div class="grid grid-cols-12 gap-space-sm py-2 px-space-sm bg-surface-container text-outline font-label-micro text-label-micro uppercase tracking-wider rounded-lg mb-space-xs select-none">
+<div class="col-span-1 text-center">#</div>
+<div class="col-span-4">Composition Title</div>
+<div class="col-span-3">Pressing &amp; Release</div>
+<div class="col-span-2">Key Personnel</div>
+<div class="col-span-1 text-right">Time</div>
+<div class="col-span-1 text-center">Actions</div>
+</div>
+<!-- Track Rows -->
+<div class="flex flex-col divide-y divide-transparent gap-1">
+<!-- Row 1: Currently Active Track -->
+<div class="grid grid-cols-12 gap-space-sm items-center py-2.5 px-space-sm bg-surface-container-high/80 rounded-lg group transition-colors cursor-pointer">
+<div class="col-span-1 flex items-center justify-center">
+<!-- Animated Soundwave micro-indicator in Bordeaux -->
+<div class="flex items-end gap-[2px] h-3.5 w-3.5">
+<span class="w-[2.5px] h-2 bg-primary-container animate-pulse rounded-full"></span>
+<span class="w-[2.5px] h-3.5 bg-primary-container animate-bounce rounded-full"></span>
+<span class="w-[2.5px] h-1.5 bg-primary-container animate-pulse rounded-full"></span>
+</div>
+</div>
+<div class="col-span-4 flex flex-col min-w-0 pr-space-xs">
+<span class="font-body-md text-body-md font-semibold text-primary truncate">You Don't Know What Love Is</span>
+<span class="font-label-micro text-label-micro text-outline truncate">Prestige Masters • Take 2 Stereo</span>
+</div>
+<div class="col-span-3 flex items-center gap-space-xs truncate">
+<span class="font-body-sm text-body-sm text-on-surface truncate">Blue Haze</span>
+<span class="font-label-micro text-label-micro bg-primary/10 text-primary px-1 py-0.5 rounded flex-shrink-0">DSD 64</span>
+</div>
+<div class="col-span-2 font-body-sm text-body-sm text-on-surface-variant truncate">
+            Hank Mobley, Red Garland
+          </div>
+<div class="col-span-1 text-right font-label-micro text-label-micro tabular-nums text-primary font-semibold">
+            07:46
+          </div>
+<div class="col-span-1 flex items-center justify-center gap-space-xs">
+<button class="text-secondary-container hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-12 gap-space-sm items-center py-2.5 px-space-sm hover:bg-surface-container rounded-lg group transition-colors cursor-pointer">
+<div class="col-span-1 flex items-center justify-center font-label-sm text-label-sm text-outline tabular-nums group-hover:hidden">
+            02
+          </div>
+<div class="col-span-1 hidden items-center justify-center group-hover:flex">
+<span class="material-symbols-outlined text-primary-container text-[18px]">play_arrow</span>
+</div>
+<div class="col-span-4 flex flex-col min-w-0 pr-space-xs">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors truncate">I See Your Face Before Me</span>
+<span class="font-label-micro text-label-micro text-outline truncate">Rec: Hackensack Studio</span>
+</div>
+<div class="col-span-3 flex items-center gap-space-xs truncate">
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Blue Haze</span>
+<span class="font-label-micro text-label-micro bg-surface-container-high text-outline px-1 py-0.5 rounded flex-shrink-0">FLAC 96k</span>
+</div>
+<div class="col-span-2 font-body-sm text-body-sm text-outline truncate">
+            Red Garland, Paul Chambers
+          </div>
+<div class="col-span-1 text-right font-label-micro text-label-micro tabular-nums text-outline">
+            05:45
+          </div>
+<div class="col-span-1 flex items-center justify-center gap-space-xs">
+<button class="text-outline hover:text-secondary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-12 gap-space-sm items-center py-2.5 px-space-sm hover:bg-surface-container rounded-lg group transition-colors cursor-pointer">
+<div class="col-span-1 flex items-center justify-center font-label-sm text-label-sm text-outline tabular-nums group-hover:hidden">
+            03
+          </div>
+<div class="col-span-1 hidden items-center justify-center group-hover:flex">
+<span class="material-symbols-outlined text-primary-container text-[18px]">play_arrow</span>
+</div>
+<div class="col-span-4 flex flex-col min-w-0 pr-space-xs">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors truncate">So What</span>
+<span class="font-label-micro text-label-micro text-outline truncate">Direct 30th St. Reel Source</span>
+</div>
+<div class="col-span-3 flex items-center gap-space-xs truncate">
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Kind of Blue</span>
+<span class="font-label-micro text-label-micro bg-primary/10 text-primary px-1 py-0.5 rounded flex-shrink-0">Master 192k</span>
+</div>
+<div class="col-span-2 font-body-sm text-body-sm text-outline truncate">
+            John Coltrane, Bill Evans
+          </div>
+<div class="col-span-1 text-right font-label-micro text-label-micro tabular-nums text-outline">
+            09:22
+          </div>
+<div class="col-span-1 flex items-center justify-center gap-space-xs">
+<button class="text-outline hover:text-secondary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Row 4 -->
+<div class="grid grid-cols-12 gap-space-sm items-center py-2.5 px-space-sm hover:bg-surface-container rounded-lg group transition-colors cursor-pointer">
+<div class="col-span-1 flex items-center justify-center font-label-sm text-label-sm text-outline tabular-nums group-hover:hidden">
+            04
+          </div>
+<div class="col-span-1 hidden items-center justify-center group-hover:flex">
+<span class="material-symbols-outlined text-primary-container text-[18px]">play_arrow</span>
+</div>
+<div class="col-span-4 flex flex-col min-w-0 pr-space-xs">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors truncate">Flamenco Sketches</span>
+<span class="font-label-micro text-label-micro text-outline truncate">Alternate Take 1</span>
+</div>
+<div class="col-span-3 flex items-center gap-space-xs truncate">
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Kind of Blue</span>
+<span class="font-label-micro text-label-micro bg-surface-container-high text-outline px-1 py-0.5 rounded flex-shrink-0">FLAC 96k</span>
+</div>
+<div class="col-span-2 font-body-sm text-body-sm text-outline truncate">
+            Bill Evans, Cannonball Adderley
+          </div>
+<div class="col-span-1 text-right font-label-micro text-label-micro tabular-nums text-outline">
+            09:26
+          </div>
+<div class="col-span-1 flex items-center justify-center gap-space-xs">
+<button class="text-outline hover:text-secondary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Row 5 -->
+<div class="grid grid-cols-12 gap-space-sm items-center py-2.5 px-space-sm hover:bg-surface-container rounded-lg group transition-colors cursor-pointer">
+<div class="col-span-1 flex items-center justify-center font-label-sm text-label-sm text-outline tabular-nums group-hover:hidden">
+            05
+          </div>
+<div class="col-span-1 hidden items-center justify-center group-hover:flex">
+<span class="material-symbols-outlined text-primary-container text-[18px]">play_arrow</span>
+</div>
+<div class="col-span-4 flex flex-col min-w-0 pr-space-xs">
+<span class="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors truncate">Générique</span>
+<span class="font-label-micro text-label-micro text-outline truncate">Paris Film Soundtrack Recording</span>
+</div>
+<div class="col-span-3 flex items-center gap-space-xs truncate">
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Ascenseur pour l'échafaud</span>
+<span class="font-label-micro text-label-micro bg-primary/10 text-primary px-1 py-0.5 rounded flex-shrink-0">Pure Mono</span>
+</div>
+<div class="col-span-2 font-body-sm text-body-sm text-outline truncate">
+            Barney Wilen, René Urtreger
+          </div>
+<div class="col-span-1 text-right font-label-micro text-label-micro tabular-nums text-outline">
+            02:50
+          </div>
+<div class="col-span-1 flex items-center justify-center gap-space-xs">
+<button class="text-outline hover:text-secondary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">favorite</span>
+</button>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Footer action for composition list -->
+<div class="pt-space-md mt-space-sm flex items-center justify-center">
+<button class="px-space-lg py-1.5 rounded-lg bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+          View All 42 Registered Movements
+        </button>
+</div>
+</div>
+<!-- Section 4: Matching Albums & Discography Grid -->
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div>
+<span class="font-label-micro text-label-micro uppercase tracking-widest text-outline">Vinyl Crates</span>
+<h3 class="font-headline-md text-headline-md text-on-surface mt-0.5">Matching Pressings &amp; Catalog Editions</h3>
+</div>
+<div class="flex items-center gap-space-xs text-outline font-label-micro text-label-micro uppercase tracking-wider">
+<span>Sort: Year of Recording</span>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-space-md">
+<!-- Album Card 1 (Blue Haze) -->
+<div class="flex flex-col group cursor-pointer">
+<div class="relative aspect-square w-full rounded-lg overflow-hidden bg-surface-container-high shadow-sm mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" data-alt="Blue Haze Miles Davis LP vintage sleeve, black and white tone, typography reading Blue Haze, side tracklist on front cover, Prestige Records release aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZoBnOTHkNpTeMTUo0iVw1DrXCkNWI58ACB80j45RgFG7uCzgpeFYlfQC5wzT08OapwdEvOaF9qOot9ZUzRmgM_oyYh4FPWFDgchFBWpbQoQ9N_jRe1NjmnWyvAKoYdQAHKcMzKXnfuMKyenP8AYa9mHrydKe_F2OXeTyrxHw4kiAXOKP5pemqgb4Q1LBke5dr08QKYeZNk92Ye245NcKfVMmLEmRBRYIdbZvyIDUgd9R6mniD9z1I"/>
+<div class="absolute top-2 right-2 bg-primary-container text-on-primary font-label-micro text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
+              Analog Master
+            </div>
+<div class="absolute bottom-2 left-2 bg-tertiary/90 backdrop-blur-sm text-on-tertiary font-label-micro text-[9px] uppercase px-1.5 py-0.5 rounded">
+              DSD 64
+            </div>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors truncate">Blue Haze</span>
+<div class="flex items-center justify-between text-outline font-body-sm text-body-sm mt-0.5">
+<span>1954 • Prestige</span>
+<span class="font-label-micro text-label-micro uppercase">Van Gelder</span>
+</div>
+</div>
+<!-- Album Card 2 (Structural Harmonies Inspiration Reference) -->
+<div class="flex flex-col group cursor-pointer">
+<div class="relative aspect-square w-full rounded-lg overflow-hidden bg-surface-container-high shadow-sm mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" data-alt="Structural Harmonies album art, brutalist stone sculpture aesthetic, deep warm terracotta and bordeaux hues, classical and neoclassical compositions vinyl sleeve." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxMqyPcI0KJ6tTkHogmTmp7lBlOqhs9dVxrv4G61pD3mBJya7zXyAHWZaSw-o6_hZute6zdqZg-x9HwgSGhbau3TolTOiE4Nx-JoLefmlsSKnnn669FS91k8eVh5i67h8K3cibXdwpu5oSA3jza5eZlBhmfkIuUQVA2B7D0W0dvltLP5VBW7QFEMqd88YjIIp7caQd-iPIR6f73yoIlaYL1AUpkVDn5HLIteF1p0fgcL1119e838NC"/>
+<div class="absolute top-2 right-2 bg-surface-container-highest text-on-surface-variant font-label-micro text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded shadow-sm">
+              Curated Press
+            </div>
+<div class="absolute bottom-2 left-2 bg-tertiary/90 backdrop-blur-sm text-on-tertiary font-label-micro text-[9px] uppercase px-1.5 py-0.5 rounded">
+              FLAC 192/24
+            </div>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors truncate">Structural Harmonies</span>
+<div class="flex items-center justify-between text-outline font-body-sm text-body-sm mt-0.5">
+<span>1958 • Third Stream</span>
+<span class="font-label-micro text-label-micro uppercase">Stereo</span>
+</div>
+</div>
+<!-- Album Card 3 (Milestones) -->
+<div class="flex flex-col group cursor-pointer">
+<div class="relative aspect-square w-full rounded-lg overflow-hidden bg-surface-container-high shadow-sm mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" data-alt="Milestones Miles Davis album cover vintage 1958 Columbia pressing, green and muted earth tone typography, mid-century modern jazz sleeve layout." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwRGd_wWIrWnoUCgIMQTKp7UZgoDV181tP98ld0m-04PzHZvw34VOT3vqffnLsMuYSqPJ4gk42Hh3XJh7BqYsa0p0UThockNfCWj9S30BjxKoBChpGlv5WIZ5YIZvi0SNvP91HbWYA7k4RLQwTUBaReaiTC61q9ayFeSMEYdnueUBJVZ4gU78aHWAlnmFkrYSuDYOGL92kU7UKOt_ytXy-aEOOHpFsjdtwLyJzdZ5Gms8n9Msu363n"/>
+<div class="absolute bottom-2 left-2 bg-tertiary/90 backdrop-blur-sm text-on-tertiary font-label-micro text-[9px] uppercase px-1.5 py-0.5 rounded">
+              Pure Analogue
+            </div>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors truncate">Milestones</span>
+<div class="flex items-center justify-between text-outline font-body-sm text-body-sm mt-0.5">
+<span>1958 • Columbia</span>
+<span class="font-label-micro text-label-micro uppercase">CL 1193</span>
+</div>
+</div>
+<!-- Album Card 4 (Sketches of Spain) -->
+<div class="flex flex-col group cursor-pointer">
+<div class="relative aspect-square w-full rounded-lg overflow-hidden bg-surface-container-high shadow-sm mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" data-alt="Sketches of Spain Miles Davis Gil Evans LP cover artwork, sunny ochre and rich bordeaux shadows, orchestral jazz vinyl aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDf47VAFH7CEzXNUyLBa6584ApeZiA0hQUnyXyQQTsKZ8K_8c_tA9EY7OB-iwWDEgXO_iqIcMmSNK9LEP7UpiVxCJtfbJw4Px8FrDKx3pKRty5xYtrVN9WxBgLU1XbJnbkuw8i9ZiYweaA_MTFuQ6-C1N0i_WLYDd39w3JQdJRQ2gtra0crq4K1hLh6mJUafH2Ilt3p_d7aULGi_RwYeZmYqL3Xv88o-8HL5jb46uEZxf0iVGoaZ0fz"/>
+<div class="absolute bottom-2 left-2 bg-tertiary/90 backdrop-blur-sm text-on-tertiary font-label-micro text-[9px] uppercase px-1.5 py-0.5 rounded">
+              DSD 128
+            </div>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors truncate">Sketches of Spain</span>
+<div class="flex items-center justify-between text-outline font-body-sm text-body-sm mt-0.5">
+<span>1960 • Columbia</span>
+<span class="font-label-micro text-label-micro uppercase">CS 8271</span>
+</div>
+</div>
+<!-- Album Card 5 (Round About Midnight) -->
+<div class="flex flex-col group cursor-pointer">
+<div class="relative aspect-square w-full rounded-lg overflow-hidden bg-surface-container-high shadow-sm mb-space-xs">
+<img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" data-alt="Round About Midnight album cover, iconic ruby red filter photograph of Miles Davis with sunglasses in dark venue, prestigious jazz album packaging." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHjegDkw36LzLunuQ6tWaGCtLRl24oMu9f2tSmfCPxJqHBI5FLJUcy2csEkLdM5ZZ5dnYpyrMmPrKhh0SkWqxTeBFTQRyg1G_8nGShwqQnKqoa-Sgv6qLjHrDOgP6XnOWBkMQMhXEhB5WAbyw8mPvci_s-07XI_LpBTRUtDzwuQeWIf01KZ4VmpbYvrS4L9GRzDFK_YbM5KwdUOvhnst0PMhG2A-sFQdDn1p5Pzy5mqy4V4v_1s0NL"/>
+<div class="absolute bottom-2 left-2 bg-tertiary/90 backdrop-blur-sm text-on-tertiary font-label-micro text-[9px] uppercase px-1.5 py-0.5 rounded">
+              FLAC 192/24
+            </div>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors truncate">'Round About Midnight</span>
+<div class="flex items-center justify-between text-outline font-body-sm text-body-sm mt-0.5">
+<span>1957 • Columbia</span>
+<span class="font-label-micro text-label-micro uppercase">CL 949</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 5: Recent Catalog Searches & Archival History -->
+<div class="pt-space-md border-t border-transparent flex flex-col md:flex-row md:items-center justify-between gap-space-md select-none bg-surface-container-low/60 rounded-xl p-space-md">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-label-micro text-label-micro uppercase tracking-widest text-outline">Recent Queries:</span>
+<button class="px-space-sm py-1 rounded bg-surface-container-lowest text-on-surface hover:text-primary transition-colors font-body-sm text-body-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-outline">history</span>
+<span>Nils Frahm Music for Animals</span>
+</button>
+<button class="px-space-sm py-1 rounded bg-surface-container-lowest text-on-surface hover:text-primary transition-colors font-body-sm text-body-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-outline">history</span>
+<span>ECM Records Catalog</span>
+</button>
+<button class="px-space-sm py-1 rounded bg-surface-container-lowest text-on-surface hover:text-primary transition-colors font-body-sm text-body-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-outline">history</span>
+<span>Chopin Nocturnes Pires</span>
+</button>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="font-label-micro text-label-micro uppercase tracking-wider text-outline hover:text-on-surface transition-colors">
+          Clear Archival History
+        </button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  // Micro-interaction for Search Clear button
+  document.getElementById('clear-search-btn')?.addEventListener('click', function() {
+    const searchInput = document.getElementById('catalog-search');
+    if (searchInput) {
+      searchInput.value = '';
+      searchInput.focus();
+    }
+  });
+</script></main></div><footer class="fixed bottom-0 left-0 right-0 h-20 bg-surface border-t border-outline-variant/40 z-50 flex items-center px-space-md justify-between select-none"><div class="flex items-center gap-space-sm w-72 min-w-[240px]"><div class="w-12 h-12 rounded bg-surface-container-high border border-outline-variant/40 flex-shrink-0 relative overflow-hidden flex items-center justify-center"><span class="material-symbols-outlined text-outline text-[20px]">album</span><div class="absolute inset-0 bg-primary-container/10 mix-blend-multiply"></div></div><div class="flex flex-col min-w-0 pr-space-xs"><div class="font-body-md text-body-md font-medium text-on-surface truncate">Ascending Horizon</div><div class="font-body-sm text-body-sm text-outline truncate">Kiasmos &amp; Ólafur Arnalds</div></div><button class="text-outline hover:text-primary transition-colors ml-auto flex-shrink-0"><span class="material-symbols-outlined text-[18px]">favorite</span></button></div><div class="flex-1 max-w-2xl px-space-md flex flex-col items-center justify-center"><div class="flex items-center gap-space-md mb-1.5"><button class="text-outline hover:text-on-surface transition-colors flex items-center"><span class="material-symbols-outlined text-[16px]">shuffle</span></button><button class="text-outline hover:text-on-surface transition-colors flex items-center"><span class="material-symbols-outlined text-[18px]">skip_previous</span></button><button class="w-7 h-7 rounded-full bg-primary-container text-on-primary flex items-center justify-center hover:opacity-95 active:scale-95 transition-all shadow-none"><span class="material-symbols-outlined text-[16px] fill-current ml-0.5">play_arrow</span></button><button class="text-outline hover:text-on-surface transition-colors flex items-center"><span class="material-symbols-outlined text-[18px]">skip_next</span></button><button class="text-outline hover:text-on-surface transition-colors flex items-center"><span class="material-symbols-outlined text-[16px]">repeat</span></button></div><div class="w-full flex items-center gap-space-sm"><span class="font-label-micro text-label-micro tabular-nums text-outline">02:18</span><div class="flex-1 h-5 flex items-center justify-between gap-[1.5px] cursor-pointer group"><span class="w-[2px] h-[6px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[10px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[14px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[8px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[18px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[12px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[16px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[20px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[7px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[15px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[11px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[19px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[13px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[8px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[17px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[22px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[14px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[9px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[12px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[16px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[18px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[10px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[15px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[21px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[13px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[7px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[11px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[17px] bg-primary-container rounded-[0.5px]"></span><span class="w-[2px] h-[14px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[19px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[9px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[16px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[20px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[8px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[12px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[18px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[15px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[6px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[10px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[14px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[22px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[13px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[9px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[17px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[11px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[7px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[16px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[20px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[12px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[15px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[18px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[8px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[14px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[10px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[13px] bg-tertiary-fixed-dim rounded-[0.5px]"></span><span class="w-[2px] h-[5px] bg-tertiary-fixed-dim rounded-[0.5px]"></span></div><span class="font-label-micro text-label-micro tabular-nums text-outline">05:42</span></div></div><div class="flex items-center justify-end gap-space-md w-72 min-w-[240px]"><span class="font-label-micro text-label-micro border border-outline-variant/60 rounded px-1.5 py-0.5 text-outline uppercase tracking-wider">24-bit / 96kHz Lossless</span><button class="text-outline hover:text-on-surface transition-colors flex items-center"><span class="material-symbols-outlined text-[18px]">queue_music</span></button><div class="flex items-center gap-1 text-outline hover:text-on-surface transition-colors cursor-pointer"><span class="material-symbols-outlined text-[16px]">speaker_group</span><span class="font-label-micro text-label-micro font-medium hidden xl:inline">Living Room Amp</span></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[18px] text-outline">volume_up</span><div class="w-16 h-1 bg-outline-variant/40 rounded-full overflow-hidden"><div class="w-2/3 h-full bg-on-surface"></div></div></div></div></footer></body></html>

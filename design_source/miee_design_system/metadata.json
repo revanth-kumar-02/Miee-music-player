@@ -1,0 +1,811 @@
+{
+  "project": {
+    "name": "projects/5859565558274264408",
+    "title": "Miee Music Player Design System",
+    "designTheme": {
+      "colorMode": "LIGHT",
+      "font": "NEWSREADER",
+      "roundness": "ROUND_FOUR",
+      "customColor": "#6e0d25",
+      "headlineFont": "NEWSREADER",
+      "bodyFont": "PLUS_JAKARTA_SANS",
+      "labelFont": "PLUS_JAKARTA_SANS",
+      "namedColors": {
+        "on_error_container": "#93000a",
+        "primary_fixed": "#ffdadc",
+        "on_primary": "#ffffff",
+        "surface_dim": "#ebd5d9",
+        "inverse_primary": "#ffb2b9",
+        "primary": "#4b0014",
+        "surface_container_lowest": "#ffffff",
+        "primary_container": "#6e0d25",
+        "inverse_on_surface": "#ffecef",
+        "primary_fixed_dim": "#ffb2b9",
+        "inverse_surface": "#3a2d30",
+        "on_tertiary_fixed": "#1e1b1d",
+        "secondary_fixed": "#ffdada",
+        "on_secondary_fixed": "#40000b",
+        "surface_tint": "#a4384a",
+        "on_tertiary_container": "#a49ea0",
+        "surface_container_high": "#f9e3e7",
+        "on_tertiary": "#ffffff",
+        "outline": "#897173",
+        "background": "#fff8f8",
+        "error": "#ba1a1a",
+        "tertiary": "#242022",
+        "on_surface_variant": "#564243",
+        "on_primary_fixed": "#400010",
+        "on_surface": "#24181b",
+        "on_secondary_fixed_variant": "#920025",
+        "on_secondary_container": "#fffbff",
+        "surface_container": "#ffe8ec",
+        "surface": "#fff8f8",
+        "surface_container_low": "#fff0f2",
+        "surface_container_highest": "#f3dde1",
+        "outline_variant": "#ddc0c1",
+        "secondary_fixed_dim": "#ffb3b5",
+        "on_primary_fixed_variant": "#852034",
+        "secondary": "#ba0032",
+        "surface_variant": "#f3dde1",
+        "on_error": "#ffffff",
+        "on_background": "#24181b",
+        "tertiary_fixed": "#e9e0e3",
+        "tertiary_container": "#3a3538",
+        "tertiary_fixed_dim": "#ccc4c7",
+        "error_container": "#ffdad6",
+        "on_primary_container": "#f77788",
+        "on_secondary": "#ffffff",
+        "surface_bright": "#fff8f8",
+        "secondary_container": "#e41944",
+        "on_tertiary_fixed_variant": "#4a4548"
+      },
+      "designMd": "---\nname: Editorial Tactility\ncolors:\n  surface: '#fff8f8'\n  surface-dim: '#ebd5d9'\n  surface-bright: '#fff8f8'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#fff0f2'\n  surface-container: '#ffe8ec'\n  surface-container-high: '#f9e3e7'\n  surface-container-highest: '#f3dde1'\n  on-surface: '#24181b'\n  on-surface-variant: '#564243'\n  inverse-surface: '#3a2d30'\n  inverse-on-surface: '#ffecef'\n  outline: '#897173'\n  outline-variant: '#ddc0c1'\n  surface-tint: '#a4384a'\n  primary: '#4b0014'\n  on-primary: '#ffffff'\n  primary-container: '#6e0d25'\n  on-primary-container: '#f77788'\n  inverse-primary: '#ffb2b9'\n  secondary: '#ba0032'\n  on-secondary: '#ffffff'\n  secondary-container: '#e41944'\n  on-secondary-container: '#fffbff'\n  tertiary: '#242022'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#3a3538'\n  on-tertiary-container: '#a49ea0'\n  error: '#ba1a1a'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#ffdadc'\n  primary-fixed-dim: '#ffb2b9'\n  on-primary-fixed: '#400010'\n  on-primary-fixed-variant: '#852034'\n  secondary-fixed: '#ffdada'\n  secondary-fixed-dim: '#ffb3b5'\n  on-secondary-fixed: '#40000b'\n  on-secondary-fixed-variant: '#920025'\n  tertiary-fixed: '#e9e0e3'\n  tertiary-fixed-dim: '#ccc4c7'\n  on-tertiary-fixed: '#1e1b1d'\n  on-tertiary-fixed-variant: '#4a4548'\n  background: '#fff8f8'\n  on-background: '#24181b'\n  surface-variant: '#f3dde1'\ntypography:\n  headline-xl:\n    fontFamily: Newsreader\n    fontSize: 48px\n    fontWeight: '400'\n    lineHeight: 54px\n    letterSpacing: -0.02em\n  headline-xl-mobile:\n    fontFamily: Newsreader\n    fontSize: 32px\n    fontWeight: '400'\n    lineHeight: 38px\n    letterSpacing: -0.015em\n  headline-lg:\n    fontFamily: Newsreader\n    fontSize: 36px\n    fontWeight: '400'\n    lineHeight: 42px\n    letterSpacing: -0.015em\n  headline-lg-mobile:\n    fontFamily: Newsreader\n    fontSize: 26px\n    fontWeight: '400'\n    lineHeight: 32px\n    letterSpacing: -0.01em\n  headline-md:\n    fontFamily: Newsreader\n    fontSize: 24px\n    fontWeight: '500'\n    lineHeight: 30px\n    letterSpacing: -0.01em\n  headline-sm:\n    fontFamily: Newsreader\n    fontSize: 20px\n    fontWeight: '500'\n    lineHeight: 26px\n  body-lg:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n  body-md:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n  body-sm:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 16px\n  label-md:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 13px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.02em\n  label-sm:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 11px\n    fontWeight: '600'\n    lineHeight: 14px\n    letterSpacing: 0.04em\n  label-micro:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 9px\n    fontWeight: '700'\n    lineHeight: 12px\n    letterSpacing: 0.08em\nrounded:\n  sm: 0.125rem\n  DEFAULT: 0.25rem\n  md: 0.375rem\n  lg: 0.5rem\n  xl: 0.75rem\n  full: 9999px\nspacing:\n  gutter: 1.25rem\n  gutter-mobile: 0.75rem\n  margin: 2.5rem\n  margin-mobile: 1.25rem\n  space-xs: 0.25rem\n  space-sm: 0.5rem\n  space-md: 1rem\n  space-lg: 1.5rem\n  space-xl: 2.5rem\n---\n\n## Brand & Style\n\nThe design system establishes an unapologetically deliberate, tactile, and editorial atmosphere for high-fidelity, album-centric listening. Rooted in the visual weight of independent print journals, prestige vinyl packaging, and analog playback equipment, the interface rejects algorithmic modernism\u2014dispensing with generic blurred gradients, floating pill bubbles, and ungrounded elevation.\n\nVisual tension is created by pairing stately, literary serif display typography with austere, Swiss-inspired typographic utility. The experience treats album art and track structures as sacred cultural artifacts: sharp structural anchors, physical framing rules, and tactile micro-states evoke the precision of Dieter Rams audio gear combined with the literary severity of broadsheet editorial culture. The user feels like a curator and archivist, not an unthinking subscriber processing an infinite feed.\n\n## Colors\n\nThe palette is anchored by the tactile tact of raw exhibition paper, vintage vinyl liner notes, and deep, vintage wine-red inks:\n\n- **Base Canvas (`#F9F8F6` - Chalk):** The primary paper substrate. A warm, mineral-hued white that prevents screen glare and sets a quiet, library-grade tone.\n- **Surface Elevation (`#ECEAE6` - Linen Paper):** Reserved for nested cards, tracklist headers, player trays, and modal sidebars.\n- **Deep Charcoal (`#1A0F12`):** Rich, ink-weight neutral black with an imperceptible warm undertone. Used for main titles, active typography, and structural lines.\n- **Muted Dust (`#7A7274`):** Mid-tone neutral for supporting metadata (sample rate, release year, duration, track artists, liner notes).\n- **Subtle Borders (`#E2DFD9`):** Thin hairline rules that delimit layout sections, track rows, and structural panes without visual heaviness.\n- **Bordeaux Accent (`#6E0D25`):** The primary brand anchor. Evokes aged red bookcloth and classic jazz record center-labels. Applied to active navigation indicators, elapsed waveform tracks, active audio routings, and primary controls.\n- **Punch Highlight (`#FF3355`):** A razor-sharp neon-crimson used exclusively in micro-doses: the active heart/favorite state, a live recording indicator dot, or high-res lossless streaming badging.\n- **Waveform Inactive (`#D5CDD0`):** Neutral taupe-grey reserved for upcoming, unplayed audio ticks and secondary track scrub lines.\n\n## Typography\n\nThe typographical hierarchy is constructed on deliberate contrast: literary contemplation juxtaposed with crisp, high-precision technical information.\n\n- **Headlines & Editorial Statements (`Newsreader`):** Rendered with natural proportional rhythm and classic serif flourishes. Album titles, section overtures, editorial essays, and artist narratives live exclusively here. It grounds the player in archival authenticity.\n- **Interface, Track Data & Metrics (`Plus Jakarta Sans`):** Clean, structural, and neutral. Track names, timecodes, bitrates (`24-bit / 192kHz FLAC`), audio controls, and index numbering use this sans-serif for absolute clarity.\n- **Micro Labels & Counters:** Track numbers are styled with monospaced tabular alignment (`font-variant-numeric: tabular-nums;`) to form immaculate linear columns down tracklists.\n\n## Layout & Spacing\n\nThe layout operates on a disciplined 12-column grid for desktop views, collapsing to 6 columns on tablet and 4 columns on mobile. \n\n- **Desktop (>= 1200px):** 2.5rem (`margin`) canvas margins with 1.25rem (`gutter`) gutters. The player follows a split architecture: an expansive left or bottom deck anchored to the current album sleeve and tactile waveform console, leaving the primary columns for multi-column record crate exploration and rich tracklist liner notes.\n- **Tablet (768px - 1199px):** 2rem canvas margins with 1rem gutters. Artwork drops to fixed aspect ratios, and controls condense into a persistent bottom dock.\n- **Mobile (< 768px):** 1.25rem (`margin-mobile`) margins with 0.75rem (`gutter-mobile`) gutters. Spacing pivots from sprawling margins to vertical rhythm, maintaining density without claustrophobia.\n\nThe spacing rhythm is calculated: internal element padding sits tight (`space-xs` and `space-sm`) to emulate physical instrument dials and printed indices, while structural whitespace (`space-lg` and `space-xl`) provides breathing room between master sections.\n\n## Elevation & Depth\n\nThis system avoids software skeuomorphism like artificial drop shadows, blurred or semi-transparent backdrops, and synthetic neon halos. Visual hierarchy and layer separation are built through **tonal paper layering** and **fine architectural rules**:\n\n1. **Substrate Separation:** The core background is Chalk (`#F9F8F6`). Floating decks, transport drawers, and drawer trays sit on Linen (`#ECEAE6`).\n2. **Hairline Delimitation:** Surfaces are bound by 1px solid borders (`#E2DFD9`). Never use thick heavy borders. Structure is felt through clean edge contrast rather than drop shadow offset.\n3. **Physical Pressed States:** Hover states employ subtle background shifts (`#E2DFD9` at 40% tint), while active mouse-down states shift elements inward by 1px translateY with a darker keyline, imitating a physical micro-switch.\n4. **Artwork Depth:** Album artwork uses an imperceptible, tight contact edge (`box-shadow: 0 1px 2px rgba(26, 15, 18, 0.08)`) simulating the physical thickness of heavy-stock vinyl sleeves resting on a drafting desk.\n\n## Shapes\n\nThe shape system strictly uses **Soft (`roundedness: 1`)** geometry:\n- Default elements (buttons, inputs, status badges, artwork frame containers) maintain a crisp 4px (`0.25rem`) corner radius.\n- Larger nested panels, playback docks, and dialogs utilize an 8px (`0.5rem`) corner radius.\n- Circular shapes (100% radius) are reserved strictly for circular controls (play/pause main button, needle drop indicators, volume knobs).\n\nPill-shaped bubbles, rounded stadium tags, and soft, gelatinous edges are forbidden; sharp geometric purity preserves the tactile feel of physical hi-fi components.\n\n## Components\n\n### Waveform Playback Bar (Signature)\n- **Structure:** A dense sequence of discrete 2px-wide vertical bars spaced 2px apart across the full container width.\n- **States:**\n  - *Elapsed:* Filled with Bordeaux Accent (`#6E0D25`).\n  - *Unplayed:* Filled with Waveform Neutral (`#D5CDD0`).\n  - *Hover Scrubber:* A 1px vertical hairline in Deep Charcoal (`#1A0F12`) accompanies a floating micro-tooltip showing precise MM:SS.\n  - *Playhead Indicator:* A 4px sharp tick capping the active point.\n\n### Buttons & Transport Controls\n- **Primary Action (Play/Pause, Purchase Album):** Solid Bordeaux (`#6E0D25`) fill with Chalk (`#F9F8F6`) typography, 4px border radius, strictly no shadows. Tactile depression on press.\n- **Secondary Action (Shuffle, Repeat, Queue):** Chalk background with a 1px border (`#E2DFD9`), text in Deep Charcoal (`#1A0F12`). On active toggling, border and icon transition to Bordeaux (`#6E0D25`) with a 4px square tint badge.\n- **Micro Controls:** Minimal padding (`4px 8px`), uppercase `label-micro` typography.\n\n### Tracklist & List Items\n- **Row Architecture:** 40px fixed height for high density. Separated by hairline borders (`1px solid #E2DFD9`).\n- **Columns:** Fixed index number (tabular sans), track title (Deep Charcoal medium), audio quality chip (Lossless/Hi-Res), and right-aligned duration.\n- **Active Track State:** Row background tints to Linen Paper (`#ECEAE6`); track title shifts to Bordeaux (`#6E0D25`); an animated 3-bar miniature equalizer micro-icon rendered in Bordeaux displays beside the track index.\n\n### Badges & Chips\n- **Format:** Tight rectangular tags with 2px corner radius. No rounded pills.\n- **Hi-Res Audio Badges:** Subtle Linen fill (`#ECEAE6`), hairline border (`#E2DFD9`), text in Muted Dust (`#7A7274`) at `label-micro`.\n- **Live / Dynamic Status:** Neutral background with a single 4px circular dot colored in Punch (`#FF3355`).\n\n### Album Cards & Grid\n- **Framing:** 1:1 square ratio for artwork with a 1px protective hairline border (`#E2DFD9`). \n- **Typography Block:** Positioned immediately below the sleeve; Album Title in `Newsreader` (headline-sm), Artist in `Plus Jakarta Sans` (body-sm, Muted Dust).\n- **Physicality:** Artwork does not zoom on hover; instead, an archival linen slip-shadow shifts down 2px.\n\n### Inputs & Volume Slider\n- **Search & Fields:** Flat Chalk canvas with a bottom hairline border that darkens to Bordeaux on focus. No surrounding bubble enclosure.\n- **Volume Fader:** A continuous horizontal 2px line in Waveform Neutral (`#D5CDD0`), filled with Deep Charcoal (`#1A0F12`), anchored by a 10px square notched brass-style thumb.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#6e0d25",
+      "overrideSecondaryColor": "#ff3355",
+      "overrideTertiaryColor": "#d5cdd0",
+      "overrideNeutralColor": "#1a0f12",
+      "spacingScale": 2,
+      "typography": {
+        "label-sm": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "11px",
+          "fontWeight": "600",
+          "lineHeight": "14px",
+          "letterSpacing": "0.04em"
+        },
+        "label-micro": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "9px",
+          "fontWeight": "700",
+          "lineHeight": "12px",
+          "letterSpacing": "0.08em"
+        },
+        "label-md": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "13px",
+          "fontWeight": "600",
+          "lineHeight": "16px",
+          "letterSpacing": "0.02em"
+        },
+        "headline-md": {
+          "fontFamily": "Newsreader",
+          "fontSize": "24px",
+          "fontWeight": "500",
+          "lineHeight": "30px",
+          "letterSpacing": "-0.01em"
+        },
+        "body-md": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "20px"
+        },
+        "headline-lg": {
+          "fontFamily": "Newsreader",
+          "fontSize": "36px",
+          "fontWeight": "400",
+          "lineHeight": "42px",
+          "letterSpacing": "-0.015em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Newsreader",
+          "fontSize": "26px",
+          "fontWeight": "400",
+          "lineHeight": "32px",
+          "letterSpacing": "-0.01em"
+        },
+        "body-sm": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "16px"
+        },
+        "body-lg": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "24px"
+        },
+        "headline-xl-mobile": {
+          "fontFamily": "Newsreader",
+          "fontSize": "32px",
+          "fontWeight": "400",
+          "lineHeight": "38px",
+          "letterSpacing": "-0.015em"
+        },
+        "headline-sm": {
+          "fontFamily": "Newsreader",
+          "fontSize": "20px",
+          "fontWeight": "500",
+          "lineHeight": "26px"
+        },
+        "headline-xl": {
+          "fontFamily": "Newsreader",
+          "fontSize": "48px",
+          "fontWeight": "400",
+          "lineHeight": "54px",
+          "letterSpacing": "-0.02em"
+        }
+      },
+      "spacing": {
+        "space-lg": "1.5rem",
+        "margin-mobile": "1.25rem",
+        "margin": "2.5rem",
+        "space-xs": "0.25rem",
+        "gutter-mobile": "0.75rem",
+        "gutter": "1.25rem",
+        "space-sm": "0.5rem",
+        "space-md": "1rem",
+        "space-xl": "2.5rem"
+      },
+      "headlineFontFamily": "Newsreader",
+      "bodyFontFamily": "Plus Jakarta Sans",
+      "labelFontFamily": "Plus Jakarta Sans"
+    }
+  },
+  "active_screens": [
+    {
+      "name": "projects/5859565558274264408/screens/e50566ea94a94287858c99fd81a3566d",
+      "title": "Miee \u2014 Your Library",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/1971822231861630092",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Wi-h1zCddV4QaRr9M4tpSIBtL0H1x7yLqCrGXInFhEh9CfLmDtF6rHFTaxWj47vkM0dxv7PoAGHeIqOuPgWT64ruF74Y_Y7kC-SvHQGWo1KFXjQik0SEXVAtfMZqPhuZibXOH0DjsT3NRCJ0YTj07Mm-CcW26cQMNhX3Egf93lIJeMj7LfKoDuYf52IVzkUbLE4nxPSk-YZ1STZ8r_Cd-li0FQIEEDf9QI76fYn3C4N1FJYUvoPXW-Uj0"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/3759583525320238495",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNmI1MTY4ODUwN2M0ZjFiNjc0MTk4NGQyEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "2614",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/1efb0a9a53af4deb8f2560305368989c",
+      "title": "Miee Mobile \u2014 Register",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/15553813298630965286",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XMuITm58mmknzXOL6HpH0SkVYfLtanjhzr9j9eTg7g0LVquv7CPXT7svnfVKkQP4Lrt0yTBeRmElnz3TSD66FRA3jeY7cp-uC3MqtxEkqOYbWgIrxD40d73j99Z3pNDe6DQ5wtGi8DQ-sAqGuoeMnpZF5xM1dpH0lF53fApDqRgE1cHQeMf7p3jW6zn2ZrschCrikrZp6jclVw8Hf8lqasEiWZR8eqj8vTrjLaYX17thcv6H5XyzUej1A"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/2807262444762894622",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkZjJkMjIwNmMwN2M0ZTRiZTBlM2JhNzNmEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/1207cd77e4e1462582056aeb3e7d3b12",
+      "title": "Miee Mobile \u2014 Playlists (Refined)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/10911485012390418850",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UQCWBhsdIDZKaVzNr11bqJimqlK3gB79Ou5OUknHjGwI8VqNM2jJO1J595vsmOis48BO1dnTATXecRS8HN0S9NlDiAM8cublhUkZq8EwktSIq922PxRYMAX-wv9X_MSdc9nkYcod6piKi1pvXF1qNZsSJVBNIVM4uu6vr1-N0jsBoRyeMITicmMaWOfFU6NBaH0i4LDOPxkA8RqE_PfKxmLGCFt_kwzMKrYCCBR35uDE3cVX-ldFLqbQ0"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/17142036898383693263",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkODE5MmY0NzMwOTI1YzdhOGQ4MDY4NTdiEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2102",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/103c683f3525456b8cb534b877bc4a9d",
+      "title": "Miee Mobile \u2014 Home (with Recently Played)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/977973121710013140",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XvsyyqxGZmbHezqrTx6hNYD3ENLBIa2IqcPUl0fvi3n_yZtTnwxjcLWCKFUi9pvkP6glkIID6Codn8LWie1bKEbW4mtDrz-8zLh6AfpzmF_m4mpyn9L3a3nsb-FZQ8MR6yid40CoQ0JHj6FN6ePCfM2oNXvMQMDLTS-9davu0W9O_aqHy44z7YIBg8Mbb7pNJAJEK6QAMlgoCHcR1as52BCgnQb1MNX1edN10AArh4K922XK4-UyExaQ"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/12705417838706922054",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkMjk4ZGMzOTAwN2M0YzJlNTFiMWUyNzI0EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "3366",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/6ebdbd958f4d48f39e4850c08383980d",
+      "title": "Miee Mobile \u2014 Language & Artist Personalization",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/8831126386361007627",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1ViHJO6xo_livQVqG8sL6AxaR5wfeps2QHwaZ3TaSgL9RrmgdLaVqOh7qJCVrRWkuvuW29YiuI5kiJRWjhNvpOk3ambrJ4fpIfsTAstGMeSGwbvDIVpf2F4AwGhm4POfyMLmP5B8FvZuQrbjTpAzderLFtRlkmG-bza5dOP_vjfIoSgrF40pTejddiSIF-0uAq9-TNmObC0rMF8B1h2DKEcVfNyjU6I-jbyV-z180MmgyWUcVe_oT1_K2w"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/3410134898131501941",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNGJhZGY2ZWIwMzM4NTgzYjM1MjA0N2FhEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2638",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/3ca9c83be1714e64a53d456b5a8d1b61",
+      "title": "Miee Mobile \u2014 Create Playlist",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/3ca9c83be1714e64a53d456b5a8d1b61/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UFj4BMpm0QRUPevhM3bOK8dFmDuTvRodAb9tmczhKlN8dJKBxGQoSe1w9a5-_cq4gb7CIbs6igNMQPld9X5udPP7soEOTwJyNbixIiVllDw4Pi1mQxKcBxAF_KiXx8wxjGtvstGZCslB03-Fkbyd0KWd441rUmSuo30IAM4c91e2yPG5yytHNRlYVQdTHx-KJiBC1om9w4i3Khy9i2ve3uoOWY1TJ1QLPCP_9LsEuwma-dhHcNa7qNGk8"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/3ca9c83be1714e64a53d456b5a8d1b61/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkYTNhZGY2MmIwN2M0ZDIzODkzMDAxYjFhEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/f6229726704c42338bf86763566f3e9c",
+      "title": "Miee \u2014 Now Playing",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/1014072292050930024",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1VlD5uVGropswJBcvbl0Oab5_d__NUk3D37hDT-GWvENRpmMjcUvlq1PTslCEqNzaHFoB7Gffj4iaCOfP-_TEchxE0Vu4LZAuQ6gXc2kkYcgHeH37LKxjb06ew_ezZ3Ikz8-et1ZNB5wnK2Y41IlOMPMPOs020PdYLLHs318fqGDBdZSxQCte2BWCDMPMmr1vvS4pp3wb8wO1TCAXXg6EA239ma4EQFZs4Z_rLWINGR9NWl-JHlXhtodb0"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/8169052881214493379",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNmQ1MWVlODcwMjA3YTJiNDE1MDU0ZWNjEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "2104",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/f56763c18673452fa836ff51c5be0aca",
+      "title": "Miee Web \u2014 Artist Personalization",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/6175916122657580657",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Xg-Ug9y1dnPYO_hrccpZ_2aO70N4oJ0KqCDLTV_gA07xzr0jggrk6E4LXG80NAIU1LPt7kEp6CgjhlbT_89owavlO4TgoZIdmR59w5HGyj6rjTnbnOcuaXG7nn07yZY-yvuAzfdg3g-yNobQK99_Dw5DoQToxYZ-IkzkTR5oDxFbIHQimqYuC1H9aCvdXvmj6y9X_16eunVO130WMW5FtE6X-IKHHjcIWHct5-ZVBFbCyBKDFqtJlkHiU"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/15895355441605566164",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNmViNDgzNmQwN2M0ZTRiZTBlM2JhNzNmEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3084",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/3411ba197a554bb69e15f53464b911cd",
+      "title": "Miee \u2014 Home",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/10557164764306734473",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Wn5mIftQYHDtvMdJc1rWSALRfwSd-7Ce_PwWehK8DfnpZGcHal5EDhdlFuvoXun9H8-WyIklhj-3vswStVfNo_pmhoJL_bsaHHjtat4lJ0ORo82OqwmdVXE89ZbEiy7vqSJXp6HOkuYeE99B32Ai02vzK8P3p5xUh-1xi1_wkChfv5AHBzzfGwjrkMsNzlowrXjjRi6VCyYcGFbxgAbsT3ZU86axrPFkf13amlWkX7lUbr-rCjdNe9LZM"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/11751171797241559671",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNjlmMDk2NjEwMzc0OWE1ODEwMWY3MjI2EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3104",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/7482ed0397024050b17b939007f6fc4b",
+      "title": "Miee \u2014 Search",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/16028790214192584920",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Ui1u5JQSAI303aZMLIr6Jj7tR76XJyjxGq0nJak1L0EPxaO3uVbs_Y59tc7ojyCA1fWA3_eus9IVacj_A5tGOvzWIUl-JaVkkJc3d-QQE_jZPzL2AkD127beh0i4Yhsp0wGyGtt6ATBE22cvOXsf7RBONB9ExY7Yac8pfcp4EkrkIOwQsC5JNeuECJPf-9BBd3DdVRcmEW7Y_H_rmxkZ7S5jX7pgSN6hxeurR4Isut5nm8FsjVqr6ChLI"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/3359663015937909178",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNmE4MzI2NmEwMzBmZDliZDkwMDcxMDNiEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3524",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/c6f507f2263845e2b616c8b5e3d2b49b",
+      "title": "Miee Mobile \u2014 Now Playing",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/13994188993693212687",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1X8f5Pq8MO2MXWoDULPM-eVXFGb6IAvMWIN7C4apctHtZpEtI5c7CP1Rks4r9zn21Bm4tjdQtzlkt12F_Tzs1wwEwcxBoNezWyMJ_rUMMaZVXZwmeULJ4i3lWeZhG9zf9wPNmECBlgeypBbn47LBqpkqbgw6NTKwHn0iptZZJpMJZX-yN8CKFJX7rMztUXzUL3ovnvfzcEmRrTyOjiLPLX-FncKjoZsbRi1_KZdrv4YTpv4anTwtLKARYY"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/1674716780863202215",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkMjgzODIzMDMwOTEwN2U1M2NkMTRiYzc4EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/24f68977a17948ec9c3fa987b1677d20",
+      "title": "Miee Web \u2014 Register",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/16869064135633694971",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XQwnc4pCtuHWMH0A5FBK90j2Cfywmuqgxq7Uh2UDdZ-MbCAE3OVl8Pa20_HRCw8XcvVHsePY6UdMUIrSYnwwvH2OLS7XVtFJa3_DCSYx22i25v96AxNGeitNr0NT-W3UJkaM2ZnFq4D_BonYzx96YMoG0H9KBlzr7yIA0OEehoB7j2AS5sXdp8VuAmxOUn_9mxk1d_Fj5bL7RmFSPN6yPQolTJjjRt_ca0cT-hsBAheLpXwCnEBEjUUK8"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/8284054976940311741",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNjcxYjU3ZGYwMzM4NDgzMTljMmE2YjA1EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "2048",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/e5dcf69447f84152af407b550344986e",
+      "title": "Miee Mobile \u2014 Search (Refined)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/196511128342823103",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XGNYjG27bGOeGgABAwgyaEyNUIP-JQDzrDSd-qSuIxQX-rpoPId8qrXP62SY2pEB1eT_DBcVd9DcAvrX7YX_kv78J5T7WYnrhm3u6YI53hr0KKLqL4-a41ob08SD41pQqlYGCwn1QBfI4_QXOF1jLx2e81bULpG1nzv5oqwQsYkPolvH0D-PSJCpBOK2QnyVo4-CcxGqYTYmd07Qztla-3TlxznGOD6M3xMiFjX8_6D7w_NflKoJHGkw"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/8639669803968913393",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkMjg1YzIyMGMwNzc5OWIwZDI1MWI2YmMyEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1822",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/1da338c9d7a4462199a3ccd5a52372d9",
+      "title": "Miee Mobile \u2014 Artist Profile (Music-First)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/1da338c9d7a4462199a3ccd5a52372d9/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Ui2bb-K1libMBcDf2ixd82VvybwUyTI0TrBMaafJWV3Fzz2mxc_t5sJXbzmCEz2MT0Y_Nlh9-L6ArqxaWOesjsFQ3ZnC-DqE__NNOB4BYDPoSe8ZfvBn2ZwQWQtpBU02AP6omE2pmXd7RuU6hcmmDvRNlbQG8rhHtJlO1sgccWhkmlRYflncAZ8vIqPf8fOisjgN0evNAPUb4zyAZsW2sMZgorqJpP07KHwBqD404ynXCw7nKCzZPYMGM"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/14802675526631327658",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkMjg2Y2M2ODkwNGVhYjAzNDg4MjNiYTM2EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2464",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/e645fc302c61452eb63d150ffbcb6915",
+      "title": "Miee Mobile \u2014 Playlist Detail",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/8045555119835172763",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1WdjKiImkSFnXrfqnLnZTiFJ3EiYJ1NJtLySQxZpxf-sLdu16q2q-gE4_l2ir7aMpO2qUz-EfszhMztPEn6oGfJe6WHwEM-Q7PICNcEXJkb1tgaAVTGulaT8R-lGdF4S9iBlYWycXXMxM9hrNZE08MEGvlhcH4no1FkGcA-yZAdROkNdeP9paMz5K3D_vFLWD02ZPgNXH8BxYsRtaSix13ZkrbG1HS2vnrrN3AS5kySv1zsabqHlu15oMU"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/13222567038354971884",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNjAxMzVmMGYwNzc5OTNjN2M4MDBiNDJlEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2412",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/7c9c11f93b5e4e6c9b628f9d6c878dfc",
+      "title": "Miee Web \u2014 Login (Clean Auth)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/17978344922343867303",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1WgZwnaiO4YBeSY4wrdOytjskVcakKd4C07u1VFgKR5ebbw9u-1sC6x2R8rzhFHE-sdfddDA3pXCATnc908IyfmxHORPG4_OkcAqq-RRJpRkBNefsfzrhX8sGnagoswo8YDRsJUcUh8HO-JVM9lkE84I-4wkR0zcu07zO85edZuC5O2M8-6cb--thIXod7Wi2NCw8NuMlqHGKuIpetbzJq7tDfYrelLprKQPgcQ8LXDghI6-JCDCj1TPw"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/5238749615456610600",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlNDFmY2IzZjUwMzc0OTkwNjkyMWI5ZGQwEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "2344",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/ce2b2b009f2647b492eafc1a1cfa5431",
+      "title": "Miee Mobile \u2014 Login",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/6907030677972211748",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1VK4Mh33ma4fgUIxUEoYVs_CB3uA5OU646XyAx3dxzFWassc9U071_0zqezWyNxzMi0kZugEZyQLF6R8P1czjPvfqeqL2iOZ4kdeprT3MYPW-4RBdj-ieKFJZrDkN7BB3uTHKrdLwBitIZTq1Zw8W_i_QbCq0bZ2-DC6W1pmVVEs-emh2Vdp46M0CjBmmTSailsVPGWeWaViQo19ZZ4p8al8mmegexKgRXoVoSmnIkuPG4mmCtrrar5kHI"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/12467877325142998585",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkZjMzOWYwYjYwMjA3YTJiNDE1MDU0ZWNjEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/13bf4b8f433e46e8978ee98beee49305",
+      "title": "Miee Mobile \u2014 Playing Queue",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/13bf4b8f433e46e8978ee98beee49305/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XJOsb-PiI3KFEw0dXuw62R5_nIdNE46zJ0zwQAu0klCyPlkZspDSNsHdEXRM5wjc5frN3q2Hhj7VO4nzuM9ApC5xDmz-x0DvyY_6wtsusDupsfE6z_DHY-0N_oie4M9Y-wUdyz8VtC7UGtlpZVgl4c-mrn3AY_2IaFiXvyFcXHlakLwh0kciqqmg6boWwVGMQVwE4O8GaZODbUulgahaKB2nI488tCW9TqaWGa1RJuabCt1ytzPYwg43E"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/13bf4b8f433e46e8978ee98beee49305/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkMzJkZGQ0NTMwMWVlNTM0YTk2MDhlMzgyEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/6f559ef9c1d941b48c13a7cf0505614f",
+      "title": "Miee Mobile \u2014 Settings (Simplified & Polished)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/288136303455088585",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UfE3ETPRtEH2Uy1dVHvaxaXCXtzGVN6pCLKH7I_DiBG2ewikAFvAXt8gzGNNQfpS18PeiNhFMwdPqUX7bfdLCelb4YDBoeuWG-KL1JE2kg0WLRQgHFXj9y2OMZtytSrK0MYXtnfb4AUAqihKIkynMUnlFI1WjXmPfVfEh1u4_fj4RqWxmAml26M9p_vkmdFADfLIPOiMgEul2YaUeNYBJlrZuGJXqdovzHsjsU6Otr30lMAcGpGbzWnQ"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/15068654906602003579",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkODI2ZjgzMDQwNzNhZThlMDQyMmJkZGMzEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2922",
+      "deviceType": "MOBILE"
+    }
+  ],
+  "archived_screens": [
+    {
+      "name": "projects/5859565558274264408/screens/49f8b29206f6400296d7e06ecaa0a250",
+      "title": "Miee Mobile \u2014 Home",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/49f8b29206f6400296d7e06ecaa0a250/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1WUVWoUS2DKlqz_qpmhQtbajprJR7-y9_m6SBH_tgv0qioBQpiJaBsw7CXuWT_SGlTsVyGgsowJhDNt-8n5hrFyQ3fTfNhVhddEioo540O3N7a12BY5yGh4EgVddSywzPnG0rLysXZ1dxPPiaCHV75TFxhJKA5PrNNUi2TaeM17mvIoknkoH240GlPsLFP2svQ-RogFg_hh513CidkOK0jnxTCiP_qvjXCjnz6_UYW3MrpLba7FyrYSzP0"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/49f8b29206f6400296d7e06ecaa0a250/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjOTQxMzJiZjAwOTI1ZDRiYmU1MmU0MDE1EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3900",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/005df91d2f084bd9873a040a473cab40",
+      "title": "Miee Desktop \u2014 Search",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/005df91d2f084bd9873a040a473cab40/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1WZfHnO7V-f00lqVTLqy0RwUgt4hGHfrXSClEgO2RqKRy2a3yb3TAFASyKa8fgj1Yy2XK8t-xWUTKPd1JU_Svg_w6GBxCTK2lQkQ3ytqPf4r0WEHApljk-nEEnml6lTPwjHhUK4jx_UYzAgTy7gx4tO0H1Uwz8CYiXgpApVcwElkFPm6g5_PfZhhewu9hpZXa66W3BL7RGGEaBl6zTBxMbvYp_2ohMIR95ptbPa2B7n8thXQA72KTPW9CA"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/005df91d2f084bd9873a040a473cab40/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFiODQ5NDlmYTMwN2M0YzJlNTFiMWUyNzI0EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3342",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/7273d9464023464dacddd7ca1af7e29a",
+      "title": "Miee Desktop \u2014 Home",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/7273d9464023464dacddd7ca1af7e29a/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XwkAVzVbkHAG0AglKFFLYNO15om6rsL30o55pfgWnyRXVFiYBEnEfhpohPdQp2oNcovTpEtRKk2RJuhMPcf-BDF_CO8pAZg0qd8FEvoYLvpBfeeuMyf9IG5D9X2_uRayYekd6UIKh7MFCb7XaGBI7sHswMYmt1-KnKnPjUhpzkryjvrl-LgLD5iDzfFHmCGep0e7Nbo_Bpd12uSBIyFci_YaPZVnyd3PQ3O3ifYTmK9L7IFeS-MhpUsg"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/7273d9464023464dacddd7ca1af7e29a/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFiODNhOWZjZTEwMzkyY2JjMmI3MGI1M2IwEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3628",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/b2ec250760b440158cafcc38cf7b636a",
+      "title": "Miee Desktop \u2014 Library",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/b2ec250760b440158cafcc38cf7b636a/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Xq1k0BJWhkoJsAz9VsA96uqKC9nDyWvvS_Rfo8EnUpdmNWUkZShec3LKk9YD5TMWd_Oj7PjvzaSp97YA8IT4dl6QQc4ENh4x75msx534VZ4i3CjkN6xUC7KNmW7SmRtfBoXDTzz6FJEMpaOotBp4cZkUBGV1FY9x7HDWlwuh8BpXSZuv2QdPlUBC_kCLYW2AXm2kmaZXnYc4C5S2CdkM7Fs5Ml1JdiL3mMaTELOpWTPD-rnUu0dUsbVvI"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/b2ec250760b440158cafcc38cf7b636a/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFiODNkNzY5NmQwNzc5OWQ1MjMxMWViZjllEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3318",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/ccb127d331db491da7c9b21393d5c468",
+      "title": "Miee \u2014 Now Playing",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/ccb127d331db491da7c9b21393d5c468/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1VDWXEgxBGR3rDKvsNoWtLIauVyYP3mPgInWbesjEcwdtR3KXmOY31LDOXqW-VAauzL3pBicgIuuoLWWpVTmWLh9tf04EAjfc82kyc_whFMyBARI8VmbeTY8ISqLGRn0ZcBrQ0BCEUbEthAT1GFU5Hz9DIdahpdTxsC_vGbURBkQ-8LpB6KutmgR045rsxFrMBVufYBp-WQ7vVsMUgh2JDSDYfoIjcnL2_oVrKwMjNwj-kVG1WUg8Zyu1c"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/ccb127d331db491da7c9b21393d5c468/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFiYTNhN2UxMzMwMzc0OWE1ODEwMWY3MjI2EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "2426",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/ba4011552f69413d83ad3a19153628da",
+      "title": "Miee Web \u2014 Login",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/1795500968792052156",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1URku0GARhXtb-e0lbP7vplz0uc-sCKeR-0OrrCI0GUmiTg0_5tNz1mE8vOU5C55rNabXGHKzsm5ZZzWrmDRtBqGpMrlRWEflnl-JD9ZZgek3UfzWFpOHQVEHLK6Tyol2PFYtv1arGIwQzqUIfj-7Z-GV9VnEsXb4Di_oaEfw9c57EWC8TXFMlEFh9DwyC3FnMLf-Xdquj1-mN4Md3y1N1GI73BxYzJ4G2LAm0ggZO7bDlxPMiZXfkg3g"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/18420228798592119705",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlMmRjN2MxNWYwNzc5OTNjN2M4MDBiNDJlEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "2344",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/2160ddd56c6a476fa47d306d1edea6e3",
+      "title": "Miee \u2014 Now Playing",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/2160ddd56c6a476fa47d306d1edea6e3/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UDlwGVPvoyQZZVXKSodUtnq1mJC5vcgCEA37O6XLbgSIfr4AbJvSKoho4d9V242KAzF8s8Adv5tC2_pa6bx7DC4Z_ZaALonCnKS2cTeEHvYojgILogdGNOJa5ASJewqu1vXuMTxnQn6OpxFpEuq9GQ8wwipRPqlllO0ZSAVYS00ndr_nqIx539tbAcglMIKBtNsbmOz0uJNccsffU22xAY402s6XrZI9NCvWW7YYlVkjFxIRZ-j0cX"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/2160ddd56c6a476fa47d306d1edea6e3/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFiYmYwYTk5YWMwMmE5OTYxZDgzMzA4NmYxEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "2108",
+      "deviceType": "DESKTOP"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/07206795c9ff4cf5840507058aa3a961",
+      "title": "Miee Mobile \u2014 Search (Refined)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/07206795c9ff4cf5840507058aa3a961/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XD_o1C03ZZYeT4tCk7LlVV7g3stulMZ4As10J0yJFxyXBtJMhuB1fAqvGCKGFVR-wAwxnBSiJDOgqB3tfqeFbbcsXCWJLS_y7qFngDxKKGOdGzSlW8PaFxD5af8ZoCxEtglhWzP161g4msVtmsDzr_tCKCR18QWOzazIhoOvRkUJLHpHJlgOTh8Pg18L0m2QzmCuNSsO1ZmOGK9U-ppUGcOCDVxsmuB-gSUGvbnv35Cl6qfyb21rYjxQ"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/07206795c9ff4cf5840507058aa3a961/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjZjllNzdjZGMwOTI1Yzc4YTg5MDgyNzVjEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/0b3dcca9fd364f2cb3e1468e4d638e4c",
+      "title": "Miee Mobile \u2014 Register",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/0b3dcca9fd364f2cb3e1468e4d638e4c/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UJ_etpkOG5-7L9JtIKFYZdwtYvEkBV9wTKACysOtUBdqxyEJ9N3hgHmypvga56ocTfAJnf_ssO6BwsoOBw53eUmyTIwip9SbetMQukvjPJP5u0Ci0C1hyrUl0obBCpvQdNSP0paZFEfTyFyvI9ocab7An0UR-9djT8KG2RZlarutQ45_8Ssh29KpP8M3_SEECE5gMt1wxZZWHY8mrBqmjWwghsbZDyJ3DHayPxgO7HeH86K1o1iMF14jc"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/0b3dcca9fd364f2cb3e1468e4d638e4c/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkZTdhYThlZDkwMWE2M2U5MTBjMzI5N2ZjEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/35ea6d09c26b4e6fb4f5aa1d7b3ae24f",
+      "title": "Miee Mobile \u2014 Now Playing",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/35ea6d09c26b4e6fb4f5aa1d7b3ae24f/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UjDlurpW0I_FgP92Z6uGIEpbW-9Gw4m3XEvGPBrPjPV1Zx9ps5d5lcLGunlqIn0GCWRUBnp3aI-tj1Wd4WCLZmAb7IGBPMm9v5m6xbQ_aZ5qCvQFKOviRgqOEwaJQa5Z-tKvU-tDHkd_gcH-AETOh0_YShOuuh4M9ibauQkAD5CG7EG373Nv4HfTPRVPvXX_RABbZo5L8W_T0H1ztwMF8IDizgMdUhET3HCiv0bGX3SWzeyMXfHW5jtw"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/35ea6d09c26b4e6fb4f5aa1d7b3ae24f/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjNDVlYjdmMDkwMWE2M2U2YmU3MzljYzAwEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/42896a20d18049d49cd1787531faaf54",
+      "title": "Miee Mobile \u2014 Home",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/42896a20d18049d49cd1787531faaf54/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UUQQdiOrcqDqVh3deLPukUlnRrNUmW_0medfF1KaenhE_sW4AFQeGV7VT9tKHH46CekRseAi6f5ThqX0INJWJxhKiMGqnJCSc1CMDbIaDtvpppb9sKR1WKMrrXtWguntUUZHJmee03K5lksgpr_-gDVMVJGFNujpEBOv0Di0pQjAg9yL_1OYJze_wKNNsaUslfj3QqGLvJ9bfEEHd1G16_TTYParJCnaVS03U8VzCvBOlZUi2xx_AwRxw"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/42896a20d18049d49cd1787531faaf54/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjYTIwODYwZjYwMWVlN2U0OTdhMGM5Y2YxEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2788",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/64993c093002441681f10c2b02c09c5b",
+      "title": "Miee Mobile \u2014 Home (Polished)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/64993c093002441681f10c2b02c09c5b/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Xj48gpDzzlpARRJ9tdjL8BOwo-mWV-qcB0dd3zxZ0ZpuyF88Xiv2gNwG7WQA5tbMizXdccegffOEaZ0bbZkLifLIrmeaB2LV7P-S2vn5K_p4T9SYutcdIZv8ZY2BQS9L7D4J9MhPonfz9PYcUH_lJY9Nzx2zzcP2I5hARwE26EFGGzeZ3m-8-1otAKdVIPbWDtAbCB46iZZsHg_UeAvIGD1PqXNGf7KberJqwuYlc3aapJZ90BkW8TuMg"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/64993c093002441681f10c2b02c09c5b/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjYWM3NGRmYjQwMTIxNDIyNWMxMzg3YTg3EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2782",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/8b2640aa7edc45878a9c4dfa3d2297c0",
+      "title": "Miee Mobile \u2014 Search (Simplified)",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/17022532781223622322",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XDwG-skxDszsKL2ggnVX4oRrJMpuab6WsFnSqE5EJq8u8C-L-MIDgvUZkFR89hYj4GVBkofaEWvYViTAkmQUMuNWMSLm7cERYB3IId5takkl3s-acAjlW4phc0L7JVgzC6GXDkK4f-bpBNUUjWXChnxKHK9JNdql789_bDnrCGQKVo7IH4Vgv6E9DMHq5f3D00HkfJeqCKidKGmpCft9DxetU7-bnRA00hzj8MiysbVv44I0fMXJE_pA"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/8209670496285194187",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjZGM0NGYxYjEwOTEwNGYzZWFiMzVlYmY1EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2094",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/b1f5f6e8ec664679998452100863b539",
+      "title": "Miee Mobile \u2014 Artist Profile",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/b1f5f6e8ec664679998452100863b539/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UWzaZqCKlPm0e8sSh8bZ82STvmLL454_Qzuj5dtA_22FpITb6o0Xzy9oZ6iKTcxfB-vUlTm_YvTEswRE5AN7gb8OJCsLI5nZkLVgjI7KkvxoFiZkNDYXycDOAHl_hUq_S40neu0dMyy5AcjXRi-isvgmXgZDYnJjFjmEdOV7a59t8zqemeYE_z0_9Hv2wwhyGULLkuSMzhyl2_R2AIEghmLK-b5URVvNxDsOM6Gk2IidNkTiwtjjh_fQ"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/b1f5f6e8ec664679998452100863b539/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkMDkxZDQ2OTEwOTFmN2VhNjRiMzU0NjhlEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "3010",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/c093f2c547124c46b39b53a410c4df0f",
+      "title": "Miee Mobile \u2014 Search",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/c093f2c547124c46b39b53a410c4df0f/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XQn4uHXItQj0FWLzY01MJkWgs3Xy8UcWBXaPgo5oesRpSIBiWHi578_ybf1IPZOJPUxbb7UmTvKCcyC2oVCbUb42ZnNf37MvW1Vp1bsVGlwRN1mQjCVLvUeOxkq_BnF9eAHnVWKXC9dHaObVJYHkpN_XU2IhYWPBjqmJB1TRJTbZxCXXGTNLhOdPLdcRLZyKhAOiykud7wYYRzL719VawHQvxEZQ7_eI37yKqV-h9lOpe0eZD8TaFPwaA"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/c093f2c547124c46b39b53a410c4df0f/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjY2E4NzhhY2MwNTNiNzNkMDg0MjM0NjU4EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2958",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/c0aaf1dbd0d2497489f783a9701b1c46",
+      "title": "Miee Mobile \u2014 Create Playlist",
+      "screenshot": {
+        "name": "projects/5859565558274264408/files/2982514853525870798",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1WVQ_mzlt_GlN-g6MDZGPfldBMfBWFZ3Nmsvd71BgSX5p0kkCd7Xhb9z4xjOh-dlxupJrhBi85Mk5OTznG3HPyZr3G2Z3vc6Q4Sl3Vj3EkA7zf23iKvxFaIf6g7SeJDklhvf7YtIHmXW2WuVZ4TVNbjoKjYZSsZsLpB7DsxEa7OccDPF8SIHD_cixeg_5hmCgH_syLwSR39U5ubqRUnmSWYU5Ys16TZ-OHR3-6tfkx0t8zBkYELe2L-XFc"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/files/5872056608034357477",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkOWM2NjBiZDMwOTI1Yzc4YTg5MDgyNzVjEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1884",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/ce6c79bf0d7b4e7284f893304372f6d1",
+      "title": "Miee Mobile \u2014 Login",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/ce6c79bf0d7b4e7284f893304372f6d1/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1VgJtmNgP0dymth8mFeiI1hhin3qiPnuq1ZlMwQjNjZ1moZqB0m2G8I0BhUgSKzlwqc6cJeSQLHS24DEn0MOmNQ9bD7LLhkaaDbH-L1Q7Q3isJFwjyCg5h1i-8n5U21xQDWqhArziNmkO_Zgp_2F231GJ6xUIIFx2wqpYqbttXdbFGwvZtbG2prWgnpnzyjlJpqDAjDe-9si_vxS49dcaVFpJ6WJc7JZz6tmxGg4VdBRpU2FnYwkFOsHoM"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/ce6c79bf0d7b4e7284f893304372f6d1/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkZTc4MmFiZmYwMWE2Mjk0OThkMWYxY2IxEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "1768",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/ea5ed0161a8b4166ae54e618e2c30984",
+      "title": "Miee Mobile \u2014 Playlists",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/ea5ed0161a8b4166ae54e618e2c30984/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1XrYwoLc_gnbIdwBeW_lKWDSLh2xNmeaXk2tFwVct8RJekhGcXKl4eg9nH-6lKWvrMgYdZzXmcIkaOvhiC1yHBheXfEaZYAK-G6hZJ205Q_YT5tDGAEQkH47C9h2sVGXeEKX6XHZi_-BfL3sdTkuoY80K0X9fIdFMcNTDAS9zI5UaBUr-C6Y1BrmiPf_QbGCLfk5Jk7g3N-9sX7gwGtYZ4UthY7DJjK-p_aX4tf2wXwE2dnltmIab8cMsE"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/ea5ed0161a8b4166ae54e618e2c30984/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkNDBlOWRjZWUwMWE2Mjk0OThkMWYxY2IxEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2438",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/f9c7fd5d21ed4e4ca34cb9ac416aa95d",
+      "title": "Miee Mobile \u2014 Settings",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/f9c7fd5d21ed4e4ca34cb9ac416aa95d/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1Uo6w5aNhEpLmkO3X8DkG6PEGQ_1ocgseuRQe8AncWN7TvI6i-RFhjISBVU6KJuglSRRCLpzG46OIqQNkjwLhOGWlEXc96R9p_MdA8uQT7p8SaLI2pRaSeXdboIQ992y4TX7EiXfyp1-zR_yFe1EymnXLC9cCVmFEJKW-LKTyEDuSy1xmOIyzrzvks4aYrX_lBJwTujrcDrj3J8HBnceqbAsU3IFCgDsj-qfUa6_ASI90y9MBJI68x3pOg"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/f9c7fd5d21ed4e4ca34cb9ac416aa95d/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFkNWRhZTk3NDAwNmZmZTEzNzMzMzkzZmE4EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2920",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/fc1e533e45104f848c95dd018e58ef37",
+      "title": "Miee Mobile \u2014 Artist Personalization",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/fc1e533e45104f848c95dd018e58ef37/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UlaUds20-gRRF4J2falgltMKSAVN_T7AO5VHrVdEp30wcYIll-2NFuEY_L41O9FMEhceI2jfggdhhNKliusBKPr1Y32Btt7Rg_Azi2NHU2k7zagZ72uUUH2E2cOb7ntbinJv8rAGBFwQ7QsZX-Cefsfw7_1R99QA85ltfWVKMwS8zu6yJXm0MFeo3eb6kiFBwdzEB46xdAdW8R7p2qGdkd7KCWhyvyWW-1vLOLxfoRbEmUktzACqXSM2k"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/fc1e533e45104f848c95dd018e58ef37/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFlMDAzMGIxNWEwN2M0ZjFiNjc0MTk4NGQyEgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "780",
+      "height": "2244",
+      "deviceType": "MOBILE"
+    },
+    {
+      "name": "projects/5859565558274264408/screens/5db4750462c941c082ef913d3f86d9b8",
+      "title": "Miee Mobile \u2014 Home",
+      "screenshot": {
+        "name": "projects/5859565558274264408/screens/5db4750462c941c082ef913d3f86d9b8/fileEntries/screenshot",
+        "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1VXx1b2-eCk-ZPZ4tejWsPXFXPHeABklVnIo71EEogCR1OHhhWISgiRsHTk-goPbdueEAroVN3gRpmflH277oQTiBfN82pY_mvVW9yapiNcjUZSQ9dMFUgZLTJ_ZEpbM4QP-vXhOlc9NfS49cA_621wPY5zzgv11omik8UfTN_JVPEIJo8ifUpmNu8e7wUC3YhX4gbSKccFaaZVj6LGe8Ii3Qt0gZQnjcDM-Px794BfN3695yMjXnxUdCI"
+      },
+      "htmlCode": {
+        "name": "projects/5859565558274264408/screens/5db4750462c941c082ef913d3f86d9b8/fileEntries/html",
+        "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzAwMDY1ZTFjOTdiZmVjZDEwNTNiNzNkMDg0MjM0NjU4EgsSBxDeqO-duwMYAZIBIwoKcHJvamVjdF9pZBIVQhM1ODU5NTY1NTU4Mjc0MjY0NDA4&filename=&opi=89354086",
+        "mimeType": "text/html"
+      },
+      "width": "2560",
+      "height": "3836",
+      "deviceType": "DESKTOP"
+    }
+  ]
+}

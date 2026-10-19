@@ -1,0 +1,550 @@
+<!DOCTYPE html><html class="h-full" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_dashboard" name="shell-type"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-primary":"#ffffff","surface-tint":"#a4384a","on-tertiary-fixed":"#1d1b18","primary-container":"#6e0d25","secondary-fixed-dim":"#ffb3b5","on-background":"#1a1c1b","secondary-container":"#e41944","surface":"#faf9f7","tertiary":"#22211e","surface-container-highest":"#e3e2e0","surface-container-lowest":"#ffffff","background":"#faf9f7","on-secondary-container":"#fffbff","inverse-on-surface":"#f1f1ef","on-secondary-fixed-variant":"#920025","secondary":"#ba0032","outline":"#897173","on-tertiary-container":"#a39f9a","on-primary-fixed-variant":"#852034","surface-variant":"#e3e2e0","surface-container":"#efeeec","on-tertiary-fixed-variant":"#494643","tertiary-container":"#383633","inverse-primary":"#ffb2b9","surface-container-high":"#e9e8e6","outline-variant":"#ddc0c1","on-error":"#ffffff","inverse-surface":"#2f3130","primary-fixed":"#ffdadc","surface-bright":"#faf9f7","on-secondary":"#ffffff","surface-dim":"#dadad8","on-tertiary":"#ffffff","primary-fixed-dim":"#ffb2b9","error":"#ba1a1a","on-error-container":"#93000a","on-primary-container":"#f77788","error-container":"#ffdad6","secondary-fixed":"#ffdada","on-surface-variant":"#564243","on-secondary-fixed":"#40000b","surface-container-low":"#f4f3f1","tertiary-fixed-dim":"#cac6c1","tertiary-fixed":"#e7e2dc","on-surface":"#1a1c1b","primary":"#4b0014","on-primary-fixed":"#400010"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"margin-tablet":"1.5rem","margin-desktop":"2rem","margin":"1rem","space-2xl":"2rem","gutter":"1.25rem","space-lg":"1rem","space-3xl":"3rem","space-md":"0.75rem","space-xs":"0.25rem","space-xl":"1.5rem","gutter-desktop":"1.5rem","space-sm":"0.5rem"},"fontFamily":{"headline-md":["Plus Jakarta Sans"],"headline-xl-mobile":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"caption":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"headline-xl":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"]},"fontSize":{"headline-md":["1.25rem",{"lineHeight":"1.75rem","letterSpacing":"-0.015em","fontWeight":"600"}],"headline-xl-mobile":["1.75rem",{"lineHeight":"2.25rem","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["1rem",{"lineHeight":"1.5rem","letterSpacing":"-0.005em","fontWeight":"500"}],"caption":["0.6875rem",{"lineHeight":"0.875rem","letterSpacing":"0.025em","fontWeight":"500"}],"label-sm":["0.75rem",{"lineHeight":"1rem","letterSpacing":"0.02em","fontWeight":"600"}],"headline-lg":["1.5rem",{"lineHeight":"2rem","letterSpacing":"-0.02em","fontWeight":"700"}],"label-md":["0.875rem",{"lineHeight":"1.25rem","letterSpacing":"0.005em","fontWeight":"600"}],"headline-sm":["1.125rem",{"lineHeight":"1.5rem","letterSpacing":"-0.01em","fontWeight":"600"}],"headline-xl":["2.25rem",{"lineHeight":"2.75rem","letterSpacing":"-0.03em","fontWeight":"700"}],"body-sm":["0.8125rem",{"lineHeight":"1.25rem","letterSpacing":"0em","fontWeight":"400"}],"body-md":["0.875rem",{"lineHeight":"1.375rem","letterSpacing":"0em","fontWeight":"400"}]}}}}</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 bottom-[88px] w-60 bg-surface-container-low border-r border-outline-variant/30 flex flex-col z-30 select-none"><div class="h-16 px-space-xl flex items-center shrink-0"><div class="flex items-baseline tracking-tight font-headline-lg text-headline-lg text-on-surface font-bold">miee<span class="inline-block w-2 h-2 rounded-full bg-primary-container ml-0.5"></span></div></div><div class="flex-1 overflow-y-auto px-space-md space-y-space-xl"><section><div class="px-space-md mb-space-xs font-caption text-caption uppercase tracking-wider text-outline font-semibold">Menu</div><nav class="space-y-0.5" data-active-classes="bg-primary-container text-on-primary font-label-md text-label-md rounded-lg"><a class="flex items-center gap-space-md px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="home" href="#"><span class="material-symbols-outlined text-[20px] transition-transform group-hover:scale-105">home</span><span class="">Home</span></a><a class="flex items-center gap-space-md px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="search" href="#"><span class="material-symbols-outlined text-[20px] transition-transform group-hover:scale-105">search</span><span class="">Search</span></a><a aria-current="page" class="flex items-center gap-space-md px-space-md py-2 transition-all group bg-primary-container text-on-primary font-label-md text-label-md rounded-lg" data-path="library" href="#"><span class="material-symbols-outlined text-[20px] transition-transform group-hover:scale-105">local_library</span><span class="">Your Library</span></a></nav></section><section><div class="px-space-md mb-space-xs font-caption text-caption uppercase tracking-wider text-outline font-semibold">Library</div><nav class="space-y-0.5" data-active-classes="bg-primary-container text-on-primary font-label-md text-label-md rounded-lg"><a class="flex items-center justify-between px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="liked-songs" href="#"><div class="flex items-center gap-space-md"><span class="material-symbols-outlined text-[20px] text-secondary">favorite</span><span class="">Liked Songs</span></div><span class="font-caption text-caption px-1.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface font-semibold">418</span></a><a class="flex items-center gap-space-md px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="recently-played" href="#"><span class="material-symbols-outlined text-[20px]">schedule</span><span class="">Recently Played</span></a><a class="flex items-center gap-space-md px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="albums" href="#"><span class="material-symbols-outlined text-[20px]">album</span><span class="">Albums</span></a><a class="flex items-center gap-space-md px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="artists" href="#"><span class="material-symbols-outlined text-[20px]">mic</span><span class="">Artists</span></a><a class="flex items-center gap-space-md px-space-md py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" data-path="downloaded" href="#"><span class="material-symbols-outlined text-[20px]">arrow_circle_down</span><span class="">Downloaded</span></a></nav></section><section><div class="flex items-center justify-between px-space-md mb-space-xs"><span class="font-caption text-caption uppercase tracking-wider text-outline font-semibold">Playlists</span><button class="text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[18px]">add</span></button></div><nav class="space-y-0.5" data-active-classes="bg-primary-container text-on-primary font-label-md text-label-md rounded-lg"><a class="flex items-center px-space-md py-1.5 rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all truncate" data-path="playlist-late-night-beats" href="#">Late Night Beats</a><a class="flex items-center px-space-md py-1.5 rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all truncate" data-path="playlist-focus-flow" href="#">Focus Flow</a><a class="flex items-center px-space-md py-1.5 rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all truncate" data-path="playlist-modern-classical" href="#">Modern Classical</a><a class="flex items-center px-space-md py-1.5 rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all truncate" data-path="playlist-weekend-acoustic" href="#">Weekend Acoustic</a><a class="flex items-center px-space-md py-1.5 rounded-lg font-body-sm text-body-sm text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all truncate" data-path="playlist-indie-chillout" href="#">Indie Chillout</a></nav></section></div><div class="p-space-md border-t border-outline-variant/30 shrink-0"><div class="flex items-center justify-between p-2 rounded-xl bg-surface hover:bg-surface-container-high transition-colors cursor-pointer"><div class="flex items-center gap-space-md min-w-0"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="min-w-0"><div class="font-label-md text-label-md text-on-surface font-semibold truncate leading-none">Alex Vance</div><div class="font-caption text-caption text-secondary font-medium tracking-wide leading-none mt-1 uppercase">Hi-Fi Master</div></div></div><span class="material-symbols-outlined text-[20px] text-on-surface-variant hover:text-on-surface transition-colors">settings</span></div></div></aside><div class="pl-60 pb-[88px]"><header class="fixed top-0 left-60 right-0 h-16 bg-surface/85 backdrop-blur-xl border-b border-outline-variant/30 z-20 flex items-center justify-between px-space-xl"><div class="flex items-center gap-space-xl"><div class="flex items-center gap-1"><button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all disabled:opacity-40"><span class="material-symbols-outlined text-[20px]">chevron_left</span></button><button class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all disabled:opacity-40"><span class="material-symbols-outlined text-[20px]">chevron_right</span></button></div><div class="relative flex items-center w-72"><span class="material-symbols-outlined absolute left-3 text-[18px] text-outline pointer-events-none">search</span><input class="w-full h-9 pl-9 pr-8 bg-surface-container-low hover:bg-surface-container focus:bg-surface-container-lowest border border-transparent focus:border-primary-container rounded-lg font-body-sm text-body-sm text-on-surface placeholder:text-outline outline-none transition-all" placeholder="Search artists, tracks, or soundscapes..." type="text"><div class="absolute right-2 px-1.5 py-0.5 rounded bg-surface-container text-outline font-caption text-caption font-semibold pointer-events-none">⌘K</div></div></div><div class="flex items-center gap-space-lg"><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[16px] text-primary-container">speaker_group</span><span class="font-label-sm text-label-sm text-on-surface font-medium">Living Room Amp</span></button><button class="relative w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-1.5 h-1.5 bg-secondary-container rounded-full"></span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="w-full pt-16 bg-surface"><div class="flex flex-col w-full">
+<div class="px-space-2xl pt-space-xl pb-space-3xl flex flex-col gap-space-2xl max-w-[1600px] mx-auto w-full">
+<!-- Header & Controls Band -->
+<header class="flex flex-col gap-space-xl">
+<div class="flex flex-wrap items-center justify-between gap-space-lg">
+<div>
+<span class="font-caption text-caption uppercase tracking-wider text-outline font-semibold">Personal Collection</span>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight mt-0.5">Your Library</h1>
+</div>
+<div class="flex items-center gap-space-md flex-wrap">
+<!-- In-Library Quick Search -->
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-[18px] text-outline pointer-events-none">search</span>
+<input class="w-56 h-9 pl-9 pr-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest text-on-surface font-body-sm text-body-sm placeholder:text-outline outline-none transition-all focus:ring-1 focus:ring-primary-container shadow-sm" id="library-filter-input" placeholder="Search in library..." type="text">
+</div>
+<!-- Sort Dropdown Trigger -->
+<div class="relative" id="sort-menu-container">
+<button class="h-9 px-3.5 rounded-lg bg-surface-container-lowest shadow-sm hover:bg-surface-container-high transition-colors flex items-center gap-2 text-on-surface font-label-md text-label-md" id="sort-btn">
+<span class="material-symbols-outlined text-[18px] text-outline">sort</span>
+<span id="sort-current-label" class="">Recently Added</span>
+<span class="material-symbols-outlined text-[16px] text-outline">expand_more</span>
+</button>
+<div class="hidden absolute right-0 mt-1.5 w-48 rounded-xl bg-surface-container-lowest shadow-xl py-1.5 z-20 flex flex-col" id="sort-dropdown">
+<button class="sort-opt text-left px-3.5 py-2 font-label-md text-label-md text-primary-container bg-surface-container-low font-semibold flex items-center justify-between">
+<span class="">Recently Added</span>
+<span class="material-symbols-outlined text-[16px]">check</span>
+</button>
+<button class="sort-opt text-left px-3.5 py-2 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container transition-colors flex items-center justify-between">
+<span class="">Alphabetical (A-Z)</span>
+</button>
+<button class="sort-opt text-left px-3.5 py-2 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container transition-colors flex items-center justify-between">
+<span class="">Artist</span>
+</button>
+<button class="sort-opt text-left px-3.5 py-2 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container transition-colors flex items-center justify-between">
+<span class="">Recently Played</span>
+</button>
+</div>
+</div>
+<!-- Layout Switcher -->
+<div class="flex items-center p-0.5 rounded-lg bg-surface-container-low shadow-sm">
+<button class="w-8 h-8 rounded-md flex items-center justify-center bg-surface-container-lowest text-primary-container shadow-sm transition-all" id="view-grid-btn" title="Grid View">
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+</button>
+<button class="w-8 h-8 rounded-md flex items-center justify-center text-outline hover:text-on-surface transition-colors" id="view-list-btn" title="List View">
+<span class="material-symbols-outlined text-[18px]">view_list</span>
+</button>
+</div>
+<!-- New Playlist Action -->
+<button class="h-9 px-4 rounded-lg bg-primary-container hover:opacity-95 active:scale-95 text-on-primary font-label-md text-label-md flex items-center gap-1.5 shadow-sm transition-all">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span class="">New Playlist</span>
+</button>
+</div>
+</div>
+<!-- Filter Chips Row -->
+<div class="flex items-center gap-2 overflow-x-auto pb-1 select-none">
+<button class="lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-primary-container text-on-primary shadow-sm transition-all" data-filter="all">All Items</button>
+<button class="lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high shadow-sm transition-all" data-filter="playlist">Playlists</button>
+<button class="lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high shadow-sm transition-all" data-filter="album">Albums</button>
+<button class="lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high shadow-sm transition-all" data-filter="artist">Artists</button>
+<button class="lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high shadow-sm transition-all flex items-center gap-1.5" data-filter="downloaded">
+<span class="material-symbols-outlined text-[14px]">arrow_circle_down</span>
+<span class="">Downloaded</span>
+</button>
+<button class="lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high shadow-sm transition-all" data-filter="made-for-you">Made for You</button>
+</div>
+</header>
+<!-- Pinned & Special Collections -->
+<section class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Pinned Collections</h2>
+<span class="font-caption text-caption text-outline">3 items</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+<!-- Liked Songs Special Card -->
+<article class="group relative rounded-xl bg-gradient-to-br from-primary via-primary-container to-secondary p-space-xl flex flex-col justify-between text-on-primary shadow-md hover:shadow-xl transition-all min-h-[176px] cursor-pointer overflow-hidden">
+<div class="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-on-primary/10 blur-xl pointer-events-none"></div>
+<div class="flex items-start justify-between relative z-10">
+<div class="w-12 h-12 rounded-xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center text-on-primary shadow-sm">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">favorite</span>
+</div>
+<button aria-label="Play Liked Songs" class="w-10 h-10 rounded-full bg-on-primary text-primary-container opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all flex items-center justify-center shadow-lg hover:scale-105 active:scale-95">
+<span class="material-symbols-outlined text-[24px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+<div class="relative z-10 pt-4">
+<h3 class="font-headline-md text-headline-md font-bold tracking-tight text-on-primary">Liked Songs</h3>
+<p class="font-body-sm text-body-sm text-on-primary/80 mt-0.5">342 tracks • Updated today</p>
+</div>
+</article>
+<!-- Heavy Rotation Card -->
+<article class="group relative rounded-xl bg-surface-container-lowest p-space-xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all min-h-[176px] cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="w-12 h-12 rounded-xl bg-secondary-fixed flex items-center justify-center text-secondary shadow-sm">
+<span class="material-symbols-outlined text-[26px]">autorenew</span>
+</div>
+<button aria-label="Play Heavy Rotation" class="w-10 h-10 rounded-full bg-primary-container text-on-primary opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all flex items-center justify-center shadow-md hover:scale-105 active:scale-95">
+<span class="material-symbols-outlined text-[24px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+<div class="pt-4">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+<span class="font-caption text-caption text-secondary font-semibold uppercase tracking-wider">Dynamic Mix</span>
+</div>
+<h3 class="font-headline-md text-headline-md font-semibold text-on-surface mt-0.5">Heavy Rotation</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Your daily soundscape loops • 24 tracks</p>
+</div>
+</article>
+<!-- Downloaded Music Card -->
+<article class="group relative rounded-xl bg-surface-container-lowest p-space-xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all min-h-[176px] cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary-container shadow-sm">
+<span class="material-symbols-outlined text-[26px]">download_done</span>
+</div>
+<span class="font-caption text-caption px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-medium">Offline Ready</span>
+</div>
+<div class="pt-4">
+<div class="flex items-center gap-2 text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px]">cloud_off</span>
+<span class="">Available Offline</span>
+</div>
+<h3 class="font-headline-md text-headline-md font-semibold text-on-surface mt-0.5">Downloaded Music</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">1,420 tracks • 18.4 GB stored locally</p>
+</div>
+</article>
+</div>
+</section>
+<!-- Main Music Grid Section -->
+<section class="flex flex-col gap-space-lg">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Albums &amp; Playlists</h2>
+<div class="flex items-center gap-space-md">
+<span class="font-caption text-caption text-outline" id="item-count-label">Showing 10 items</span>
+</div>
+</div>
+<!-- Grid Container -->
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-space-lg" id="library-grid">
+<!-- Card 1: Ascending Horizon -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Kiasmos Ólafur Arnalds" data-title="Ascending Horizon" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Minimalist abstract Nordic album art with deep warm bordeaux gradient tones, subtle misty organic ripples, modern album cover design for Kiasmos and Ólafur Arnalds, cinematic daylight studio photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7j9fWqmSs_-PHb8CTND9eUTopGZZh9U7XkGbfczNgxfqdKgTc7l2yI4kSF9SaceXUsoHKQb8oh7ZEys4zF5r9IkY67j1NlbyASVCEwK6b1DwVzQJagTISwafp9a2EBPr19ItCBExdofSXopsshbedNrW0UkYwUKDtw4nwkEqIkhbo7-Mt1xOo_cUaTCm5PL0NESHqMGS7TtDgtwhqhawnoJZ88A6enswHxQ7IWkCnLKKRrUZ_vglm">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Ascending Horizon" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+<span class="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-surface/90 text-on-surface font-caption text-caption backdrop-blur-sm">Hi-Res</span>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Ascending Horizon</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Kiasmos &amp; Ólafur Arnalds</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">10 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 2: Structural Harmonies -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Bach Philip Glass" data-title="Structural Harmonies" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Monochrome architectural geometric lines and sharp brutalist shadows with a warm beige paper background texture, neoclassical album cover art for Philip Glass Bach piano interpretations" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxa7ccUCzP9P_1BzEzNCYevyh02QZoKBU9dPpwDI7RuZ7jnEN6FJJmIwBVgZsfanuL4AQenWckbEQnoG95q9csLm7372fj2HIjg3R10PhbRYP5I46L-pi5igPKePXUM87RXchLqIQeWVfbmIP6benc5iWPKuMzXPiHmUHmHc6ERJ8R8vPwUPEqdOLbNe68cZOJ2YFQx2nFYCKevsLqTcJaNdFJBKjL0oBbPcB0sZYIQRQpoiGA6UCJ">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Structural Harmonies" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Structural Harmonies</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Bach / Philip Glass</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">12 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 3: Blue Haze -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Miles Davis Quartet" data-title="Blue Haze" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Moody mid-century vintage jazz album cover photograph with silhouette of jazz trumpeter under atmospheric smoky studio lamp, muted slate and wine palette, high-contrast typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJ19d3HlivVp6WAms24IeSjp0vanBfKi90w7mESs7Fe-UinKzfa5I-wXRkl-L-Rhy7eU_VyiiV3U8t-IfdCKuKHbrbmkONrx_idD4trHwYYZKc-f-7Bwv_LWG4prV-SOoA5SZBJzuoYO8PbvhPkPNnoOxYwP2CowfrdOB0MWk2sUIDeIDR6qedb8bVnpqaQ-vLcCCd7Cnu1ICdQILnqz-WWtt1c2uFclpLa0e_IQz_MlYEhF2cfip2">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Blue Haze" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+<span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-surface/90 text-on-surface font-caption text-caption backdrop-blur-sm flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px] text-secondary">check_circle</span>
+</span>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Blue Haze</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Miles Davis Quartet</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">8 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 4: Astral Erosion -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Echoscape" data-title="Astral Erosion" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Ethereal geological desert rock formations under a dusk crimson sky, soft grainy film photography with ambient desert dusk tones for ambient electronic band Echoscape" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNKdYTZDGenc5Y3j0HThxqfCLw_M95CZBKGnbSfGFiJPfcS7_AtV9LC_h1LSTDTS1H9jfVYvpv4t6_A6W1qdg_CWPaH2aIaL7OEe3USI6UmyAlzS1IE40ynojfSn8jQkDULBQ9vtMCKId_n7uMsyrP95i-oxFVfp1okQw_KO15uGDTkis3b2k78Z_ZgV-nxkLVmbxy0zd-Tba6sgCl-zhNkugqCLZIsRd-ugbAQzqoQFrhYHVbFNkZ">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Astral Erosion" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Astral Erosion</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Echoscape</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">7 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 5: Late Night Beats -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Alex Vance" data-title="Late Night Beats" data-type="playlist">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<div class="w-full h-full grid grid-cols-2 grid-rows-2">
+<div class="bg-primary/80 flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[20px]">equalizer</span>
+</div>
+<div class="bg-tertiary-container flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-[20px]">nightlife</span>
+</div>
+<div class="bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">headphones</span>
+</div>
+<div class="bg-primary-container flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[20px]">music_note</span>
+</div>
+</div>
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Late Night Beats" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+<span class="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-surface-container-lowest/90 text-on-surface font-caption text-caption shadow-sm">Playlist</span>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Late Night Beats</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Playlist • By Alex Vance</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">58 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 6: Focus Flow: Deep Work -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Miee Editorial" data-title="Focus Flow: Deep Work" data-type="playlist">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Editorial graphic design artwork for focus deep work playlist, delicate typographic abstract shapes in chocolate bordeaux and light warm linen, calming balance" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOvggG23iPGLL5iHnw7yI5Kz2UB5lPOtLjP4GtHijHXzGYq3ewo-VljKRj17wFT86yv_goY1zm15VSTmMLZkm8QnuwdoIC0Gekang8HkBVjBzpaEXrgm4X8DzhZfhYEU0p7HVVhESm9f1QWRKqscL6HsKbyajb24nfUNPPlGmR1xnBlOO58guWbxTh10TtISWmPTJUpNM2ntF-Y85HjSKC-n8bRltl_lu35DQAlOB6EmYkvW3CTyq1">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Focus Flow" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+<span class="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-surface-container-lowest/90 text-on-surface font-caption text-caption shadow-sm">Playlist</span>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Focus Flow: Deep Work</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Playlist • Miee Editorial</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">112 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 7: Selected Ambient Works -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Aphex Twin" data-title="Selected Ambient Works" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Abstract bronze metallic circular emblem on warm earthen studio surface, iconic electronica ambient album aesthetic, macro product lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYB6ahA_gXX--83VFTTB6IA2u3-TWqaJhgWcWevPfgHmlCN3N3PZvUXc6Mp_6WCxOJODQ3aFH1fFkLxZwhuxtT3EBEnli40TEN54g6ywqTPT8qiicYUwyLSoHXBAZdMPTtKRAIk1pGOTIl-hthhYTg4353pEkN9daCj-3EOidtkXPcm6uYlzoaXVk5kapuuufFIFtkDCqmgk21uPDwAE9No5ftdcwf_Q3J2dr7vQT70kHI8kNpl95O">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Selected Ambient Works" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Selected Ambient Works</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Aphex Twin</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">13 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 8: Solo Piano II -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Chilly Gonzales" data-title="Solo Piano II" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Close up photography of ivory and ebony grand piano keys reflecting warm parlor light, moody high-end musical performance album sleeve" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqix98GtnCt2BmkDzFTVWPS0VUNb38Bmg2djnfmzVNmYjl3GsD4PsMwFx-lQLaB6QsKdVLWmvnhzazneXXDNC2qy0V46N6wTXjvCDhNouX0cTTAs2bGmNJzqN6WlHEBjMAHt8ns4N4FMrI57g6U1Y1lyxN5HvqlbLFsIXvKJ1t-QV1UUwiq-OLg6jc6yfXjjICy6efzCURglqm4KQBe_oiqjDH2qsreX68USAZ4Se4ESJsytX_E5C_">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Solo Piano II" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Solo Piano II</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Chilly Gonzales</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">14 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 9: Music for Airports -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Brian Eno" data-title="Music for Airports" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Abstract minimalist graphic map diagram with delicate contour lines on pale ochre and bone background, experimental ambient music cover art Brian Eno style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUvt_tqiexpyJAOvmN60cKAa97OkgyZPCSARuccBbIffORV5Xs9QSXvgEDqVSxQbeanGiGXGRq9JRHeYkHoIhEbqpKM0-ue9x0fuoO63vvqOq8rjzaCSh9-rPPl0yKgjLC_g7MiFnCQkzhIMOUvhGs9u8umz9fXN70adV-_90jLPYb9pi4V05qKc78-ja8Kquc0Zl-ZBnx5vRar49dEFkZAuP2r-NAhPoLF0D8V8GG3OfSIJVdPIIj">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Music for Airports" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Music for Airports</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Brian Eno</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">4 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+<!-- Card 10: Goldberg Variations -->
+<article class="music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer" data-artist="Glenn Gould Bach" data-title="Goldberg Variations" data-type="album">
+<div class="relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Classic archival black and white studio portrait of pianist Glenn Gould at a Steinway concert grand, delicate studio rim light and vintage grain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBauq0cHDSwvd2PwONhL3H20aFWtQbL-QfzZ97CQ6ZEzX0UvUp6oieYtmJJpYGslK1wT0v_yGq-WhMAbw9El5sDQuYx5R5WDnt1a67srWLcTPHYaYJF3bvovvlhbGzw1OP68Kg5TbIUwY4xESOy1PdVt0h--cqdyjSCc--APL3hJ6PpBUnZxmEn_RYcvDTBkHLkKOaHi0FpcJWYcDkKfQtv_eUGc3sc4B7PUShLs323HA9kNiCR9EVj">
+<div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button aria-label="Play Goldberg Variations" class="w-12 h-12 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-lg transform translate-y-3 group-hover:translate-y-0 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[26px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">play_arrow</span>
+</button>
+</div>
+</div>
+<div class="flex items-start justify-between gap-1 min-w-0">
+<div class="min-w-0 flex-1">
+<h3 class="font-label-md text-label-md text-on-surface font-semibold truncate group-hover:text-primary-container transition-colors">Goldberg Variations</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate mt-0.5">Album • Glenn Gould</p>
+<span class="font-caption text-caption text-outline mt-0.5 block">32 songs</span>
+</div>
+<button class="card-menu-btn w-7 h-7 -mr-1 rounded-md flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</article>
+</div>
+</section>
+<!-- Bottom Library Summary Card -->
+<footer class="mt-space-md p-space-lg rounded-xl bg-surface-container-lowest shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-lg">
+<div class="flex items-center gap-space-lg">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
+<span class="material-symbols-outlined text-[22px]">library_music</span>
+</div>
+<div>
+<div class="font-label-md text-label-md text-on-surface font-semibold">48 Albums • 18 Playlists • 1,420 Songs downloaded</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">Library synchronized with Miee Cloud • Last refreshed 4 mins ago</div>
+</div>
+</div>
+<!-- Storage Breakdown -->
+<div class="flex flex-col gap-1.5 w-full md:w-80">
+<div class="flex items-center justify-between font-caption text-caption text-on-surface-variant">
+<span class="font-medium text-on-surface">Offline Storage</span>
+<span class="font-semibold text-primary">18.4 GB of 128 GB used</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-full overflow-hidden flex">
+<div class="h-full bg-primary-container" style="width: 14.5%;" title="Lossless Audio (18.4 GB)"></div>
+<div class="h-full bg-secondary-container" style="width: 4%;" title="Cached Artwork &amp; Metadata"></div>
+<div class="h-full bg-surface-container-high" style="width: 81.5%;" title="Free Space"></div>
+</div>
+</div>
+</footer>
+</div>
+<!-- Context Menu Dropdown Component -->
+<div class="hidden fixed bg-surface-container-lowest rounded-xl shadow-2xl py-1.5 w-48 z-50 flex flex-col" id="card-context-menu">
+<button class="context-item text-left px-3.5 py-2 font-label-md text-label-md text-on-surface hover:bg-surface-container flex items-center gap-2.5 transition-colors">
+<span class="material-symbols-outlined text-[18px] text-outline">queue_music</span>
+<span class="">Add to queue</span>
+</button>
+<button class="context-item text-left px-3.5 py-2 font-label-md text-label-md text-on-surface hover:bg-surface-container flex items-center gap-2.5 transition-colors">
+<span class="material-symbols-outlined text-[18px] text-outline">arrow_circle_down</span>
+<span class="">Download</span>
+</button>
+<button class="context-item text-left px-3.5 py-2 font-label-md text-label-md text-on-surface hover:bg-surface-container flex items-center gap-2.5 transition-colors">
+<span class="material-symbols-outlined text-[18px] text-outline">share</span>
+<span class="">Share link</span>
+</button>
+<div class="my-1 border-t border-outline-variant/30"></div>
+<button class="context-item text-left px-3.5 py-2 font-label-md text-label-md text-secondary hover:bg-surface-container flex items-center gap-2.5 transition-colors">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+<span class="">Remove from Library</span>
+</button>
+</div>
+</div>
+<script>
+  // Filter chips interaction
+  const chips = document.querySelectorAll('.lib-chip');
+  const cards = document.querySelectorAll('.music-card');
+  const itemCountLabel = document.getElementById('item-count-label');
+  const searchInput = document.getElementById('library-filter-input');
+
+  let activeFilter = 'all';
+
+  function applyFilter() {
+    const query = searchInput.value.toLowerCase().trim();
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+      const type = card.getAttribute('data-type');
+      const title = card.getAttribute('data-title').toLowerCase();
+      const artist = card.getAttribute('data-artist').toLowerCase();
+
+      const matchesCategory = (activeFilter === 'all') ||
+        (activeFilter === 'playlist' && type === 'playlist') ||
+        (activeFilter === 'album' && type === 'album') ||
+        (activeFilter === 'downloaded' && card.querySelector('[title="Options"]')) ||
+        (activeFilter === 'made-for-you' && title.includes('flow'));
+
+      const matchesSearch = query === '' || title.includes(query) || artist.includes(query);
+
+      if (matchesCategory && matchesSearch) {
+        card.style.display = '';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    itemCountLabel.textContent = `Showing ${visibleCount} item${visibleCount === 1 ? '' : 's'}`;
+  }
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => {
+        c.className = 'lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high shadow-sm transition-all';
+      });
+      chip.className = 'lib-chip h-8 px-4 rounded-full font-label-sm text-label-sm bg-primary-container text-on-primary shadow-sm transition-all';
+      activeFilter = chip.getAttribute('data-filter');
+      applyFilter();
+    });
+  });
+
+  searchInput.addEventListener('input', applyFilter);
+
+  // Sort dropdown toggle
+  const sortBtn = document.getElementById('sort-btn');
+  const sortDropdown = document.getElementById('sort-dropdown');
+  const sortCurrentLabel = document.getElementById('sort-current-label');
+
+  sortBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sortDropdown.classList.toggle('hidden');
+  });
+
+  document.querySelectorAll('.sort-opt').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      const text = opt.querySelector('span').textContent;
+      sortCurrentLabel.textContent = text;
+      document.querySelectorAll('.sort-opt').forEach(o => {
+        o.classList.remove('text-primary-container', 'bg-surface-container-low', 'font-semibold');
+        o.classList.add('text-on-surface-variant');
+        const chk = o.querySelector('.material-symbols-outlined');
+        if (chk) chk.remove();
+      });
+      opt.classList.add('text-primary-container', 'bg-surface-container-low', 'font-semibold');
+      opt.classList.remove('text-on-surface-variant');
+      const icon = document.createElement('span');
+      icon.className = 'material-symbols-outlined text-[16px]';
+      icon.textContent = 'check';
+      opt.appendChild(icon);
+      sortDropdown.classList.add('hidden');
+    });
+  });
+
+  // View switch (Grid / List toggle demo)
+  const viewGridBtn = document.getElementById('view-grid-btn');
+  const viewListBtn = document.getElementById('view-list-btn');
+  const libraryGrid = document.getElementById('library-grid');
+
+  viewListBtn.addEventListener('click', () => {
+    viewListBtn.className = 'w-8 h-8 rounded-md flex items-center justify-center bg-surface-container-lowest text-primary-container shadow-sm transition-all';
+    viewGridBtn.className = 'w-8 h-8 rounded-md flex items-center justify-center text-outline hover:text-on-surface transition-colors';
+    libraryGrid.className = 'flex flex-col gap-2';
+    cards.forEach(card => {
+      card.className = 'music-card group flex items-center gap-4 p-2.5 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer';
+      const imgWrap = card.querySelector('.relative.w-full');
+      if (imgWrap) imgWrap.className = 'relative w-12 h-12 rounded-md overflow-hidden shrink-0';
+      const meta = card.querySelector('.flex.items-start.justify-between');
+      if (meta) meta.className = 'flex-1 flex items-center justify-between min-w-0';
+    });
+  });
+
+  viewGridBtn.addEventListener('click', () => {
+    viewGridBtn.className = 'w-8 h-8 rounded-md flex items-center justify-center bg-surface-container-lowest text-primary-container shadow-sm transition-all';
+    viewListBtn.className = 'w-8 h-8 rounded-md flex items-center justify-center text-outline hover:text-on-surface transition-colors';
+    libraryGrid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-space-lg';
+    cards.forEach(card => {
+      card.className = 'music-card group flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all cursor-pointer';
+      const imgWrap = card.querySelector('.relative.w-12, .relative.w-full');
+      if (imgWrap) imgWrap.className = 'relative w-full aspect-square rounded-lg overflow-hidden bg-surface-container shadow-inner mb-3';
+      const meta = card.querySelector('.flex-1.flex.items-center.justify-between, .flex.items-start.justify-between');
+      if (meta) meta.className = 'flex items-start justify-between gap-1 min-w-0';
+    });
+  });
+
+  // Context Menu Handling
+  const contextMenu = document.getElementById('card-context-menu');
+  document.querySelectorAll('.card-menu-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rect = btn.getBoundingClientRect();
+      contextMenu.style.top = `${rect.bottom + 6}px`;
+      contextMenu.style.left = `${Math.min(rect.left, window.innerWidth - 200)}px`;
+      contextMenu.classList.remove('hidden');
+    });
+  });
+
+  document.addEventListener('click', () => {
+    if (!contextMenu.classList.contains('hidden')) {
+      contextMenu.classList.add('hidden');
+    }
+    if (!sortDropdown.classList.contains('hidden')) {
+      sortDropdown.classList.add('hidden');
+    }
+  });
+</script></main></div><footer class="fixed bottom-0 left-0 right-0 h-[88px] bg-surface-container-lowest border-t border-outline-variant/30 shadow-[0_-4px_20px_rgba(26,15,18,0.04)] z-40 px-space-xl flex items-center justify-between select-none"><div class="flex items-center gap-space-lg w-1/4 min-w-[220px]"><div class="w-12 h-12 rounded-lg bg-surface-container-high overflow-hidden shrink-0 shadow-sm border border-outline-variant/20 relative group"><div class="w-full h-full bg-gradient-to-tr from-primary to-primary-container flex items-center justify-center text-on-primary"><span class="material-symbols-outlined text-[24px]">graphic_eq</span></div></div><div class="min-w-0"><div class="font-label-md text-label-md text-on-surface font-semibold truncate hover:underline cursor-pointer">Ascending Horizon</div><div class="font-body-sm text-body-sm text-on-surface-variant truncate hover:underline cursor-pointer">Kiasmos &amp; Ólafur Arnalds</div></div><div class="flex items-center gap-1"><button class="p-1.5 text-secondary hover:scale-110 transition-transform"><span class="material-symbols-outlined text-[20px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">favorite</span></button><button class="p-1.5 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">playlist_add</span></button></div></div><div class="flex flex-col items-center justify-center gap-1.5 flex-1 max-w-2xl px-space-lg"><div class="flex items-center gap-space-lg"><button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">shuffle</span></button><button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_previous</span></button><button class="w-10 h-10 rounded-full bg-primary-container hover:scale-105 active:scale-95 text-on-primary flex items-center justify-center shadow-md transition-all"><span class="material-symbols-outlined text-[24px] fill-current" style="font-variation-settings: &quot;FILL&quot; 1;">pause</span></button><button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">skip_next</span></button><button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">repeat</span></button></div><div class="w-full flex items-center justify-center gap-space-md"><span class="font-caption text-caption tabular-nums text-on-surface-variant w-9 text-right">2:18</span><div class="relative flex-1 max-w-lg h-6 flex items-center justify-between gap-[2px] cursor-pointer group py-1"><div class="w-[3px] h-[6px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[10px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[14px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[8px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[18px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[12px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[16px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[22px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[19px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[11px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[15px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[20px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[14px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[8px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[16px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[21px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[17px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[13px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[9px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[18px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[22px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[15px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[12px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[19px] rounded-full bg-primary-container shrink-0"></div><div class="w-[3px] h-[16px] rounded-full bg-primary-container shrink-0 relative"><div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-primary-container ring-2 ring-surface-container-lowest"></div></div><div class="w-[3px] h-[14px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[10px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[18px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[20px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[13px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[7px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[15px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[17px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[11px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[8px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[16px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[21px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[14px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[9px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[12px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[19px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[16px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[10px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[13px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[18px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[15px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[11px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[6px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[14px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[18px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[12px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[8px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[15px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[9px] rounded-full bg-surface-container-highest shrink-0"></div><div class="w-[3px] h-[5px] rounded-full bg-surface-container-highest shrink-0"></div></div><span class="font-caption text-caption tabular-nums text-on-surface-variant w-9">5:42</span></div></div><div class="flex items-center justify-end gap-space-md w-1/4 min-w-[220px]"><button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[19px]">lyrics</span></button><button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[19px]">queue_music</span></button><div class="flex items-center gap-2 group"><button class="text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[19px]">volume_up</span></button><div class="w-20 h-1.5 bg-surface-container-highest rounded-full overflow-hidden cursor-pointer relative"><div class="w-3/4 h-full bg-primary-container rounded-full"></div></div></div></div></footer>
+
+</body></html>

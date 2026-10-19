@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "surface-tint": "#a4384a", "on-primary-fixed": "#400010", "on-error-container": "#93000a", "surface-container-low": "#f4f3f1", "inverse-on-surface": "#f1f1ef", "primary-container": "#6e0d25", "tertiary-fixed": "#e7e2dc", "tertiary": "#22211e", "surface-dim": "#dadad8", "surface-container-lowest": "#ffffff", "on-tertiary-container": "#a39f9a", "on-secondary-container": "#fffbff", "on-error": "#ffffff", "on-background": "#1a1c1b", "secondary": "#ba0032", "error-container": "#ffdad6", "primary-fixed": "#ffdadc", "secondary-container": "#e41944", "inverse-surface": "#2f3130", "surface-bright": "#faf9f7", "inverse-primary": "#ffb2b9", "on-surface": "#1a1c1b", "surface-variant": "#e3e2e0", "on-tertiary-fixed-variant": "#494643", "error": "#ba1a1a", "on-secondary-fixed-variant": "#920025", "on-primary-container": "#f77788", "on-tertiary-fixed": "#1d1b18", "primary": "#4b0014", "surface-container": "#efeeec", "on-secondary": "#ffffff", "primary-fixed-dim": "#ffb2b9", "on-primary-fixed-variant": "#852034", "surface-container-highest": "#e3e2e0", "on-surface-variant": "#564243", "tertiary-container": "#383633", "on-primary": "#ffffff", "surface-container-high": "#e9e8e6", "outline-variant": "#ddc0c1", "tertiary-fixed-dim": "#cac6c1", "on-tertiary": "#ffffff", "secondary-fixed-dim": "#ffb3b5", "background": "#faf9f7", "outline": "#897173", "on-secondary-fixed": "#40000b", "secondary-fixed": "#ffdada", "surface": "#faf9f7" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "margin": "1rem", "space-md": "0.75rem", "gutter-desktop": "1.5rem", "gutter": "1.25rem", "margin-desktop": "2rem", "space-3xl": "3rem", "margin-tablet": "1.5rem", "space-lg": "1rem", "space-sm": "0.5rem", "space-xs": "0.25rem", "space-2xl": "2rem", "space-xl": "1.5rem" }, fontFamily: { "body-lg": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-xl-mobile": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "caption": ["Plus Jakarta Sans"] }, fontSize: { "body-lg": ["1rem", { lineHeight: "1.5rem", letterSpacing: "-0.005em", fontWeight: "500" }], "headline-sm": ["1.125rem", { lineHeight: "1.5rem", letterSpacing: "-0.01em", fontWeight: "600" }], "label-md": ["0.875rem", { lineHeight: "1.25rem", letterSpacing: "0.005em", fontWeight: "600" }], "label-sm": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.02em", fontWeight: "600" }], "headline-xl-mobile": ["1.75rem", { lineHeight: "2.25rem", letterSpacing: "-0.02em", fontWeight: "700" }], "body-md": ["0.875rem", { lineHeight: "1.375rem", letterSpacing: "0em", fontWeight: "400" }], "body-sm": ["0.8125rem", { lineHeight: "1.25rem", letterSpacing: "0em", fontWeight: "400" }], "headline-lg": ["1.5rem", { lineHeight: "2rem", letterSpacing: "-0.02em", fontWeight: "700" }], "headline-xl": ["2.25rem", { lineHeight: "2.75rem", letterSpacing: "-0.03em", fontWeight: "700" }], "headline-md": ["1.25rem", { lineHeight: "1.75rem", letterSpacing: "-0.015em", fontWeight: "600" }], "caption": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.025em", fontWeight: "500" }] } } } };</script><style>@layer base { html, body { width: 100vw; margin: 0; padding: 0; background-color: #faf9f7; } body { overscroll-behavior-y: none; } .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); } .pt-safe { padding-top: env(safe-area-inset-top, 0px); } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-gutter flex items-center justify-between"><button aria-label="Close queue" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-all" onclick="history.back()" type="button"><span class="material-symbols-outlined text-[24px]">expand_more</span></button><div class="flex-1 text-center px-space-sm"><h1 class="font-headline-sm text-headline-sm text-on-surface truncate">Playing Queue</h1></div><div class="flex items-center gap-space-xs"><button aria-label="Queue options" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container active:scale-95 transition-all" type="button"><span class="material-symbols-outlined text-[22px]">more_horiz</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-safe bg-surface"><div class="flex flex-col w-full px-gutter pb-36">
+<!-- Context & Queue Meta Summary -->
+<div class="flex items-center justify-between py-space-sm mb-space-xs">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-primary-container text-[18px]">graphic_eq</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant truncate">
+        Playing from: <span class="font-body-lg text-body-sm text-on-surface font-semibold">Kind of Blue (Deluxe)</span>
+</p>
+</div>
+<button class="px-space-sm py-1 rounded-full bg-surface-container-high text-on-surface-variant hover:text-primary-container hover:bg-surface-variant active:scale-95 transition-all text-caption font-caption" type="button">
+      Clear all
+    </button>
+</div>
+<!-- Now Playing Section -->
+<section class="mt-space-sm mb-space-xl">
+<div class="flex items-center justify-between mb-space-sm px-space-xs">
+<span class="font-caption text-caption tracking-wider uppercase text-outline font-semibold">Now Playing</span>
+<span class="flex items-center gap-1 font-caption text-caption text-primary-container font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+        Hi-Res Lossless
+      </span>
+</div>
+<!-- Active Track Card -->
+<div class="relative bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all flex items-center justify-between gap-space-md">
+<!-- Ambient subtle Bordeaux wash -->
+<div class="absolute inset-0 bg-primary-container/5 rounded-xl pointer-events-none"></div>
+<div class="flex items-center gap-space-md min-w-0 relative z-10">
+<!-- Album Art -->
+<div class="relative w-13 h-13 w-[52px] h-[52px] flex-shrink-0 rounded-lg overflow-hidden shadow-md">
+<img class="w-full h-full object-cover" data-alt="Vintage acoustic jazz album cover artwork featuring a moody blue studio photograph of Miles Davis playing a brass trumpet in silhouette against a warm dark amber backdrop, minimalist typography, vinyl sleeve texture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAU0uHFvlud6LcZQasNnoVCjJXzLerV_5AGdkshzzdf0AG-q2dA9tI9n9NziSbRCd7RKjR7Yfvf4Qu5baUrXQhryUsrdGG0FFNRZrcobcI7TMtC0kZNFbkLMb0VYBPLGLPq_2Q5flznzojtKHo3iKKkzExbrbGUbaE7Pi_9z0jWbEphu4fqSsiW7jFu6sKF1SBXPeTn7oGet-fIYNRHY8NmMDeC8-zLQAW790SK6N8vDAxTBU8Y8-Ub"/>
+<div class="absolute inset-0 bg-primary-container/10 mix-blend-multiply"></div>
+</div>
+<!-- Meta -->
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-label-md text-label-md text-on-surface font-bold truncate">So What</h2>
+<span class="px-1.5 py-0.5 rounded bg-primary-container text-on-primary font-caption text-[10px] leading-none uppercase tracking-widest font-bold">Master</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Miles Davis • Kind of Blue</p>
+</div>
+</div>
+<!-- Play Glyph & Duration -->
+<div class="flex items-center gap-space-sm relative z-10 flex-shrink-0">
+<span class="material-symbols-outlined text-primary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">volume_up</span>
+<span class="font-caption text-caption text-on-surface font-semibold tabular-nums">9:22</span>
+</div>
+</div>
+</section>
+<!-- Up Next Header with Controls -->
+<section class="flex flex-col">
+<div class="flex items-center justify-between mb-space-md px-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="font-caption text-caption tracking-wider uppercase text-outline font-semibold">Up Next</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-caption text-caption font-semibold">7 tracks</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<!-- Autoplay Pill -->
+<button aria-pressed="true" class="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container-high text-on-surface text-caption font-caption hover:bg-surface-variant transition-colors" type="button">
+<span class="material-symbols-outlined text-primary-container text-[14px]">all_inclusive</span>
+<span>Autoplay on</span>
+</button>
+</div>
+</div>
+<!-- Queue List -->
+<div class="flex flex-col gap-space-xs" id="queue-list">
+<!-- Item 1 -->
+<div class="queue-item group bg-surface-container-lowest rounded-xl p-space-sm flex items-center justify-between gap-space-sm shadow-sm transition-transform active:scale-[0.99]">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-11 h-11 w-[44px] h-[44px] flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Intimate acoustic piano and muted trumpet sheet album cover with textured watercolor sepia and bordeaux washes, minimal modern classical design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrhfWnakI35mD3zZPJ6COg2xt2nFXP9yIe7CTRvh8cWlb4DfDlBvaJLm3H-SsogzxtgvGnABBXUoCJ0I3ravsisYaKwZ-5RIpY5zVUxzefvpc20vaxZxcnbI5LJdE0rFeydJCln7VUQgVpkxv6XAny7ju5iOqL6PlhacPgR-qWC2Byr0XIZ3p82M2cphwONn-4pNUuLms4gCcjlYZ1hkcg9N7_rup13tnE9g3g0ElmTzlWZEDTyMfQ"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">Blue in Green</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Miles Davis, Bill Evans</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums mr-1">5:37</span>
+<button aria-label="Remove Blue in Green" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-surface-container active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">remove_circle_outline</span>
+</button>
+<button aria-label="Reorder track" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-grab active:cursor-grabbing transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+</button>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="queue-item group bg-surface-container-lowest rounded-xl p-space-sm flex items-center justify-between gap-space-sm shadow-sm transition-transform active:scale-[0.99]">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-11 h-11 w-[44px] h-[44px] flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Moody 1950s Spanish acoustic guitar and modal jazz impressionist album artwork with chalk-textured warm cream and deep wine elements." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAl8AtXWe-8hHrZklg7FieXDWJey6Q6HyznYReiVcYOBE3zPlsUAd3od2q4IySnrg37J6TrQZXRmyMVyKhEuYGBjH2IDMb1ea5ams28eqnZYq_2x7imE_xKbXfb9tlls48nkfr6xzvdAAAWprmVstkjqCOg7VXB3DiWlv8QvrGR7_fUkVps5N-A-bN4TRtR1gfHulPZzAXWFxaJZ0egJk1-NatmmQ6yMXmUHh1vFZGoeWlkjE1ZYfmm"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">Flamenco Sketches</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Miles Davis</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums mr-1">9:26</span>
+<button aria-label="Remove Flamenco Sketches" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-surface-container active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">remove_circle_outline</span>
+</button>
+<button aria-label="Reorder track" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-grab active:cursor-grabbing transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+</button>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="queue-item group bg-surface-container-lowest rounded-xl p-space-sm flex items-center justify-between gap-space-sm shadow-sm transition-transform active:scale-[0.99]">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-11 h-11 w-[44px] h-[44px] flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Classic hard bop vinyl sleeve with geometric mid-century shapes, bold typography, warm red ochre and deep burgundy on linen." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGy0dwLVi2zt7fEruPHBWJRJ89K_aQ9QtwgCiYNiOl87govyzadMU6ogTsqMiVTAUYpVCCjOqzA_J2EL7z66BwCV6rVMUf6nIqhnkLPMpKoLa4IHKobGjCsbR6vuwMuWikujnbFvcl99sGgHd3Kcm36YHP4pUiOg2z4MfnWHKs4TtdtXfCrrDDt331b4WbwFkbgviChUtNTkTuz2urpRpyU9NbQu6AMBiFE-8fjtlWFr8KBznxihK6"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">Milestones</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Miles Davis</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums mr-1">5:44</span>
+<button aria-label="Remove Milestones" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-surface-container active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">remove_circle_outline</span>
+</button>
+<button aria-label="Reorder track" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-grab active:cursor-grabbing transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+</button>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="queue-item group bg-surface-container-lowest rounded-xl p-space-sm flex items-center justify-between gap-space-sm shadow-sm transition-transform active:scale-[0.99]">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-11 h-11 w-[44px] h-[44px] flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Nocturnal jazz club cover with moody saxophone reflections in rainy streetlights, deep indigo, charcoal, and warm amber wine tints." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_8sqIGGuwOGcxfwPJwSe-9v-A20QonDYTKf6pLIBxUZU-IAz7LRKh-Fk0WGXjRkxAW_y6r7F2AnQqZfIzSd0D8LHLAwWTp1HNJwotW87mEbYUzxXQsoR1oKIT0oHQKB4Z73fYQo07fgLIBlO6CGdmH6ha2SHIUDtcJtdWN0si3IMOYxDNavP1ziV4_uOYY-cQFj-itUB0BQzjP3pHfItAdhe1yiO6tRlg9l9cFkr_DW_UD3EWJQKp"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">'Round Midnight</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Miles Davis</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums mr-1">5:58</span>
+<button aria-label="Remove Round Midnight" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-surface-container active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">remove_circle_outline</span>
+</button>
+<button aria-label="Reorder track" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-grab active:cursor-grabbing transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+</button>
+</div>
+</div>
+<!-- Item 5 -->
+<div class="queue-item group bg-surface-container-lowest rounded-xl p-space-sm flex items-center justify-between gap-space-sm shadow-sm transition-transform active:scale-[0.99]">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-11 h-11 w-[44px] h-[44px] flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Avant-garde ambient jazz record sleeve with electric piano soundscape illustration, soft textured chalk gradients and bordeaux accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNHLkccWfOGQowLT8S_coehtUE7pJqOxWnlyAQIPWtzgnUmLJybuUDJQBu0qkurGhorEXztolzje3mghsyqIV9Cpd5YwDO4qcrr7Ug4pWSFfTlCyAHd7WrLXNhvZC1Zraj3rDFj3usPmAcrlAQ5nJXY5--Quu_5air_MCEo53N8uWofx3OR0Vz3EXunXhHLRY2J-bn6-ykROLPEfyfs92T0HPWmaA63VHcyMGmHKBFebP5gQ0U2pk_"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">In a Silent Way</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Miles Davis</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums mr-1">4:15</span>
+<button aria-label="Remove In a Silent Way" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-surface-container active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">remove_circle_outline</span>
+</button>
+<button aria-label="Reorder track" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-grab active:cursor-grabbing transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+</button>
+</div>
+</div>
+<!-- Item 6 -->
+<div class="queue-item group bg-surface-container-lowest rounded-xl p-space-sm flex items-center justify-between gap-space-sm shadow-sm transition-transform active:scale-[0.99]">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-11 h-11 w-[44px] h-[44px] flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Nordic minimalist electronic album cover with misty volcanic landscapes, Icelandic modernism, subtle geometric foil stamping." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBk6FE0TqPe8qKjIsloey6oRo4md68-5Co2eV0h-APAvB3yfmatdtikrzdnXDTu9RndiMvRQJyxOMI3KhSUqaPiHP-vqEb8fiMECoamRuJbz6YEQX9y2L_Orw5o5jKMqpgsKa05iSiavQamTnu06b8U-Xf-r22Cb0Nd01CAHHVsrfBheoHD3BrDtiuoUt0Lin06u8_gmytJEMneSzWU-yrKv4wa7egjgw9GAS_H94A5Z92uKbWtdrGJ"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">Ascending Horizon</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Kiasmos &amp; Ólafur Arnalds</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums mr-1">6:02</span>
+<button aria-label="Remove Ascending Horizon" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-surface-container active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">remove_circle_outline</span>
+</button>
+<button aria-label="Reorder track" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-grab active:cursor-grabbing transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+</button>
+</div>
+</div>
+<!-- Item 7 -->
+<div class="queue-item group bg-surface-container-lowest rounded-xl p-space-sm flex items-center justify-between gap-space-sm shadow-sm transition-transform active:scale-[0.99]">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-11 h-11 w-[44px] h-[44px] flex-shrink-0 rounded-lg overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Contemporary chamber ensemble album cover with dappled sunlight through Japanese maple leaves, organic paper stock texture, elegant typography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB79hcoOxaxCYKnYrN4Eo0oQJIJtl4XWOartTj2PPU4D8ht_J9AiLmXl9kRB5mf8jriXpDq7HRHTOrfzK3dsaWxmjqTF3S9vvsgbgN7lt9AHqELmc-FPUiNexTNRgArd2fD_U8_TzE9AXQKjc3FDzI_FkzTo3v2pprv1tm0IQLREPhXGUo0wPxYc51Kv1wJV_v7BtiRmKzwn9_b5N9yOXc-LxDTOZwwvyY08KhpsM5cKuH3wUz6iTmW"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">Céleste</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Komorebi Trio</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-caption text-caption text-on-surface-variant tabular-nums mr-1">4:48</span>
+<button aria-label="Remove Céleste" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-surface-container active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">remove_circle_outline</span>
+</button>
+<button aria-label="Reorder track" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-grab active:cursor-grabbing transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Persistent Floating Mini-Player Pill (Mobile Dock) -->
+<div class="fixed bottom-4 left-4 right-4 z-40 max-w-lg mx-auto bg-surface-container-lowest/95 backdrop-blur-md rounded-full shadow-xl px-space-md py-space-xs flex items-center justify-between gap-space-sm">
+<!-- Active track thumbnail and title -->
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm relative">
+<img class="w-full h-full object-cover" data-alt="Vintage acoustic jazz album cover artwork featuring a moody blue studio photograph of Miles Davis playing trumpet, circular vinyl crop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6bMYJ5PFhlqWlg6Mnrb7PhEATY85AMoMSPQJ1uEGp_LUZMykTPxsx7cRnvhSJn6VNX4T1mpqbIO8abtgLKsfYh1XRpr3to-XXoMutYbSf9-v9Uiqzxf4WLoDyba6IvbS2ri7qFsJ8d-vDQWPzjrBcJMsAuMNC2bnG422R3bJoCYvWH5r_9TzVrHSuGlRlhOtZJEcGqFYYciYONqv0K5gL7GQ44tU3w3AT8gfJVU77M1l20DAkbo0_"/>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="font-label-sm text-label-sm text-on-surface font-bold truncate">So What</p>
+<p class="font-caption text-caption text-on-surface-variant truncate">Miles Davis</p>
+</div>
+</div>
+<!-- Center Playback Controls -->
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<button aria-label="Previous track" class="w-9 h-9 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface active:scale-95 transition-transform" type="button">
+<span class="material-symbols-outlined text-[22px]">skip_previous</span>
+</button>
+<!-- Primary Bordeaux Play/Pause Button -->
+<button aria-label="Pause" class="w-10 h-10 flex items-center justify-center rounded-full bg-primary-container text-on-primary shadow-md hover:scale-105 active:scale-95 transition-all" id="play-pause-btn" type="button">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button aria-label="Next track" class="w-9 h-9 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface active:scale-95 transition-transform" type="button">
+<span class="material-symbols-outlined text-[22px]">skip_next</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  // Simple micro-interaction for queue item removal
+  document.querySelectorAll('.queue-item').forEach(item => {
+    const removeBtn = item.querySelector('button[aria-label^="Remove"]');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        item.style.transition = 'all 0.25s ease-out';
+        item.style.opacity = '0';
+        item.style.transform = 'translateX(20px)';
+        setTimeout(() => {
+          item.remove();
+        }, 250);
+      });
+    }
+  });
+
+  // Toggle play/pause glyph tactile feedback
+  const playPauseBtn = document.getElementById('play-pause-btn');
+  if (playPauseBtn) {
+    playPauseBtn.addEventListener('click', () => {
+      const icon = playPauseBtn.querySelector('.material-symbols-outlined');
+      if (icon.textContent === 'pause') {
+        icon.textContent = 'play_arrow';
+        playPauseBtn.setAttribute('aria-label', 'Play');
+      } else {
+        icon.textContent = 'pause';
+        playPauseBtn.setAttribute('aria-label', 'Pause');
+      }
+    });
+  }
+</script></main></body></html>

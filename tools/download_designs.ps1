@@ -14,6 +14,6 @@ foreach ($item in $urls.GetEnumerator()) {
     $filename = $item.Key
     $url = $item.Value
     Write-Host "Downloading $filename..."
-    curl.exe -L -o "design_source/$filename" $url
+    curl.exe -L -o "design_source/initial_exports/$filename" $url
 }
 Write-Host "Done downloading."

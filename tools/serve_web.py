@@ -13,36 +13,76 @@ mimetypes.add_type('application/json', '.json')
 
 BUILD_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'build', 'web'))
 
+YT_PORT = 8089
+_yt_process = None
+
+def ensure_yt_service():
+    global _yt_process
+    import urllib.request
+    import time
+    import subprocess
+
+    try:
+        with urllib.request.urlopen(f'http://127.0.0.1:{YT_PORT}/api/yt/health', timeout=1) as resp:
+            if resp.status == 200:
+                return True
+    except Exception:
+        pass
+
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(tools_dir, '..'))
+    cmd = [
+        'dart',
+        '--packages=.dart_tool/package_config.json',
+        'run',
+        os.path.join(tools_dir, 'yt_service.dart'),
+        str(YT_PORT),
+    ]
+    try:
+        _yt_process = subprocess.Popen(cmd, cwd=repo_root)
+        for _ in range(30):
+            time.sleep(0.1)
+            try:
+                with urllib.request.urlopen(f'http://127.0.0.1:{YT_PORT}/api/yt/health', timeout=1) as resp:
+                    if resp.status == 200:
+                        return True
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[serve_web] Failed to launch YT backend: {e}")
+        return False
+    return True
+
 class FlutterSpaHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=BUILD_DIR, **kwargs)
 
-    def do_GET(self):
-        # Dedicated CORS-free backend discovery proxy
-        if self.path.startswith('/api/search'):
-            import urllib.parse
-            import urllib.request
-            parsed = urllib.parse.urlparse(self.path)
-            params = urllib.parse.parse_qs(parsed.query)
-            query = params.get('q', [''])[0].strip()
-            if not query:
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(b'{"results":[]}')
-                return
+    def do_OPTIONS(self):
+        if self.path.startswith('/api/'):
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', '*')
+            self.end_headers()
+            return
+        return super().do_OPTIONS()
 
+    def do_GET(self):
+        # Dedicated CORS-free backend discovery & stream resolution proxy
+        if self.path.startswith('/api/yt/') or self.path.startswith('/api/search'):
+            import urllib.request
+            ensure_yt_service()
             try:
-                enc = urllib.parse.quote(query)
-                lim = params.get('limit', ['25'])[0]
-                url = f"https://itunes.apple.com/search?term={enc}&entity=song&limit={lim}"
-                req = urllib.request.Request(url, headers={'User-Agent': 'Miee-Backend/1.0'})
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                target_url = f"http://127.0.0.1:{YT_PORT}{self.path}"
+                req = urllib.request.Request(target_url)
+                with urllib.request.urlopen(req, timeout=15) as resp:
                     content = resp.read()
-                self.send_response(200)
+                    status = resp.status
+                self.send_response(status)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+                self.send_header('Access-Control-Allow-Headers', '*')
                 self.end_headers()
                 self.wfile.write(content)
                 return

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/audio/playback_state.dart';
 import '../../../../core/audio/providers.dart';
 import '../../domain/youtube_model.dart';
 import 'youtube_options_menu.dart';
@@ -30,27 +30,31 @@ class YouTubeResultTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTrackId = ref.watch(playerControllerProvider.select((s) => s.currentTrack?.id));
-    final isCurrentTrack = currentTrackId == video.id;
+    final playback = ref.watch(playerControllerProvider);
+    final isCurrentTrack = playback.currentTrack?.id == video.id;
+    final isPlaying = isCurrentTrack && playback.status == PlaybackStatus.playing;
 
     return Semantics(
       label: 'YouTube video: ${video.title} by ${video.channelTitle}, duration ${video.duration}',
       button: true,
       child: InkWell(
         onTap: () {
-          // Play the selected YouTube video immediately
+          // Play the selected YouTube video immediately in the persistent bottom player
           ref.read(playerControllerProvider.notifier).selectTrack(video, [video]);
-          context.push('/player');
         },
-
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: BorderRadius.circular(10.0),
         child: Container(
           height: 72.0,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10.0),
+            color: isCurrentTrack ? AppColors.dustyRose.withOpacity(0.08) : Colors.transparent,
+          ),
           child: Row(
             children: [
-              // 1. Thumbnail with Duration Overlay
+              // 1. Thumbnail with Duration Overlay & Playing Indicator
               Stack(
+                alignment: Alignment.center,
                 children: [
                   ClipRRect(
                     borderRadius: AppRadius.radiusMd,
@@ -64,25 +68,42 @@ class YouTubeResultTile extends ConsumerWidget {
                       errorBuilder: (_, __, ___) => Container(
                         width: 80.0,
                         height: 56.0,
-                        color: AppColors.surfaceContainerHigh,
-                        child: const Icon(Icons.music_note, color: AppColors.onSurfaceVariant),
+                        color: AppColors.softClay,
+                        child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
                       ),
                     ),
                   ),
+                  if (isPlaying)
+                    Container(
+                      width: 80.0,
+                      height: 56.0,
+                      decoration: BoxDecoration(
+                        color: AppColors.cocoaPlum.withOpacity(0.45),
+                        borderRadius: AppRadius.radiusMd,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.equalizer_rounded,
+                          color: AppColors.dustyRose,
+                          size: 24.0,
+                        ),
+                      ),
+                    ),
                   Positioned(
-                    bottom: 2.0,
+                    bottom: 3.0,
                     right: 4.0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
+                        color: AppColors.cocoaPlum.withOpacity(0.85),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: Text(
                         video.duration,
                         style: AppTypography.labelSmall.copyWith(
-                          color: Colors.white,
+                          color: AppColors.vanillaCream,
                           fontSize: 10.0,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -100,20 +121,21 @@ class YouTubeResultTile extends ConsumerWidget {
                     Text(
                       video.title,
                       style: AppTypography.bodyMedium.copyWith(
-                        color: isCurrentTrack ? AppColors.primary : AppColors.onSurface,
-                        fontWeight: FontWeight.w600,
+                        color: isCurrentTrack ? AppColors.dustyRose : AppColors.cocoaPlum,
+                        fontWeight: isCurrentTrack ? FontWeight.w700 : FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2.0),
+                    const SizedBox(height: 3.0),
                     Row(
                       children: [
                         Expanded(
                           child: Text(
                             '${video.channelTitle}${video.viewCount.isNotEmpty ? ' · ${video.viewCount}' : ''}',
                             style: AppTypography.labelSmall.copyWith(
-                              color: AppColors.onSurfaceVariant,
+                              color: AppColors.mutedMauve,
+                              fontSize: 11.5,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -125,10 +147,28 @@ class YouTubeResultTile extends ConsumerWidget {
                 ),
               ),
 
-              // 3. Options Menu trigger
+              // 3. Clear Play Action Button
+              IconButton(
+                icon: Icon(
+                  isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
+                  color: isCurrentTrack ? AppColors.dustyRose : AppColors.mutedMauve.withOpacity(0.6),
+                  size: 28.0,
+                ),
+                onPressed: () {
+                  if (isCurrentTrack && isPlaying) {
+                    ref.read(playerControllerProvider.notifier).pause();
+                  } else {
+                    ref.read(playerControllerProvider.notifier).selectTrack(video, [video]);
+                  }
+                },
+                splashRadius: 20.0,
+                tooltip: isPlaying ? 'Pause' : 'Play',
+              ),
+
+              // 4. Options Menu trigger
               IconButton(
                 icon: const Icon(Icons.more_vert, size: 20.0),
-                color: AppColors.onSurfaceVariant,
+                color: AppColors.mutedMauve,
                 onPressed: () => _showOptions(context),
                 splashRadius: 20.0,
               ),

@@ -1,0 +1,179 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<meta content="mobile_stack" name="shell-type">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "background": "#faf9f7",
+            "surface": "#faf9f7",
+            "surface-container-low": "#f4f3f1",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-high": "#e9e8e6",
+            "primary": "#6e0d25",
+            "primary-dark": "#4b0014",
+            "on-primary": "#ffffff",
+            "on-surface": "#1a0f12",
+            "on-surface-variant": "#564243",
+            "secondary": "#ba0032",
+            "outline": "#897173",
+            "outline-variant": "#ddc0c1"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    @layer base {
+      html, body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #faf9f7;
+        color: #1a0f12;
+      }
+      body {
+        overscroll-behavior: none;
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom, 16px);
+      }
+      .pt-safe {
+        padding-top: env(safe-area-inset-top, 0px);
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-[#FAF9F7] font-sans text-[#1A0F12] flex flex-col min-h-screen selection:bg-[#ffdadc] selection:text-[#400010]">
+<!-- Top App Bar Navigation -->
+<header class="sticky top-0 z-40 bg-[#FAF9F7]/90 backdrop-blur-md pt-safe">
+<div class="h-14 px-5 flex items-center justify-between">
+<button aria-label="Go to login" class="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-[#1A0F12] hover:bg-[#F4F3F1] active:bg-[#e9e8e6] transition-colors" onclick="window.history.back()" type="button">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="text-base font-semibold text-[#1A0F12] tracking-tight">Register</h1>
+<div class="w-10 flex items-center justify-end">
+
+</div>
+</div>
+</header>
+<!-- Main Content Layout -->
+<main class="flex-1 flex flex-col w-full max-w-md mx-auto px-6 pt-3 pb-8">
+<!-- Branding Header -->
+<div class="flex items-center gap-2 mb-6">
+<div class="w-8 h-8 rounded-lg bg-[#6E0D25] flex items-center justify-center shadow-sm">
+<div class="flex items-end gap-0.5 h-3.5">
+<span class="w-0.5 h-2 bg-white rounded-full"></span>
+<span class="w-0.5 h-3.5 bg-white rounded-full"></span>
+<span class="w-0.5 h-1.5 bg-white rounded-full"></span>
+<span class="w-0.5 h-3 bg-white rounded-full"></span>
+</div>
+</div>
+<div class="flex items-baseline tracking-tight">
+<span class="text-2xl font-bold tracking-tighter text-[#1A0F12]">miee</span>
+<span class="w-1.5 h-1.5 rounded-full bg-[#BA0032] ml-0.5 mb-0.5"></span>
+</div>
+</div>
+<!-- Heading & Narrative -->
+<div class="mb-7">
+<h2 class="text-[28px] leading-[34px] font-bold text-[#1A0F12] tracking-tight">Create your account</h2>
+<p class="text-sm text-[#564243] mt-1.5">Your music, your way.</p>
+</div>
+<!-- Registration Form -->
+<form class="space-y-4" onsubmit="event.preventDefault();">
+<!-- Full Name -->
+<div class="space-y-1.5">
+<label class="block text-xs font-semibold uppercase tracking-wider text-[#564243]" for="input-fullname">Full Name</label>
+<div class="relative flex items-center">
+<input class="w-full h-[52px] pl-4 pr-11 rounded-2xl bg-white border border-[#E9E8E6] text-[#1A0F12] text-sm placeholder:text-[#897173]/70 transition-all duration-200 outline-none focus:border-[#6E0D25] focus:ring-1 focus:ring-[#6E0D25] shadow-xs" id="input-fullname" name="fullname" placeholder="Enter your full name" type="text" value="">
+<div class="absolute right-3.5 flex items-center pointer-events-none text-[#897173]">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</div>
+</div>
+</div>
+<!-- Email Address -->
+<div class="space-y-1.5">
+<label class="block text-xs font-semibold uppercase tracking-wider text-[#564243]" for="input-email">Email Address</label>
+<div class="relative flex items-center">
+<input class="w-full h-[52px] pl-4 pr-11 rounded-2xl bg-white border border-[#E9E8E6] text-[#1A0F12] text-sm placeholder:text-[#897173]/70 transition-all duration-200 outline-none focus:border-[#6E0D25] focus:ring-1 focus:ring-[#6E0D25] shadow-xs" id="input-email" name="email" placeholder="name@example.com" type="email" value="">
+<div class="absolute right-3.5 flex items-center pointer-events-none text-[#897173]">
+<span class="material-symbols-outlined text-[20px]">mail</span>
+</div>
+</div>
+</div>
+<!-- Password -->
+<div class="space-y-1.5">
+<label class="block text-xs font-semibold uppercase tracking-wider text-[#564243]" for="input-password">Password</label>
+<div class="relative flex items-center">
+<input class="w-full h-[52px] pl-4 pr-11 rounded-2xl bg-white border border-[#E9E8E6] text-[#1A0F12] text-sm placeholder:text-[#897173]/70 transition-all duration-200 outline-none focus:border-[#6E0D25] focus:ring-1 focus:ring-[#6E0D25] shadow-xs" id="input-password" name="password" placeholder="Create a password" type="password" value="">
+<button aria-label="Toggle password visibility" class="absolute right-3 w-8 h-8 flex items-center justify-center rounded-full text-[#564243] hover:text-[#1A0F12] active:scale-95 transition-all" onclick="togglePasswordVisibility('input-password', 'eye-icon-pw')" type="button">
+<span class="material-symbols-outlined text-[20px]" id="eye-icon-pw">visibility</span>
+</button>
+</div>
+</div>
+<!-- Confirm Password -->
+<div class="space-y-1.5">
+<label class="block text-xs font-semibold uppercase tracking-wider text-[#564243]" for="input-confirm-password">Confirm Password</label>
+<div class="relative flex items-center">
+<input class="w-full h-[52px] pl-4 pr-11 rounded-2xl bg-white border border-[#E9E8E6] text-[#1A0F12] text-sm placeholder:text-[#897173]/70 transition-all duration-200 outline-none focus:border-[#6E0D25] focus:ring-1 focus:ring-[#6E0D25] shadow-xs" id="input-confirm-password" name="confirm_password" placeholder="Confirm your password" type="password" value="">
+<button aria-label="Toggle confirm password visibility" class="absolute right-3 w-8 h-8 flex items-center justify-center rounded-full text-[#564243] hover:text-[#1A0F12] active:scale-95 transition-all" onclick="togglePasswordVisibility('input-confirm-password', 'eye-icon-confirm-pw')" type="button">
+<span class="material-symbols-outlined text-[20px]" id="eye-icon-confirm-pw">visibility</span>
+</button>
+</div>
+</div>
+<!-- Primary Action Button -->
+<div class="pt-3">
+<button class="w-full h-[52px] rounded-full bg-[#6E0D25] hover:bg-[#580a1e] active:scale-[0.99] text-white font-medium text-base tracking-wide flex items-center justify-center gap-2 shadow-md transition-all duration-200" id="btn-submit" type="submit">
+<span class="">Create account</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</form>
+<!-- Terms and Privacy Policy Notice -->
+<div class="mt-6 px-1 text-center">
+<p class="text-xs leading-relaxed text-[#564243]">
+        By creating an account, you agree to Miee's 
+        <a class="text-[#6E0D25] font-semibold underline underline-offset-2 hover:opacity-80" href="#">Terms of Service</a> 
+        and 
+        <a class="text-[#6E0D25] font-semibold underline underline-offset-2 hover:opacity-80" href="#">Privacy Policy</a>.
+      </p>
+</div>
+<!-- Login Link for Existing Users -->
+<div class="mt-8 text-center pb-safe">
+<p class="text-sm text-[#564243]">
+        Already have an account? 
+        <a class="text-[#6E0D25] font-bold hover:underline underline-offset-2 ml-1" href="#">Log in</a>
+</p>
+</div>
+</main>
+<script>
+    function togglePasswordVisibility(fieldId, iconId) {
+      const input = document.getElementById(fieldId);
+      const icon = document.getElementById(iconId);
+      if (!input || !icon) return;
+
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = 'visibility_off';
+      } else {
+        input.type = 'password';
+        icon.textContent = 'visibility';
+      }
+    }
+  </script>
+
+
+</body></html>

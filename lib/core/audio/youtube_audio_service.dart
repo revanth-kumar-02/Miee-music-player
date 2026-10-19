@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'playback_diagnostics.dart';
 
@@ -201,12 +203,86 @@ class YouTubeAudioService {
     debugPrint('[YouTubeAudioService] Disposed');
   }
 
+  /// Resolves a YouTube video ID for a track [query] (e.g. "West Coast Lana Del Rey").
+  Future<String?> resolveVideoIdForQuery(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return null;
+
+    if (kIsWeb) {
+      try {
+        final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ));
+        final res = await dio.get<dynamic>(
+          '/api/yt/search',
+          queryParameters: {'q': cleanQuery, 'limit': 1},
+        );
+        if (res.statusCode == 200 && res.data != null) {
+          final data = res.data is String
+              ? jsonDecode(res.data as String) as Map<String, dynamic>
+              : Map<String, dynamic>.from(res.data as Map);
+          final list = data['results'] as List<dynamic>? ?? [];
+          if (list.isNotEmpty && list.first is Map) {
+            final item = list.first as Map;
+            final id = (item['id'] ?? '').toString();
+            if (id.isNotEmpty) {
+              debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via web proxy');
+              return id;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[YouTubeAudioService] Web proxy query search failed for "$cleanQuery": $e');
+      }
+    } else {
+      try {
+        final results = await _yt.search.search(cleanQuery);
+        if (results.isNotEmpty) {
+          final id = results.first.id.value;
+          debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via YoutubeExplode');
+          return id;
+        }
+      } catch (e) {
+        debugPrint('[YouTubeAudioService] Native query search failed for "$cleanQuery": $e');
+      }
+    }
+    return null;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Core stream resolution
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<String?> _resolveStream(String videoId) async {
     debugPrint('[YouTubeAudioService] Resolving audio stream for $videoId');
+
+    // Web environment: resolve via dedicated backend proxy to bypass browser CORS restrictions
+    if (kIsWeb) {
+      try {
+        final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 12),
+          receiveTimeout: const Duration(seconds: 12),
+        ));
+        final res = await dio.get<dynamic>(
+          '/api/yt/resolve',
+          queryParameters: {'id': videoId},
+        );
+        if (res.statusCode == 200 && res.data != null) {
+          final data = res.data is String
+              ? jsonDecode(res.data as String) as Map<String, dynamic>
+              : Map<String, dynamic>.from(res.data as Map);
+          final streamUrl = data['streamUrl'] as String?;
+          if (streamUrl != null && streamUrl.isNotEmpty) {
+            debugPrint('[YouTubeAudioService] Resolved stream via web proxy for $videoId');
+            _cacheUrl(videoId, streamUrl);
+            return streamUrl;
+          }
+        }
+      } catch (e) {
+        debugPrint('[YouTubeAudioService] Web stream proxy resolution failed for $videoId: $e');
+      }
+    }
 
     // Primary attempt: VISIONOS client (exempt from GVS PoToken 1MB cap / 403 errors)
     try {

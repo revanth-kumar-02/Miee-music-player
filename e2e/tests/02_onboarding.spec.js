@@ -70,9 +70,9 @@ async function runOnboardingTest() {
     } else {
       console.log('[Test] Selecting artists via grid coordinates...');
       const coordinates = [
-        { x: 300, y: 340 },
-        { x: 720, y: 340 },
-        { x: 1140, y: 340 }
+        { x: 140, y: 340 },
+        { x: 370, y: 340 },
+        { x: 600, y: 340 }
       ];
       for (const pt of coordinates) {
         await page.mouse.click(pt.x, pt.y);

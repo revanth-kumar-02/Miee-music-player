@@ -37,10 +37,13 @@ class ArtistAvatar extends StatelessWidget {
   /// Resolves the best available portrait URL for [name], checking the provided [imageUrl]
   /// and falling back to the curated verified catalog if needed.
   static String? resolvePortraitUrl({required String name, String? imageUrl}) {
-    if (isValidArtistImageUrl(imageUrl)) {
-      return imageUrl;
+    if (imageUrl != null) {
+      if (isValidArtistImageUrl(imageUrl)) {
+        return imageUrl;
+      }
+      return null;
     }
-    // Attempt lookup in the curated repository by name
+    // Attempt lookup in the curated repository by name when imageUrl is not supplied
     final curated = DeezerArtistRepository.findCuratedByName(name);
     if (curated != null && isValidArtistImageUrl(curated.imageUrl)) {
       return curated.imageUrl;

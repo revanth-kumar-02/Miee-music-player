@@ -290,10 +290,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   /// Loads a YouTube track with bounded retry (up to [_kMaxYouTubeRetries] fresh resolutions).
   Future<void> _loadYouTubeTrack(MusicItem track, int token) async {
-    // 1. If track already has a direct playable audio stream URL, load immediately
+    // 1. If track already has a direct playable full audio stream URL, load immediately.
+    // Do NOT bypass full stream resolution for iTunes preview URLs or generic preview clips.
+    final isPreviewUrl = track.filePath.contains('itunes.apple.com') ||
+        track.filePath.contains('/AudioPreview') ||
+        track.filePath.contains('preview');
+
     if (track.filePath.isNotEmpty &&
         track.filePath.startsWith('http') &&
-        !track.filePath.contains('youtube.com/watch')) {
+        !track.filePath.contains('youtube.com/watch') &&
+        !track.filePath.contains('youtu.be') &&
+        !isPreviewUrl) {
       debugPrint('[AudioHandler] Playing direct audio stream URL for "${track.title}"');
       PlaybackDiagnostics().recordPlayerLoadStart(track.id);
       try {
@@ -307,7 +314,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     }
 
-    final videoId = _extractYouTubeVideoId(track.id);
+    var videoId = _extractYouTubeVideoId(track.id);
+    // If ID is from discovery metadata catalog (e.g. wm_1440818780), resolve real YouTube video ID for "$title $artist"
+    if (videoId.startsWith('wm_') || videoId.length != 11) {
+      final query = '${track.title} ${track.artist}'.trim();
+      debugPrint('[AudioHandler] Resolving YouTube video ID for metadata track "$query"');
+      final resolvedId = await YouTubeAudioService().resolveVideoIdForQuery(query);
+      if (resolvedId != null && resolvedId.isNotEmpty) {
+        videoId = resolvedId;
+      }
+    }
+
     debugPrint('[AudioHandler] Loading YouTube track: videoId=$videoId ("${track.title}", token=$token)');
 
     PlaybackDiagnostics().recordStreamResolutionStart(track.id);
@@ -326,7 +343,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (token != _activeLoadToken) return;
     }
 
-    // Web fallback: if YouTubeExplode stream resolution failed on Web (e.g. CORS), resolve via WebMusicDiscoverySource
+    // Web fallback: resolve full stream via WebMusicDiscoverySource
     if ((streamUrl == null || streamUrl.isEmpty) && kIsWeb) {
       debugPrint('[AudioHandler] Falling back to WebMusicDiscoverySource for "${track.title}"');
       streamUrl = await WebMusicDiscoverySource().resolveStreamForTrack(track.title, track.artist);
@@ -335,7 +352,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
     if (streamUrl == null || streamUrl.isEmpty) {
       PlaybackDiagnostics().recordError(track.id, 'Unable to resolve audio stream');
-      throw Exception('Unable to resolve audio stream for "${track.title}". Please try again.');
+      throw Exception('Unable to resolve full audio stream for "${track.title}". Please try again.');
     }
 
     PlaybackDiagnostics().recordPlayerLoadStart(track.id);
@@ -495,10 +512,25 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         artUri = Uri.file(track.imageUrl);
       }
     }
+    Duration? parsedDuration;
+    if (track.duration.isNotEmpty) {
+      final parts = track.duration.split(':');
+      if (parts.length == 2) {
+        final m = int.tryParse(parts[0]) ?? 0;
+        final s = int.tryParse(parts[1]) ?? 0;
+        parsedDuration = Duration(minutes: m, seconds: s);
+      } else if (parts.length == 3) {
+        final h = int.tryParse(parts[0]) ?? 0;
+        final m = int.tryParse(parts[1]) ?? 0;
+        final s = int.tryParse(parts[2]) ?? 0;
+        parsedDuration = Duration(hours: h, minutes: m, seconds: s);
+      }
+    }
     return MediaItem(
       id: track.id,
       title: track.title,
       artist: track.artist,
+      duration: parsedDuration,
       artUri: artUri,
       extras: {'filePath': track.filePath},
     );

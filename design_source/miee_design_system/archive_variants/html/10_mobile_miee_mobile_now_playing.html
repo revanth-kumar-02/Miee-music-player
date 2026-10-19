@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-[#F2F0EB]" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Miee — Now Playing</title>
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              chalk: '#F9F8F6',
+              charcoal: '#1A0F12',
+              bordeaux: '#6E0D25',
+              bordeauxDark: '#540A1C',
+              highlight: '#FF3355',
+              border: '#EBE8E3',
+              subtle: '#8C8386',
+              unplayed: '#D5CDD0'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          boxShadow: {
+            'art': '0 20px 38px -10px rgba(110, 13, 37, 0.16), 0 10px 20px -8px rgba(26, 15, 18, 0.08)',
+            'play-btn': '0 10px 24px -4px rgba(110, 13, 37, 0.42)',
+            'sheet': '0 -8px 30px rgba(26, 15, 18, 0.06)'
+          }
+        }
+      }
+    };
+  </script>
+<style data-purpose="custom-scroll-and-tap">
+    /* Disable default mobile callout and tap highlight */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    /* Smooth transition for bottom sheet drawer states */
+    .sheet-transition {
+      transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    /* Interactive amplitude bar hover/active state */
+    .seek-bar:active {
+      transform: scaleY(1.15);
+      background-color: #FF3355 !important;
+    }
+  </style>
+</head>
+<body class="h-full font-sans antialiased bg-[#ECEAE5] flex items-center justify-center p-0 md:p-6 text-brand-charcoal overflow-x-hidden">
+<!-- BEGIN: MobileDeviceFrame -->
+<!-- Constrained mobile container that simulates native iOS viewport on desktop -->
+<main class="w-full max-w-[400px] h-full md:h-[844px] md:max-h-[95vh] bg-brand-chalk flex flex-col justify-between relative md:rounded-[46px] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] md:border-[8px] md:border-[#1F1E1D] overflow-hidden" data-purpose="mobile-player-shell">
+<!-- BEGIN: iOSStatusBar -->
+<header class="w-full pt-3 px-7 flex items-center justify-between shrink-0 z-20" data-purpose="ios-status-bar">
+<!-- Time -->
+<span class="text-[14px] font-bold tracking-tight text-brand-charcoal">9:41</span>
+<!-- iOS Dynamic Island Simulation (Desktop preview only) -->
+<div class="hidden md:block w-24 h-4 bg-brand-charcoal rounded-full absolute left-1/2 -translate-x-1/2 top-2.5"></div>
+<!-- Status Icons -->
+<div class="flex items-center space-x-1.5 text-brand-charcoal">
+<!-- Cellular Signal -->
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24">
+<path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19H3v2h6v-6H7.65l.62-.62C9.44 15.34 10.66 16 12 16c2.21 0 4-1.79 4-4s-1.79-4-4-4c-.7 0-1.35.18-1.92.5l-1.46-1.46C9.6 6.38 10.76 6 12 6c3.31 0 6 2.69 6 6 0 1.25-.38 2.4-1.04 3.37l1.46 1.46C19.46 15.42 20 13.79 20 12c0-4.97-4.03-9-9-9z" opacity="0.2"></path>
+<circle cx="5" cy="18" r="1.5"></circle>
+<circle cx="9.5" cy="15" r="1.5"></circle>
+<circle cx="14" cy="12" r="1.5"></circle>
+<circle cx="18.5" cy="9" r="1.5"></circle>
+</svg>
+<!-- Wifi -->
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24">
+<path d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98A16.88 16.88 0 0 0 12 4zm0 4c3.48 0 6.64 1.35 9 3.55L12 19.5 3 11.55C5.36 9.35 8.52 8 12 8z"></path>
+</svg>
+<!-- Battery with fill -->
+<div class="flex items-center">
+<div class="w-5 h-2.5 border border-brand-charcoal rounded-sm p-[1.5px] flex items-center">
+<div class="h-full w-full bg-brand-charcoal rounded-[0.5px]"></div>
+</div>
+<div class="w-0.5 h-1 bg-brand-charcoal rounded-r-[1px] ml-[1px]"></div>
+</div>
+</div>
+</header>
+<!-- END: iOSStatusBar -->
+<!-- BEGIN: TopNavigationBar -->
+<nav class="w-full px-5 pt-2 pb-1 flex items-center justify-between z-10 shrink-0" data-purpose="player-navigation-header">
+<!-- Dismiss Chevron -->
+<button aria-label="Minimize player" class="w-9 h-9 flex items-center justify-center rounded-full bg-white/70 border border-brand-border text-brand-charcoal active:scale-95 transition-transform shadow-sm" type="button">
+<svg class="w-5 h-5 stroke-[2.2] stroke-current fill-none" viewbox="0 0 24 24">
+<path d="m19.5 8.25-7.5 7.5-7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Center Context: Album context & Live stream status -->
+<div class="flex flex-col items-center">
+<div class="flex items-center space-x-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-highlight animate-pulse"></span>
+<span class="text-[10.5px] tracking-widest font-bold uppercase text-brand-bordeaux">NOW PLAYING</span>
+</div>
+<span class="text-xs font-semibold text-brand-charcoal/80 mt-0.5">Blurred — EP</span>
+</div>
+<!-- Action / More Options -->
+<button aria-label="Context options" class="w-9 h-9 flex items-center justify-center rounded-full bg-white/70 border border-brand-border text-brand-charcoal active:scale-95 transition-transform shadow-sm" type="button">
+<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24">
+<circle cx="12" cy="5" r="1.75"></circle>
+<circle cx="12" cy="12" r="1.75"></circle>
+<circle cx="12" cy="19" r="1.75"></circle>
+</svg>
+</button>
+</nav>
+<!-- END: TopNavigationBar -->
+<!-- BEGIN: ScrollablePlayerBody -->
+<div class="flex-1 flex flex-col justify-between px-5 pt-2 pb-2 overflow-y-auto overflow-x-hidden min-h-0" data-purpose="main-player-content">
+<!-- Album Artwork Canvas Container -->
+<div class="relative w-full aspect-square max-h-[300px] mx-auto my-auto flex items-center justify-center" data-purpose="album-artwork-wrapper">
+<!-- Floating Hi-Fi Audio Badge -->
+<div class="absolute top-3 left-3 z-10 flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-semibold text-white tracking-wider border border-white/10 shadow-sm">
+<svg class="w-2.5 h-2.5 fill-brand-highlight" viewbox="0 0 24 24">
+<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+</svg>
+<span class="uppercase">DIRECT MASTER</span>
+</div>
+<!-- Square Artwork with Soft Rounded Corners -->
+<div class="w-full h-full rounded-2xl overflow-hidden shadow-art border border-brand-border bg-stone-200">
+<img alt="Blurred Album Cover by Kiasmos &amp; Ólafur Arnalds" class="w-full h-full object-cover object-center" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMJ1lk-5AVQh_ePlWmWcsHZJCqbV8OScID_KH0_URgMFUjvLn50nsnthEBmgzy7zmQgsxOM695Hyklwa0zjMS1Np8dk5KWzn6CGxj5kv38CO8oR5QFCS7sKi76IDal9-8WUD__T_vd3CyJCePgsdtg0FHy6s5m9neSEd074SJ3liNpKj9YkkPjYflQx84JCCg15JIgph-4w8ipBtBDgDgly3JG1OT36nX_g-NG-i7TQfhptriAmf05"/>
+</div>
+</div>
+<!-- Track Metadata & Primary Actions -->
+<div class="mt-4 shrink-0" data-purpose="track-header-information">
+<div class="flex items-center justify-between">
+<div class="min-w-0 pr-3">
+<p class="text-[11px] font-bold uppercase tracking-wider text-brand-bordeaux truncate">Acoustic Electronic • Erased Tapes</p>
+<h1 class="text-[22px] font-extrabold tracking-tight text-brand-charcoal leading-tight truncate mt-0.5">Ascending Horizon</h1>
+<p class="text-sm font-semibold text-stone-500 truncate mt-0.5">Kiasmos &amp; Ólafur Arnalds</p>
+</div>
+<!-- Track Action Icons -->
+<div class="flex items-center space-x-2 shrink-0">
+<!-- Liked/Favorite Button (Active Bordeaux) -->
+<button aria-label="Favorite song" class="w-10 h-10 rounded-full flex items-center justify-center bg-brand-bordeaux/5 text-brand-bordeaux active:scale-90 transition-transform" type="button">
+<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24">
+<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+</svg>
+</button>
+<!-- Share Track Button -->
+<button aria-label="Share track" class="w-10 h-10 rounded-full flex items-center justify-center text-stone-400 hover:text-brand-charcoal active:scale-90 transition-transform" type="button">
+<svg class="w-5 h-5 stroke-[2] stroke-current fill-none" viewbox="0 0 24 24">
+<circle cx="18" cy="5" r="3"></circle>
+<circle cx="6" cy="12" r="3"></circle>
+<circle cx="18" cy="19" r="3"></circle>
+<line x1="8.59" x2="15.42" y1="13.51" y2="17.49"></line>
+<line x1="15.41" x2="8.59" y1="6.51" y2="10.49"></line>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<!-- BEGIN: WaveformPlaybackTimeline -->
+<!-- Strict requirement: Waveform is the ONLY timeline progress indicator. No thin horizontal bar slider -->
+<div class="mt-4 bg-white/80 border border-brand-border/80 rounded-2xl p-3.5 shadow-sm" data-purpose="waveform-interactive-timeline">
+<!-- Timestamps & Live Status -->
+<div class="flex items-center justify-between text-[11px] font-bold text-stone-500 mb-2.5">
+<div class="flex items-center space-x-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-bordeaux"></span>
+<span class="text-brand-charcoal font-semibold tabular-nums">2:24</span>
+</div>
+<span class="tabular-nums tracking-wide">5:42</span>
+</div>
+<!-- Waveform Amplitude Bars -->
+<!-- 38 vertical bars representing amplitude variations; Played in Bordeaux #6E0D25, Unplayed in #D5CDD0 -->
+<div aria-label="Audio Timeline" aria-valuemax="342" aria-valuemin="0" aria-valuenow="144" class="h-10 w-full flex items-center justify-between cursor-pointer gap-[2px] px-0.5" role="slider">
+<!-- Played Section (0:00 to 2:24) ~ 16 bars -->
+<div class="seek-bar w-[3.2px] h-[35%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[55%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[80%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[45%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[70%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[95%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[60%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[85%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[100%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[75%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[88%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[65%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[90%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[80%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[98%] bg-brand-bordeaux rounded-full transition-all"></div>
+<div class="seek-bar w-[3.5px] h-[100%] bg-brand-bordeaux relative rounded-full ring-2 ring-brand-bordeaux/20"></div>
+<!-- Unplayed Section (2:24 to 5:42) ~ 22 bars -->
+<div class="seek-bar w-[3.2px] h-[82%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[65%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[48%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[75%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[88%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[60%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[45%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[70%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[90%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[55%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[78%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[62%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[40%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[68%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[85%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[50%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[65%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[45%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[30%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[52%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[35%] bg-brand-unplayed rounded-full transition-all"></div>
+<div class="seek-bar w-[3.2px] h-[25%] bg-brand-unplayed rounded-full transition-all"></div>
+</div>
+</div>
+<!-- END: WaveformPlaybackTimeline -->
+<!-- BEGIN: PrimaryPlaybackControls -->
+<!-- Main mobile interactive deck: Single Sole Player Guarantee -->
+<div class="mt-4 flex items-center justify-between px-2 shrink-0" data-purpose="transport-playback-controls">
+<!-- Shuffle Toggle with active dot indicator -->
+<button aria-label="Shuffle" class="relative p-2.5 text-brand-charcoal/70 active:text-brand-bordeaux active:scale-95 transition-colors" type="button">
+<svg class="w-5 h-5 stroke-[2] stroke-current fill-none" viewbox="0 0 24 24">
+<polyline points="16 3 21 3 21 8"></polyline>
+<line x1="4" x2="21" y1="20" y2="3"></line>
+<polyline points="21 16 21 21 16 21"></polyline>
+<line x1="15" x2="21" y1="15" y2="21"></line>
+<line x1="4" x2="9" y1="4" y2="9"></line>
+</svg>
+<!-- Active dot indicator -->
+<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-highlight"></span>
+</button>
+<!-- Previous Track Button -->
+<button aria-label="Previous track" class="p-3 text-brand-charcoal active:scale-90 transition-transform" type="button">
+<svg class="w-7 h-7 fill-current" viewbox="0 0 24 24">
+<path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path>
+</svg>
+</button>
+<!-- Large Master Play / Pause Button (Bordeaux #6E0D25) -->
+<button aria-label="Pause playback" class="w-16 h-16 rounded-full bg-brand-bordeaux hover:bg-brand-bordeauxDark text-white flex items-center justify-center shadow-play-btn active:scale-95 transition-all" type="button">
+<svg class="w-7 h-7 fill-current" viewbox="0 0 24 24">
+<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+</svg>
+</button>
+<!-- Next Track Button -->
+<button aria-label="Next track" class="p-3 text-brand-charcoal active:scale-90 transition-transform" type="button">
+<svg class="w-7 h-7 fill-current" viewbox="0 0 24 24">
+<path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"></path>
+</svg>
+</button>
+<!-- Repeat Toggle -->
+<button aria-label="Repeat mode" class="p-2.5 text-brand-charcoal/70 active:text-brand-bordeaux active:scale-95 transition-colors" type="button">
+<svg class="w-5 h-5 stroke-[2] stroke-current fill-none" viewbox="0 0 24 24">
+<polyline points="17 1 21 5 17 9"></polyline>
+<path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+<polyline points="7 23 3 19 7 15"></polyline>
+<path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+</svg>
+</button>
+</div>
+<!-- END: PrimaryPlaybackControls -->
+<!-- BEGIN: StreamDeviceBar -->
+<!-- Audio output selection badge & context cues -->
+<div class="mt-3 mb-1 flex items-center justify-between text-xs px-2 shrink-0" data-purpose="audio-stream-device-bar">
+<button class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white border border-brand-border text-brand-bordeaux font-medium active:scale-95 transition-transform shadow-sm" type="button">
+<svg class="w-3.5 h-3.5 stroke-[2.2] stroke-current fill-none" viewbox="0 0 24 24">
+<rect height="20" rx="2" ry="2" width="16" x="4" y="2"></rect>
+<circle cx="12" cy="14" r="4"></circle>
+<line x1="12" x2="12.01" y1="6" y2="6"></line>
+</svg>
+<span class="text-[11px] font-semibold text-brand-charcoal">Living Room Amp</span>
+</button>
+<div class="flex items-center space-x-3 text-stone-500">
+<button aria-label="Lyrics" class="text-xs font-semibold hover:text-brand-charcoal transition-colors" type="button">LYRICS</button>
+<span class="text-stone-300">•</span>
+<button aria-label="Audio master info" class="text-xs font-semibold text-brand-bordeaux" type="button">24-bit / 96kHz</button>
+</div>
+</div>
+<!-- END: StreamDeviceBar -->
+</div>
+<!-- END: ScrollablePlayerBody -->
+<!-- BEGIN: PeekableBottomSheetDrawer -->
+<!-- Tabbed Bottom Card: Up Next peek & Artist Info Access -->
+<section class="w-full bg-white rounded-t-3xl border-t border-brand-border shadow-sheet px-5 pt-3 pb-6 shrink-0 z-30" data-purpose="peekable-queue-and-artist-sheet">
+<!-- Drawer Drag Pill Handle -->
+<div class="w-10 h-1 bg-stone-300 rounded-full mx-auto mb-3 cursor-grab"></div>
+<!-- Drawer Header & Tabs -->
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center space-x-3">
+<div class="flex items-center space-x-1.5">
+<svg class="w-4 h-4 text-brand-bordeaux fill-current" viewbox="0 0 24 24">
+<path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"></path>
+</svg>
+<span class="text-xs font-bold uppercase tracking-wider text-brand-charcoal">Up Next</span>
+<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-bordeaux/10 text-brand-bordeaux">4 tracks</span>
+</div>
+</div>
+<button class="text-xs font-bold text-brand-bordeaux hover:underline flex items-center space-x-0.5" type="button">
+<span>View All</span>
+<svg class="w-3.5 h-3.5 stroke-[2.5] stroke-current fill-none" viewbox="0 0 24 24">
+<path d="m8.25 4.5 7.5 7.5-7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<!-- Peek Item: Upcoming Next Track -->
+<div class="bg-brand-chalk/80 rounded-2xl p-2.5 border border-brand-border/70 flex items-center justify-between active:bg-stone-100 transition-colors">
+<div class="flex items-center space-x-3 min-w-0">
+<span class="text-xs font-bold text-stone-400 pl-1">1</span>
+<!-- Track Thumbnail -->
+<div class="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-brand-border bg-stone-200">
+<img alt="Miles Davis Quartet" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8-_WSfO44wD3tL9FQcafnr5_P5ikTHwv5RjtxWfbjeGhu44sIGMMwyl37p4sTZ7FJlKy9D3MfbtSz1--t0vu41NUmjtmw09DxI2HAkAwBOtsSFQhdCVuZiqyg8n7EahiN4VOmTK2HZFFI3OroVdGhL3m6iDDdkDNjoOA5tjMyHNQmbBxmI4FGUXixIGHj62hJSjs-Qhrbf9avbzAVpsCg94YfyNrQZ2-ppeO7o_uj2wGHoIT8c1TA"/>
+</div>
+<!-- Track Name & Artist -->
+<div class="min-w-0 pr-2">
+<p class="text-xs font-bold text-brand-charcoal truncate">You Don't Know What L...</p>
+<p class="text-[11px] text-stone-500 truncate">Miles Davis Quartet</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 shrink-0">
+<span class="text-[11px] font-semibold text-stone-400 tabular-nums">7:46</span>
+<button aria-label="Reorder queue" class="p-1 text-stone-400" type="button">
+<svg class="w-4 h-4 stroke-[2] stroke-current fill-none" viewbox="0 0 24 24">
+<line x1="4" x2="20" y1="9" y2="9"></line>
+<line x1="4" x2="20" y1="15" y2="15"></line>
+</svg>
+</button>
+</div>
+</div>
+<!-- Quick Compact Artist Bio Peek -->
+<div class="mt-2.5 pt-2.5 border-t border-brand-border/60 flex items-center justify-between text-xs">
+<div class="flex items-center space-x-2">
+<div class="w-6 h-6 rounded-full overflow-hidden bg-brand-bordeaux/10 flex items-center justify-center">
+<svg class="w-3.5 h-3.5 fill-brand-bordeaux" viewbox="0 0 24 24">
+<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path>
+</svg>
+</div>
+<span class="font-semibold text-brand-charcoal">About Kiasmos &amp; Ólafur Arnalds</span>
+</div>
+<span class="text-[11px] text-stone-400 font-medium">1.8M Monthly</span>
+</div>
+<!-- iOS Home Bar Indicator -->
+<div class="w-32 h-1 bg-stone-300 rounded-full mx-auto mt-4"></div>
+</section>
+<!-- END: PeekableBottomSheetDrawer -->
+</main>
+<!-- END: MobileDeviceFrame -->
+</body></html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Miee Mobile — Search</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@1,500;1,600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#FAF9F7",
+            "surface-low": "#F4F3F1",
+            "surface-card": "#FFFFFF",
+            "on-surface": "#1A0F12",
+            "on-surface-variant": "#6B6567",
+            "text-muted": "#9E9799",
+            "bordeaux": "#6E0D25",
+            "bordeaux-light": "#F5EBEF",
+            "coral": "#FF3355",
+            "border-subtle": "#E5E0DC",
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            serif: ['"Playfair Display"', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .soundbar-1 { animation: soundWave 1.1s ease-in-out infinite alternate; }
+    .soundbar-2 { animation: soundWave 0.9s ease-in-out 0.2s infinite alternate; }
+    .soundbar-3 { animation: soundWave 1.3s ease-in-out 0.4s infinite alternate; }
+    @keyframes soundWave {
+      0% { height: 4px; }
+      100% { height: 16px; }
+    }
+  </style>
+<meta content="mobile_tab" name="shell-type"/><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-sans antialiased selection:bg-bordeaux selection:text-white">
+<!-- iOS Status Bar & App Header -->
+<header class="sticky top-0 z-30 bg-surface/95 backdrop-blur-md px-4 pt-3 pb-3 border-b border-border-subtle">
+<!-- Status Bar Time & Indicators -->
+<div class="flex items-center justify-between text-[13px] font-semibold tracking-tight text-on-surface mb-2 px-1">
+<span>9:41</span>
+<div class="flex items-center space-x-1.5 text-on-surface">
+<!-- Cellular -->
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 16 16">
+<path d="M1 11.5h1.5v3H1v-3zm3-2.5h1.5v5.5H4V9zm3-3h1.5v8.5H7V6zm3-3.5h1.5v12H10v-12z"></path>
+</svg>
+<!-- Wi-Fi -->
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 16 16">
+<path d="M8 12.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm-4.24-3.54a6 6 0 0 1 8.48 0l-1.06 1.06a4.5 4.5 0 0 0-6.36 0L3.76 8.96zm-2.83-2.83a10 10 0 0 1 14.14 0l-1.06 1.06a8.5 8.5 0 0 0-12.02 0L.93 6.13z"></path>
+</svg>
+<!-- Battery -->
+<div class="flex items-center">
+<div class="w-5 h-2.5 border border-on-surface rounded-sm p-0.5 flex items-center">
+<div class="h-full w-3.5 bg-on-surface rounded-2xs"></div>
+</div>
+<div class="w-0.5 h-1 bg-on-surface rounded-r-xs ml-0.5"></div>
+</div>
+</div>
+</div>
+<!-- Header Navigation Bar -->
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-2">
+<div class="w-7 h-7 rounded-full bg-bordeaux flex items-center justify-center text-white font-bold text-sm tracking-tight shadow-sm">
+      m
+    </div>
+<span class="text-xl font-bold tracking-tight text-on-surface">Miee</span>
+</div>
+<div class="flex items-center space-x-2">
+<!-- Living Room Cast Output Chip -->
+<button class="h-7 px-2.5 rounded-full bg-surface-low border border-border-subtle flex items-center space-x-1.5 active:scale-95 transition">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="text-[11px] font-semibold text-on-surface">Living Room</span>
+</button>
+<!-- Notification bell -->
+<button aria-label="Notifications" class="w-8 h-8 rounded-full border border-border-subtle bg-surface-card flex items-center justify-center text-on-surface-variant relative shadow-sm active:scale-95 transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-coral rounded-full"></span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Feed Content -->
+<main class="px-4 pt-3 space-y-4">
+<div class="flex flex-col w-full pb-36">
+<div class="flex items-center justify-between mb-2 px-0.5">
+<h1 class="text-2xl font-bold text-on-surface tracking-tight">Search</h1>
+</div>
+<!-- Search Field: warm neutral surface, 48px height, custom Bordeaux focus ring, no default blue -->
+<div class="relative w-full mb-3">
+<div class="flex items-center w-full h-12 bg-surface-low rounded-2xl px-3.5 border border-border-subtle focus-within:border-bordeaux focus-within:ring-2 focus-within:ring-bordeaux/20 transition-all shadow-sm">
+<span class="material-symbols-outlined text-text-muted text-[22px] flex-shrink-0 select-none mr-2.5">search</span>
+<div class="flex-1 min-w-0 flex items-center">
+<input class="w-full bg-transparent p-0 border-0 focus:outline-none focus:ring-0 text-[15px] text-on-surface font-semibold placeholder:text-text-muted truncate outline-none" id="search-input" placeholder="Artists, songs, albums..." type="text" value="Miles Davis"/>
+</div>
+<div class="flex items-center space-x-1 flex-shrink-0 ml-2">
+<button aria-label="Clear search" class="w-6 h-6 rounded-full bg-surface-card border border-border-subtle text-on-surface-variant flex items-center justify-center hover:bg-neutral-200 active:scale-90 transition" id="clear-btn" type="button">
+<span class="material-symbols-outlined text-[15px] leading-none">close</span>
+</button>
+<button aria-label="Voice search" class="w-7 h-7 rounded-full text-on-surface-variant hover:text-bordeaux active:scale-90 transition flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[20px]">mic</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Category Filter Chips -->
+<div class="overflow-x-auto no-scrollbar flex items-center gap-2 mb-3 py-0.5 select-none">
+<button class="h-9 px-4.5 rounded-full bg-bordeaux text-white font-medium text-xs tracking-tight shadow-sm flex items-center justify-center flex-shrink-0 active:scale-95 transition">All</button>
+<button class="h-9 px-4 rounded-full bg-surface-low border border-border-subtle text-on-surface font-medium text-xs tracking-tight shadow-sm flex items-center justify-center flex-shrink-0 hover:bg-surface-card active:scale-95 transition">Songs</button>
+<button class="h-9 px-4 rounded-full bg-surface-low border border-border-subtle text-on-surface font-medium text-xs tracking-tight shadow-sm flex items-center justify-center flex-shrink-0 hover:bg-surface-card active:scale-95 transition">Artists</button>
+<button class="h-9 px-4 rounded-full bg-surface-low border border-border-subtle text-on-surface font-medium text-xs tracking-tight shadow-sm flex items-center justify-center flex-shrink-0 hover:bg-surface-card active:scale-95 transition">Albums</button>
+</div>
+<!-- Unified Results List for 'All' -->
+<div class="w-full bg-surface-card rounded-2xl p-1 border border-border-subtle shadow-sm space-y-0.5">
+<!-- Result 1 (Artist): Miles Davis -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 shadow-sm border border-border-subtle bg-surface-low relative">
+<img alt="Miles Davis" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzMo5a6KuZBEqr_hV3s8tlEQRKXb8PS3pjvJysj-K3DeKw5a9p8NI-ZaKNwnzjZ0pcWBop6aBUhekscASFOOwYCQNGeafwN4mEnmdPwoJgc30WiHV9a_alTu5B7IPAuwA-tkmdFsKm6sk_UjWoTWpesZnfbISVKaiaJm4zyrFo6kLCUx9UmODkzvH8dVo_CQH0mcbqM3SCePAfe-LDAc62VnJ-0HgBmxisvxGHsKAiGuZMEIpMPm9X"/>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center space-x-1.5">
+<p class="text-sm text-on-surface truncate font-bold">Miles Davis</p>
+<span class="material-symbols-outlined text-bordeaux text-[15px]" style='font-variation-settings: "FILL" 1;'>verified</span>
+</div>
+<p class="text-xs text-on-surface-variant truncate mt-0.5">Artist • 3.8M monthly listeners</p>
+</div>
+</div>
+<div class="flex items-center space-x-1 flex-shrink-0">
+<button class="h-7 px-3 rounded-full bg-surface-low border border-border-subtle text-on-surface font-semibold text-xs shadow-sm hover:bg-neutral-200 active:scale-95 transition flex items-center justify-center mr-0.5" type="button">Follow</button>
+<span class="material-symbols-outlined text-text-muted text-[20px]">chevron_right</span>
+</div>
+</div>
+<!-- Result 2 (Song): So What -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm bg-surface-low relative border border-border-subtle">
+<img alt="So What" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNnv1-qniGe9bSbBs7kwLIP_WXwMvkoo7yNljCQsH1wrXJUZkkwq_LpXOLXF4ABXUIUudE1cSAHZ75DeJdfnBFszXcySwMB_J9gBgpOCnFhRKqptndmLZUL4raUYMNffAAgQFeFqYOgT-n61mJYwSJQntqDJAUMhqRp53SUISHc2CbmyKx81XFhK-q8zrwxR94ST77Bmv_HCvYpmOX1b_qnrWHztJoYq50UT0GAv20JUuaY-zC8w8b"/>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center space-x-1.5">
+<span class="px-1.5 py-0.5 rounded bg-bordeaux-light text-bordeaux text-[9px] uppercase tracking-wider font-bold">MASTER</span>
+<p class="text-sm text-on-surface truncate font-semibold">So What</p>
+</div>
+<p class="text-xs text-on-surface-variant truncate mt-0.5">Miles Davis • Kind of Blue</p>
+</div>
+</div>
+<div class="flex items-center space-x-2.5 flex-shrink-0">
+<span class="text-xs text-on-surface-variant tabular-nums font-medium">9:22</span>
+<button aria-label="Favorite song" class="p-1 text-coral hover:scale-110 active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]" style='font-variation-settings: "FILL" 1;'>favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Result 3 (Song): Blue in Green -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm bg-surface-low relative border border-border-subtle">
+<img alt="Blue in Green" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCoTN3uVvR7A-CKbzs542SYmGJA7wG4k4kJC4CI3LtAmtIaH5C_HjAVcnwOpbo8Ge3ki18unDf4FiZhv2PVIJVI5g4F7u_COOTptQ9Ur2jIVG-tEWT8kFkWz4dEJiL-J-yotULRVAPSzUZIMnWIoNG2IIsCxQUIwodY1m4fEHw42EUz87n3nSApjhGLc4lmHMvQ9zir8h3Jdj87BF90X49KGSpAJFSbtIujjI-mHaRiebHPNpUIXdYq"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-sm text-on-surface truncate font-semibold">Blue in Green</p>
+<p class="text-xs text-on-surface-variant truncate mt-0.5">Miles Davis, Bill Evans • Kind of Blue</p>
+</div>
+</div>
+<div class="flex items-center space-x-2.5 flex-shrink-0">
+<span class="text-xs text-on-surface-variant tabular-nums font-medium">5:37</span>
+<button aria-label="Favorite song" class="p-1 text-text-muted hover:text-coral active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]">favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Result 4 (Album): Kind of Blue -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm bg-surface-low relative border border-border-subtle">
+<img alt="Kind of Blue" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEktCfGLZL1yM_bfDMQpKC5sw226okQ7L2g5Z9UlygwFe7qLw1vm9Y1S3F0W3I5PWWftyQo4Bc-mzXpXGfj_Xc7JYI2re_rh4pePrK_0JVqa5OkAj6glhLdV2QwlbsnXlWQkANvj4h-qgIz_6IEeA_EKcBGUpQF4hY5KRl3wi5BN8RDYS0jWZYhtXIHZ0vZQptgTJPLXJaQgnEvHWM6eSdTU9Z69hwCRH5YrA2yfLX4it5K75A3MLB"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-sm text-on-surface truncate font-semibold">Kind of Blue</p>
+<p class="text-xs text-on-surface-variant truncate mt-0.5">Miles Davis • 1959 Album</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 flex-shrink-0 pr-1">
+<span class="material-symbols-outlined text-text-muted text-[20px]">chevron_right</span>
+</div>
+</div>
+<!-- Result 5 (Song): Flamenco Sketches -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm bg-surface-low relative border border-border-subtle">
+<img alt="Flamenco Sketches" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJ8exmInxgUAVX3udwWC46FC4HnW96FZXvO-tN-QWj6MBz2pTsxDtbR8bl2A3aPGbNdf8vSyMEhFIpSlpBDqMgo3_Cz092K7D3ftlTu9Y0meqC5mc6w43jZMYt2LjN2P--HazXjXpLoRqGiSn4iZZ7OwnmlvfWiBi10i8fIgwCpcabIThY6Fux2tqjM115Gh-er5knSJnFKQfSp8RwUdYxhrjtI_dd7z9BGfQw-O9fmUCoL1WIm0dI"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-sm text-on-surface truncate font-semibold">Flamenco Sketches</p>
+<p class="text-xs text-on-surface-variant truncate mt-0.5">Miles Davis • Kind of Blue</p>
+</div>
+</div>
+<div class="flex items-center space-x-2.5 flex-shrink-0">
+<span class="text-xs text-on-surface-variant tabular-nums font-medium">9:26</span>
+<button aria-label="Favorite song" class="p-1 text-text-muted hover:text-coral active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]">favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Result 6 (Album): In a Silent Way -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm bg-surface-low relative border border-border-subtle">
+<img alt="In a Silent Way" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPlCQRFG2tdhlB3EBSRiDHLPGNh6DUZ6KQlwlJujiNRXzYw3TPx91BmU1zlX7pVEhY_jemz0k5MJ1KrLVbFhkHEp1bVkPFXv082Ia3hKqo55qd5sEkqxdVhQqLfa88U6CEdC19qR6s1ftznZtsKBarI7H5Gcstd2ZUjt8YoQaiE-TknqBCnetFT-0JOo8uE_TKHhofR9HI8X0Mb7_sOHcpGV0TdkinbfOmCMw69uDGNAclzYy6jBfl"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-sm text-on-surface truncate font-semibold">In a Silent Way</p>
+<p class="text-xs text-on-surface-variant truncate mt-0.5">Miles Davis • 1969 Album</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 flex-shrink-0 pr-1">
+<span class="material-symbols-outlined text-text-muted text-[20px]">chevron_right</span>
+</div>
+</div>
+<!-- Result 7 (Song): Milestones -->
+<div class="group flex items-center justify-between p-2 rounded-xl hover:bg-surface-low transition cursor-pointer active:scale-[0.99]">
+<div class="flex items-center space-x-3 min-w-0 flex-1 pr-2">
+<div class="w-12 h-12 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm bg-surface-low relative border border-border-subtle">
+<img alt="Milestones" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMEq8ipHJs56cEwCMv7p6hKOHXP-bBfVmCuy-yvRj9LAy2ER0UHaL0WC5RrAENbkXX6CTYjCeecqx1xjsSO9jcxqzVwA_UN6ppftJCscZV1-ROTRHG96teVHGuoNGWvczDQFn8l2RPUG9md32qGIJUVsuWTQAmmFQXu1XV_dzBzl5oBvb9poiBce3eCyDziF-vRo3nTSEoSTDUYCEnB5h5SeQhJX3mdrD9R-MmriW2QBsHclG3_md8"/>
+</div>
+<div class="min-w-0 flex-1">
+<p class="text-sm text-on-surface truncate font-semibold">Milestones</p>
+<p class="text-xs text-on-surface-variant truncate mt-0.5">Miles Davis • Milestones</p>
+</div>
+</div>
+<div class="flex items-center space-x-2.5 flex-shrink-0">
+<span class="text-xs text-on-surface-variant tabular-nums font-medium">5:44</span>
+<button aria-label="Favorite song" class="p-1 text-text-muted hover:text-coral active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[19px]">favorite</span>
+</button>
+<button aria-label="Track options" class="p-1 text-on-surface-variant hover:text-on-surface active:scale-90 transition" type="button">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Mini Player Component (fixed above bottom nav) -->
+<div class="fixed bottom-16 inset-x-3 z-30 pointer-events-auto">
+<div class="bg-surface-card/95 backdrop-blur-md border border-border-subtle rounded-2xl p-2.5 shadow-xl flex items-center justify-between">
+<!-- Artwork & Track Info -->
+<div class="flex items-center space-x-2.5 min-w-0 flex-1 pr-2 cursor-pointer">
+<div class="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 shadow-sm bg-neutral-900 border border-border-subtle">
+<img alt="Ascending Horizon" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1X6ybHOpgeoksIASiPJOLNtVNHsbKVUqWji68Jssmvwfri24SD-X3t6cREIdYtf7bwnXFK_REL1C4TS8op9XUzEBLSqEsupu-_mr1FPezDKNGh8H2Zb-NCx_9iiTYwWmZ6IlHac2LaLiYGz5pnWirkjqrOxSgGJ8dnkUjGmrvA8WS3OIxBA0QZnaPW1L6cwhutO-sGo6EiY11CiKp-wvsfNHPRddx2kiKdHR1Jr0sXEEeXsZGhGQs0Hw_Y"/>
+</div>
+<div class="min-w-0 flex-1">
+<div class="flex items-center space-x-1.5">
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-bordeaux-light text-bordeaux font-bold uppercase tracking-wider">MASTER</span>
+<h4 class="text-xs font-bold text-on-surface truncate">Ascending Horizon</h4>
+</div>
+<p class="text-[11px] text-on-surface-variant truncate mt-0.5">Kiasmos &amp; Ólafur Arnalds</p>
+</div>
+</div>
+<!-- Mini-Player Soundwave Bars -->
+<div class="flex items-center space-x-0.5 px-2 flex-shrink-0">
+<span class="w-0.5 bg-bordeaux rounded-full soundbar-1"></span>
+<span class="w-0.5 bg-bordeaux rounded-full soundbar-2"></span>
+<span class="w-0.5 bg-bordeaux rounded-full soundbar-3"></span>
+<span class="w-0.5 h-3 bg-bordeaux rounded-full"></span>
+<span class="w-0.5 h-2 bg-neutral-300 rounded-full"></span>
+</div>
+<!-- Controls: Favorite & Play/Pause -->
+<div class="flex items-center space-x-1.5 flex-shrink-0">
+<button aria-label="Favorite" class="text-coral p-1.5 active:scale-90 transition">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+</button>
+<button aria-label="Pause" class="w-9 h-9 rounded-full bg-bordeaux text-white flex items-center justify-center shadow-md active:scale-95 transition">
+<svg class="w-4 h-4 fill-current" viewbox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
+</button>
+</div>
+</div>
+</div>
+<!-- Persistent Bottom Navigation Bar -->
+<nav class="fixed bottom-0 inset-x-0 z-40 bg-[#FAF9F7]/95 backdrop-blur-md border-t border-black/5 py-2 px-6 flex justify-around items-center">
+<a class="flex flex-col items-center space-y-1 text-text-muted hover:text-on-surface transition" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="text-[10px] font-semibold">Home</span>
+</a>
+<a class="flex flex-col items-center space-y-1 text-bordeaux" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="text-[10px] font-bold">Search</span>
+</a>
+<a class="flex flex-col items-center space-y-1 text-text-muted hover:text-on-surface transition" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span class="text-[10px] font-semibold">Playlists</span>
+</a>
+<a class="flex flex-col items-center space-y-1 text-text-muted hover:text-on-surface transition" href="#">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="12" r="3"></circle></svg>
+<span class="text-[10px] font-semibold">Settings</span>
+</a>
+</nav>
+</body></html>

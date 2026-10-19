@@ -244,31 +244,43 @@ class PlayerPage extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // ── 4. Signature Interactive Waveform & Timestamps ──
+              // ── 4. Linear Progress Slider & Timestamps ──
               Center(
                 child: SizedBox(
-                  width: 260.0,
+                  width: 320.0,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      WaveformWidget(
-                        height: 38.0,
-                        isPlaying: isPlaying,
-                        activeProgress: progress,
-                        activeColor: AppColors.dustyRose,
-                        inactiveColor: AppColors.white.withOpacity(0.2),
-                        onScrub: hasTrack
-                            ? (val) {
-                                final seekPos = Duration(
-                                  milliseconds: (val *
-                                          playback.duration.inMilliseconds)
-                                      .toInt(),
-                                );
-                                controller.seek(seekPos);
-                              }
-                            : null,
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4.0,
+                          activeTrackColor: AppColors.dustyRose,
+                          inactiveTrackColor: AppColors.white.withOpacity(0.2),
+                          thumbColor: AppColors.dustyRose,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 6.0,
+                            elevation: 2.0,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 14.0,
+                          ),
+                          overlayColor: AppColors.dustyRose.withOpacity(0.2),
+                        ),
+                        child: Slider(
+                          value: progress,
+                          onChanged: hasTrack && playback.duration.inMilliseconds > 0
+                              ? (val) {
+                                  final seekPos = Duration(
+                                    milliseconds: (val *
+                                            playback.duration.inMilliseconds)
+                                        .toInt(),
+                                  );
+                                  controller.seek(seekPos);
+                                }
+                              : null,
+                        ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 2),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -277,16 +289,18 @@ class PlayerPage extends ConsumerWidget {
                                 ? formatDuration(playback.position)
                                 : '0:00',
                             style: GoogleFonts.geist(
-                              fontSize: 11,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
                               color: AppColors.vanillaCream.withOpacity(0.65),
                             ),
                           ),
                           Text(
-                            hasTrack
+                            hasTrack && playback.duration.inMilliseconds > 0
                                 ? formatDuration(playback.duration)
-                                : '0:00',
+                                : '--:--',
                             style: GoogleFonts.geist(
-                              fontSize: 11,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
                               color: AppColors.vanillaCream.withOpacity(0.65),
                             ),
                           ),
@@ -367,33 +381,70 @@ class PlayerPage extends ConsumerWidget {
 
               const Spacer(flex: 1),
 
-              // ── 6. Bottom "Lyrics" Pill ──
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.lyrics_outlined,
-                      size: 16,
-                      color: AppColors.vanillaCream,
+              // ── 6. Bottom Actions: Lyrics & Queue ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Lyrics',
-                      style: GoogleFonts.geist(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.vanillaCream,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lyrics_outlined,
+                          size: 16,
+                          color: AppColors.vanillaCream,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Lyrics',
+                          style: GoogleFonts.geist(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.vanillaCream,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  InkWell(
+                    onTap: () => context.push('/queue'),
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.queue_music_rounded,
+                            size: 16,
+                            color: AppColors.vanillaCream,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Queue',
+                            style: GoogleFonts.geist(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.vanillaCream,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 12),

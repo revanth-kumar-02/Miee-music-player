@@ -1,139 +1,182 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../../app/theme/app_colors.dart';
-import '../../../../shared/widgets/miee_logo.dart';
+import '../../../../shared/widgets/miee_brand_mark.dart';
 
-/// Centralized design tokens for Miee's reference aesthetic.
+/// Centralized design tokens for Miee's Stitch Editorial Tactility aesthetic.
 abstract class AuthPalette {
-  /// Vanilla Cream background canvas: `#F8F1E8`
-  static const Color background = Color(0xFFF8F1E8);
+  /// Base paper substrate canvas: `#FAF9F7`
+  static const Color background = Color(0xFFFAF9F7);
 
-  /// Card surface
+  /// Pure white surface container lowest: `#FFFFFF`
   static const Color cardSurface = Color(0xFFFFFFFF);
 
-  /// Subtle card and container border
-  static const Color cardBorder = Color(0xFFE7DED5);
+  /// Thin hairline border: `#E3E2E0`
+  static const Color cardBorder = Color(0xFFE3E2E0);
 
-  /// Soft warm card elevation shadow
-  static const Color cardShadow = Color(0x0F3A252B);
+  /// Subtle contact edge shadow
+  static const Color cardShadow = Color(0x0C1A0F12);
 
-  /// Cocoa Plum primary button action: `#3A252B`
-  static const Color primaryButton = Color(0xFF3A252B);
-  static const Color primaryButtonHover = Color(0xFF2B1A20);
-  static const Color primaryButtonDisabled = Color(0xFF75656A);
+  /// Bordeaux Accent primary button & brand anchor: `#6E0D25`
+  static const Color primaryButton = Color(0xFF6E0D25);
+  static const Color primaryButtonHover = Color(0xFF580A1D);
+  static const Color primaryButtonDisabled = Color(0x666E0D25);
 
-  /// Dusty Rose brand accent & links: `#D78D9B`
-  static const Color accent = Color(0xFFD78D9B);
+  /// Punch Crimson highlight & dot: `#BA0032`
+  static const Color accent = Color(0xFFBA0032);
+  static const Color secondary = Color(0xFFBA0032);
 
-  /// Soft Clay secondary accent: `#E9C9B7`
-  static const Color softClay = Color(0xFFE9C9B7);
+  /// Deep Charcoal neutral text: `#1A0F12`
+  static const Color textCocoa = Color(0xFF1A0F12);
+  static const Color textPrimary = Color(0xFF1A0F12);
 
-  /// Cocoa Plum primary text: `#3A252B`
-  static const Color textCocoa = Color(0xFF3A252B);
+  /// Muted Dust secondary metadata text: `#67595C` / `#736B6E`
+  static const Color textMuted = Color(0xFF736B6E);
+  static const Color textSecondary = Color(0xFF564243);
 
-  /// Muted Mauve secondary text: `#75656A`
-  static const Color textMuted = Color(0xFF75656A);
+  /// Form input background fill: `#FFFFFF`
+  static const Color inputFill = Color(0xFFFFFFFF);
 
-  /// Form input background fill
-  static const Color inputFill = Color(0xFFFCFAF7);
+  /// Subtle neutral input border: `#E3E2E0`
+  static const Color inputBorder = Color(0xFFE3E2E0);
 
-  /// Subtle neutral input border
-  static const Color inputBorder = Color(0xFFE7DED5);
+  /// Focused input ring border: `#6E0D25`
+  static const Color inputFocusBorder = Color(0xFF6E0D25);
 
-  /// Focused input ring border
-  static const Color inputFocusBorder = Color(0xFF3A252B);
-
-  /// Error color
-  static const Color errorRed = Color(0xFFBA3A37);
-  static const Color errorContainer = Color(0xFFFDF3F2);
+  /// Error color: `#BA1A1A`
+  static const Color errorRed = Color(0xFFBA1A1A);
+  static const Color errorContainer = Color(0xFFFFDAD6);
 }
 
-/// Shared responsive wrapper for authentication views.
-/// Renders the reference's decorative warm-toned background with oversized abstract shapes.
+/// Shared responsive scaffold for authentication views.
+/// Adheres strictly to the Stitch `#FAF9F7` canvas with optional desktop headers/footers.
 class AuthScaffold extends StatelessWidget {
   final Widget child;
+  final Widget? desktopHeader;
+  final Widget? desktopFooter;
 
-  const AuthScaffold({super.key, required this.child});
+  const AuthScaffold({
+    super.key,
+    required this.child,
+    this.desktopHeader,
+    this.desktopFooter,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 600;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 900;
 
     return Scaffold(
       backgroundColor: AuthPalette.background,
-      body: Stack(
-        children: [
-          // Background abstract shapes painter
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _WarmAbstractBackgroundPainter(),
-            ),
-          ),
-
-          // Foreground form content
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isCompact ? 20.0 : 32.0,
-                  vertical: 24.0,
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (isDesktop && desktopHeader != null) desktopHeader!,
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 40.0 : 24.0,
+                    vertical: isDesktop ? 24.0 : 16.0,
+                  ),
+                  child: child,
                 ),
-                child: child,
               ),
             ),
-          ),
+            if (isDesktop && desktopFooter != null) desktopFooter!,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Desktop standard navigation header matching Stitch `16_desktop_miee_web_login_clean_auth.html`.
+class AuthDesktopHeader extends StatelessWidget {
+  const AuthDesktopHeader({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          MieeBrandMark.soundwaveWordmark(fontSize: 24),
         ],
       ),
     );
   }
 }
 
-/// Paints oversized warm abstract shapes matching the reference login screen.
-class _WarmAbstractBackgroundPainter extends CustomPainter {
+/// Desktop standard footer matching Stitch `16_desktop_miee_web_login_clean_auth.html`.
+class AuthDesktopFooter extends StatelessWidget {
+  const AuthDesktopFooter({super.key});
+
   @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // 1. Soft Clay curve on top-right
-    final paint1 = Paint()
-      ..color = const Color(0xFFE9C9B7).withOpacity(0.35)
-      ..style = PaintingStyle.fill;
-    final path1 = Path()
-      ..moveTo(w * 0.6, 0)
-      ..cubicTo(w * 0.7, h * 0.25, w, h * 0.15, w, h * 0.45)
-      ..lineTo(w, 0)
-      ..close();
-    canvas.drawPath(path1, paint1);
-
-    // 2. Dusty Rose wave on bottom-left
-    final paint2 = Paint()
-      ..color = const Color(0xFFD78D9B).withOpacity(0.20)
-      ..style = PaintingStyle.fill;
-    final path2 = Path()
-      ..moveTo(0, h * 0.4)
-      ..cubicTo(w * 0.25, h * 0.55, w * 0.15, h * 0.85, 0, h)
-      ..close();
-    canvas.drawPath(path2, paint2);
-
-    // 3. Cocoa Plum soft curve on bottom-right
-    final paint3 = Paint()
-      ..color = const Color(0xFF3A252B).withOpacity(0.08)
-      ..style = PaintingStyle.fill;
-    final path3 = Path()
-      ..moveTo(w, h * 0.65)
-      ..cubicTo(w * 0.8, h * 0.8, w * 0.85, h, w, h)
-      ..close();
-    canvas.drawPath(path3, paint3);
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '© 2024 miee audio systems inc.',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AuthPalette.textMuted,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              Row(
+                children: [
+                  _footerLink('Terms'),
+                  _dot(),
+                  _footerLink('Privacy'),
+                  _dot(),
+                  _footerLink('Help'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget _footerLink(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.plusJakartaSans(
+        fontSize: 12,
+        color: AuthPalette.textMuted,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+  }
+
+  Widget _dot() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Text(
+        '•',
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 12,
+          color: AuthPalette.textMuted,
+        ),
+      ),
+    );
+  }
 }
 
-/// Shared centered card container constrained to ~440px with responsive padding.
+/// Clean container matching Stitch:
+/// On mobile, borderless full-bleed form width; on desktop, max 440px-460px width.
 class AuthCard extends StatelessWidget {
   final Widget child;
 
@@ -141,170 +184,125 @@ class AuthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 600;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 900;
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 440),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AuthPalette.cardSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AuthPalette.cardBorder,
-            width: 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AuthPalette.cardShadow,
-              blurRadius: 36,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        padding: EdgeInsets.symmetric(
-          horizontal: isCompact ? 24.0 : 36.0,
-          vertical: isCompact ? 28.0 : 36.0,
-        ),
-        child: child,
+      constraints: BoxConstraints(
+        maxWidth: isDesktop ? 440 : 400,
       ),
+      child: child,
     );
   }
 }
 
-/// Shared branding header for Miee authentication screens.
+/// Shared branding header for Miee authentication screens matching Stitch references.
 class AuthBrandHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? onBack;
+  final bool showEmblem;
 
   const AuthBrandHeader({
     super.key,
     required this.title,
     this.subtitle,
     this.onBack,
+    this.showEmblem = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 900;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment:
+          isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         if (onBack != null)
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: InkWell(
-                onTap: onBack,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.arrow_back_rounded,
-                        size: 18,
-                        color: AuthPalette.textCocoa,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Back',
-                        style: GoogleFonts.geist(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AuthPalette.textCocoa,
-                        ),
-                      ),
-                    ],
-                  ),
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: AuthPalette.textPrimary,
+                  size: 24,
                 ),
+                tooltip: 'Back',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ),
           ),
 
-        // Miee Wave Symbol + Logo Wordmark
-        Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const MieeWaveSymbol(size: 32, color: AuthPalette.accent),
-              const SizedBox(width: 8),
-              Text(
-                'miee',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
-                  color: AuthPalette.textCocoa,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-
-        // Tagline
-        Center(
-          child: Text(
-            'Your personal sound sanctuary',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.geist(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: AuthPalette.textMuted,
+        // Brand Emblem (Centered on mobile, hidden or compact if desktop has top bar)
+        if (showEmblem && !isDesktop) ...[
+          const Center(
+            child: MieeBrandMark.emblem(
+              emblemSize: 52,
+              fontSize: 24,
             ),
           ),
-        ),
-        const SizedBox(height: 24),
+          const SizedBox(height: 28),
+        ],
 
-        // Welcome Back / Page Heading
+        // Heading & Narrative
         Text(
           title,
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: AuthPalette.textCocoa,
+          textAlign: isDesktop ? TextAlign.left : TextAlign.center,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: isDesktop ? 32 : 28,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: AuthPalette.textPrimary,
+            height: 1.2,
           ),
         ),
         if (subtitle != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             subtitle!,
-            style: GoogleFonts.geist(
-              fontSize: 13,
-              color: AuthPalette.textMuted,
+            textAlign: isDesktop ? TextAlign.left : TextAlign.center,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: AuthPalette.textSecondary,
+              height: 1.4,
             ),
           ),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
       ],
     );
   }
 }
 
-/// Shared custom styled text field for authentication forms.
+/// Custom input field strictly matching Stitch's 52px rounded-xl design.
 class AuthTextField extends StatelessWidget {
   final String label;
   final String hintText;
   final TextEditingController controller;
   final FocusNode? focusNode;
-  final IconData prefixIcon;
+  final IconData? prefixIcon;
   final Widget? suffixIcon;
   final bool obscureText;
   final TextInputType keyboardType;
   final TextInputAction textInputAction;
   final ValueChanged<String>? onFieldSubmitted;
   final String? Function(String?)? validator;
+  final double borderRadius;
 
   const AuthTextField({
     super.key,
     required this.label,
     required this.hintText,
     required this.controller,
-    required this.prefixIcon,
+    this.prefixIcon,
     this.focusNode,
     this.suffixIcon,
     this.obscureText = false,
@@ -312,6 +310,7 @@ class AuthTextField extends StatelessWidget {
     this.textInputAction = TextInputAction.next,
     this.onFieldSubmitted,
     this.validator,
+    this.borderRadius = 12.0,
   });
 
   @override
@@ -321,10 +320,11 @@ class AuthTextField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.geist(
-            fontSize: 12.5,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: AuthPalette.textCocoa,
+            color: AuthPalette.textPrimary,
+            letterSpacing: 0.2,
           ),
         ),
         const SizedBox(height: 6),
@@ -335,50 +335,54 @@ class AuthTextField extends StatelessWidget {
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           onFieldSubmitted: onFieldSubmitted,
-          style: GoogleFonts.geist(
+          style: GoogleFonts.plusJakartaSans(
             fontSize: 14,
-            color: AuthPalette.textCocoa,
+            fontWeight: FontWeight.w500,
+            color: AuthPalette.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: GoogleFonts.geist(
-              fontSize: 13.5,
-              color: AuthPalette.textMuted.withOpacity(0.6),
+            hintStyle: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              color: AuthPalette.textMuted.withValues(alpha: 0.6),
             ),
-            prefixIcon: Icon(
-              prefixIcon,
-              color: AuthPalette.textMuted,
-              size: 19,
-            ),
+            prefixIcon: prefixIcon != null
+                ? Icon(
+                    prefixIcon,
+                    color: AuthPalette.textMuted,
+                    size: 20,
+                  )
+                : null,
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: AuthPalette.inputFill,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(borderRadius),
               borderSide: const BorderSide(color: AuthPalette.inputBorder),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(borderRadius),
               borderSide: const BorderSide(color: AuthPalette.inputBorder),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(borderRadius),
               borderSide: const BorderSide(
                 color: AuthPalette.inputFocusBorder,
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(borderRadius),
               borderSide: const BorderSide(color: AuthPalette.errorRed),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AuthPalette.errorRed, width: 1.5),
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide:
+                  const BorderSide(color: AuthPalette.errorRed, width: 1.5),
             ),
-            errorStyle: GoogleFonts.geist(
+            errorStyle: GoogleFonts.plusJakartaSans(
               fontSize: 12,
               color: AuthPalette.errorRed,
             ),
@@ -390,24 +394,28 @@ class AuthTextField extends StatelessWidget {
   }
 }
 
-/// Primary Cocoa Plum button for Authentication submission.
+/// Primary Pill Button for Authentication submission (`#6E0D25` Bordeaux).
 class AuthPrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool isLoading;
+  final IconData? trailingIcon;
+  final double borderRadius;
 
   const AuthPrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.isLoading = false,
+    this.trailingIcon,
+    this.borderRadius = 9999.0, // Default pill
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 46,
+      height: 52,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
@@ -416,123 +424,39 @@ class AuthPrimaryButton extends StatelessWidget {
           disabledBackgroundColor: AuthPalette.primaryButtonDisabled,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
         ),
         child: isLoading
             ? const SizedBox(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
+                  strokeWidth: 2.2,
                   color: Colors.white,
                 ),
               )
-            : Text(
-                label,
-                style: GoogleFonts.geist(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (trailingIcon != null) ...[
+                    const SizedBox(width: 8),
+                    Icon(
+                      trailingIcon,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ],
+                ],
               ),
-      ),
-    );
-  }
-}
-
-/// Social Provider authentication buttons (Google, GitHub, Email).
-class AuthSocialButtons extends StatelessWidget {
-  final VoidCallback onGooglePressed;
-  final VoidCallback? onGithubPressed;
-  final VoidCallback? onEmailPressed;
-
-  const AuthSocialButtons({
-    super.key,
-    required this.onGooglePressed,
-    this.onGithubPressed,
-    this.onEmailPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // "or continue with" divider
-        Row(
-          children: [
-            const Expanded(
-              child: Divider(color: AuthPalette.cardBorder, height: 1),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                'or continue with',
-                style: GoogleFonts.geist(
-                  fontSize: 12,
-                  color: AuthPalette.textMuted,
-                ),
-              ),
-            ),
-            const Expanded(
-              child: Divider(color: AuthPalette.cardBorder, height: 1),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Social icon buttons row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildSocialCircle(
-              icon: Icons.g_mobiledata_rounded,
-              iconSize: 28,
-              onPressed: onGooglePressed,
-              tooltip: 'Sign in with Google',
-            ),
-            if (onGithubPressed != null) ...[
-              const SizedBox(width: 14),
-              _buildSocialCircle(
-                icon: Icons.code_rounded,
-                iconSize: 20,
-                onPressed: onGithubPressed!,
-                tooltip: 'Sign in with GitHub',
-              ),
-            ],
-            if (onEmailPressed != null) ...[
-              const SizedBox(width: 14),
-              _buildSocialCircle(
-                icon: Icons.mail_outline_rounded,
-                iconSize: 20,
-                onPressed: onEmailPressed!,
-                tooltip: 'Sign in with Email',
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSocialCircle({
-    required IconData icon,
-    required double iconSize,
-    required VoidCallback onPressed,
-    required String tooltip,
-  }) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: AuthPalette.inputFill,
-        shape: BoxShape.circle,
-        border: Border.all(color: AuthPalette.cardBorder, width: 1.0),
-      ),
-      child: IconButton(
-        icon: Icon(icon, size: iconSize, color: AuthPalette.textCocoa),
-        tooltip: tooltip,
-        onPressed: onPressed,
       ),
     );
   }

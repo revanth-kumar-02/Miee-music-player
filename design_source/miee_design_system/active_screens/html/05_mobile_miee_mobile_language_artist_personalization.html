@@ -1,0 +1,556 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_stack" name="shell-type"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "tertiary": "#22211e", "on-secondary-container": "#fffbff", "primary-fixed": "#ffdadc", "on-background": "#1a1c1b", "on-primary": "#ffffff", "secondary": "#ba0032", "surface-container-highest": "#e3e2e0", "surface-bright": "#faf9f7", "on-error": "#ffffff", "outline": "#897173", "on-tertiary": "#ffffff", "on-surface-variant": "#564243", "on-surface": "#1a1c1b", "surface-dim": "#dadad8", "primary-container": "#6e0d25", "tertiary-fixed": "#e7e2dc", "secondary-fixed-dim": "#ffb3b5", "surface-tint": "#a4384a", "secondary-container": "#e41944", "on-secondary-fixed-variant": "#920025", "secondary-fixed": "#ffdada", "on-error-container": "#93000a", "outline-variant": "#ddc0c1", "inverse-on-surface": "#f1f1ef", "surface-container": "#efeeec", "inverse-primary": "#ffb2b9", "surface-container-high": "#e9e8e6", "error": "#ba1a1a", "primary": "#4b0014", "on-secondary-fixed": "#40000b", "inverse-surface": "#2f3130", "primary-fixed-dim": "#ffb2b9", "surface": "#faf9f7", "tertiary-container": "#383633", "on-primary-container": "#f77788", "on-tertiary-fixed-variant": "#494643", "surface-container-low": "#f4f3f1", "error-container": "#ffdad6", "on-tertiary-fixed": "#1d1b18", "on-tertiary-container": "#a39f9a", "surface-container-lowest": "#ffffff", "tertiary-fixed-dim": "#cac6c1", "on-primary-fixed-variant": "#852034", "surface-variant": "#e3e2e0", "on-secondary": "#ffffff", "background": "#faf9f7", "on-primary-fixed": "#400010" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-3xl": "3rem", "space-xl": "1.5rem", "gutter": "1.25rem", "space-sm": "0.5rem", "space-md": "0.75rem", "margin": "1rem", "gutter-desktop": "1.5rem", "space-xs": "0.25rem", "space-2xl": "2rem", "margin-tablet": "1.5rem", "space-lg": "1rem", "margin-desktop": "2rem" }, "fontFamily": { "headline-lg": ["Plus Jakarta Sans"], "headline-xl-mobile": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "caption": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"] }, "fontSize": { "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "headline-xl-mobile": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "body-md": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "0em", "fontWeight": "400" }], "label-md": ["0.875rem", { "lineHeight": "1.25rem", "letterSpacing": "0.005em", "fontWeight": "600" }], "label-sm": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "600" }], "body-lg": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.005em", "fontWeight": "500" }], "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.015em", "fontWeight": "600" }], "caption": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.025em", "fontWeight": "500" }], "headline-sm": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "600" }], "headline-xl": ["2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.03em", "fontWeight": "700" }], "body-sm": ["0.8125rem", { "lineHeight": "1.25rem", "letterSpacing": "0em", "fontWeight": "400" }] } } } };</script><style>@layer base{html,body{width:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><style>
+    body {
+      min-height: max(852px, 100dvh);
+    }
+  </style>
+</head><body class="bg-surface text-on-surface antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/85 backdrop-blur-xl border-b border-surface-container"><div class="h-14 px-margin flex items-center justify-between"><button aria-label="Navigate back" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container active:scale-95 transition-all" onclick="history.back()"><span class="material-symbols-outlined text-[22px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight text-center truncate px-space-sm">Music Taste</h1><div class="flex items-center gap-1.5"><span class="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-[12px] font-semibold">Step 2 of 3</span></div></div></header><main class="flex flex-col relative w-full pt-14 pb-safe bg-surface min-h-screen"><div class="flex flex-col w-full relative pb-36">
+<!-- Language Selection Section -->
+<div class="flex flex-col px-margin pt-4">
+<div class="flex items-center justify-between">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-[11px] font-semibold tracking-wide">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+      Personalization
+    </span>
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-1.5 rounded-full bg-primary-container"></div>
+<div class="w-6 h-1.5 rounded-full bg-primary-container"></div>
+<div class="w-6 h-1.5 rounded-full bg-surface-container-highest"></div>
+</div>
+</div>
+<h2 class="font-headline-xl-mobile text-headline-xl-mobile text-on-surface tracking-tight mt-3">
+    Which languages do you listen to?
+  </h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">
+    Choose the languages you love.
+  </p>
+<!-- Language Chips Wrap (min height 40px touch targets) -->
+<div class="flex flex-wrap gap-2 mt-4" id="language-chips-group">
+<!-- Tamil (Active) -->
+<button class="lang-chip active inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-primary-container text-on-primary shadow-sm border border-primary-container" data-lang="tamil" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Tamil</span>
+</button>
+<!-- Telugu -->
+<button class="lang-chip inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-surface-container-lowest text-on-surface shadow-xs border border-outline-variant/60 hover:bg-surface-container-low" data-lang="telugu" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon hidden" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Telugu</span>
+</button>
+<!-- Hindi (Active) -->
+<button class="lang-chip active inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-primary-container text-on-primary shadow-sm border border-primary-container" data-lang="hindi" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Hindi</span>
+</button>
+<!-- Malayalam -->
+<button class="lang-chip inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-surface-container-lowest text-on-surface shadow-xs border border-outline-variant/60 hover:bg-surface-container-low" data-lang="malayalam" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon hidden" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Malayalam</span>
+</button>
+<!-- Kannada -->
+<button class="lang-chip inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-surface-container-lowest text-on-surface shadow-xs border border-outline-variant/60 hover:bg-surface-container-low" data-lang="kannada" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon hidden" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Kannada</span>
+</button>
+<!-- English (Active) -->
+<button class="lang-chip active inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-primary-container text-on-primary shadow-sm border border-primary-container" data-lang="english" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">English</span>
+</button>
+<!-- Bengali -->
+<button class="lang-chip inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-surface-container-lowest text-on-surface shadow-xs border border-outline-variant/60 hover:bg-surface-container-low" data-lang="bengali" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon hidden" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Bengali</span>
+</button>
+<!-- Punjabi -->
+<button class="lang-chip inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-surface-container-lowest text-on-surface shadow-xs border border-outline-variant/60 hover:bg-surface-container-low" data-lang="punjabi" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon hidden" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Punjabi</span>
+</button>
+<!-- Marathi -->
+<button class="lang-chip inline-flex items-center gap-1.5 h-[42px] px-4 rounded-full font-label-md text-label-md transition-all duration-150 active:scale-95 bg-surface-container-lowest text-on-surface shadow-xs border border-outline-variant/60 hover:bg-surface-container-low" data-lang="marathi" type="button">
+<span class="material-symbols-outlined text-[17px] check-icon hidden" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+<span class="">Marathi</span>
+</button>
+</div>
+<!-- Search Input Across Selected Languages (48dp / h-12) -->
+<div class="relative mt-4 w-full">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="w-full h-12 pl-11 pr-10 rounded-xl bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant/65 border border-outline-variant/50 focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-all shadow-xs" id="artist-search" placeholder="Search artists across selected languages..." type="text">
+<button class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-on-surface-variant hover:text-on-surface" id="clear-search">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Selection Counter Badge -->
+<div class="mt-3.5 flex items-center justify-between p-3 rounded-xl bg-surface-container-low border border-surface-container-high/80">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[20px]" style="font-variation-settings: &quot;FILL&quot; 1;">stars</span>
+<span class="font-label-md text-label-md text-on-surface" id="counter-badge">3 of 5 artists selected</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary-container font-semibold" id="counter-helper">Ready to continue</span>
+</div>
+<!-- Max limit alert toast -->
+<div class="hidden mt-2 p-2.5 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center gap-2 transition-all" id="max-toast">
+<span class="material-symbols-outlined text-[18px]">info</span>
+<span class="font-caption text-caption font-semibold">Maximum 5 artists selected. Deselect one to add another.</span>
+</div>
+</div>
+<!-- Grouped Artists Container -->
+<div class="flex flex-col mt-5 gap-6" id="artist-sections-wrapper">
+<!-- 1. Tamil Artists Section -->
+<section class="lang-section flex flex-col" data-section-lang="tamil" id="section-tamil">
+<div class="flex items-center justify-between px-margin mb-2.5">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">Tamil Artists</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[11px] font-semibold">Tamil</span>
+</div>
+<button class="text-primary-container font-label-sm text-label-sm font-semibold hover:underline" type="button">See all</button>
+</div>
+<div class="flex gap-3 overflow-x-auto px-margin pb-1 scrollbar-none snap-x">
+<!-- Tamil 1: A.R. Rahman (Selected by default) -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 selected bg-surface-container-low border border-primary-container/40 shadow-xs" data-artist="A.R. Rahman" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-primary-container shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of legendary composer A.R. Rahman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzRK2QyDmafkwa3WT7l4KWLpbRxjlZrsoekPug8fqBxjQctmceT0SiW6QNTn12wNV1XGPLCaeyvoSZQGmLn0nu4C4m0UeqG5yTdeXdbAn-wHVoJAWmt-CqkqBoqxBQACNJGIQT9p9qtwmj-80Pb2WVOQHhfnj71m70KBDMNNIBMX-qHw9tcazC6JaYbY6dX-gAhLuNMwhw9zHEnKb7cSYbjG1TNOeWRuknq0lUnl54CQPXOeyzxlIq">
+<div class="check-badge absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">A.R. Rahman</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Soundtracks</span>
+</button>
+<!-- Tamil 2: Anirudh Ravichander -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Anirudh Ravichander" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of contemporary Indian music director Anirudh Ravichander" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOLr9uwQpNBf39rD9TOTmGkdto_lAZEYoq1ow8LCHvjkQX_4RC1QNqLyo66y6_emwIUBt0Tlvn2AweY1dFc9WHVAeN1gHZDrAkOJSD0hTEWdG_uqEfKD3d54lGP5Wkh0uHt4waDtvuWmZLBwMwF1hQFhwqLj7EpiLRfPOHhJx-_1PlD7dWZGTHHwvZ1cX7gxr_SnnBECOCyBSduA1H5Q_hpOjoUZ1J0xfbrBW5N1GRUlnL-2MLfamC">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Anirudh</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Pop &amp; Beat</span>
+</button>
+<!-- Tamil 3: Sid Sriram -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Sid Sriram" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Intimate portrait of vocalist Sid Sriram" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmdro7uA_FjlPI08irHv7qUvHveXGnx8JnojveV7ROvutRNrm0roIvFx6DJDIDcxtXoWgND5LbeoR3hM1lcrH9RV7_f9AS66PKxCXZsGxIs5n89m9mUpRzKsF_-Ep_JpKBYL4-jO2zEEqStYRu6TY83tTbpFirtoEa4Q-owzcsmnYYYUU5b5kuPooWeh72YyXO_83P3xrQN5-yHI-7S3KPFV1Mva5rwYv7cy5sn5me_DuJtG5yZVLx">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Sid Sriram</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Carnatic &amp; Soul</span>
+</button>
+<!-- Tamil 4: Yuvan Shankar Raja -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Yuvan Shankar Raja" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Musician portrait of Yuvan Shankar Raja" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClxHB2kuxLqIzK8CvMgHPJdWktNROzOZUFsp2vg8AJS2ZtDb30tGfFQn2QZf5kNHwMQpqKz-8ZHDDpTBdnNuDEH-3-vIAkdtVzd7YDhj7V-Plom9omQDn0kHVIi-hhUoGpyct6hawDhwga_c-XZunjQy2BLa1aUX3nfwdW3-KcamAxXkTrRCqp9smI704T_KyIRoLz92LYrQE-2LzusFnoQfp6R7g6mPl3dJuqJIS9WRFQjp2Yo9wx">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Yuvan Shankar</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Lo-Fi &amp; Melodic</span>
+</button>
+<!-- Tamil 5: Dhee -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Dhee" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of South Asian singer Dhee" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP94kP6b8-ZkjmvMfv6R0f4olPpZ1vsi4ehDICGB8ylARYu0mlo4RnzTzeGaSnkuk8XgHOyg_DXe7gfIa_mSgjK7S5FF9aEjH86n_yOGq19KCwUTQEMKcyzTQH3lqiqmCiJS6d6kmMpm0iGHUGHiorXUgC8YUfKG7pThLvnMFz6YvzEebXmODwnGEb0cMHJqjyaIOVON9VjKqxZxFluxgPK7iIQQ7XbanXhn0j0JWwIJU2eYEgvoxo">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Dhee</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Indie Folk</span>
+</button>
+</div>
+</section>
+<!-- 2. Hindi Artists Section -->
+<section class="lang-section flex flex-col" data-section-lang="hindi" id="section-hindi">
+<div class="flex items-center justify-between px-margin mb-2.5">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">Hindi Artists</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[11px] font-semibold">Hindi</span>
+</div>
+<button class="text-primary-container font-label-sm text-label-sm font-semibold hover:underline" type="button">See all</button>
+</div>
+<div class="flex gap-3 overflow-x-auto px-margin pb-1 scrollbar-none snap-x">
+<!-- Hindi 1: Arijit Singh (Selected by default) -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 selected bg-surface-container-low border border-primary-container/40 shadow-xs" data-artist="Arijit Singh" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-primary-container shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of playback singer Arijit Singh" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-0eQikgi8bYlmjMqGj8D5YrZMPHvU4n9xo0HypOM3ccET_Du5UteWg44Br8Oc7wlRH6o5WPmQjJ9QUnkNpXiVssNAjET7ZGpuqnJbsnNAU97DnoYDDceE_er4IDZGnGc8Hcxws_zC5DdvF9-AywXTUstLQnuHRYntPXy0cYveAo7NuPGI6gDzuB_2T-rRo_G856s1j_lHg4h91SX0CSN96fX4KiWEe4KmcMsCY-Zn5ilsQQilaqSP">
+<div class="check-badge absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Arijit Singh</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Romantic &amp; Ballads</span>
+</button>
+<!-- Hindi 2: Shreya Ghoshal -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Shreya Ghoshal" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of celebrated vocalist Shreya Ghoshal" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCacp3dNFHAovGTn8Lc9bEo7kkMHVbaklcPd4iv-SSq5K_nCYRNijMPDWA_upiva9nCkjq0iWYSnrK66pMHR0toEHB-vRm4RTtcUPnNcMoQhU8-IGged5FsRid7mcNCMZdTgHfuQZI1oFWddowa0WMQE4M6ZJMJxPX4-J8vNfvL6Ejw3omxIMGySIYb9dSCU4hqdTLtPCdZ1U2UE0SglfR_9xl27ytyHRxdbo0ZnulEkF6daBpNZ3nz">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Shreya Ghoshal</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Melody &amp; Classical</span>
+</button>
+<!-- Hindi 3: Pritam -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Pritam" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Studio portrait of Bollywood composer Pritam" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChzFQeWGAlPKzBdrFHpuFnDCfJNgn1nL2m2u9l_ZOLNZHnKLI02Tf1rBNSWRF7wGTUqql5k0SvXEim0bUSoWHnkPUQqWoAbpheRo9UZJeyy-I80VrW2JZ0HLtfVmt05zY4BI6mqjLP8l5Cpe4wHmeSSwsZRq0xJcxhgvkkmLffB-S4GmhQxgMtdOznGFpl4t5z_UkT8CJKfn8pvZ8bb71SOAgZaNg1Nho7KLE9mr1_wIaAg26vZiBC">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Pritam</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Pop Rock &amp; Sufi</span>
+</button>
+<!-- Hindi 4: Amit Trivedi -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Amit Trivedi" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of experimental composer Amit Trivedi" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHQTRknXhtlkJzt2QPx-3S_KaaVbZmclTAdj36nrrIDGTi6iqJLHpaXFDSEC3J1B20UQrSStQ2_hfHk7a6Ad7KyxP0J7YKxm4X9Qj0iYTaa_gbdRxiD-WkQFm2LQ01ej7W6MBh_XZhed55vtbYT1_v6czyWx0uWZMpLwf_vnvmFwCO7U8RAajkPdaX8F-Xm_MMtY45l3AtzAqQ8ZeZAp1-vZwWQSCYUyAOBhAF9qiyq6_jt3CTN8xH">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Amit Trivedi</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Indie &amp; Folk Fusion</span>
+</button>
+</div>
+</section>
+<!-- 3. English Artists Section -->
+<section class="lang-section flex flex-col" data-section-lang="english" id="section-english">
+<div class="flex items-center justify-between px-margin mb-2.5">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">English Artists</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[11px] font-semibold">English</span>
+</div>
+<button class="text-primary-container font-label-sm text-label-sm font-semibold hover:underline" type="button">See all</button>
+</div>
+<div class="flex gap-3 overflow-x-auto px-margin pb-1 scrollbar-none snap-x">
+<!-- English 1: Kendrick Lamar (Selected by default) -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 selected bg-surface-container-low border border-primary-container/40 shadow-xs" data-artist="Kendrick Lamar" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-primary-container shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="Cinematic editorial portrait of Kendrick Lamar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKBHRCjzUasF1zhCL0McB5v5hr7pJ8Id7A9sPJjcAyuzUb_PYQe4wCLEVgJpfKHWq2f-6B5pYMpD7d3erJBvtZHk9YzpUC5wQK7MxKWCRaeNS-rjFFWQdpiEpqwd6nJ8dg-0FgzO28GUSlcADZ9PXlUjLDKl9IqN9es-QpAgyfRnTufood_sz_yfyWH2246N3Wpf2cWu_L586hS4UblcEwO3yMzITJRTkdBqFQLMpdCSr4VZCEYUGr">
+<div class="check-badge absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Kendrick Lamar</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Hip-Hop &amp; Soul</span>
+</button>
+<!-- English 2: Adele -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Adele" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Dramatic studio portrait of singer Adele" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCveaIQvAjsUq032eRoJfn1kq_Ovk4AlbMwmhxDECyRbQa6Jg4lgTkofrvzw46q6ZDdojc3NLNeTE2e7lSHIo8JNsrOA4jLXB396_b3L9259TXkhL2u9vg6p3UR5bZ3wdQbZfBWScEm4_eAPu_GFIBTjkFbM8PJ1V5fq2I9vlkXXu7qP2AZvF5iHSdb81iBOFFMBe_ubNJI-Ibs9hGf9_K3Vwfc4Ey29geNuRJW4rc8Hjk4gxjrgahI">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Adele</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Soul &amp; Pop</span>
+</button>
+<!-- English 3: Norah Jones -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Norah Jones" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Soft acoustic portrait of Norah Jones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHQTRknXhtlkJzt2QPx-3S_KaaVbZmclTAdj36nrrIDGTi6iqJLHpaXFDSEC3J1B20UQrSStQ2_hfHk7a6Ad7KyxP0J7YKxm4X9Qj0iYTaa_gbdRxiD-WkQFm2LQ01ej7W6MBh_XZhed55vtbYT1_v6czyWx0uWZMpLwf_vnvmFwCO7U8RAajkPdaX8F-Xm_MMtY45l3AtzAqQ8ZeZAp1-vZwWQSCYUyAOBhAF9qiyq6_jt3CTN8xH">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Norah Jones</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Folk &amp; Jazz</span>
+</button>
+<!-- English 4: Miles Davis -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Miles Davis" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Monochrome jazz portrait of Miles Davis with a trumpet" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOLr9uwQpNBf39rD9TOTmGkdto_lAZEYoq1ow8LCHvjkQX_4RC1QNqLyo66y6_emwIUBt0Tlvn2AweY1dFc9WHVAeN1gHZDrAkOJSD0hTEWdG_uqEfKD3d54lGP5Wkh0uHt4waDtvuWmZLBwMwF1hQFhwqLj7EpiLRfPOHhJx-_1PlD7dWZGTHHwvZ1cX7gxr_SnnBECOCyBSduA1H5Q_hpOjoUZ1J0xfbrBW5N1GRUlnL-2MLfamC">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Miles Davis</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Jazz &amp; Brass</span>
+</button>
+<!-- English 5: Radiohead -->
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Radiohead" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Art rock band silhouette for Radiohead" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-0eQikgi8bYlmjMqGj8D5YrZMPHvU4n9xo0HypOM3ccET_Du5UteWg44Br8Oc7wlRH6o5WPmQjJ9QUnkNpXiVssNAjET7ZGpuqnJbsnNAU97DnoYDDceE_er4IDZGnGc8Hcxws_zC5DdvF9-AywXTUstLQnuHRYntPXy0cYveAo7NuPGI6gDzuB_2T-rRo_G856s1j_lHg4h91SX0CSN96fX4KiWEe4KmcMsCY-Zn5ilsQQilaqSP">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Radiohead</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Alternative</span>
+</button>
+</div>
+</section>
+<!-- Telugu Section (Hidden when unselected) -->
+<section class="lang-section hidden flex-col" data-section-lang="telugu" id="section-telugu">
+<div class="flex items-center justify-between px-margin mb-2.5">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">Telugu Artists</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[11px] font-semibold">Telugu</span>
+</div>
+<button class="text-primary-container font-label-sm text-label-sm font-semibold hover:underline" type="button">See all</button>
+</div>
+<div class="flex gap-3 overflow-x-auto px-margin pb-1 scrollbar-none snap-x">
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Devi Sri Prasad" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of Devi Sri Prasad" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmdro7uA_FjlPI08irHv7qUvHveXGnx8JnojveV7ROvutRNrm0roIvFx6DJDIDcxtXoWgND5LbeoR3hM1lcrH9RV7_f9AS66PKxCXZsGxIs5n89m9mUpRzKsF_-Ep_JpKBYL4-jO2zEEqStYRu6TY83tTbpFirtoEa4Q-owzcsmnYYYUU5b5kuPooWeh72YyXO_83P3xrQN5-yHI-7S3KPFV1Mva5rwYv7cy5sn5me_DuJtG5yZVLx">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Devi Sri Prasad</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Energy &amp; Mass</span>
+</button>
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Thaman S" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of Thaman S" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzRK2QyDmafkwa3WT7l4KWLpbRxjlZrsoekPug8fqBxjQctmceT0SiW6QNTn12wNV1XGPLCaeyvoSZQGmLn0nu4C4m0UeqG5yTdeXdbAn-wHVoJAWmt-CqkqBoqxBQACNJGIQT9p9qtwmj-80Pb2WVOQHhfnj71m70KBDMNNIBMX-qHw9tcazC6JaYbY6dX-gAhLuNMwhw9zHEnKb7cSYbjG1TNOeWRuknq0lUnl54CQPXOeyzxlIq">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Thaman S</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Rhythm &amp; Bass</span>
+</button>
+</div>
+</section>
+<!-- Malayalam Section (Hidden by default) -->
+<section class="lang-section hidden flex-col" data-section-lang="malayalam" id="section-malayalam">
+<div class="flex items-center justify-between px-margin mb-2.5">
+<div class="flex items-center gap-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">Malayalam Artists</h3>
+<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[11px] font-semibold">Malayalam</span>
+</div>
+<button class="text-primary-container font-label-sm text-label-sm font-semibold hover:underline" type="button">See all</button>
+</div>
+<div class="flex gap-3 overflow-x-auto px-margin pb-1 scrollbar-none snap-x">
+<button class="artist-card group shrink-0 w-[104px] flex flex-col items-center text-center p-2.5 rounded-2xl transition-all duration-150 active:scale-95 bg-surface-container-lowest border border-outline-variant/40 hover:bg-surface-container-low shadow-xs" data-artist="Sushin Shyam" type="button">
+<div class="relative w-[72px] h-[72px] rounded-full overflow-hidden transition-all duration-150 avatar-frame p-0.5 bg-surface-container-highest shadow-xs">
+<img class="w-full h-full object-cover rounded-full" data-alt="Portrait of Sushin Shyam" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClxHB2kuxLqIzK8CvMgHPJdWktNROzOZUFsp2vg8AJS2ZtDb30tGfFQn2QZf5kNHwMQpqKz-8ZHDDpTBdnNuDEH-3-vIAkdtVzd7YDhj7V-Plom9omQDn0kHVIi-hhUoGpyct6hawDhwga_c-XZunjQy2BLa1aUX3nfwdW3-KcamAxXkTrRCqp9smI704T_KyIRoLz92LYrQE-2LzusFnoQfp6R7g6mPl3dJuqJIS9WRFQjp2Yo9wx">
+<div class="check-badge hidden absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary-container text-on-primary items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: &quot;wght&quot; 700;">check</span>
+</div>
+</div>
+<span class="artist-name mt-2 font-label-sm text-label-sm font-semibold text-on-surface truncate w-full">Sushin Shyam</span>
+<span class="font-caption text-caption text-on-surface-variant truncate w-full">Atmospheric</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Empty state for search if no results -->
+<div class="hidden flex-col items-center justify-center py-10 px-margin text-center" id="no-results">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant mb-2">
+<span class="material-symbols-outlined text-[24px]">music_off</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">No artist found</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1">Try another search or pick more languages above.</span>
+</div>
+<!-- Tactile Note card -->
+<div class="px-margin mt-6">
+
+</div>
+<!-- Floating Fixed Bottom Sticky Deck with Scrim Gradient -->
+<div class="fixed bottom-0 inset-x-0 z-40 pb-safe pt-8 px-margin bg-gradient-to-t from-surface via-surface/95 to-transparent pointer-events-none">
+<div class="flex flex-col w-full max-w-lg mx-auto pointer-events-auto pb-4">
+<!-- Continue Button in Signature Bordeaux / Burgundy (#6E0D25) -->
+<button class="w-full h-[52px] rounded-full flex items-center justify-center gap-2 font-label-md text-label-md transition-all duration-200 shadow-md bg-primary-container text-on-primary hover:opacity-95 active:scale-[0.98] cursor-pointer" id="continue-button">
+<span id="continue-label" class="">Continue</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<!-- Subtext note -->
+<p class="text-center font-caption text-caption text-on-surface-variant mt-2.5">
+      You can update languages and artists anytime in Settings.
+    </p>
+</div>
+</div>
+</div>
+<script>
+  (function initLanguageAndArtistFlow() {
+    const langChips = document.querySelectorAll('.lang-chip');
+    const sections = document.querySelectorAll('.lang-section');
+    const artistCards = document.querySelectorAll('.artist-card');
+    const counterBadge = document.getElementById('counter-badge');
+    const counterHelper = document.getElementById('counter-helper');
+    const continueBtn = document.getElementById('continue-button');
+    const continueLabel = document.getElementById('continue-label');
+    const maxToast = document.getElementById('max-toast');
+    const searchInput = document.getElementById('artist-search');
+    const clearBtn = document.getElementById('clear-search');
+    const noResults = document.getElementById('no-results');
+
+    function getSelectedArtists() {
+      return Array.from(document.querySelectorAll('.artist-card.selected'));
+    }
+
+    function updateState() {
+      const selected = getSelectedArtists();
+      const count = selected.length;
+
+      counterBadge.textContent = count + ' of 5 artists selected';
+
+      if (count < 3) {
+        const needed = 3 - count;
+        counterHelper.textContent = 'Pick ' + needed + ' more';
+        counterHelper.className = 'font-label-sm text-label-sm text-secondary font-semibold';
+
+        continueBtn.disabled = true;
+        continueBtn.className = 'w-full h-[52px] rounded-full flex items-center justify-center gap-2 font-label-md text-label-md transition-all duration-200 shadow-none bg-surface-container-highest text-on-surface-variant/70 cursor-not-allowed opacity-80';
+        continueLabel.textContent = 'Select at least ' + (count === 0 ? '3 artists' : (3 - count) + ' more');
+      } else {
+        counterHelper.textContent = count === 5 ? 'Maximum reached' : 'Ready to continue';
+        counterHelper.className = 'font-label-sm text-label-sm text-primary-container font-semibold';
+
+        continueBtn.disabled = false;
+        continueBtn.className = 'w-full h-[52px] rounded-full flex items-center justify-center gap-2 font-label-md text-label-md transition-all duration-200 shadow-md bg-primary-container text-on-primary hover:opacity-95 active:scale-[0.98] cursor-pointer';
+        continueLabel.textContent = 'Continue';
+      }
+
+      if (count < 5 && !maxToast.classList.contains('hidden')) {
+        maxToast.classList.add('hidden');
+      }
+    }
+
+    // Toggle Language Chip
+    langChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const lang = chip.getAttribute('data-lang');
+        const isActive = chip.classList.contains('active');
+        const checkIcon = chip.querySelector('.check-icon');
+
+        if (isActive) {
+          // Check if at least one language remains
+          const activeChips = document.querySelectorAll('.lang-chip.active');
+          if (activeChips.length <= 1) {
+            // Keep at least one active language
+            return;
+          }
+          chip.classList.remove('active', 'bg-primary-container', 'text-on-primary', 'border-primary-container');
+          chip.classList.add('bg-surface-container-lowest', 'text-on-surface', 'border-outline-variant/60');
+          checkIcon.classList.add('hidden');
+
+          // Hide corresponding section if exists
+          const sec = document.getElementById('section-' + lang);
+          if (sec) sec.classList.add('hidden');
+        } else {
+          chip.classList.add('active', 'bg-primary-container', 'text-on-primary', 'border-primary-container');
+          chip.classList.remove('bg-surface-container-lowest', 'text-on-surface', 'border-outline-variant/60');
+          checkIcon.classList.remove('hidden');
+
+          // Show corresponding section if exists
+          const sec = document.getElementById('section-' + lang);
+          if (sec) sec.classList.remove('hidden');
+        }
+      });
+    });
+
+    // Toggle Artist Selection
+    artistCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const isSelected = card.classList.contains('selected');
+        const count = getSelectedArtists().length;
+
+        if (!isSelected && count >= 5) {
+          maxToast.classList.remove('hidden');
+          setTimeout(() => {
+            maxToast.classList.add('hidden');
+          }, 3000);
+          return;
+        }
+
+        const avatarFrame = card.querySelector('.avatar-frame');
+        const badge = card.querySelector('.check-badge');
+
+        if (isSelected) {
+          card.classList.remove('selected', 'bg-surface-container-low', 'border-primary-container/40');
+          card.classList.add('bg-surface-container-lowest', 'border-outline-variant/40');
+          avatarFrame.classList.remove('bg-primary-container');
+          avatarFrame.classList.add('bg-surface-container-highest');
+          badge.classList.add('hidden');
+          badge.classList.remove('flex');
+        } else {
+          card.classList.add('selected', 'bg-surface-container-low', 'border-primary-container/40');
+          card.classList.remove('bg-surface-container-lowest', 'border-outline-variant/40');
+          avatarFrame.classList.add('bg-primary-container');
+          avatarFrame.classList.remove('bg-surface-container-highest');
+          badge.classList.remove('hidden');
+          badge.classList.add('flex');
+        }
+
+        updateState();
+      });
+    });
+
+    // Search filter across artist names
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      let matchCount = 0;
+
+      if (query.length > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+
+      sections.forEach(section => {
+        const isSectionHiddenByLang = !document.querySelector(`.lang-chip[data-lang="${section.getAttribute('data-section-lang')}"]`)?.classList.contains('active');
+        if (isSectionHiddenByLang) return;
+
+        let sectionHasMatch = false;
+        const cards = section.querySelectorAll('.artist-card');
+
+        cards.forEach(card => {
+          const name = card.getAttribute('data-artist').toLowerCase();
+          const text = card.innerText.toLowerCase();
+          if (name.includes(query) || text.includes(query)) {
+            card.style.display = 'flex';
+            sectionHasMatch = true;
+            matchCount++;
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        if (sectionHasMatch) {
+          section.style.display = 'flex';
+        } else {
+          section.style.display = 'none';
+        }
+      });
+
+      if (matchCount === 0) {
+        noResults.classList.remove('hidden');
+        noResults.classList.add('flex');
+      } else {
+        noResults.classList.add('hidden');
+        noResults.classList.remove('flex');
+      }
+    });
+
+    // Clear search
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      clearBtn.classList.add('hidden');
+      artistCards.forEach(c => c.style.display = 'flex');
+      sections.forEach(s => {
+        const lang = s.getAttribute('data-section-lang');
+        const isActive = document.querySelector(`.lang-chip[data-lang="${lang}"]`)?.classList.contains('active');
+        s.style.display = isActive ? 'flex' : 'none';
+      });
+      noResults.classList.add('hidden');
+      noResults.classList.remove('flex');
+      searchInput.focus();
+    });
+
+    // Initialize state
+    updateState();
+  })();
+</script>
+</main>
+
+</body></html>
