@@ -2,6 +2,7 @@
 
 export 'profile_avatar.dart';
 export 'app_header.dart';
+export 'miee_brand_header.dart';
 export 'bottom_navigation.dart';
 export 'app_search_bar.dart';
 export 'section_header.dart';

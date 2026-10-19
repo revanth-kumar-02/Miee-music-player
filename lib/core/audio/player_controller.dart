@@ -49,8 +49,31 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   void _init() {
-    _queueManager.setQueue([]);
-    state = PlaybackState.initial();
+    try {
+      final queueRepo = _ref.read(queueStateRepositoryProvider);
+      final snapshot = queueRepo.loadSnapshot();
+      if (snapshot != null && snapshot.queue.isNotEmpty) {
+        final restoredTracks = snapshot.queue.map((m) => m.toTrack()).toList();
+        _queueManager.setQueue(restoredTracks, startIndex: snapshot.currentIndex);
+        final current = _queueManager.currentTrack;
+        final repeat = snapshot.repeatMode == 'one'
+            ? RepeatMode.one
+            : (snapshot.repeatMode == 'all' ? RepeatMode.all : RepeatMode.off);
+        state = PlaybackState.initial().copyWith(
+          currentTrack: current,
+          isShuffleEnabled: snapshot.isShuffleEnabled,
+          repeatMode: repeat,
+          position: Duration(milliseconds: snapshot.positionMs),
+        );
+      } else {
+        _queueManager.setQueue([]);
+        state = PlaybackState.initial();
+      }
+    } catch (e) {
+      debugLog('[QueuePersistence] Initial restore error: $e');
+      _queueManager.setQueue([]);
+      state = PlaybackState.initial();
+    }
 
     // ── Position stream ───────────────────────────────────────────────────────
     // If the player is actually producing position updates while the UI shows
@@ -93,7 +116,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
         final queueList = _queueManager.queue;
         final index = queueList.indexWhere((t) => t.id == mediaItem.id);
         if (index >= 0) {
+          _queueManager.setIndex(index);
           state = state.copyWith(currentTrack: queueList[index]);
+          _persistQueueSnapshot();
         }
       }
     });
@@ -166,6 +191,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   void setQueue(List<MusicItem> tracks, {int startIndex = 0, String? playingFrom}) {
     _queueManager.setQueue(tracks, startIndex: startIndex);
+    _persistQueueSnapshot();
     final track = _queueManager.currentTrack;
     if (track != null) {
       playTrack(track, playingFrom: playingFrom);
@@ -377,6 +403,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
           ? AudioServiceShuffleMode.all
           : AudioServiceShuffleMode.none,
     );
+    _persistQueueSnapshot();
     debugLog('[Playback] Shuffle toggled: $isShuffle');
   }
 
@@ -401,12 +428,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     state = state.copyWith(repeatMode: nextMode);
     await _handler.setRepeatMode(serviceMode);
+    _persistQueueSnapshot();
     debugLog('[Playback] Repeat mode toggled: $nextMode');
   }
 
   Future<void> addTrackToQueue(MusicItem track) async {
     _queueManager.addTrack(track);
     await _handler.appendTrack(track);
+    _persistQueueSnapshot();
     if (state.currentTrack == null) {
       await playTrack(track);
     }
@@ -415,6 +444,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   Future<void> removeTrackAt(int index) async {
     _queueManager.removeTrackAt(index);
     await _handler.removeTrackAt(index);
+    _persistQueueSnapshot();
     if (_queueManager.queue.isEmpty) {
       clearQueue();
     } else {
@@ -428,17 +458,36 @@ class PlayerController extends StateNotifier<PlaybackState> {
   Future<void> reorderQueue(int oldIndex, int newIndex) async {
     _queueManager.reorder(oldIndex, newIndex);
     await _handler.reorderQueue(oldIndex, newIndex);
+    _persistQueueSnapshot();
     state = state.copyWith(currentTrack: _queueManager.currentTrack);
   }
 
   void clearQueue() {
     _queueManager.clear();
+    try {
+      _ref.read(queueStateRepositoryProvider).clear();
+    } catch (_) {}
     state = state.copyWith(
       currentTrack: null,
       status: PlaybackStatus.idle,
       position: Duration.zero,
       duration: Duration.zero,
     );
+  }
+
+  void _persistQueueSnapshot() {
+    try {
+      final queueRepo = _ref.read(queueStateRepositoryProvider);
+      queueRepo.saveSnapshot(
+        queue: _queueManager.queue,
+        currentIndex: _queueManager.currentIndex,
+        positionMs: state.position.inMilliseconds,
+        isShuffleEnabled: state.isShuffleEnabled,
+        repeatMode: state.repeatMode.name,
+      );
+    } catch (e) {
+      debugLog('[QueuePersistence] Save error: $e');
+    }
   }
 
   // ── Disposal ───────────────────────────────────────────────────────────────

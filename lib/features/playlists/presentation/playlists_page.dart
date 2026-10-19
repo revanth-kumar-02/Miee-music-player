@@ -14,6 +14,7 @@ import '../../library/providers/library_providers.dart';
 import '../domain/playlist_model.dart';
 import '../providers/playlist_providers.dart';
 import 'widgets/create_playlist_dialog.dart';
+import '../../../shared/widgets/widgets.dart';
 
 /// Recreated "Your Library" screen matching the reference design:
 /// - Cocoa Plum sidebar + Vanilla Cream canvas
@@ -167,6 +168,36 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     );
   }
 
+  Widget _buildSortDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.oatBeige),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _sortOption,
+            style: GoogleFonts.geist(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.cocoaPlum,
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 18,
+            color: AppColors.cocoaPlum,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlists = ref.watch(allPlaylistsProvider);
@@ -180,6 +211,24 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
 
     return Scaffold(
       backgroundColor: AppColors.vanillaCream,
+      appBar: isDesktop
+          ? null
+          : MieeBrandHeader(
+              title: 'Playlists',
+              actions: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.search_rounded,
+                    color: AppColors.cocoaPlum,
+                    size: 22,
+                  ),
+                  splashRadius: 20,
+                  tooltip: 'Search',
+                  onPressed: () => context.go('/search'),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: isDesktop ? 28.0 : AppSpacing.marginMobile,
@@ -189,61 +238,51 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Top Header Row: "Your Library" + Search + Sort ──
-            Row(
-              children: [
-                Text(
-                  'Your Library',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.cocoaPlum,
+            // ── Top Controls Row ──
+            if (isDesktop)
+              Row(
+                children: [
+                  Text(
+                    'Your Library',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.cocoaPlum,
+                    ),
                   ),
-                ),
-                const Spacer(),
+                  const Spacer(),
 
-                // Search Icon Button
-                IconButton(
-                  icon: const Icon(
-                    Icons.search_rounded,
-                    color: AppColors.cocoaPlum,
-                    size: 22,
+                  // Search Icon Button
+                  IconButton(
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.cocoaPlum,
+                      size: 22,
+                    ),
+                    onPressed: () => context.go('/search'),
                   ),
-                  onPressed: () => context.go('/search'),
-                ),
 
-                const SizedBox(width: 8),
+                  const SizedBox(width: 8),
 
-                // "Recently Added ∨" Dropdown Pill
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.oatBeige),
+                  // "Recently Added ∨" Dropdown Pill
+                  _buildSortDropdown(),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${playlists.length} playlists',
+                    style: GoogleFonts.geist(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.mutedMauve,
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _sortOption,
-                        style: GoogleFonts.geist(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.cocoaPlum,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 18,
-                        color: AppColors.cocoaPlum,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+                  _buildSortDropdown(),
+                ],
+              ),
             const SizedBox(height: 16),
 
             // ── Filter Pills: Playlists, Artists, Albums, Songs ──

@@ -53,6 +53,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: AppColors.vanillaCream,
+      appBar: isDesktop ? null : const MieeBrandHeader(showProfileAvatar: true),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: isDesktop ? 28.0 : AppSpacing.marginMobile,

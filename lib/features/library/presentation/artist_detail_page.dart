@@ -242,16 +242,12 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-            onPressed: () => context.pop(),
-          ),
+        appBar: MieeBrandHeader(
+          title: 'Artist',
         ),
-        body: const Center(
+        body: Center(
           child: CircularProgressIndicator(
             color: AppColors.primary,
           ),
@@ -262,12 +258,8 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     if (_error != null || _data == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-            onPressed: () => context.pop(),
-          ),
+        appBar: const MieeBrandHeader(
+          title: 'Artist',
         ),
         body: Center(
           child: Column(

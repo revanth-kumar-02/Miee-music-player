@@ -33,6 +33,7 @@ class AppRouterNotifier extends ChangeNotifier {
   AppRouterNotifier(this._ref) {
     _ref.listen(authStateChangesProvider, (_, __) => notifyListeners());
     _ref.listen(userProfileNotifierProvider, (_, __) => notifyListeners());
+    _ref.listen(guestModeProvider, (_, __) => notifyListeners());
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
@@ -45,9 +46,16 @@ class AppRouterNotifier extends ChangeNotifier {
     // 1. Allow splash screen to execute its entry branding
     if (isGoingToSplash) return null;
 
+    // 2. Allow guest mode access
+    final isGuest = _ref.read(guestModeProvider);
+    if (isGuest) {
+      if (isGoingToLogin || isGoingToRegister) return '/home';
+      return null;
+    }
+
     final authUser = _ref.read(currentAuthUserProvider);
 
-    // 2. Unauthenticated user: restrict access to /login and /register
+    // 3. Unauthenticated user: restrict access to /login and /register
     // If Firebase is not configured, allow guest access to all music features
     if (authUser == null) {
       if (!FirebaseService.isConfigured) return null;

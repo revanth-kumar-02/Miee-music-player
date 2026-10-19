@@ -143,7 +143,7 @@ class YouTubeAudioService {
     }
 
     final future = _resolveStream(videoId).timeout(
-      const Duration(seconds: 12),
+      const Duration(seconds: 25),
       onTimeout: () {
         debugPrint('[YouTubeAudioService] Overall stream resolution timed out for $videoId');
         return null;
@@ -289,7 +289,7 @@ class YouTubeAudioService {
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
         ytClients: [kVisionOsClient],
-      ).timeout(const Duration(seconds: 7));
+      ).timeout(const Duration(seconds: 12));
       final streamUrl = _selectBestAudioUrl(manifest);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         debugPrint('[YouTubeAudioService] Resolved stream via VISIONOS for $videoId');
@@ -305,7 +305,7 @@ class YouTubeAudioService {
       final manifest = await _yt.videos.streamsClient.getManifest(
         videoId,
         ytClients: [kAndroidSdklessClient],
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 7));
       final streamUrl = _selectBestAudioUrl(manifest);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         debugPrint('[YouTubeAudioService] Resolved stream via androidSdkless for $videoId');
@@ -319,7 +319,7 @@ class YouTubeAudioService {
     // Fallback attempt 2: default getManifest client chain
     try {
       final manifest = await _yt.videos.streamsClient.getManifest(videoId)
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 7));
       final streamUrl = _selectBestAudioUrl(manifest);
       if (streamUrl != null && streamUrl.isNotEmpty) {
         debugPrint('[YouTubeAudioService] Resolved stream via default manifest for $videoId');

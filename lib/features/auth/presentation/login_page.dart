@@ -465,6 +465,30 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Continue as Guest Option
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                ref.read(guestModeProvider.notifier).state = true;
+                context.go('/home');
+              },
+              icon: const Icon(
+                Icons.arrow_forward_rounded,
+                size: 16,
+                color: AuthPalette.textMuted,
+              ),
+              label: Text(
+                'Continue as Guest',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: AuthPalette.textMuted,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

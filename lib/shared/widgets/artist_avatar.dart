@@ -37,13 +37,10 @@ class ArtistAvatar extends StatelessWidget {
   /// Resolves the best available portrait URL for [name], checking the provided [imageUrl]
   /// and falling back to the curated verified catalog if needed.
   static String? resolvePortraitUrl({required String name, String? imageUrl}) {
-    if (imageUrl != null) {
-      if (isValidArtistImageUrl(imageUrl)) {
-        return imageUrl;
-      }
-      return null;
+    if (imageUrl != null && isValidArtistImageUrl(imageUrl)) {
+      return imageUrl;
     }
-    // Attempt lookup in the curated repository by name when imageUrl is not supplied
+    // Attempt lookup in the curated repository by name when imageUrl is empty, null, or invalid
     final curated = DeezerArtistRepository.findCuratedByName(name);
     if (curated != null && isValidArtistImageUrl(curated.imageUrl)) {
       return curated.imageUrl;
@@ -71,6 +68,16 @@ class ArtistAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (imageUrl != null && !isValidArtistImageUrl(imageUrl)) {
+      return ClipOval(
+        child: SizedBox(
+          width: radius * 2,
+          height: radius * 2,
+          child: _buildFallback(),
+        ),
+      );
+    }
+
     final effectiveUrl = resolvePortraitUrl(name: name, imageUrl: imageUrl);
 
     return ClipOval(

@@ -465,6 +465,30 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Continue as Guest Option
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                ref.read(guestModeProvider.notifier).state = true;
+                context.go('/home');
+              },
+              icon: const Icon(
+                Icons.arrow_forward_rounded,
+                size: 16,
+                color: AuthPalette.textSecondary,
+              ),
+              label: Text(
+                'Continue as Guest',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: AuthPalette.textSecondary,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -121,6 +121,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     return Scaffold(
       backgroundColor: AppColors.vanillaCream,
+      appBar: isDesktop ? null : const MieeBrandHeader(title: 'Search'),
       body: SingleChildScrollView(
         controller: _scrollController,
         padding: EdgeInsets.symmetric(

@@ -11,6 +11,7 @@ import '../../../shared/models/track.dart';
 import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../library/providers/library_providers.dart';
 import '../../../shared/widgets/waveform_widget.dart';
+import '../../lyrics/presentation/widgets/lyrics_overlay.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B)
@@ -244,43 +245,28 @@ class PlayerPage extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // ── 4. Linear Progress Slider & Timestamps ──
+              // ── 4. Waveform Progress & Timestamps ──
               Center(
                 child: SizedBox(
-                  width: 320.0,
+                  width: 270.0,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 4.0,
-                          activeTrackColor: AppColors.dustyRose,
-                          inactiveTrackColor: AppColors.white.withOpacity(0.2),
-                          thumbColor: AppColors.dustyRose,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 6.0,
-                            elevation: 2.0,
-                          ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 14.0,
-                          ),
-                          overlayColor: AppColors.dustyRose.withOpacity(0.2),
-                        ),
-                        child: Slider(
-                          value: progress,
-                          onChanged: hasTrack && playback.duration.inMilliseconds > 0
-                              ? (val) {
-                                  final seekPos = Duration(
-                                    milliseconds: (val *
-                                            playback.duration.inMilliseconds)
-                                        .toInt(),
-                                  );
-                                  controller.seek(seekPos);
-                                }
-                              : null,
-                        ),
+                      WaveformWidget(
+                        isPlaying: isPlaying,
+                        activeProgress: progress,
+                        activeColor: AppColors.dustyRose,
+                        inactiveColor: AppColors.white.withOpacity(0.2),
+                        onScrub: (val) {
+                          if (hasTrack && playback.duration.inMilliseconds > 0) {
+                            final seekPos = Duration(
+                              milliseconds: (val * playback.duration.inMilliseconds).toInt(),
+                            );
+                            controller.seek(seekPos);
+                          }
+                        },
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -385,31 +371,47 @@ class PlayerPage extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.lyrics_outlined,
-                          size: 16,
-                          color: AppColors.vanillaCream,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Lyrics',
-                          style: GoogleFonts.geist(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
+                  InkWell(
+                    onTap: hasTrack
+                        ? () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (ctx) => LyricsOverlay(
+                                track: currentTrack,
+                                onClose: () => Navigator.of(ctx).pop(),
+                              ),
+                            );
+                          }
+                        : null,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.lyrics_outlined,
+                            size: 16,
                             color: AppColors.vanillaCream,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Text(
+                            'Lyrics',
+                            style: GoogleFonts.geist(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.vanillaCream,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),

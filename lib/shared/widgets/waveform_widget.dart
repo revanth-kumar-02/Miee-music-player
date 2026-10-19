@@ -142,7 +142,7 @@ class _WaveformPainter extends CustomPainter {
     if (barCount == 0 || size.width <= 0) return;
 
     final double effectiveWidth = size.width;
-    final double startX = 0.0;
+    const double startX = 0.0;
 
     if (barCount == 1) {
       final height = baseHeights[0];

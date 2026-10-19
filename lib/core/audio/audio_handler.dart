@@ -422,8 +422,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  bool _crossfadeEnabled = false;
+
+  void setCrossfade(bool enabled) {
+    _crossfadeEnabled = enabled;
+  }
+
   /// Sets the audio source from a URL with the required headers.
   Future<void> _setAudioSourceUrl(String url) async {
+    if (_crossfadeEnabled && _player.playing) {
+      for (double v = 1.0; v >= 0.1; v -= 0.3) {
+        await _player.setVolume(v.clamp(0.0, 1.0));
+        await Future.delayed(const Duration(milliseconds: 30));
+      }
+    }
+
     await _player.setAudioSource(
       AudioSource.uri(
         Uri.parse(url),
@@ -432,6 +445,16 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         },
       ),
     );
+
+    if (_crossfadeEnabled) {
+      await _player.setVolume(0.1);
+      for (double v = 0.2; v <= 1.0; v += 0.2) {
+        await _player.setVolume(v.clamp(0.0, 1.0));
+        await Future.delayed(const Duration(milliseconds: 35));
+      }
+    } else {
+      await _player.setVolume(1.0);
+    }
   }
 
   /// Recovery path called when a playback event stream error occurs mid-playback.

@@ -5,6 +5,7 @@ import 'package:Miee/features/search/presentation/search_page.dart';
 import 'package:Miee/features/search/domain/search_state.dart';
 import 'package:Miee/features/search/providers/search_providers.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
+import 'package:Miee/features/youtube/presentation/widgets/youtube_result_tile.dart';
 import 'package:Miee/core/audio/providers.dart';
 import 'package:Miee/core/audio/playback_state.dart';
 import 'package:Miee/core/audio/player_controller.dart';
@@ -61,12 +62,17 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify 'YouTube' section header is rendered
-    expect(find.text('YouTube'), findsOneWidget);
+    // Verify 'Songs' section header and count are rendered
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Text && w.data == 'Songs' && (w.style?.fontSize ?? 0) >= 18,
+      ),
+      findsOneWidget,
+    );
     expect(find.text('1 FOUND'), findsOneWidget);
 
     // Verify song title and artist from YouTube result tile are rendered
-    expect(find.text('Believer'), findsOneWidget);
+    expect(find.widgetWithText(YouTubeResultTile, 'Believer'), findsOneWidget);
     expect(find.text('Imagine Dragons · 2.5B views'), findsOneWidget);
   });
 

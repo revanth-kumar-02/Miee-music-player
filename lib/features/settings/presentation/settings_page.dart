@@ -272,9 +272,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     SwitchListTile(
                       secondary: const Icon(Icons.transform_outlined),
                       title: const Text('Crossfade Tracks'),
-                      subtitle: const Text('Smoothly overlap songs (placeholder)'),
+                      subtitle: const Text('Smoothly blend volume transitions between tracks'),
                       value: settings.crossfade,
-                      onChanged: (val) => settingsNotifier.updateCrossfade(val),
+                      onChanged: (val) {
+                        settingsNotifier.updateCrossfade(val);
+                        ref.read(audioHandlerProvider).setCrossfade(val);
+                      },
                     ),
                   ],
                 ),
