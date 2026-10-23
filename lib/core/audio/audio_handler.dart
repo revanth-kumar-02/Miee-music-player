@@ -699,7 +699,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> stop() async {
     _loadedAudioTrackId = null;
     await _player.stop();
-    await super.stop();
+    _pushPlaybackState(playerState: PlayerState(false, ProcessingState.idle));
     debugPrint('[Playback] stop() called');
   }
 
