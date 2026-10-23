@@ -26,6 +26,7 @@ Future<void> main() async {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.miee.music.channel.audio',
         androidNotificationChannelName: 'Miee Music',
+        androidNotificationIcon: 'drawable/ic_notification',
         // ongoing=true: notification cannot be dismissed by the user while
         // audio is active. Requires stopForegroundOnPause=true per audio_service
         // constraint (otherwise the combination is a compile-time assertion error).
