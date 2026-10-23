@@ -19,6 +19,9 @@ class MiniPlayer extends StatelessWidget {
   /// Playing state (true shows pause icon, false shows play icon).
   final bool isPlaying;
 
+  /// Loading or buffering state (shows circular progress indicator). Defaults to false.
+  final bool isLoading;
+
   /// Favorited state.
   final bool isFavorited;
 
@@ -39,6 +42,7 @@ class MiniPlayer extends StatelessWidget {
     required this.musicItem,
     required this.progress,
     required this.isPlaying,
+    this.isLoading = false,
     this.isFavorited = false,
     this.isDark = false,
     this.onTap,
@@ -148,7 +152,9 @@ class MiniPlayer extends StatelessWidget {
                           )
                         : imageUrl.isNotEmpty
                             ? Image.file(
-                                File(imageUrl),
+                                File(imageUrl.startsWith('file://')
+                                    ? Uri.parse(imageUrl).toFilePath()
+                                    : imageUrl),
                                 width: 48.0,
                                 height: 48.0,
                                 fit: BoxFit.cover,
@@ -228,7 +234,7 @@ class MiniPlayer extends StatelessWidget {
                   AppSpacing.widthSm,
                   // Play/Pause circular FAB
                   GestureDetector(
-                    onTap: onPlayPauseTap,
+                    onTap: isLoading ? null : onPlayPauseTap,
                     child: Container(
                       width: 40.0,
                       height: 40.0,
@@ -237,11 +243,22 @@ class MiniPlayer extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: AppShadows.shadowLow,
                       ),
-                      child: Icon(
-                        isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: playBtnIconColor,
-                        size: 20.0,
-                      ),
+                      child: isLoading
+                          ? Center(
+                              child: SizedBox(
+                                width: 18.0,
+                                height: 18.0,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.0,
+                                  valueColor: AlwaysStoppedAnimation<Color>(playBtnIconColor),
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              isPlaying ? Icons.pause : Icons.play_arrow,
+                              color: playBtnIconColor,
+                              size: 20.0,
+                            ),
                     ),
                   ),
                 ],

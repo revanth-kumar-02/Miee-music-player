@@ -55,7 +55,9 @@ class _PlaylistDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playbackState = ref.watch(playerControllerProvider);
+    final currentPlayingTrackId = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack?.id),
+    );
     final controller = ref.read(playlistControllerProvider.notifier);
 
     return Scaffold(
@@ -177,7 +179,7 @@ class _PlaylistDetailView extends ConsumerWidget {
                   itemBuilder: (context, index) {
                     final track = playlist.tracks[index];
                     final isCurrentTrack =
-                        playbackState.currentTrack?.id == track.id;
+                        currentPlayingTrackId == track.id;
 
                     return ReorderableDragStartListener(
                       key: ValueKey(track.id),
@@ -247,17 +249,34 @@ class _PlaylistDetailView extends ConsumerWidget {
   }
 
   Widget _buildArtwork(PlaylistModel playlist) {
-    final artworkUrl = playlist.artworkTrack?.imageUrl;
+    final artworkUrl = playlist.effectiveCoverUrl;
     final hasArtwork = artworkUrl != null && artworkUrl.isNotEmpty;
 
     if (hasArtwork) {
-      return SizedBox.expand(
-        child: artworkUrl.startsWith('http')
-            ? Image.network(artworkUrl, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _defaultArtwork())
-            : Image.file(File(artworkUrl), fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _defaultArtwork()),
-      );
+      if (artworkUrl.startsWith('http')) {
+        return SizedBox.expand(
+          child: Image.network(
+            artworkUrl,
+            fit: BoxFit.cover,
+            cacheWidth: 600,
+            cacheHeight: 600,
+            errorBuilder: (_, __, ___) => _defaultArtwork(),
+          ),
+        );
+      } else {
+        final localPath = artworkUrl.startsWith('file://')
+            ? Uri.parse(artworkUrl).toFilePath()
+            : artworkUrl;
+        return SizedBox.expand(
+          child: Image.file(
+            File(localPath),
+            fit: BoxFit.cover,
+            cacheWidth: 600,
+            cacheHeight: 600,
+            errorBuilder: (_, __, ___) => _defaultArtwork(),
+          ),
+        );
+      }
     }
     return _defaultArtwork();
   }

@@ -33,9 +33,9 @@ void main() {
       final ytVideo = YouTubeVideo(
         id: '9bZkp7q19f0',
         title: 'Gangnam Style',
-        artist: 'PSY',
+        channelTitle: 'PSY',
+        viewCount: '1B',
         duration: '4:13',
-        durationMs: 253000,
         thumbnailUrl: 'https://i.ytimg.com/vi/9bZkp7q19f0/hqdefault.jpg',
       );
 
@@ -94,9 +94,9 @@ void main() {
       final tappedItem = YouTubeVideo(
         id: 'track_2', // Note: no youtube_ prefix
         title: 'Track Two',
-        artist: 'Artist 2',
+        channelTitle: 'Artist 2',
+        viewCount: '1M',
         duration: '4:00',
-        durationMs: 240000,
         thumbnailUrl: '',
       );
 
@@ -137,8 +137,8 @@ void main() {
       expect(queueManager.currentIndex, equals(3));
       expect(queueManager.currentTrack?.title, equals('Track One'));
 
-      // Move Track Zero from index 0 to index 2
-      queueManager.reorder(0, 3);
+      // Move Track Zero past Track One (from index 0 past index 3)
+      queueManager.reorder(0, 4);
       // Track One was at index 3, now shifted to index 2
       expect(queueManager.currentIndex, equals(2));
       expect(queueManager.currentTrack?.title, equals('Track One'));
@@ -233,9 +233,9 @@ void main() {
       final tappedItem = YouTubeVideo(
         id: 'vid2',
         title: 'Song 2',
-        artist: 'Artist 2',
+        channelTitle: 'Artist 2',
+        viewCount: '1M',
         duration: '3:30',
-        durationMs: 210000,
         thumbnailUrl: '',
       );
 

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,7 +34,10 @@ class _LikedSongsPageState extends ConsumerState<LikedSongsPage> {
   @override
   Widget build(BuildContext context) {
     final favorites = ref.watch(favoritesProvider);
-    final playback = ref.watch(playerControllerProvider);
+    final activePlayingTrackId = ref.watch(
+      playerControllerProvider.select((s) =>
+          s.status == pb.PlaybackStatus.playing ? s.currentTrack?.id : null),
+    );
     final isDesktop = MediaQuery.of(context).size.width >= 960;
 
     final filteredTracks = favorites.where((t) {
@@ -405,8 +409,7 @@ class _LikedSongsPageState extends ConsumerState<LikedSongsPage> {
                     const Divider(color: AppColors.oatBeige, height: 1),
                 itemBuilder: (context, index) {
                   final track = filteredTracks[index];
-                  final isPlaying = playback.currentTrack?.id == track.id &&
-                      playback.status == pb.PlaybackStatus.playing;
+                  final isPlaying = activePlayingTrackId == track.id;
 
                   return InkWell(
                     onTap: () {
@@ -447,22 +450,45 @@ class _LikedSongsPageState extends ConsumerState<LikedSongsPage> {
                           // Artwork
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              track.imageUrl,
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 44,
-                                height: 44,
-                                color: AppColors.softClay,
-                                child: const Icon(
-                                  Icons.music_note_rounded,
-                                  size: 22,
-                                  color: AppColors.cocoaPlum,
-                                ),
-                              ),
-                            ),
+                            child: track.imageUrl.startsWith('http')
+                                ? Image.network(
+                                    track.imageUrl,
+                                    width: 44,
+                                    height: 44,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 88,
+                                    cacheHeight: 88,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 44,
+                                      height: 44,
+                                      color: AppColors.softClay,
+                                      child: const Icon(
+                                        Icons.music_note_rounded,
+                                        size: 22,
+                                        color: AppColors.cocoaPlum,
+                                      ),
+                                    ),
+                                  )
+                                : Image.file(
+                                    File(track.imageUrl.startsWith('file://')
+                                        ? Uri.parse(track.imageUrl).toFilePath()
+                                        : track.imageUrl),
+                                    width: 44,
+                                    height: 44,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 88,
+                                    cacheHeight: 88,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 44,
+                                      height: 44,
+                                      color: AppColors.softClay,
+                                      child: const Icon(
+                                        Icons.music_note_rounded,
+                                        size: 22,
+                                        color: AppColors.cocoaPlum,
+                                      ),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 14),
 

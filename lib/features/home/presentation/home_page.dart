@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../../core/storage/adapters/history_entry.dart';
 import '../../history/domain/listening_event.dart';
@@ -42,7 +43,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     final localSongs = ref.watch(songsProvider);
     final localAlbums = ref.watch(albumsProvider);
     final recsAsync = ref.watch(recommendationSectionsProvider);
-    final currentTrack = ref.watch(playerControllerProvider).currentTrack;
+    final currentTrack =
+        ref.watch(playerControllerProvider.select((s) => s.currentTrack));
     final playlists = ref.watch(allPlaylistsProvider);
     final favorites = ref.watch(favoritesProvider);
     final recentlyPlayedAsync = ref.watch(recentlyPlayedProvider);
@@ -522,17 +524,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             playlist.effectiveCoverUrl!.isNotEmpty)
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(14),
-                            child: Image.network(
-                              playlist.effectiveCoverUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Center(
-                                child: Icon(
-                                  Icons.queue_music_rounded,
-                                  size: 44,
-                                  color: AppColors.cocoaPlum,
-                                ),
-                              ),
-                            ),
+                            child: _buildCoverImage(playlist.effectiveCoverUrl!),
                           )
                         : const Center(
                             child: Icon(
@@ -848,16 +840,29 @@ class _HomePageState extends ConsumerState<HomePage> {
               final track = sections.fromYourArtists[index];
               final isPlaying = currentTrack?.id == track.id;
 
-              return SongTile(
-                title: track.title,
-                artist: track.artist,
-                duration: track.duration,
-                imageUrl: track.imageUrl,
-                isPlaying: isPlaying,
-                onTap: () {
-                  ref
-                      .read(playerControllerProvider.notifier)
-                      .selectTrack(track, sections.fromYourArtists, playingFrom: 'From Your Artists');
+              return Consumer(
+                builder: (context, ref, _) {
+                  final isTrackLoading = ref.watch(
+                    playerControllerProvider.select((s) =>
+                        s.loadingTrackId != null &&
+                        isSameTrackId(s.loadingTrackId, track.id)),
+                  );
+                  return SongTile(
+                    title: track.title,
+                    artist: track.artist,
+                    duration: track.duration,
+                    imageUrl: track.imageUrl,
+                    isPlaying: isPlaying,
+                    isLoading: isTrackLoading,
+                    onTap: isTrackLoading
+                        ? null
+                        : () {
+                            ref
+                                .read(playerControllerProvider.notifier)
+                                .selectTrack(track, sections.fromYourArtists,
+                                    playingFrom: 'From Your Artists');
+                          },
+                  );
                 },
               );
             },
@@ -980,28 +985,41 @@ class _HomePageState extends ConsumerState<HomePage> {
               final m = event.durationSec ~/ 60;
               final s = event.durationSec % 60;
               final dur = '$m:${s.toString().padLeft(2, '0')}';
-              return SongTile(
-                title: event.title,
-                artist: event.artist,
-                duration: dur,
-                imageUrl: null,
-                isPlaying: currentTrack?.id == event.trackId,
-                onTap: () {
-                  final recentTracks = sections.recentlyPlayed.map((e) {
-                    final em = e.durationSec ~/ 60;
-                    final es = e.durationSec % 60;
-                    return Track(
-                      id: e.trackId,
-                      title: e.title,
-                      artist: e.artist,
-                      imageUrl: '',
-                      duration: '$em:${es.toString().padLeft(2, '0')}',
-                    );
-                  }).toList();
-                  final selectedTrack = recentTracks[index];
-                  ref
-                      .read(playerControllerProvider.notifier)
-                      .selectTrack(selectedTrack, recentTracks, playingFrom: 'Recently Played');
+              return Consumer(
+                builder: (context, ref, _) {
+                  final isTrackLoading = ref.watch(
+                    playerControllerProvider.select((s) =>
+                        s.loadingTrackId != null &&
+                        isSameTrackId(s.loadingTrackId, event.trackId)),
+                  );
+                  return SongTile(
+                    title: event.title,
+                    artist: event.artist,
+                    duration: dur,
+                    imageUrl: null,
+                    isPlaying: currentTrack?.id == event.trackId,
+                    isLoading: isTrackLoading,
+                    onTap: isTrackLoading
+                        ? null
+                        : () {
+                            final recentTracks = sections.recentlyPlayed.map((e) {
+                              final em = e.durationSec ~/ 60;
+                              final es = e.durationSec % 60;
+                              return Track(
+                                id: e.trackId,
+                                title: e.title,
+                                artist: e.artist,
+                                imageUrl: '',
+                                duration: '$em:${es.toString().padLeft(2, '0')}',
+                              );
+                            }).toList();
+                            final selectedTrack = recentTracks[index];
+                            ref
+                                .read(playerControllerProvider.notifier)
+                                .selectTrack(selectedTrack, recentTracks,
+                                    playingFrom: 'Recently Played');
+                          },
+                  );
                 },
               );
             },
@@ -1019,107 +1037,141 @@ class _HomePageState extends ConsumerState<HomePage> {
     List<MusicItem> queue, {
     required double width,
   }) {
-    return InkWell(
-      onTap: () {
-        ref.read(playerControllerProvider.notifier).selectTrack(
-              track,
-              queue,
-              playingFrom: 'Popular Tracks',
-            );
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.white,
+    return Consumer(
+      builder: (context, ref, _) {
+        final isTrackLoading = ref.watch(
+          playerControllerProvider.select((s) =>
+              s.loadingTrackId != null &&
+              isSameTrackId(s.loadingTrackId, track.id)),
+        );
+
+        return InkWell(
+          onTap: isTrackLoading
+              ? null
+              : () {
+                  ref.read(playerControllerProvider.notifier).selectTrack(
+                        track,
+                        queue,
+                        playingFrom: 'Popular Tracks',
+                      );
+                },
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isPlaying ? AppColors.dustyRose : AppColors.oatBeige,
-            width: isPlaying ? 1.5 : 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.cocoaPlum.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+          child: Container(
+            width: width,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: (isPlaying || isTrackLoading)
+                    ? AppColors.dustyRose
+                    : AppColors.oatBeige,
+                width: (isPlaying || isTrackLoading) ? 1.5 : 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.cocoaPlum.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                track.imageUrl,
-                width: 52,
-                height: 52,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 52,
-                  height: 52,
-                  color: AppColors.softClay,
-                  child: const Icon(
-                    Icons.music_note_rounded,
-                    color: AppColors.cocoaPlum,
-                    size: 24,
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    track.imageUrl,
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 52,
+                      height: 52,
+                      color: AppColors.softClay,
+                      child: const Icon(
+                        Icons.music_note_rounded,
+                        color: AppColors.cocoaPlum,
+                        size: 24,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.geist(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isPlaying ? AppColors.dustyRose : AppColors.cocoaPlum,
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.geist(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: (isPlaying || isTrackLoading)
+                              ? AppColors.dustyRose
+                              : AppColors.cocoaPlum,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        track.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          color: AppColors.mutedMauve,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        track.duration,
+                        style: GoogleFonts.geist(
+                          fontSize: 10,
+                          color: AppColors.mutedMauve.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    track.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.geist(
-                      fontSize: 11,
-                      color: AppColors.mutedMauve,
-                    ),
+                ),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: (isPlaying || isTrackLoading)
+                        ? AppColors.dustyRose
+                        : AppColors.softClay.withOpacity(0.4),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    track.duration,
-                    style: GoogleFonts.geist(
-                      fontSize: 10,
-                      color: AppColors.mutedMauve.withOpacity(0.8),
-                    ),
-                  ),
-                ],
-              ),
+                  child: isTrackLoading
+                      ? const Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.0,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.white),
+                            ),
+                          ),
+                        )
+                      : Icon(
+                          isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          size: 20,
+                          color: isPlaying
+                              ? AppColors.white
+                              : AppColors.cocoaPlum,
+                        ),
+                ),
+              ],
             ),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isPlaying ? AppColors.dustyRose : AppColors.softClay.withOpacity(0.4),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                size: 20,
-                color: isPlaying ? AppColors.white : AppColors.cocoaPlum,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1426,6 +1478,8 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildLocalTracksList(
       List<MediaAlbum> albums, List<MediaSong> songs) {
+    final activeTrackId =
+        ref.watch(playerControllerProvider.select((s) => s.currentTrack?.id));
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -1433,11 +1487,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final song = songs[index];
+        final isSongPlaying = activeTrackId == song.id;
         return SongTile(
           title: song.title,
           artist: song.artist,
           duration: song.duration,
-          isPlaying: false,
+          imageUrl: song.artworkPath,
+          isPlaying: isSongPlaying,
           onTap: () {
             ref.read(playerControllerProvider.notifier).selectTrack(
                   song,
@@ -1470,15 +1526,35 @@ class _HomePageState extends ConsumerState<HomePage> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: 130,
-                      height: 130,
-                      color: AppColors.softClay,
-                      child: const Icon(
-                        Icons.album_rounded,
-                        color: AppColors.cocoaPlum,
-                      ),
-                    ),
+                    child: album.artworkPath.isNotEmpty
+                        ? Image.file(
+                            File(album.artworkPath.startsWith('file://')
+                                ? Uri.parse(album.artworkPath).toFilePath()
+                                : album.artworkPath),
+                            width: 130,
+                            height: 130,
+                            fit: BoxFit.cover,
+                            cacheWidth: 260,
+                            cacheHeight: 260,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 130,
+                              height: 130,
+                              color: AppColors.softClay,
+                              child: const Icon(
+                                Icons.album_rounded,
+                                color: AppColors.cocoaPlum,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: 130,
+                            height: 130,
+                            color: AppColors.softClay,
+                            child: const Icon(
+                              Icons.album_rounded,
+                              color: AppColors.cocoaPlum,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -1508,4 +1584,49 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
+
+  Widget _buildCoverImage(String rawUrl) {
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      return Image.network(
+        rawUrl,
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
+        errorBuilder: (_, __, ___) => const Center(
+          child: Icon(
+            Icons.queue_music_rounded,
+            size: 44,
+            color: AppColors.cocoaPlum,
+          ),
+        ),
+      );
+    }
+    try {
+      final normalizedPath = rawUrl.startsWith('file://')
+          ? Uri.parse(rawUrl).toFilePath()
+          : rawUrl;
+      return Image.file(
+        File(normalizedPath),
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
+        errorBuilder: (_, __, ___) => const Center(
+          child: Icon(
+            Icons.queue_music_rounded,
+            size: 44,
+            color: AppColors.cocoaPlum,
+          ),
+        ),
+      );
+    } catch (_) {
+      return const Center(
+        child: Icon(
+          Icons.queue_music_rounded,
+          size: 44,
+          color: AppColors.cocoaPlum,
+        ),
+      );
+    }
+  }
 }
+

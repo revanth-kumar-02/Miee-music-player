@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../shared/models/music_item.dart';
+import '../../shared/models/track.dart';
 import 'audio_handler.dart';
 import 'playback_state.dart';
 import 'queue_manager.dart';
@@ -123,6 +124,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       state = state.copyWith(
         status: PlaybackStatus.error,
         errorMessage: errorMsg,
+        clearLoadingTrackId: true,
       );
     });
 
@@ -170,10 +172,16 @@ class PlayerController extends StateNotifier<PlaybackState> {
           status == PlaybackStatus.buffering ||
           status == PlaybackStatus.paused;
 
+      final clearLoading = status == PlaybackStatus.playing ||
+          status == PlaybackStatus.paused ||
+          status == PlaybackStatus.completed ||
+          status == PlaybackStatus.error;
+
       state = state.copyWith(
         status: status,
         // Clear any stale error message when playback is healthy
         clearErrorMessage: isHealthy,
+        clearLoadingTrackId: clearLoading,
       );
 
       // ── Completion handling ───────────────────────────────────────────────
@@ -239,6 +247,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
   // ── Playback ──────────────────────────────────────────────────────────────
 
   Future<void> playTrack(MusicItem track, {String? playingFrom}) async {
+    // Prevent duplicate in-flight requests for the same track
+    if (state.status == PlaybackStatus.loading &&
+        state.loadingTrackId != null &&
+        isSameTrackId(state.loadingTrackId, track.id)) {
+      debugLog('[Playback] Tap ignored: track ${track.id} is already in-flight');
+      return;
+    }
+
     final token = ++_playRequestToken;
 
     PlaybackDiagnostics().recordTap(
@@ -253,10 +269,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
       await _handler.stop();
     } catch (_) {}
 
+    final isOnline = track.isYoutube;
+
     // 1. Immediately update UI state with selected track and loading status
     state = state.copyWith(
       status: PlaybackStatus.loading,
       currentTrack: track,
+      loadingTrackId: isOnline ? track.id : null,
+      clearLoadingTrackId: !isOnline,
       position: Duration.zero,
       playingFrom: playingFrom ?? state.playingFrom,
       clearErrorMessage: true,
@@ -323,6 +343,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       debugLog('[Playback] playTrack failed: $e');
       state = state.copyWith(
         status: PlaybackStatus.error,
+        clearLoadingTrackId: true,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
       );
     }
@@ -377,7 +398,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   Future<void> play() async {
-    if (state.status == PlaybackStatus.idle && state.currentTrack != null) {
+    if ((state.status == PlaybackStatus.idle || state.status == PlaybackStatus.error) &&
+        state.currentTrack != null) {
       await playTrack(state.currentTrack!);
     } else {
       await _handler.play();
@@ -386,6 +408,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   Future<void> pause() async {
     await _handler.pause();
+    if (state.loadingTrackId != null) {
+      state = state.copyWith(clearLoadingTrackId: true);
+    }
   }
 
   Future<void> togglePlayPause() async {
@@ -401,6 +426,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     state = state.copyWith(
       status: PlaybackStatus.idle,
       position: Duration.zero,
+      clearLoadingTrackId: true,
     );
   }
 

@@ -64,7 +64,12 @@ void main() {
   group('Queue Persistence Verification', () {
     test('QueueStateRepository correctly converts, stores, and restores queue snapshot', () async {
       final tempDir = await Directory.systemTemp.createTemp('miee_hive_test_');
-      addTearDown(() => tempDir.delete(recursive: true));
+      addTearDown(() async {
+        await Hive.close();
+        try {
+          await tempDir.delete(recursive: true);
+        } catch (_) {}
+      });
       Hive.init(tempDir.path);
       if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(TrackHiveModelAdapter());
       if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(QueueSnapshotAdapter());

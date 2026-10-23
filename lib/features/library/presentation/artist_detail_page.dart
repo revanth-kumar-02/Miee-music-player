@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/models/track.dart';
@@ -291,7 +292,9 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     final tracks = data.tracks;
     final albums = data.albums;
 
-    final currentTrack = ref.watch(playerControllerProvider).currentTrack;
+    final currentTrack = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack),
+    );
     final playerController = ref.read(playerControllerProvider.notifier);
 
     return Scaffold(
@@ -567,14 +570,26 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: SongTile(
-                        title: track.title,
-                        artist: track.artist,
-                        duration: track.duration,
-                        imageUrl: track.imageUrl,
-                        isPlaying: isPlaying,
-                        onTap: () {
-                          playerController.selectTrack(track, tracks);
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final isTrackLoading = ref.watch(
+                            playerControllerProvider.select((s) =>
+                                s.loadingTrackId != null &&
+                                isSameTrackId(s.loadingTrackId, track.id)),
+                          );
+                          return SongTile(
+                            title: track.title,
+                            artist: track.artist,
+                            duration: track.duration,
+                            imageUrl: track.imageUrl,
+                            isPlaying: isPlaying,
+                            isLoading: isTrackLoading,
+                            onTap: isTrackLoading
+                                ? null
+                                : () {
+                                    playerController.selectTrack(track, tracks);
+                                  },
+                          );
                         },
                       ),
                     );

@@ -11,6 +11,7 @@ import 'package:Miee/features/settings/presentation/settings_page.dart';
 import 'package:Miee/features/library/providers/library_providers.dart';
 import 'package:Miee/features/profile/presentation/profile_controller.dart';
 import 'package:Miee/features/profile/domain/profile_model.dart';
+import 'package:Miee/features/profile/providers/profile_providers.dart';
 import 'package:Miee/features/auth/providers/auth_providers.dart';
 import 'package:Miee/shared/models/track.dart';
 
@@ -111,9 +112,9 @@ class FakeSearchHistoryNotifier extends StateNotifier<List<String>>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeProfileNotifier extends StateNotifier<ProfileModel>
-    implements ProfileNotifier {
-  FakeProfileNotifier() : super(ProfileModel.initial());
+class FakeProfileController extends StateNotifier<ProfileModel>
+    implements ProfileController {
+  FakeProfileController() : super(ProfileModel.defaultProfile());
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -130,7 +131,9 @@ void main() {
           artist: 'Artist 1',
           album: 'Album 1',
           duration: '3:30',
+          durationMs: 210000,
           filePath: '/storage/music/song1.mp3',
+          artworkPath: '',
         ),
         const MediaSong(
           id: '2',
@@ -138,7 +141,9 @@ void main() {
           artist: 'Artist 2',
           album: 'Album 2',
           duration: '4:10',
+          durationMs: 250000,
           filePath: '/storage/music/song2.mp3',
+          artworkPath: '',
         ),
       ];
 
@@ -214,7 +219,7 @@ void main() {
         settingsControllerProvider.overrideWith((ref) => fakeSettingsController),
         favoritesProvider.overrideWith((ref) => FakeFavoritesNotifier()),
         searchHistoryProvider.overrideWith((ref) => FakeSearchHistoryNotifier()),
-        profileProvider.overrideWith((ref) => FakeProfileNotifier()),
+        profileProvider.overrideWith((ref) => FakeProfileController()),
         currentUserProfileProvider.overrideWith((ref) => null),
         currentAuthUserProvider.overrideWith((ref) => null),
       ];
@@ -247,7 +252,9 @@ void main() {
           artist: 'Artist A',
           album: 'Album A',
           duration: '3:00',
+          durationMs: 180000,
           filePath: '/storage/trackA.mp3',
+          artworkPath: '',
         ),
       ];
 
@@ -257,6 +264,7 @@ void main() {
       final tileFinder = find.widgetWithText(ListTile, 'Refresh Metadata');
       expect(tileFinder, findsOneWidget);
 
+      await tester.ensureVisible(tileFinder);
       await tester.tap(tileFinder);
       await tester.pump();
 
@@ -279,6 +287,7 @@ void main() {
       await tester.pump();
 
       final tileFinder = find.widgetWithText(ListTile, 'Refresh Metadata');
+      await tester.ensureVisible(tileFinder);
       await tester.tap(tileFinder);
       await tester.pump();
 
@@ -312,6 +321,7 @@ void main() {
       await tester.pump();
 
       final tileFinder = find.widgetWithText(ListTile, 'Refresh Metadata');
+      await tester.ensureVisible(tileFinder);
       await tester.tap(tileFinder);
       await tester.pumpAndSettle();
 
@@ -327,6 +337,7 @@ void main() {
       await tester.pump();
 
       final tileFinder = find.widgetWithText(ListTile, 'Refresh Metadata');
+      await tester.ensureVisible(tileFinder);
       await tester.tap(tileFinder);
       await tester.pumpAndSettle();
 
@@ -359,13 +370,14 @@ void main() {
       expect(tileFinder, findsOneWidget);
 
       // Start scan
+      await tester.ensureVisible(tileFinder);
       await tester.tap(tileFinder);
       await tester.pump();
 
       expect(fakeMediaService.scanDeviceCallCount, equals(1));
 
       // Pop SettingsPage while scan is still in flight
-      final navigatorState = tester.state<NavigatorState>(find.byType(Navigator));
+      final navigatorState = tester.state<NavigatorState>(find.byType(Navigator).last);
       navigatorState.pop();
       await tester.pump();
 

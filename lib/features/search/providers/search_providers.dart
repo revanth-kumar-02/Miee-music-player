@@ -17,6 +17,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
   final Ref _ref;
   Timer? _debounceTimer;
   Timer? _suggestionDebounceTimer;
+  int _searchRequestId = 0;
 
   SearchNotifier(this._repo, this._ref) : super(const SearchState()) {
     _loadRecentSearches();
@@ -38,6 +39,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
+      _searchRequestId++;
       state = state.copyWith(
         query: '',
         suggestions: const [],
@@ -56,6 +58,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
       return;
     }
 
+    final currentReqId = ++_searchRequestId;
+
     state = state.copyWith(
       query: query,
       isLocalLoading: true,
@@ -66,16 +70,16 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     // Suggestions autocomplete updates (150ms)
     _suggestionDebounceTimer = Timer(const Duration(milliseconds: 150), () async {
-      if (state.query != query) return;
+      if (currentReqId != _searchRequestId) return;
       final suggestions = await _repo.getSuggestions(trimmed);
-      if (state.query == query) {
+      if (currentReqId == _searchRequestId) {
         state = state.copyWith(suggestions: suggestions);
       }
     });
 
     // Main search debounce (300ms)
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      _runSearch(trimmed);
+      _runSearch(trimmed, currentReqId);
     });
   }
 
@@ -86,9 +90,12 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
+      _searchRequestId++;
       state = const SearchState();
       return;
     }
+
+    final currentReqId = ++_searchRequestId;
 
     state = state.copyWith(
       query: query,
@@ -98,11 +105,11 @@ class SearchNotifier extends StateNotifier<SearchState> {
       errorMessage: null,
     );
 
-    _runSearch(trimmed);
+    _runSearch(trimmed, currentReqId);
     addHistory(trimmed);
   }
 
-  Future<void> _runSearch(String query) async {
+  Future<void> _runSearch(String query, int reqId) async {
     // 1. Run Local Database Search (In-memory, instant)
     final library = _ref.read(mediaLibraryServiceProvider);
     final songs = _repo.localSearch.searchSongs(library.songs, query);
@@ -110,7 +117,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
     final artists = _repo.localSearch.searchArtists(library.artists, query);
     final playlists = _repo.localSearch.searchPlaylists(library.playlists, query);
 
-    if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+    if (reqId == _searchRequestId) {
       state = state.copyWith(
         localSongs: songs,
         localAlbums: albums,
@@ -123,7 +130,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
     // 2. Concurrently run Online Artists + Albums search
     try {
       final artists = await _repo.searchArtists(query);
-      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+      if (reqId == _searchRequestId) {
         state = state.copyWith(
           onlineArtists: artists,
           isArtistsLoading: false,
@@ -132,13 +139,13 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
       // If artist matches exist, fetch albums
       final onlineAlbums = await _repo.searchAlbums(query, matchedArtists: artists);
-      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+      if (reqId == _searchRequestId) {
         state = state.copyWith(
           onlineAlbums: onlineAlbums,
         );
       }
     } catch (_) {
-      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+      if (reqId == _searchRequestId) {
         state = state.copyWith(isArtistsLoading: false);
       }
     }
@@ -146,7 +153,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
     // 3. Run YouTube Song Search (Network API)
     try {
       final youtube = await _repo.searchYouTube(query);
-      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+      if (reqId == _searchRequestId) {
         state = state.copyWith(
           youtubeResults: youtube,
           isYouTubeLoading: false,
@@ -154,7 +161,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
         );
       }
     } catch (e) {
-      if (state.query.trim().toLowerCase() == query.toLowerCase()) {
+      if (reqId == _searchRequestId) {
         final errStr = e.toString().toLowerCase();
         final message = (errStr.contains('socketexception') ||
                 errStr.contains('failed host lookup') ||

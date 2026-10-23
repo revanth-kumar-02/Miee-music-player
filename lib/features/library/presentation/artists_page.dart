@@ -160,6 +160,8 @@ class _ArtistsPageState extends ConsumerState<ArtistsPage> {
                 
                 final favorites = ref.watch(favoritesProvider);
                 final isPlaying = playbackState.status == PlaybackStatus.playing;
+                final isLoading = playbackState.status == PlaybackStatus.loading ||
+                    playbackState.status == PlaybackStatus.buffering;
                 final total = playbackState.duration.inMilliseconds;
                 final pos = playbackState.position.inMilliseconds;
                 final progress = total > 0 ? pos / total : 0.0;
@@ -168,6 +170,7 @@ class _ArtistsPageState extends ConsumerState<ArtistsPage> {
                   musicItem: currentTrack,
                   progress: progress,
                   isPlaying: isPlaying,
+                  isLoading: isLoading,
                   isFavorited: favorites.any((t) => t.id == currentTrack.id),
                   isDark: false,
                   onTap: () => context.push('/player'),

@@ -24,13 +24,7 @@ class YouTubeResultTile extends ConsumerWidget {
   });
 
   static bool _isSameTrackId(String currentTrackId, String targetVideoId) {
-    final normCurrent = currentTrackId.startsWith('youtube_')
-        ? currentTrackId.replaceFirst('youtube_', '')
-        : currentTrackId;
-    final normTarget = targetVideoId.startsWith('youtube_')
-        ? targetVideoId.replaceFirst('youtube_', '')
-        : targetVideoId;
-    return normCurrent == normTarget;
+    return isSameTrackId(currentTrackId, targetVideoId);
   }
 
   void _showOptions(BuildContext context) {
@@ -45,6 +39,13 @@ class YouTubeResultTile extends ConsumerWidget {
   }
 
   void _handleTap(WidgetRef ref) {
+    final isLoading = ref.read(
+      playerControllerProvider.select((s) =>
+          s.loadingTrackId != null &&
+          isSameTrackId(s.loadingTrackId, video.id)),
+    );
+    if (isLoading) return;
+
     if (onTap != null) {
       onTap!();
     } else {
@@ -59,17 +60,27 @@ class YouTubeResultTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playback = ref.watch(playerControllerProvider);
-    final currentTrackId = playback.currentTrack?.id;
+    final currentTrackId = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack?.id),
+    );
     final isCurrentTrack =
-        currentTrackId != null && _isSameTrackId(currentTrackId, video.id);
-    final isPlaying = isCurrentTrack && playback.status == PlaybackStatus.playing;
+        currentTrackId != null && isSameTrackId(currentTrackId, video.id);
+    final isPlaying = isCurrentTrack &&
+        ref.watch(
+          playerControllerProvider.select(
+              (s) => s.status == PlaybackStatus.playing),
+        );
+    final isTrackLoading = ref.watch(
+      playerControllerProvider.select((s) =>
+          s.loadingTrackId != null &&
+          isSameTrackId(s.loadingTrackId, video.id)),
+    );
 
     return Semantics(
       label: 'YouTube video: ${video.title} by ${video.channelTitle}, duration ${video.duration}',
       button: true,
       child: InkWell(
-        onTap: () => _handleTap(ref),
+        onTap: isTrackLoading ? null : () => _handleTap(ref),
         borderRadius: BorderRadius.circular(10.0),
         child: Container(
           height: 72.0,
@@ -177,20 +188,35 @@ class YouTubeResultTile extends ConsumerWidget {
 
               // 3. Clear Play Action Button
               IconButton(
-                icon: Icon(
-                  isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
-                  color: isCurrentTrack ? AppColors.dustyRose : AppColors.mutedMauve.withOpacity(0.6),
-                  size: 28.0,
-                ),
-                onPressed: () {
-                  if (isCurrentTrack && isPlaying) {
-                    ref.read(playerControllerProvider.notifier).pause();
-                  } else {
-                    _handleTap(ref);
-                  }
-                },
+                icon: isTrackLoading
+                    ? const SizedBox(
+                        width: 22.0,
+                        height: 22.0,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                        ),
+                      )
+                    : Icon(
+                        isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
+                        color: isCurrentTrack ? AppColors.dustyRose : AppColors.mutedMauve.withOpacity(0.6),
+                        size: 28.0,
+                      ),
+                onPressed: isTrackLoading
+                    ? null
+                    : () {
+                        if (isCurrentTrack) {
+                          if (isPlaying) {
+                            ref.read(playerControllerProvider.notifier).pause();
+                          } else {
+                            ref.read(playerControllerProvider.notifier).play();
+                          }
+                        } else {
+                          _handleTap(ref);
+                        }
+                      },
                 splashRadius: 20.0,
-                tooltip: isPlaying ? 'Pause' : 'Play',
+                tooltip: isTrackLoading ? 'Loading' : (isPlaying ? 'Pause' : 'Play'),
               ),
 
               // 4. Options Menu trigger

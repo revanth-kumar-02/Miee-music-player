@@ -18,8 +18,16 @@ enum RepeatMode {
   all,
 }
 
+/// Utility to compare two track IDs while normalizing optional `youtube_` prefixes.
+bool isSameTrackId(String? a, String? b) {
+  if (a == null || b == null) return false;
+  final normA = a.startsWith('youtube_') ? a.replaceFirst('youtube_', '') : a;
+  final normB = b.startsWith('youtube_') ? b.replaceFirst('youtube_', '') : b;
+  return normA == normB;
+}
+
 /// Immutable data class holding the current playback status, duration metrics,
-/// selected track, shuffle settings, and repeat modes.
+/// selected track, shuffle settings, repeat modes, and active preparation states.
 class PlaybackState {
   final PlaybackStatus status;
   final Duration position;
@@ -32,6 +40,10 @@ class PlaybackState {
   final double volume;
   final String? playingFrom;
 
+  /// The ID of the track currently being resolved or prepared over the network.
+  /// Null if no track is actively resolving or if playback has begun / failed.
+  final String? loadingTrackId;
+
   const PlaybackState({
     required this.status,
     this.position = Duration.zero,
@@ -43,6 +55,7 @@ class PlaybackState {
     this.errorMessage,
     this.volume = 1.0,
     this.playingFrom,
+    this.loadingTrackId,
   });
 
   /// Factory constructor for initial empty state.
@@ -52,10 +65,8 @@ class PlaybackState {
 
   /// Returns a copy with updated fields.
   ///
-  /// To explicitly clear [errorMessage] to null, pass [clearErrorMessage]=true.
-  /// Passing [errorMessage]=null without the flag preserves the existing value,
-  /// because the `??` operator cannot distinguish "null as a value" from
-  /// "not supplied" without a sentinel.
+  /// To explicitly clear [errorMessage] or [loadingTrackId] to null, pass
+  /// [clearErrorMessage]=true or [clearLoadingTrackId]=true.
   PlaybackState copyWith({
     PlaybackStatus? status,
     Duration? position,
@@ -68,6 +79,8 @@ class PlaybackState {
     bool clearErrorMessage = false,
     double? volume,
     String? playingFrom,
+    String? loadingTrackId,
+    bool clearLoadingTrackId = false,
   }) {
     return PlaybackState(
       status: status ?? this.status,
@@ -81,6 +94,8 @@ class PlaybackState {
           clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
       volume: volume ?? this.volume,
       playingFrom: playingFrom ?? this.playingFrom,
+      loadingTrackId:
+          clearLoadingTrackId ? null : (loadingTrackId ?? this.loadingTrackId),
     );
   }
 }

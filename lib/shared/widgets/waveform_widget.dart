@@ -99,14 +99,16 @@ class _WaveformWidgetState extends State<WaveformWidget>
           behavior: HitTestBehavior.opaque,
           onHorizontalDragUpdate: (details) => _handleScrub(width, details.localPosition.dx),
           onTapDown: (details) => _handleScrub(width, details.localPosition.dx),
-          child: CustomPaint(
-            size: Size(double.infinity, widget.height),
-            painter: _WaveformPainter(
-              animation: _animationController,
-              activeProgress: widget.activeProgress,
-              baseHeights: _baseHeights,
-              activeColor: colorActive,
-              inactiveColor: colorInactive,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: Size(double.infinity, widget.height),
+              painter: _WaveformPainter(
+                animation: _animationController,
+                activeProgress: widget.activeProgress,
+                baseHeights: _baseHeights,
+                activeColor: colorActive,
+                inactiveColor: colorInactive,
+              ),
             ),
           ),
         );
@@ -146,7 +148,9 @@ class _WaveformPainter extends CustomPainter {
 
     if (barCount == 1) {
       final height = baseHeights[0];
-      final paint = Paint()..style = PaintingStyle.fill..color = activeProgress > 0 ? activeColor : inactiveColor;
+      final paint = Paint()
+        ..style = PaintingStyle.fill
+        ..color = activeProgress > 0 ? activeColor : inactiveColor;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH((effectiveWidth - 4.0) / 2.0, (size.height - height) / 2.0, 4.0, height),
@@ -161,19 +165,27 @@ class _WaveformPainter extends CustomPainter {
     final double slotWidth = effectiveWidth / barCount;
     final double barWidth = (slotWidth * 0.52).clamp(2.5, 7.0);
     final double gap = (effectiveWidth - (barCount * barWidth)) / (barCount - 1);
+    final Radius cornerRadius = Radius.circular(barWidth / 2.0);
+    final double scale = (size.height / 48.0).clamp(0.2, 1.5);
 
-    final paint = Paint()..style = PaintingStyle.fill;
+    final Paint activePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = activeColor;
+    final Paint inactivePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = inactiveColor;
+
     final animationValue = animation.value;
+    final double animPhaseBase = animationValue * 2.0 * math.pi;
 
     for (int i = 0; i < barCount; i++) {
       final barProgress = i / (barCount - 1);
       final isBarActive = activeProgress > 0.0 && barProgress <= activeProgress;
-      paint.color = isBarActive ? activeColor : inactiveColor;
+      final paint = isBarActive ? activePaint : inactivePaint;
 
       // Smooth oscillation offset per bar
-      final phase = (i * 0.42) + (animationValue * 2.0 * math.pi);
+      final phase = (i * 0.42) + animPhaseBase;
       final osc = 0.45 + 0.55 * math.sin(phase).abs();
-      final scale = (size.height / 48.0).clamp(0.2, 1.5);
       final height = (baseHeights[i] * osc * scale).clamp(2.5, size.height);
 
       final left = startX + i * (barWidth + gap);
@@ -181,8 +193,8 @@ class _WaveformPainter extends CustomPainter {
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(left, top, math.max(1.0, barWidth), height),
-          Radius.circular(barWidth / 2.0),
+          Rect.fromLTWH(left, top, barWidth, height),
+          cornerRadius,
         ),
         paint,
       );

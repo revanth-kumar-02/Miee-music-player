@@ -54,7 +54,9 @@ class AlbumDetailPage extends ConsumerWidget {
       filePath: song.filePath,
     )).toList();
 
-    final playbackState = ref.watch(playerControllerProvider);
+    final currentPlayingTrackId = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack?.id),
+    );
     final playerController = ref.read(playerControllerProvider.notifier);
 
     return Scaffold(
@@ -74,8 +76,12 @@ class AlbumDetailPage extends ConsumerWidget {
             flexibleSpace: FlexibleSpaceBar(
               background: album.artworkPath.isNotEmpty
                   ? Image.file(
-                      File(album.artworkPath),
+                      File(album.artworkPath.startsWith('file://')
+                          ? Uri.parse(album.artworkPath).toFilePath()
+                          : album.artworkPath),
                       fit: BoxFit.cover,
+                      cacheWidth: 600,
+                      cacheHeight: 600,
                     )
                   : Container(
                       color: AppColors.surfaceContainerHigh,
@@ -176,7 +182,7 @@ class AlbumDetailPage extends ConsumerWidget {
                 (context, index) {
                   final track = trackList[index];
                   final isCurrentTrack =
-                      playbackState.currentTrack?.id == track.id;
+                      currentPlayingTrackId == track.id;
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(

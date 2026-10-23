@@ -339,7 +339,13 @@ class QueuePage extends ConsumerWidget {
     bool isPlaying,
     PlayerController controller,
   ) {
-    return Container(
+    return Consumer(
+      builder: (context, ref, _) {
+        final isLoading = ref.watch(playerControllerProvider.select((s) =>
+            s.status == PlaybackStatus.loading ||
+            s.status == PlaybackStatus.buffering));
+
+        return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.sm,
@@ -354,6 +360,7 @@ class QueuePage extends ConsumerWidget {
         artist: currentTrack.artist,
         duration: currentTrack.duration,
         isPlaying: isPlaying,
+        isLoading: isLoading,
         onTap: () {
           if (context.canPop()) {
             context.pop();
@@ -366,18 +373,27 @@ class QueuePage extends ConsumerWidget {
           children: [
             // Play / Pause Action Button
             IconButton(
-              icon: Icon(
-                isPlaying
-                    ? Icons.pause_circle_filled_rounded
-                    : Icons.play_circle_fill_rounded,
-                color: AppColors.primary,
-                size: 28.0,
-              ),
-              onPressed: () => controller.togglePlayPause(),
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 20.0,
+                      height: 20.0,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    )
+                  : Icon(
+                      isPlaying
+                          ? Icons.pause_circle_filled_rounded
+                          : Icons.play_circle_fill_rounded,
+                      color: AppColors.primary,
+                      size: 28.0,
+                    ),
+              onPressed: isLoading ? null : () => controller.togglePlayPause(),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               splashRadius: 20.0,
-              tooltip: isPlaying ? 'Pause' : 'Play',
+              tooltip: isLoading ? 'Loading' : (isPlaying ? 'Pause' : 'Play'),
             ),
             const SizedBox(width: 4.0),
             // Next Track Action Button
@@ -410,6 +426,8 @@ class QueuePage extends ConsumerWidget {
         ),
         sourceBadge: _SourceBadge(isYoutube: currentTrack.isYoutube),
       ),
+    );
+      },
     );
   }
 }

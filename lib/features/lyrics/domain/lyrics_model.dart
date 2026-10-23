@@ -1,12 +1,55 @@
+import 'dart:collection';
+
 /// Model representing a single line of lyrics with its timestamp.
 class LyricLine {
   final Duration time;
   final String text;
 
-  LyricLine({
+  const LyricLine({
     required this.time,
     required this.text,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LyricLine &&
+          runtimeType == other.runtimeType &&
+          time == other.time &&
+          text == other.text;
+
+  @override
+  int get hashCode => time.hashCode ^ text.hashCode;
+}
+
+/// Container for resolved lyrics, explicitly capturing whether timing metadata
+/// is synchronized or unsynchronized plain text.
+class LyricsData with IterableMixin<LyricLine> {
+  final List<LyricLine> lines;
+  final bool isSynced;
+  final String? source;
+
+  const LyricsData({
+    required this.lines,
+    required this.isSynced,
+    this.source,
+  });
+
+  static const empty = LyricsData(lines: [], isSynced: false);
+
+  @override
+  Iterator<LyricLine> get iterator => lines.iterator;
+
+  @override
+  bool get isEmpty => lines.isEmpty;
+
+  @override
+  bool get isNotEmpty => lines.isNotEmpty;
+
+  @override
+  int get length => lines.length;
+
+  LyricLine operator [](int index) => lines[index];
 }
 
 /// Parser for standard `.lrc` formatted lyrics files.

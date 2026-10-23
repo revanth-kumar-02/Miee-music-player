@@ -59,7 +59,9 @@ class GenreDetailPage extends ConsumerWidget {
     }
 
     final songsAsync = ref.watch(genreSongsProvider(genreId));
-    final playbackState = ref.watch(playerControllerProvider);
+    final currentPlayingTrackId = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack?.id),
+    );
     final playerController = ref.read(playerControllerProvider.notifier);
 
     return Scaffold(
@@ -163,7 +165,7 @@ class GenreDetailPage extends ConsumerWidget {
                         itemBuilder: (context, index) {
                           final track = genreSongs[index];
                           final isCurrentTrack =
-                              playbackState.currentTrack?.id == track.id;
+                              currentPlayingTrackId == track.id;
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(

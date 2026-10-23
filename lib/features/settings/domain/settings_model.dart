@@ -12,16 +12,16 @@ class SettingsModel {
   final String? lastScanTime;
 
   const SettingsModel({
-    required this.resumePlayback,
-    required this.defaultShuffle,
-    required this.defaultRepeat,
-    required this.playbackSpeed,
-    required this.gaplessPlayback,
-    required this.crossfade,
-    required this.preferredSource,
-    required this.backgroundPlayback,
-    required this.mediaNotification,
-    required this.lockScreenControls,
+    this.resumePlayback = true,
+    this.defaultShuffle = false,
+    this.defaultRepeat = 'off',
+    this.playbackSpeed = 1.0,
+    this.gaplessPlayback = true,
+    this.crossfade = false,
+    this.preferredSource = 'preferLocal',
+    this.backgroundPlayback = true,
+    this.mediaNotification = true,
+    this.lockScreenControls = true,
     this.lastScanTime,
   });
 

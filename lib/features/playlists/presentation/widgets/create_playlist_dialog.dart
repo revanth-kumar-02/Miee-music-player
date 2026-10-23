@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
@@ -104,8 +105,21 @@ class _CreatePlaylistDialogState extends ConsumerState<_CreatePlaylistDialog> {
       imageQuality: 90,
     );
     if (picked != null) {
+      String finalPath = picked.path;
+      try {
+        final docsDir = await getApplicationDocumentsDirectory();
+        final coversDir = Directory('${docsDir.path}/playlist_covers');
+        if (!await coversDir.exists()) {
+          await coversDir.create(recursive: true);
+        }
+        final ext = picked.path.contains('.') ? picked.path.split('.').last : 'jpg';
+        final dest = '${coversDir.path}/cover_temp_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        await File(picked.path).copy(dest);
+        finalPath = dest;
+      } catch (_) {}
+
       setState(() {
-        _pickedCoverPath = picked.path;
+        _pickedCoverPath = finalPath;
         _coverCleared = false;
       });
     }
@@ -293,18 +307,27 @@ class _CreatePlaylistDialogState extends ConsumerState<_CreatePlaylistDialog> {
   /// Renders the chosen image with a semi-transparent edit overlay.
   Widget _buildCoverPreview() {
     final url = _displayCoverUrl!;
+    final isNetwork = url.startsWith('http');
+    final localPath = isNetwork
+        ? url
+        : (url.startsWith('file://') ? Uri.parse(url).toFilePath() : url);
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        url.startsWith('http')
+        isNetwork
             ? Image.network(
                 url,
                 fit: BoxFit.cover,
+                cacheWidth: 220,
+                cacheHeight: 220,
                 errorBuilder: (_, __, ___) => _buildCoverPlaceholder(),
               )
             : Image.file(
-                File(url),
+                File(localPath),
                 fit: BoxFit.cover,
+                cacheWidth: 220,
+                cacheHeight: 220,
                 errorBuilder: (_, __, ___) => _buildCoverPlaceholder(),
               ),
         // Dim overlay so the edit icon is readable

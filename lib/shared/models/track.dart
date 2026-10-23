@@ -43,5 +43,15 @@ class Track implements MusicItem {
 
   @override
   bool get isYoutube => id.startsWith('youtube_') || (localFilePath?.contains('youtube.com') ?? false);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Track &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 

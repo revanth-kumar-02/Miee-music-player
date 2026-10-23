@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -516,11 +517,23 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
           fit: StackFit.expand,
           children: [
             if (hasImage)
-              Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildFallbackCover(),
-              )
+              imageUrl.startsWith('http')
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      cacheWidth: 300,
+                      cacheHeight: 300,
+                      errorBuilder: (_, __, ___) => _buildFallbackCover(),
+                    )
+                  : Image.file(
+                      File(imageUrl.startsWith('file://')
+                          ? Uri.parse(imageUrl).toFilePath()
+                          : imageUrl),
+                      fit: BoxFit.cover,
+                      cacheWidth: 300,
+                      cacheHeight: 300,
+                      errorBuilder: (_, __, ___) => _buildFallbackCover(),
+                    )
             else
               _buildFallbackCover(),
             Container(
@@ -818,22 +831,45 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                                     ),
                                   )
                                 : (img != null && img.isNotEmpty)
-                                    ? Image.network(
-                                        img,
-                                        width: 36,
-                                        height: 36,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          width: 36,
-                                          height: 36,
-                                          color: AppColors.softClay,
-                                          child: const Icon(
-                                            Icons.music_note_rounded,
-                                            size: 18,
-                                            color: AppColors.cocoaPlum,
-                                          ),
-                                        ),
-                                      )
+                                    ? (img.startsWith('http')
+                                        ? Image.network(
+                                            img,
+                                            width: 36,
+                                            height: 36,
+                                            fit: BoxFit.cover,
+                                            cacheWidth: 72,
+                                            cacheHeight: 72,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              width: 36,
+                                              height: 36,
+                                              color: AppColors.softClay,
+                                              child: const Icon(
+                                                Icons.music_note_rounded,
+                                                size: 18,
+                                                color: AppColors.cocoaPlum,
+                                              ),
+                                            ),
+                                          )
+                                        : Image.file(
+                                            File(img.startsWith('file://')
+                                                ? Uri.parse(img).toFilePath()
+                                                : img),
+                                            width: 36,
+                                            height: 36,
+                                            fit: BoxFit.cover,
+                                            cacheWidth: 72,
+                                            cacheHeight: 72,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              width: 36,
+                                              height: 36,
+                                              color: AppColors.softClay,
+                                              child: const Icon(
+                                                Icons.music_note_rounded,
+                                                size: 18,
+                                                color: AppColors.cocoaPlum,
+                                              ),
+                                            ),
+                                          ))
                                     : Container(
                                         width: 36,
                                         height: 36,

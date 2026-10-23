@@ -66,7 +66,9 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
   @override
   Widget build(BuildContext context) {
     final localSongs = ref.watch(songsProvider);
-    final playbackState = ref.watch(playerControllerProvider);
+    final currentPlayingSongId = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack?.id),
+    );
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final favorites = ref.watch(favoritesProvider);
 
@@ -350,7 +352,7 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
                             itemBuilder: (context, index) {
                               final song = filteredSongs[index];
                               final isCurrentTrack =
-                                  playbackState.currentTrack?.id == song.id;
+                                  currentPlayingSongId == song.id;
 
                               return Padding(
                                 padding:
@@ -398,6 +400,8 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
 
                 final isPlaying =
                     playbackState.status == PlaybackStatus.playing;
+                final isLoading = playbackState.status == PlaybackStatus.loading ||
+                    playbackState.status == PlaybackStatus.buffering;
                 final total = playbackState.duration.inMilliseconds;
                 final pos = playbackState.position.inMilliseconds;
                 final progress = total > 0 ? pos / total : 0.0;
@@ -406,6 +410,7 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
                   musicItem: currentTrack,
                   progress: progress,
                   isPlaying: isPlaying,
+                  isLoading: isLoading,
                   isFavorited: favorites.any((t) => t.id == currentTrack.id),
                   isDark: true,
                   onTap: () => context.push('/player'),

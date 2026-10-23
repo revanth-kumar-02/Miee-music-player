@@ -65,14 +65,54 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
+    ref.listen<String?>(
+      playerControllerProvider.select(
+          (s) => s.status == pb.PlaybackStatus.error ? s.errorMessage : null),
+      (previous, next) {
+        if (next != null && next.isNotEmpty) {
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          if (messenger == null) return;
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(next),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Dismiss',
+                textColor: AppColors.dustyRose,
+                onPressed: () {
+                  messenger.hideCurrentSnackBar();
+                },
+              ),
+            ),
+          );
+        }
+      },
+    );
+
+    String location = '/';
+    String uriPath = '/';
+    try {
+      final routerState = GoRouterState.of(context);
+      location = routerState.matchedLocation;
+      uriPath = routerState.uri.path;
+    } catch (_) {
+      // Fallback for tests or widget harnesses rendered without GoRouter
+    }
+
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
     final isTablet = screenWidth >= 650 && screenWidth < 960;
 
-    final playback = ref.watch(playerControllerProvider);
-    final uriPath = GoRouterState.of(context).uri.path;
+    final hasTrack = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack != null),
+    );
     final isNowPlayingRoute = location == '/player' || uriPath == '/player';
+    final isSettingsRoute = location == '/settings' ||
+        uriPath == '/settings' ||
+        location.startsWith('/settings/') ||
+        uriPath.startsWith('/settings/');
 
     // Detail screens where mobile bottom nav is hidden
     final hideBottomNav = (isNowPlayingRoute ||
@@ -92,14 +132,14 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
-            // Floating MiniPlayer (Visible on all screens EXCEPT full Now Playing)
-            if (!isNowPlayingRoute && playback.currentTrack != null)
+            // Floating MiniPlayer (Visible on all screens EXCEPT full Now Playing and Settings)
+            if (!isNowPlayingRoute && !isSettingsRoute && hasTrack)
               Positioned(
                 left: AppSpacing.sm,
                 right: AppSpacing.sm,
                 bottom: (hideBottomNav ? 12.0 : 88.0) +
                     MediaQuery.of(context).padding.bottom,
-                child: _buildMobileMiniPlayer(context, playback),
+                child: _MobileMiniPlayerHost(shellState: this),
               ),
             // Bottom Navigation
             if (!hideBottomNav)
@@ -122,7 +162,6 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     const double playerHeight = 84.0;
     const double topBarHeight = 56.0;
 
-    final hasTrack = playback.currentTrack != null;
     final showDrawer = _isNowPlayingDrawerOpen && hasTrack;
 
     return Scaffold(
@@ -165,7 +204,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                     right: showDrawer ? 340.0 : 20.0,
                     bottom: 14.0,
                     height: playerHeight,
-                    child: _buildDesktopPlayerBar(playback),
+                    child: _DesktopPlayerBarHost(shellState: this),
                   ),
 
                 // Cocoa Plum Now Playing Right Drawer
@@ -175,7 +214,9 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                     right: 0,
                     bottom: 0,
                     width: 320.0,
-                    child: _buildNowPlayingPanel(playback),
+                    child: _DesktopNowPlayingPanelHost(
+                      onClose: () => setState(() => _isNowPlayingDrawerOpen = false),
+                    ),
                   ),
               ],
             ),
@@ -340,24 +381,30 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                       width: 1,
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.add,
-                        size: 18,
-                        color: AppColors.vanillaCream,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.add,
+                            size: 18,
+                            color: AppColors.vanillaCream,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'New Playlist',
+                            style: GoogleFonts.geist(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.vanillaCream,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'New Playlist',
-                        style: GoogleFonts.geist(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.vanillaCream,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -408,15 +455,19 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                 ),
                 if (!isCollapsed) ...[
                   const SizedBox(width: 12),
-                  Text(
-                    label,
-                    style: GoogleFonts.geist(
-                      fontSize: 13.5,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? AppColors.white
-                          : AppColors.vanillaCream.withOpacity(0.85),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.geist(
+                        fontSize: 13.5,
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? AppColors.white
+                            : AppColors.vanillaCream.withOpacity(0.85),
+                      ),
                     ),
                   ),
                 ],
@@ -701,14 +752,17 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     if (track == null) return const SizedBox.shrink();
 
     final isPlaying = playback.status == pb.PlaybackStatus.playing;
+    final isLoading = playback.status == pb.PlaybackStatus.loading ||
+        playback.status == pb.PlaybackStatus.buffering;
     final progress = playback.duration.inMilliseconds > 0
         ? (playback.position.inMilliseconds /
                 playback.duration.inMilliseconds)
             .clamp(0.0, 1.0)
         : 0.0;
 
-    final favorites = ref.watch(favoritesProvider);
-    final isLiked = favorites.any((t) => t.id == track.id);
+    final isLiked = ref.watch(
+      favoritesProvider.select((favs) => favs.any((t) => t.id == track.id)),
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -811,15 +865,18 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
               }
             },
           ),
-
-          const Spacer(),
+          const SizedBox(width: 12),
 
           // ── Center: Playback Controls & Clean Progress Slider ──
           Expanded(
-            flex: 5,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: 460,
+                height: 84,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                 // Controls Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -858,24 +915,35 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                       shadowColor: AppColors.dustyRose.withOpacity(0.4),
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: () {
-                          if (isPlaying) {
-                            ref.read(playerControllerProvider.notifier).pause();
-                          } else {
-                            ref.read(playerControllerProvider.notifier).play();
-                          }
-                        },
+                        onTap: isLoading
+                            ? null
+                            : () {
+                                if (isPlaying) {
+                                  ref.read(playerControllerProvider.notifier).pause();
+                                } else {
+                                  ref.read(playerControllerProvider.notifier).play();
+                                }
+                              },
                         child: Container(
                           width: 38,
                           height: 38,
                           alignment: Alignment.center,
-                          child: Icon(
-                            isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            size: 22,
-                            color: AppColors.white,
-                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                                  ),
+                                )
+                              : Icon(
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  size: 22,
+                                  color: AppColors.white,
+                                ),
                         ),
                       ),
                     ),
@@ -939,19 +1007,22 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                           ),
                           overlayColor: AppColors.dustyRose.withOpacity(0.15),
                         ),
-                        child: Slider(
-                          value: progress,
-                          onChanged: (val) {
-                            if (playback.duration.inMilliseconds > 0) {
-                              final seekPos = Duration(
-                                milliseconds:
-                                    (val * playback.duration.inMilliseconds).toInt(),
-                              );
-                              ref
-                                  .read(playerControllerProvider.notifier)
-                                  .seek(seekPos);
-                            }
-                          },
+                        child: SizedBox(
+                          height: 20,
+                          child: Slider(
+                            value: progress,
+                            onChanged: (val) {
+                              if (playback.duration.inMilliseconds > 0) {
+                                final seekPos = Duration(
+                                  milliseconds:
+                                      (val * playback.duration.inMilliseconds).toInt(),
+                                );
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .seek(seekPos);
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -975,8 +1046,10 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
               ],
             ),
           ),
+        ),
+      ),
 
-          const Spacer(),
+          const SizedBox(width: 12),
 
           // ── Right: Queue / Volume / Fullscreen Expand ──
           Row(
@@ -1041,16 +1114,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     );
   }
 
-  // ── COCOA PLUM NOW PLAYING PANEL (Right Drawer on Desktop) ─────────────────
 
-  Widget _buildNowPlayingPanel(pb.PlaybackState playback) {
-    return DesktopNowPlayingPanel(
-      playback: playback,
-      onClose: () {
-        setState(() => _isNowPlayingDrawerOpen = false);
-      },
-    );
-  }
 
   // ── MOBILE MINI PLAYER ─────────────────────────────────────────────────────
 
@@ -1060,12 +1124,16 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     if (track == null) return const SizedBox.shrink();
 
     final isPlaying = playback.status == pb.PlaybackStatus.playing;
-    final favorites = ref.watch(favoritesProvider);
-    final isLiked = favorites.any((t) => t.id == track.id);
+    final isLoading = playback.status == pb.PlaybackStatus.loading ||
+        playback.status == pb.PlaybackStatus.buffering;
+    final isLiked = ref.watch(
+      favoritesProvider.select((favs) => favs.any((t) => t.id == track.id)),
+    );
 
     return MiniPlayer(
       musicItem: track,
       isPlaying: isPlaying,
+      isLoading: isLoading,
       isFavorited: isLiked,
       progress: playback.duration.inMilliseconds > 0
           ? playback.position.inMilliseconds / playback.duration.inMilliseconds
@@ -1081,7 +1149,23 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         }
       },
       onFavoriteTap: () {
-        ref.read(favoritesProvider.notifier).toggleFavorite(track);
+        final favNotifier = ref.read(favoritesProvider.notifier);
+        if (isLiked) {
+          favNotifier.removeFavorite(track.id);
+        } else {
+          favNotifier.addFavorite(
+            track is Track
+                ? track
+                : Track(
+                    id: track.id,
+                    title: track.title,
+                    artist: track.artist,
+                    imageUrl: track.imageUrl,
+                    duration: track.duration,
+                    filePath: track.filePath,
+                  ),
+          );
+        }
       },
     );
   }
@@ -1121,6 +1205,39 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
   }
 }
 
+class _MobileMiniPlayerHost extends ConsumerWidget {
+  final _MainAppShellState shellState;
+  const _MobileMiniPlayerHost({required this.shellState});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playback = ref.watch(playerControllerProvider);
+    return shellState._buildMobileMiniPlayer(context, playback);
+  }
+}
+
+class _DesktopPlayerBarHost extends ConsumerWidget {
+  final _MainAppShellState shellState;
+  const _DesktopPlayerBarHost({required this.shellState});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playback = ref.watch(playerControllerProvider);
+    return shellState._buildDesktopPlayerBar(playback);
+  }
+}
+
+class _DesktopNowPlayingPanelHost extends ConsumerWidget {
+  final VoidCallback? onClose;
+  const _DesktopNowPlayingPanelHost({this.onClose});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playback = ref.watch(playerControllerProvider);
+    return DesktopNowPlayingPanel(playback: playback, onClose: onClose);
+  }
+}
+
 /// The desktop right-hand Now Playing drawer panel.
 class DesktopNowPlayingPanel extends ConsumerWidget {
   final pb.PlaybackState playback;
@@ -1151,6 +1268,8 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
       return Image.network(
         rawUrl,
         fit: BoxFit.cover,
+        cacheWidth: 400,
+        cacheHeight: 400,
         errorBuilder: (_, __, ___) => _buildArtworkPlaceholder(),
       );
     }
@@ -1161,6 +1280,8 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
       return Image.file(
         File(normalizedPath),
         fit: BoxFit.cover,
+        cacheWidth: 400,
+        cacheHeight: 400,
         errorBuilder: (_, __, ___) => _buildArtworkPlaceholder(),
       );
     } catch (_) {
@@ -1174,13 +1295,16 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
     if (track == null) return const SizedBox.shrink();
 
     final isPlaying = playback.status == pb.PlaybackStatus.playing;
+    final isLoading = playback.status == pb.PlaybackStatus.loading ||
+        playback.status == pb.PlaybackStatus.buffering;
     final progress = playback.duration.inMilliseconds > 0
         ? (playback.position.inMilliseconds /
                 playback.duration.inMilliseconds)
             .clamp(0.0, 1.0)
         : 0.0;
-    final favorites = ref.watch(favoritesProvider);
-    final isLiked = favorites.any((t) => t.id == track.id);
+    final isLiked = ref.watch(
+      favoritesProvider.select((favs) => favs.any((t) => t.id == track.id)),
+    );
 
     return Container(
       width: 320,
@@ -1239,9 +1363,7 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                   size: 20,
                 ),
                 tooltip: 'More options',
-                onPressed: track != null
-                    ? () => showAddToPlaylistSheet(context, track)
-                    : null,
+                onPressed: () => showAddToPlaylistSheet(context, track),
               ),
             ],
           ),
@@ -1406,24 +1528,35 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                 elevation: 3,
                 child: InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: () {
-                    if (isPlaying) {
-                      ref.read(playerControllerProvider.notifier).pause();
-                    } else {
-                      ref.read(playerControllerProvider.notifier).play();
-                    }
-                  },
+                  onTap: isLoading
+                      ? null
+                      : () {
+                          if (isPlaying) {
+                            ref.read(playerControllerProvider.notifier).pause();
+                          } else {
+                            ref.read(playerControllerProvider.notifier).play();
+                          }
+                        },
                   child: Container(
                     width: 48,
                     height: 48,
                     alignment: Alignment.center,
-                    child: Icon(
-                      isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      size: 28,
-                      color: AppColors.white,
-                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                            ),
+                          )
+                        : Icon(
+                            isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            size: 28,
+                            color: AppColors.white,
+                          ),
                   ),
                 ),
               ),

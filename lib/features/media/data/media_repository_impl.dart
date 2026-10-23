@@ -57,16 +57,29 @@ class MediaRepositoryImpl implements MediaRepository {
     return true;
   }
 
-  /// Helper to fetch and write album artwork to a temporary local file, returning the path.
+  /// Returns durable artwork directory under getApplicationDocumentsDirectory.
+  Future<String> _getArtworkDirectory() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final dir = Directory('${docsDir.path}/artwork_cache');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir.path;
+  }
+
+  /// Helper to fetch and write album artwork to a local file, returning the path.
   Future<String> _getAlbumArtworkPath(int? albumId) async {
     if (albumId == null) return '';
     if (_albumArtCache.containsKey(albumId)) {
-      return _albumArtCache[albumId]!;
+      final cached = _albumArtCache[albumId]!;
+      if (cached.isNotEmpty && File(cached).existsSync()) {
+        return cached;
+      }
     }
 
     try {
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/album_$albumId.png');
+      final artDir = await _getArtworkDirectory();
+      final file = File('$artDir/album_$albumId.png');
 
       if (await file.exists()) {
         _albumArtCache[albumId] = file.path;
@@ -92,6 +105,41 @@ class MediaRepositoryImpl implements MediaRepository {
     return '';
   }
 
+  /// Helper to fetch artwork for a song: first attempts album art, then falls back to audio art.
+  Future<String> _getSongArtworkPath(int songId, int? albumId) async {
+    // 1. Try album artwork first
+    if (albumId != null) {
+      final albumPath = await _getAlbumArtworkPath(albumId);
+      if (albumPath.isNotEmpty) return albumPath;
+    }
+
+    // 2. Fallback to AUDIO artwork for songId
+    try {
+      final artDir = await _getArtworkDirectory();
+      final file = File('$artDir/song_$songId.png');
+
+      if (await file.exists()) {
+        return file.path;
+      }
+
+      final bytes = await _audioQuery.queryArtwork(
+        songId,
+        ArtworkType.AUDIO,
+        format: ArtworkFormat.PNG,
+        size: 800,
+      );
+
+      if (bytes != null && bytes.isNotEmpty) {
+        await file.writeAsBytes(bytes);
+        return file.path;
+      }
+    } catch (_) {
+      // Gracefully catch background IO errors
+    }
+
+    return '';
+  }
+
   String _formatDuration(int? ms) {
     if (ms == null || ms <= 0) return '0:00';
     final dur = Duration(milliseconds: ms);
@@ -100,11 +148,11 @@ class MediaRepositoryImpl implements MediaRepository {
     return '$minutes:$seconds';
   }
 
-  String _fixCachePath(String cachedPath, String currentTempDirPath) {
+  String _fixCachePath(String cachedPath, String currentArtDirPath) {
     if (cachedPath.isEmpty) return '';
     if (cachedPath.startsWith('http')) return cachedPath;
     final fileName = cachedPath.split(Platform.isWindows ? '\\' : '/').last;
-    return '$currentTempDirPath/$fileName';
+    return '$currentArtDirPath/$fileName';
   }
 
   Future<void> _queryAndSaveArtwork(int id, ArtworkType type, String targetPath) async {
@@ -133,7 +181,7 @@ class MediaRepositoryImpl implements MediaRepository {
       final box = Hive.box(HiveBoxes.preferences);
       final cachedData = box.get('scanned_songs');
       if (cachedData is List) {
-        final tempDir = await getTemporaryDirectory();
+        final artDir = await _getArtworkDirectory();
         final List<MediaSong> cachedSongs = [];
         for (final item in cachedData) {
           if (item is Map) {
@@ -145,16 +193,24 @@ class MediaRepositoryImpl implements MediaRepository {
               continue;
             }
 
-            final fixedArtworkPath = _fixCachePath(song.artworkPath, tempDir.path);
+            final fixedArtworkPath = _fixCachePath(song.artworkPath, artDir);
             
             if (fixedArtworkPath.isNotEmpty) {
               final file = File(fixedArtworkPath);
               if (!await file.exists()) {
                 final baseName = fixedArtworkPath.split(Platform.isWindows ? '\\' : '/').last;
-                final idStr = baseName.replaceAll('album_', '').replaceAll('.png', '');
-                final albumId = int.tryParse(idStr);
-                if (albumId != null) {
-                  await _queryAndSaveArtwork(albumId, ArtworkType.ALBUM, fixedArtworkPath);
+                if (baseName.startsWith('album_')) {
+                  final idStr = baseName.replaceAll('album_', '').replaceAll('.png', '');
+                  final albumId = int.tryParse(idStr);
+                  if (albumId != null) {
+                    await _queryAndSaveArtwork(albumId, ArtworkType.ALBUM, fixedArtworkPath);
+                  }
+                } else if (baseName.startsWith('song_')) {
+                  final idStr = baseName.replaceAll('song_', '').replaceAll('.png', '');
+                  final songId = int.tryParse(idStr);
+                  if (songId != null) {
+                    await _queryAndSaveArtwork(songId, ArtworkType.AUDIO, fixedArtworkPath);
+                  }
                 } else {
                   final songId = int.tryParse(song.id);
                   if (songId != null) {
@@ -212,7 +268,7 @@ class MediaRepositoryImpl implements MediaRepository {
       final artistName = song.artist!;
       final albumName = (song.album == null || song.album == '<unknown>' || song.album!.trim().isEmpty) ? 'Unknown Album' : song.album!;
 
-      final artPath = await _getAlbumArtworkPath(song.albumId);
+      final artPath = await _getSongArtworkPath(song.id, song.albumId);
       songs.add(
         MediaSong(
           id: song.id.toString(),

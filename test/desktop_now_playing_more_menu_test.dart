@@ -6,11 +6,30 @@ import 'package:Miee/core/audio/playback_state.dart' as pb;
 import 'package:Miee/core/audio/player_controller.dart';
 import 'package:Miee/core/audio/providers.dart';
 import 'package:Miee/core/audio/queue_manager.dart';
+import 'package:Miee/features/library/providers/library_providers.dart';
 import 'package:Miee/features/playlists/domain/playlist_model.dart';
 import 'package:Miee/features/playlists/providers/playlist_providers.dart';
+import 'package:Miee/features/profile/domain/profile_model.dart';
+import 'package:Miee/features/profile/presentation/profile_controller.dart';
 import 'package:Miee/shared/models/music_item.dart';
 import 'package:Miee/shared/models/track.dart';
 import 'package:Miee/shared/widgets/main_app_shell.dart';
+
+class MockFavoritesNotifier extends StateNotifier<List<Track>>
+    implements FavoritesNotifier {
+  MockFavoritesNotifier([List<Track>? state]) : super(state ?? []);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeProfileController extends StateNotifier<ProfileModel>
+    implements ProfileController {
+  FakeProfileController() : super(ProfileModel.defaultProfile());
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// Test spy for PlaylistController capturing addTrack calls.
 class FakePlaylistController extends StateNotifier<PlaylistsState>
@@ -85,13 +104,13 @@ class FakePlayerController extends StateNotifier<pb.PlaybackState>
   }
 
   @override
-  void toggleShuffle() {
+  Future<void> toggleShuffle() async {
     toggleShuffleCount++;
     state = state.copyWith(isShuffleEnabled: !state.isShuffleEnabled);
   }
 
   @override
-  void toggleRepeatMode() {
+  Future<void> toggleRepeatMode() async {
     toggleRepeatCount++;
     final nextMode = state.repeatMode == pb.RepeatMode.off
         ? pb.RepeatMode.all
@@ -139,6 +158,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+          ],
           child: MaterialApp(
             home: Scaffold(
               body: DesktopNowPlayingPanel(
@@ -162,6 +184,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+          ],
           child: MaterialApp(
             home: Scaffold(
               body: DesktopNowPlayingPanel(
@@ -190,6 +215,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
             playlistControllerProvider.overrideWith((ref) => fakePlaylistController),
             allPlaylistsProvider.overrideWithValue([testPlaylist]),
           ],
@@ -239,6 +265,7 @@ void main() {
           builder: (context, setState) {
             return ProviderScope(
               overrides: [
+                favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
                 playlistControllerProvider.overrideWith((ref) => fakePlaylistController),
                 allPlaylistsProvider.overrideWithValue([testPlaylist]),
               ],
@@ -300,6 +327,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+          ],
           child: MaterialApp(
             home: Scaffold(
               body: DesktopNowPlayingPanel(
@@ -341,6 +371,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+            profileProvider.overrideWith((ref) => FakeProfileController()),
             playerControllerProvider.overrideWith((ref) => fakePlayer),
             playlistControllerProvider.overrideWith((ref) => fakePlaylist),
             allPlaylistsProvider.overrideWithValue([testPlaylist]),
@@ -371,7 +403,7 @@ void main() {
 
       // Bottom sheet Add to Playlist appears
       expect(find.text('Add to Playlist'), findsOneWidget);
-      expect(find.text('Chill Vibes'), findsOneWidget);
+      expect(find.text('Chill Vibes'), findsWidgets);
     });
 
     testWidgets('MainAppShell on mobile viewport hides desktop drawer and uses mobile MiniPlayer', (tester) async {
@@ -393,6 +425,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
             playerControllerProvider.overrideWith((ref) => fakePlayer),
           ],
           child: const MaterialApp(

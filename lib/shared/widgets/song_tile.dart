@@ -71,14 +71,21 @@ class SongTile extends StatelessWidget {
     Widget leadingWidget;
 
     if (imageUrl != null && imageUrl!.isNotEmpty) {
+      final isNetwork = imageUrl!.startsWith('http');
+      final normalizedPath = isNetwork
+          ? imageUrl!
+          : (imageUrl!.startsWith('file://')
+              ? Uri.parse(imageUrl!).toFilePath()
+              : imageUrl!);
+
       leadingWidget = ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            imageUrl!.startsWith('http')
+            isNetwork
                 ? Image.network(
-                    imageUrl!,
+                    normalizedPath,
                     width: 48.0,
                     height: 48.0,
                     fit: BoxFit.cover,
@@ -96,7 +103,7 @@ class SongTile extends StatelessWidget {
                     ),
                   )
                 : Image.file(
-                    File(imageUrl!),
+                    File(normalizedPath),
                     width: 48.0,
                     height: 48.0,
                     fit: BoxFit.cover,
@@ -141,43 +148,86 @@ class SongTile extends StatelessWidget {
           ],
         ),
       );
-    } else if (isLoading) {
-      leadingWidget = const SizedBox(
-        width: 48.0,
-        height: 48.0,
-        child: Center(
-          child: SizedBox(
-            width: 20.0,
-            height: 20.0,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+    } else if (index != null) {
+      if (isLoading) {
+        leadingWidget = const SizedBox(
+          width: 32.0,
+          child: Center(
+            child: SizedBox(
+              width: 18.0,
+              height: 18.0,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.0,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
             ),
           ),
-        ),
-      );
-    } else if (isPlaying) {
-      leadingWidget = const SizedBox(
-        width: 48.0,
-        height: 48.0,
-        child: Center(
-          child: _EqualizerAnimation(),
-        ),
-      );
-    } else if (index != null) {
-      leadingWidget = SizedBox(
-        width: 32.0,
-        child: Text(
-          index!.toString().padLeft(2, '0'),
-          style: AppTypography.labelSmall.copyWith(
-            color: AppColors.onSurfaceVariant,
-            fontWeight: FontWeight.bold,
+        );
+      } else if (isPlaying) {
+        leadingWidget = const SizedBox(
+          width: 32.0,
+          child: Center(
+            child: _EqualizerAnimation(),
           ),
-          textAlign: TextAlign.center,
+        );
+      } else {
+        leadingWidget = SizedBox(
+          width: 32.0,
+          child: Text(
+            index!.toString().padLeft(2, '0'),
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        );
+      }
+    } else {
+      // Fallback 48x48 placeholder container when no image and no track index
+      leadingWidget = ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 48.0,
+              height: 48.0,
+              color: AppColors.surfaceContainerHigh,
+              child: const Icon(
+                Icons.music_note,
+                color: AppColors.onSurfaceVariant,
+                size: 20.0,
+              ),
+            ),
+            if (isLoading)
+              Container(
+                width: 48.0,
+                height: 48.0,
+                color: Colors.black.withOpacity(0.55),
+                child: const Center(
+                  child: SizedBox(
+                    width: 20.0,
+                    height: 20.0,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                ),
+              )
+            else if (isPlaying)
+              Container(
+                width: 48.0,
+                height: 48.0,
+                color: Colors.black.withOpacity(0.35),
+                child: const Center(
+                  child: _EqualizerAnimation(),
+                ),
+              ),
+          ],
         ),
       );
-    } else {
-      leadingWidget = const SizedBox.shrink();
     }
 
     final isHighlighted = isPlaying || isLoading;
@@ -196,7 +246,7 @@ class SongTile extends StatelessWidget {
           child: Row(
             children: [
               leadingWidget,
-              if (imageUrl != null || index != null) AppSpacing.widthMd,
+              AppSpacing.widthMd,
             // Track Metadata
             Expanded(
               child: Column(

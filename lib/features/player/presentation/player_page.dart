@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/playback_state.dart';
+import '../../../core/audio/player_controller.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/models/track.dart';
 import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
@@ -27,28 +28,25 @@ class PlayerPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playback = ref.watch(playerControllerProvider);
-    final currentTrack = playback.currentTrack;
-    final isPlaying = playback.status == PlaybackStatus.playing;
-    final isShuffleEnabled = playback.isShuffleEnabled;
-    final repeatMode = playback.repeatMode;
+    final currentTrack =
+        ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final isPlaying = ref.watch(
+        playerControllerProvider.select((s) => s.status == PlaybackStatus.playing));
+    final isLoading = ref.watch(
+        playerControllerProvider.select((s) =>
+            s.status == PlaybackStatus.loading ||
+            s.status == PlaybackStatus.buffering));
+    final isShuffleEnabled =
+        ref.watch(playerControllerProvider.select((s) => s.isShuffleEnabled));
+    final repeatMode =
+        ref.watch(playerControllerProvider.select((s) => s.repeatMode));
+    final playingFrom =
+        ref.watch(playerControllerProvider.select((s) => s.playingFrom));
     final controller = ref.read(playerControllerProvider.notifier);
 
     final hasTrack = currentTrack != null;
     final favorites = ref.watch(favoritesProvider);
     final isLiked = hasTrack ? favorites.any((t) => t.id == currentTrack.id) : false;
-
-    final progress = (hasTrack && playback.duration.inMilliseconds > 0)
-        ? (playback.position.inMilliseconds / playback.duration.inMilliseconds)
-            .clamp(0.0, 1.0)
-        : 0.0;
-
-    String formatDuration(Duration duration) {
-      String twoDigits(int n) => n.toString().padLeft(2, '0');
-      final minutes = duration.inMinutes;
-      final seconds = duration.inSeconds.remainder(60);
-      return '$minutes:${twoDigits(seconds)}';
-    }
 
     return Scaffold(
       backgroundColor: AppColors.cocoaPlum,
@@ -88,7 +86,7 @@ class PlayerPage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          playback.playingFrom ?? 'Now Playing',
+                          playingFrom ?? 'Now Playing',
                           style: GoogleFonts.geist(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -229,55 +227,10 @@ class PlayerPage extends ConsumerWidget {
               const SizedBox(height: 16),
 
               // ── 4. Waveform Progress & Timestamps ──
-              Center(
-                child: SizedBox(
-                  width: 270.0,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      WaveformWidget(
-                        isPlaying: isPlaying,
-                        activeProgress: progress,
-                        activeColor: AppColors.dustyRose,
-                        inactiveColor: AppColors.white.withOpacity(0.2),
-                        onScrub: (val) {
-                          if (hasTrack && playback.duration.inMilliseconds > 0) {
-                            final seekPos = Duration(
-                              milliseconds: (val * playback.duration.inMilliseconds).toInt(),
-                            );
-                            controller.seek(seekPos);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            hasTrack
-                                ? formatDuration(playback.position)
-                                : '0:00',
-                            style: GoogleFonts.geist(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.vanillaCream.withOpacity(0.65),
-                            ),
-                          ),
-                          Text(
-                            hasTrack && playback.duration.inMilliseconds > 0
-                                ? formatDuration(playback.duration)
-                                : '--:--',
-                            style: GoogleFonts.geist(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.vanillaCream.withOpacity(0.65),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+              _WaveformProgressSection(
+                hasTrack: hasTrack,
+                isPlaying: isPlaying,
+                controller: controller,
               ),
 
               const SizedBox(height: 16),
@@ -309,24 +262,35 @@ class PlayerPage extends ConsumerWidget {
                     shadowColor: AppColors.dustyRose.withOpacity(0.5),
                     child: InkWell(
                       customBorder: const CircleBorder(),
-                      onTap: () {
-                        if (isPlaying) {
-                          controller.pause();
-                        } else {
-                          controller.play();
-                        }
-                      },
+                      onTap: isLoading
+                          ? null
+                          : () {
+                              if (isPlaying) {
+                                controller.pause();
+                              } else {
+                                controller.play();
+                              }
+                            },
                       child: Container(
                         width: 58,
                         height: 58,
                         alignment: Alignment.center,
-                        child: Icon(
-                          isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                          size: 34,
-                          color: AppColors.white,
-                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.6,
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                                ),
+                              )
+                            : Icon(
+                                isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                size: 34,
+                                color: AppColors.white,
+                              ),
                       ),
                     ),
                   ),
@@ -481,4 +445,86 @@ class PlayerPage extends ConsumerWidget {
     }
   }
 }
+
+class _WaveformProgressSection extends ConsumerWidget {
+  final bool hasTrack;
+  final bool isPlaying;
+  final PlayerController controller;
+
+  const _WaveformProgressSection({
+    required this.hasTrack,
+    required this.isPlaying,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final position = ref.watch(
+      playerControllerProvider.select((s) => s.position),
+    );
+    final duration = ref.watch(
+      playerControllerProvider.select((s) => s.duration),
+    );
+
+    final progress = (duration.inMilliseconds > 0)
+        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Center(
+      child: SizedBox(
+        width: 270.0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            WaveformWidget(
+              isPlaying: isPlaying,
+              activeProgress: progress,
+              activeColor: AppColors.dustyRose,
+              inactiveColor: AppColors.white.withOpacity(0.2),
+              onScrub: (val) {
+                if (hasTrack && duration.inMilliseconds > 0) {
+                  final seekPos = Duration(
+                    milliseconds: (val * duration.inMilliseconds).toInt(),
+                  );
+                  controller.seek(seekPos);
+                }
+              },
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  hasTrack ? _formatDuration(position) : '0:00',
+                  style: GoogleFonts.geist(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.vanillaCream.withOpacity(0.65),
+                  ),
+                ),
+                Text(
+                  hasTrack && duration.inMilliseconds > 0
+                      ? _formatDuration(duration)
+                      : '--:--',
+                  style: GoogleFonts.geist(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.vanillaCream.withOpacity(0.65),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString();
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+}
+
 

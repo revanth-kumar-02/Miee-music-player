@@ -35,11 +35,10 @@ class _AddToPlaylistSheet extends ConsumerWidget {
       maxChildSize: 0.85,
       expand: false,
       builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24.0)),
-          ),
+        return Material(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24.0)),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               // Drag handle

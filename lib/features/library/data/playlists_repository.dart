@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../../../core/storage/adapters/playlist_hive_model.dart';
@@ -95,7 +97,38 @@ class PlaylistsRepository {
   Future<void> updateCoverPath(String playlistId, String? path) async {
     final playlist = _box.get(playlistId);
     if (playlist == null) return;
-    playlist.customCoverPath = path;
+
+    String? durablePath = path;
+    if (path != null && path.trim().isNotEmpty && !path.startsWith('http')) {
+      try {
+        final docsDir = await getApplicationDocumentsDirectory();
+        final coversDir = Directory('${docsDir.path}/playlist_covers');
+        if (!await coversDir.exists()) {
+          await coversDir.create(recursive: true);
+        }
+
+        final normalized = path.startsWith('file://')
+            ? Uri.parse(path).toFilePath()
+            : path;
+        final srcFile = File(normalized);
+
+        if (await srcFile.exists()) {
+          final standardPath = srcFile.path.replaceAll('\\', '/');
+          final isAlreadyInCovers = standardPath.contains('/playlist_covers/');
+
+          if (!isAlreadyInCovers) {
+            final ext = standardPath.contains('.') ? standardPath.split('.').last : 'jpg';
+            final dest = File('${coversDir.path}/cover_${playlistId}_${DateTime.now().millisecondsSinceEpoch}.$ext');
+            await srcFile.copy(dest.path);
+            durablePath = dest.path;
+          } else {
+            durablePath = srcFile.path;
+          }
+        }
+      } catch (_) {}
+    }
+
+    playlist.customCoverPath = durablePath;
     playlist.lastModified = DateTime.now();
     await playlist.save();
   }

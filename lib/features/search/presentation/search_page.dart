@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,6 +97,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _playYouTubeResult(YouTubeVideo video, List<YouTubeVideo> results) {
     if (results.isEmpty) return;
+
+    final isLoading = ref.read(playerControllerProvider.select((s) =>
+        s.loadingTrackId != null && isSameTrackId(s.loadingTrackId, video.id)));
+    if (isLoading) return;
 
     final normVideoId = video.id.startsWith('youtube_')
         ? video.id.replaceFirst('youtube_', '')
@@ -360,17 +365,35 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       color: AppColors.softClay,
                     ),
                     child: (imageUrl != null && imageUrl.isNotEmpty)
-                        ? Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
-                              child: Icon(
-                                isSong ? Icons.music_note_rounded : Icons.person_rounded,
-                                color: AppColors.cocoaPlum,
-                                size: 32,
-                              ),
-                            ),
-                          )
+                        ? (imageUrl.startsWith('http')
+                            ? Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                cacheWidth: 150,
+                                cacheHeight: 150,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Icon(
+                                    isSong ? Icons.music_note_rounded : Icons.person_rounded,
+                                    color: AppColors.cocoaPlum,
+                                    size: 32,
+                                  ),
+                                ),
+                              )
+                            : Image.file(
+                                File(imageUrl.startsWith('file://')
+                                    ? Uri.parse(imageUrl).toFilePath()
+                                    : imageUrl),
+                                fit: BoxFit.cover,
+                                cacheWidth: 150,
+                                cacheHeight: 150,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Icon(
+                                    isSong ? Icons.music_note_rounded : Icons.person_rounded,
+                                    color: AppColors.cocoaPlum,
+                                    size: 32,
+                                  ),
+                                ),
+                              ))
                         : Center(
                             child: Text(
                               name.isNotEmpty ? name[0].toUpperCase() : 'M',
@@ -451,49 +474,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     List<Track> favorites,
     RecommendationSections? recs,
   ) {
-    final playback = ref.watch(playerControllerProvider);
-
-    // Determine Top Result
-    String? topArtistName;
-    String? topArtistImage;
-    VoidCallback? onTopTap;
-    VoidCallback? onTopPlay;
-
-    if (localArtists.isNotEmpty) {
-      final a = localArtists.first;
-      topArtistName = a.name;
-      topArtistImage = a.artworkPath;
-      onTopTap = () => context.push('/artist/${a.id}', extra: a);
-      onTopPlay = () {
-        if (localSongs.isNotEmpty) {
-          ref
-              .read(playerControllerProvider.notifier)
-              .selectTrack(localSongs.first, localSongs, playingFrom: topArtistName);
-        }
-      };
-    } else if (recs != null && recs.favoriteArtists.isNotEmpty) {
-      final a = recs.favoriteArtists.first;
-      topArtistName = a.name;
-      topArtistImage = a.imageUrl;
-      onTopTap = () => context.push('/artist/${a.id}', extra: a);
-      onTopPlay = () => _applyHistoryQuery(a.name);
-    } else if (recs != null && recs.fromYourArtists.isNotEmpty) {
-      final t = recs.fromYourArtists.first;
-      topArtistName = t.artist;
-      topArtistImage = t.imageUrl;
-      onTopTap = () => _applyHistoryQuery(t.artist);
-      onTopPlay = () => ref
-          .read(playerControllerProvider.notifier)
-          .selectTrack(t, recs.fromYourArtists, playingFrom: 'For You');
-    } else if (favorites.isNotEmpty) {
-      final t = favorites.first;
-      topArtistName = t.artist;
-      topArtistImage = t.imageUrl;
-      onTopTap = () => _applyHistoryQuery(t.artist);
-      onTopPlay = () => ref
-          .read(playerControllerProvider.notifier)
-          .selectTrack(t, favorites, playingFrom: 'Liked Songs');
-    }
+    final activeTrackId = ref.watch(playerControllerProvider.select((s) =>
+        s.status == PlaybackStatus.playing ? s.currentTrack?.id : null));
 
     // Determine songs to display
     final List<dynamic> songsToDisplay = localSongs.isNotEmpty
@@ -505,67 +487,56 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Top Result Card (if top artist exists)
-        if (topArtistName != null) ...[
-          _buildTopResultCard(
-            name: topArtistName,
-            imageUrl: topArtistImage,
-            onTap: onTopTap ?? () {},
-            onPlay: onTopPlay ?? () {},
+        // Discovery Landing Banner
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.cocoaPlum,
+            borderRadius: BorderRadius.circular(18),
           ),
-          const SizedBox(height: 28),
-        ] else ...[
-          // Discovery Banner when no prior library or artist exists yet
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.cocoaPlum,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: AppColors.dustyRose,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.explore_rounded,
-                    color: AppColors.white,
-                    size: 30,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: AppColors.dustyRose,
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Discover Music',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.vanillaCream,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Type in the search bar above to stream songs or search artists.',
-                        style: GoogleFonts.geist(
-                          fontSize: 12.5,
-                          color: AppColors.softClay,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: const Icon(
+                  Icons.explore_rounded,
+                  color: AppColors.white,
+                  size: 30,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Discover Music',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.vanillaCream,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Type in the search bar above to stream songs or search artists.',
+                      style: GoogleFonts.geist(
+                        fontSize: 12.5,
+                        color: AppColors.softClay,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 28),
-        ],
+        ),
+        const SizedBox(height: 28),
 
         // 2. Songs Section
         if (songsToDisplay.isNotEmpty) ...[
@@ -611,51 +582,62 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             final itemId = item is MediaSong
                 ? item.id
                 : (item is Track ? item.id : (item as MusicItem).id);
-            final isItemPlaying = playback.currentTrack?.id == itemId &&
-                playback.status == PlaybackStatus.playing;
+            final isItemPlaying = activeTrackId == itemId;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: SongTile(
-                title: item is MediaSong
-                    ? item.title
-                    : (item is Track ? item.title : (item as MusicItem).title),
-                artist: item is MediaSong
-                    ? item.artist
-                    : (item is Track
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final isItemLoading = ref.watch(
+                    playerControllerProvider.select((s) =>
+                        s.loadingTrackId != null &&
+                        isSameTrackId(s.loadingTrackId, itemId)),
+                  );
+                  return SongTile(
+                    title: item is MediaSong
+                        ? item.title
+                        : (item is Track ? item.title : (item as MusicItem).title),
+                    artist: item is MediaSong
                         ? item.artist
-                        : (item as MusicItem).artist),
-                duration: item is MediaSong
-                    ? item.duration
-                    : (item is Track
+                        : (item is Track
+                            ? item.artist
+                            : (item as MusicItem).artist),
+                    duration: item is MediaSong
                         ? item.duration
-                        : (item as MusicItem).duration),
-                imageUrl: item is MediaSong
-                    ? item.artworkPath
-                    : (item is Track
-                        ? item.imageUrl
-                        : (item as MusicItem).imageUrl),
-                isPlaying: isItemPlaying,
-                onTap: () {
-                  if (item is MediaSong) {
-                    ref.read(playerControllerProvider.notifier).selectTrack(
-                          item,
-                          localSongs,
-                          playingFrom: 'Local Music',
-                        );
-                  } else if (item is Track) {
-                    ref.read(playerControllerProvider.notifier).selectTrack(
-                          item,
-                          favorites,
-                          playingFrom: 'Liked Songs',
-                        );
-                  } else if (item is MusicItem && recs != null) {
-                    ref.read(playerControllerProvider.notifier).selectTrack(
-                          item,
-                          recs.fromYourArtists,
-                          playingFrom: 'For You',
-                        );
-                  }
+                        : (item is Track
+                            ? item.duration
+                            : (item as MusicItem).duration),
+                    imageUrl: item is MediaSong
+                        ? item.artworkPath
+                        : (item is Track
+                            ? item.imageUrl
+                            : (item as MusicItem).imageUrl),
+                    isPlaying: isItemPlaying,
+                    isLoading: isItemLoading,
+                    onTap: isItemLoading
+                        ? null
+                        : () {
+                            if (item is MediaSong) {
+                              ref.read(playerControllerProvider.notifier).selectTrack(
+                                    item,
+                                    localSongs,
+                                    playingFrom: 'Local Music',
+                                  );
+                            } else if (item is Track) {
+                              ref.read(playerControllerProvider.notifier).selectTrack(
+                                    item,
+                                    favorites,
+                                    playingFrom: 'Liked Songs',
+                                  );
+                            } else if (item is MusicItem && recs != null) {
+                              ref.read(playerControllerProvider.notifier).selectTrack(
+                                    item,
+                                    recs.fromYourArtists,
+                                    playingFrom: 'For You',
+                                  );
+                            }
+                          },
+                  );
                 },
               ),
             );
@@ -737,19 +719,39 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: (imageUrl != null && imageUrl.isNotEmpty)
-                  ? Image.network(
-                      imageUrl,
-                      width: 130,
-                      height: 130,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 130,
-                        height: 130,
-                        color: AppColors.softClay,
-                        child: const Icon(Icons.album_rounded,
-                            color: AppColors.cocoaPlum),
-                      ),
-                    )
+                  ? (imageUrl.startsWith('http')
+                      ? Image.network(
+                          imageUrl,
+                          width: 130,
+                          height: 130,
+                          fit: BoxFit.cover,
+                          cacheWidth: 260,
+                          cacheHeight: 260,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 130,
+                            height: 130,
+                            color: AppColors.softClay,
+                            child: const Icon(Icons.album_rounded,
+                                color: AppColors.cocoaPlum),
+                          ),
+                        )
+                      : Image.file(
+                          File(imageUrl.startsWith('file://')
+                              ? Uri.parse(imageUrl).toFilePath()
+                              : imageUrl),
+                          width: 130,
+                          height: 130,
+                          fit: BoxFit.cover,
+                          cacheWidth: 260,
+                          cacheHeight: 260,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 130,
+                            height: 130,
+                            color: AppColors.softClay,
+                            child: const Icon(Icons.album_rounded,
+                                color: AppColors.cocoaPlum),
+                          ),
+                        ))
                   : Container(
                       width: 130,
                       height: 130,
@@ -896,24 +898,41 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final showSongs = filter == 'All' || filter == 'Songs' || filter == 'Videos';
     final showAlbums = filter == 'All' || filter == 'Albums';
 
-    final playback = ref.watch(playerControllerProvider);
+    final activeTrackId = ref.watch(playerControllerProvider.select((s) =>
+        s.status == PlaybackStatus.playing ? s.currentTrack?.id : null));
+
+    final cleanQuery = state.query.trim().toLowerCase();
+
+    // Verify if an artist matches the query
+    final matchingOnlineArtist = state.onlineArtists.cast<dynamic>().firstWhere(
+      (a) => a != null && (a.name.toString().toLowerCase() == cleanQuery || a.name.toString().toLowerCase().contains(cleanQuery) || cleanQuery.contains(a.name.toString().toLowerCase())),
+      orElse: () => null,
+    );
+    final matchingLocalArtist = state.localArtists.cast<dynamic>().firstWhere(
+      (a) => a != null && (a.name.toString().toLowerCase() == cleanQuery || a.name.toString().toLowerCase().contains(cleanQuery) || cleanQuery.contains(a.name.toString().toLowerCase())),
+      orElse: () => null,
+    );
+
+    final matchingSong = state.youtubeResults.cast<YouTubeVideo?>().firstWhere(
+      (v) => v != null && (v.title.toLowerCase().contains(cleanQuery) || cleanQuery.contains(v.title.toLowerCase())),
+      orElse: () => (state.youtubeResults.isNotEmpty ? state.youtubeResults.first : null),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Top Result Card (Featured Artist or Featured Song)
-        if (showArtists && (state.onlineArtists.isNotEmpty || state.localArtists.isNotEmpty)) ...[
+        // 1. Top Result Card (Only shown if a matching artist or matching song exists)
+        if (showArtists && (matchingOnlineArtist != null || matchingLocalArtist != null)) ...[
           _buildTopResultCard(
-            name: state.onlineArtists.isNotEmpty
-                ? state.onlineArtists.first.name
-                : state.localArtists.first.name,
-            imageUrl: state.onlineArtists.isNotEmpty
-                ? state.onlineArtists.first.imageUrl
-                : state.localArtists.first.artworkPath,
+            name: matchingOnlineArtist != null
+                ? matchingOnlineArtist.name
+                : matchingLocalArtist!.name,
+            imageUrl: matchingOnlineArtist != null
+                ? matchingOnlineArtist.imageUrl
+                : matchingLocalArtist!.artworkPath,
             onTap: () {
-              if (state.onlineArtists.isNotEmpty) {
-                final artist = state.onlineArtists.first;
-                context.push('/artist/${artist.id}', extra: artist);
+              if (matchingOnlineArtist != null) {
+                context.push('/artist/${matchingOnlineArtist.id}', extra: matchingOnlineArtist);
               }
             },
             onPlay: () {
@@ -923,17 +942,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             },
           ),
           const SizedBox(height: 28),
-        ] else if (showSongs && state.youtubeResults.isNotEmpty) ...[
+        ] else if (showSongs && matchingSong != null) ...[
           _buildTopResultCard(
-            name: state.youtubeResults.first.title,
-            subtitle: state.youtubeResults.first.channelTitle,
-            imageUrl: state.youtubeResults.first.thumbnailUrl,
+            name: matchingSong.title,
+            subtitle: matchingSong.channelTitle,
+            imageUrl: matchingSong.thumbnailUrl,
             isSong: true,
             onTap: () {
-              _playYouTubeResult(state.youtubeResults.first, state.youtubeResults);
+              _playYouTubeResult(matchingSong, state.youtubeResults);
             },
             onPlay: () {
-              _playYouTubeResult(state.youtubeResults.first, state.youtubeResults);
+              _playYouTubeResult(matchingSong, state.youtubeResults);
             },
           ),
           const SizedBox(height: 28),
@@ -965,8 +984,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             const SizedBox(height: 12),
             ...state.localSongs.take(5).map(
                   (song) {
-                    final isPlaying = playback.currentTrack?.id == song.id &&
-                        playback.status == PlaybackStatus.playing;
+                    final isPlaying = activeTrackId == song.id;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: SongTile(
