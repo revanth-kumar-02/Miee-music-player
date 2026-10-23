@@ -48,6 +48,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _init();
   }
 
+  String _normalizeTrackId(String id) {
+    return id.startsWith('youtube_') ? id.replaceFirst('youtube_', '') : id;
+  }
+
   void _init() {
     try {
       final queueRepo = _ref.read(queueStateRepositoryProvider);
@@ -76,15 +80,27 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
 
     // ── Position stream ───────────────────────────────────────────────────────
-    // If the player is actually producing position updates while the UI shows
-    // an error, recover the UI state automatically.
+    // Only auto-recover from error state if the player is actively playing
+    // and the position event belongs to the currently selected track.
     _positionSub = _handler.positionStream.listen((pos) {
-      if (state.status == PlaybackStatus.error && pos > Duration.zero) {
-        debugLog('[Playback] Position > 0 while in error state — auto-recovering UI');
-        state = state.copyWith(
-          status: PlaybackStatus.playing,
-          clearErrorMessage: true,
-        );
+      if (state.status == PlaybackStatus.error &&
+          _handler.isPlaying &&
+          pos > Duration.zero) {
+        final currentHandlerTrack = _handler.currentQueue.isNotEmpty &&
+                _handler.currentIndex >= 0 &&
+                _handler.currentIndex < _handler.currentQueue.length
+            ? _handler.currentQueue[_handler.currentIndex]
+            : null;
+        if (currentHandlerTrack != null &&
+            state.currentTrack != null &&
+            _normalizeTrackId(currentHandlerTrack.id) ==
+                _normalizeTrackId(state.currentTrack!.id)) {
+          debugLog('[Playback] Position > 0 for active track while in error state — auto-recovering UI');
+          state = state.copyWith(
+            status: PlaybackStatus.playing,
+            clearErrorMessage: true,
+          );
+        }
       }
       state = state.copyWith(position: pos);
     });
@@ -114,11 +130,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _mediaItemSub = _handler.mediaItem.listen((mediaItem) {
       if (mediaItem != null) {
         final queueList = _queueManager.queue;
-        final index = queueList.indexWhere((t) => t.id == mediaItem.id);
+        final targetId = _normalizeTrackId(mediaItem.id);
+        final index = queueList.indexWhere((t) =>
+            t.id == mediaItem.id || _normalizeTrackId(t.id) == targetId);
         if (index >= 0) {
           _queueManager.setIndex(index);
           state = state.copyWith(currentTrack: queueList[index]);
           _persistQueueSnapshot();
+          _recordRecentlyPlayed(queueList[index]);
         }
       }
     });
@@ -199,8 +218,22 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   void selectTrack(MusicItem track, List<MusicItem> currentList, {String? playingFrom}) {
-    final index = currentList.indexWhere((t) => t.id == track.id);
-    setQueue(currentList, startIndex: index >= 0 ? index : 0, playingFrom: playingFrom);
+    if (currentList.isEmpty) return;
+    final targetId = _normalizeTrackId(track.id);
+    final index = currentList.indexWhere(
+      (t) => t.id == track.id || _normalizeTrackId(t.id) == targetId,
+    );
+    if (index < 0) return;
+    setQueue(currentList, startIndex: index, playingFrom: playingFrom);
+  }
+
+  Future<void> skipToQueueItem(int index) async {
+    if (index < 0 || index >= _queueManager.queue.length) return;
+    _queueManager.setIndex(index);
+    final targetTrack = _queueManager.currentTrack;
+    if (targetTrack != null) {
+      await playTrack(targetTrack);
+    }
   }
 
   // ── Playback ──────────────────────────────────────────────────────────────
@@ -213,6 +246,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
       title: track.title,
       isYoutube: track.isYoutube,
     );
+
+    // Immediately stop active audio so Song A cuts off instantly (<50ms)
+    // while Song B is resolving over the network.
+    try {
+      await _handler.stop();
+    } catch (_) {}
 
     // 1. Immediately update UI state with selected track and loading status
     state = state.copyWith(
@@ -231,18 +270,54 @@ class PlayerController extends StateNotifier<PlaybackState> {
         return;
       }
 
-      final index = _queueManager.currentIndex;
-      if (index >= 0 && index < _queueManager.queue.length) {
-        _queueManager.replaceTrackAt(index, resolvedTrack);
+      final targetId = _normalizeTrackId(track.id);
+      int targetIndex = -1;
+
+      // Check if currentIndex already points to this track (e.g. from skipToQueueItem)
+      if (_queueManager.currentIndex >= 0 &&
+          _queueManager.currentIndex < _queueManager.queue.length) {
+        final currentAtPointer = _queueManager.queue[_queueManager.currentIndex];
+        if (currentAtPointer.id == track.id ||
+            _normalizeTrackId(currentAtPointer.id) == targetId) {
+          targetIndex = _queueManager.currentIndex;
+        }
+      }
+
+      // If not at currentIndex, find it in the queue
+      if (targetIndex == -1) {
+        targetIndex = _queueManager.queue.indexWhere(
+          (t) => t.id == track.id || _normalizeTrackId(t.id) == targetId,
+        );
+      }
+
+      if (targetIndex >= 0) {
+        _queueManager.setIndex(targetIndex);
+        _queueManager.replaceTrackAt(targetIndex, resolvedTrack);
+      } else {
+        if (_queueManager.queue.isEmpty) {
+          _queueManager.setQueue([resolvedTrack], startIndex: 0);
+          targetIndex = 0;
+        } else {
+          final currentIdx = _queueManager.currentIndex;
+          if (currentIdx >= 0 && currentIdx < _queueManager.queue.length) {
+            _queueManager.replaceTrackAt(currentIdx, resolvedTrack);
+            targetIndex = currentIdx;
+          } else {
+            _queueManager.addTrack(resolvedTrack);
+            targetIndex = _queueManager.queue.length - 1;
+            _queueManager.setIndex(targetIndex);
+          }
+        }
       }
 
       state = state.copyWith(currentTrack: resolvedTrack);
 
       final queueSnapshot = _queueManager.queue;
-      final startIdx = index >= 0 ? index : 0;
+      final startIdx = targetIndex >= 0 ? targetIndex : 0;
       await _handler.loadQueue(queueSnapshot, startIndex: startIdx);
       if (token != _playRequestToken) return;
       await _handler.play();
+      _recordRecentlyPlayed(resolvedTrack);
     } catch (e) {
       if (token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
@@ -313,6 +388,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     await _handler.pause();
   }
 
+  Future<void> togglePlayPause() async {
+    if (state.status == PlaybackStatus.playing) {
+      await pause();
+    } else {
+      await play();
+    }
+  }
+
   Future<void> stop() async {
     await _handler.stop();
     state = state.copyWith(
@@ -334,21 +417,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   Future<void> next() async {
-    if (state.isShuffleEnabled) {
-      final queueList = _queueManager.queue;
-      if (queueList.length > 1) {
-        final random = Random();
-        int nextIndex = _queueManager.currentIndex;
-        while (nextIndex == _queueManager.currentIndex) {
-          nextIndex = random.nextInt(queueList.length);
-        }
-        _queueManager.setIndex(nextIndex);
-        final nextTrack = _queueManager.currentTrack;
-        if (nextTrack != null) await playTrack(nextTrack);
-        return;
-      }
-    }
-
     final nextTrack = _queueManager.next();
     if (nextTrack != null) {
       await playTrack(nextTrack);
@@ -366,21 +434,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
       return;
     }
 
-    if (state.isShuffleEnabled) {
-      final queueList = _queueManager.queue;
-      if (queueList.length > 1) {
-        final random = Random();
-        int prevIndex = _queueManager.currentIndex;
-        while (prevIndex == _queueManager.currentIndex) {
-          prevIndex = random.nextInt(queueList.length);
-        }
-        _queueManager.setIndex(prevIndex);
-        final prevTrack = _queueManager.currentTrack;
-        if (prevTrack != null) await playTrack(prevTrack);
-        return;
-      }
-    }
-
     final prevTrack = _queueManager.previous();
     if (prevTrack != null) {
       await playTrack(prevTrack);
@@ -390,6 +443,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       _queueManager.setIndex(lastIdx);
       final lastTrack = _queueManager.currentTrack;
       if (lastTrack != null) await playTrack(lastTrack);
+    } else {
+      await seek(Duration.zero);
     }
   }
 
@@ -397,6 +452,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   Future<void> toggleShuffle() async {
     final isShuffle = !state.isShuffleEnabled;
+    if (isShuffle) {
+      _queueManager.enableShuffle();
+    } else {
+      _queueManager.disableShuffle();
+    }
     state = state.copyWith(isShuffleEnabled: isShuffle);
     await _handler.setShuffleMode(
       isShuffle
@@ -487,6 +547,24 @@ class PlayerController extends StateNotifier<PlaybackState> {
       );
     } catch (e) {
       debugLog('[QueuePersistence] Save error: $e');
+    }
+  }
+
+  void _recordRecentlyPlayed(MusicItem track) {
+    try {
+      final trackToRecord = track is Track
+          ? track
+          : Track(
+              id: track.id,
+              title: track.title,
+              artist: track.artist,
+              imageUrl: track.imageUrl,
+              duration: track.duration,
+              filePath: track.filePath,
+            );
+      _ref.read(recentlyPlayedRepositoryProvider).recordPlay(trackToRecord);
+    } catch (e) {
+      debugLog('[RecentlyPlayed] Record error: $e');
     }
   }
 

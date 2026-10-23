@@ -99,5 +99,107 @@ void main() {
       expect(find.byIcon(Icons.close), findsOneWidget);
       expect(find.text('Artist'), findsOneWidget);
     });
+
+    testWidgets('7. Tapping notification bell triggers default non-blocking SnackBar feedback', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            appBar: MieeBrandHeader(showProfileAvatar: true),
+            body: SizedBox.expand(),
+          ),
+        ),
+      );
+
+      final bellFinder = find.byTooltip('Notifications');
+      expect(bellFinder, findsOneWidget);
+
+      await tester.tap(bellFinder);
+      await tester.pump(); // Start SnackBar animation
+
+      expect(find.text('No new notifications'), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+    });
+
+    testWidgets('8. Repeated taps on notification bell are debounced safely without stacking', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            appBar: MieeBrandHeader(showProfileAvatar: true),
+            body: SizedBox.expand(),
+          ),
+        ),
+      );
+
+      final bellFinder = find.byTooltip('Notifications');
+      expect(bellFinder, findsOneWidget);
+
+      // Tap multiple times in rapid succession
+      await tester.tap(bellFinder);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(bellFinder);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(bellFinder);
+      await tester.pump();
+
+      // Only one active SnackBar should be displayed (previous dismissed via hideCurrentSnackBar)
+      expect(find.text('No new notifications'), findsOneWidget);
+      expect(find.byType(SnackBar), findsOneWidget);
+    });
+
+    testWidgets('9. Custom onNotificationTap callback is invoked when provided', (tester) async {
+      bool customTapped = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            appBar: MieeBrandHeader(
+              showProfileAvatar: true,
+              onNotificationTap: () {
+                customTapped = true;
+              },
+            ),
+            body: const SizedBox.expand(),
+          ),
+        ),
+      );
+
+      final bellFinder = find.byTooltip('Notifications');
+      expect(bellFinder, findsOneWidget);
+
+      await tester.tap(bellFinder);
+      await tester.pump();
+
+      expect(customTapped, isTrue);
+      // Default SnackBar should NOT be shown when custom callback handled it
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('10. AppHeader forwards onNotificationTap callback correctly', (tester) async {
+      bool appHeaderBellTapped = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            appBar: AppHeader(
+              title: 'Library',
+              onNotificationTap: () {
+                appHeaderBellTapped = true;
+              },
+            ),
+            body: const SizedBox.expand(),
+          ),
+        ),
+      );
+
+      final bellFinder = find.byTooltip('Notifications');
+      expect(bellFinder, findsOneWidget);
+
+      await tester.tap(bellFinder);
+      await tester.pump();
+
+      expect(appHeaderBellTapped, isTrue);
+      expect(find.byType(SnackBar), findsNothing);
+    });
   });
 }
+

@@ -11,6 +11,7 @@ import '../../../core/audio/player_controller.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 
 /// Miee Playing Queue screen.
 /// Observes current playing track and upcoming queue list from [playerControllerProvider].
@@ -22,12 +23,10 @@ class QueuePage extends ConsumerWidget {
     final screenSize = MediaQuery.of(context).size;
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    final playbackState = ref.watch(playerControllerProvider);
+    final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final isPlaying = ref.watch(playerControllerProvider.select((s) => s.status == PlaybackStatus.playing));
     final controller = ref.read(playerControllerProvider.notifier);
     final queueManager = ref.watch(queueManagerProvider);
-
-    final currentTrack = playbackState.currentTrack;
-    final isPlaying = playbackState.status == PlaybackStatus.playing;
 
     final queueList = queueManager.queue;
     final activeIndex = queueManager.currentIndex;
@@ -110,11 +109,7 @@ class QueuePage extends ConsumerWidget {
             child: GestureDetector(
               onTap: () => context.pop(),
               child: Container(
-                color: Colors.black.withOpacity(0.4),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 4.0, sigmaY: 4.0),
-                  child: const SizedBox.shrink(),
-                ),
+                color: Colors.black.withOpacity(0.55),
               ),
             ),
           ),
@@ -140,14 +135,18 @@ class QueuePage extends ConsumerWidget {
                 borderRadius: AppRadius.radiusSheetTop,
                 child: Stack(
                   children: [
-                    // Main Scrollable Queue List
+                    // Main Virtualized Scrollable Queue List
                     Positioned.fill(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.marginMobile,
-                        ),
+                      child: ReorderableListView.builder(
                         physics: const BouncingScrollPhysics(),
-                        child: Column(
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.marginMobile,
+                          0,
+                          AppSpacing.marginMobile,
+                          90.0 + bottomInset,
+                        ),
+                        buildDefaultDragHandles: false,
+                        header: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // 2.1 Drag Indicator Handle
@@ -200,43 +199,79 @@ class QueuePage extends ConsumerWidget {
                                 isUppercase: true,
                               ),
                               AppSpacing.heightMd,
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: AppSpacing.sm,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainerLow,
-                                  borderRadius: AppRadius.radiusXl,
-                                ),
-                                child: SongTile(
-                                  imageUrl: currentTrack.imageUrl,
-                                  title: currentTrack.title,
-                                  artist: currentTrack.artist,
-                                  duration: currentTrack.duration,
-                                  isPlaying: isPlaying, // Activates EQ animation
-                                  onTap: () {},
-                                  onMoreTap: () {},
-                                  sourceBadge: _SourceBadge(isYoutube: currentTrack.isYoutube),
-                                ),
+                              _buildNowPlayingHeader(
+                                context,
+                                currentTrack,
+                                isPlaying,
+                                controller,
                               ),
                               AppSpacing.heightLg,
                             ],
 
-                            // 2.4 "Next Up" List
+                            // 2.4 "Next Up" Section Header
                             if (upcomingList.isNotEmpty) ...[
                               const SectionHeader(
                                 title: 'Next Up',
                                 isUppercase: true,
                               ),
                               AppSpacing.heightMd,
-                              _buildUpcomingQueueList(upcomingList, controller, activeIndex),
                             ],
-
-                            // Footer bottom spacer (Clear Queue button offset)
-                            SizedBox(height: 90.0 + bottomInset),
                           ],
                         ),
+                        itemCount: upcomingList.length,
+                        onReorder: (oldIndex, newIndex) {
+                          final fullOldIndex = activeIndex + 1 + oldIndex;
+                          final fullNewIndex = activeIndex + 1 + newIndex;
+                          controller.reorderQueue(fullOldIndex, fullNewIndex);
+                        },
+                        itemBuilder: (context, index) {
+                          final track = upcomingList[index];
+
+                          return Padding(
+                            key: ValueKey('queue_item_${track.id}_$index'),
+                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: Row(
+                              children: [
+                                // Drag Indicator handle icon on the left
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 4.0),
+                                    child: Icon(
+                                      Icons.drag_indicator,
+                                      color: AppColors.onSurfaceVariant,
+                                      size: 20.0,
+                                    ),
+                                  ),
+                                ),
+                                AppSpacing.widthSm,
+                                Expanded(
+                                  child: SongTile(
+                                    imageUrl: track.imageUrl,
+                                    title: track.title,
+                                    artist: track.artist,
+                                    duration: track.duration,
+                                    isPlaying: false,
+                                    onTap: () => controller.skipToQueueItem(activeIndex + 1 + index),
+                                    trailingIcon: Icons.remove_circle_outline,
+                                    onMoreTap: () {
+                                      final fullIndex = activeIndex + 1 + index;
+                                      controller.removeTrackAt(fullIndex);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Removed "${track.title}" from queue'),
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    sourceBadge: _SourceBadge(isYoutube: track.isYoutube),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
 
@@ -298,68 +333,83 @@ class QueuePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildUpcomingQueueList(
-    List<MusicItem> upcomingList,
+  Widget _buildNowPlayingHeader(
+    BuildContext context,
+    MusicItem currentTrack,
+    bool isPlaying,
     PlayerController controller,
-    int activeIndex,
   ) {
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: upcomingList.length,
-      onReorder: (oldIndex, newIndex) {
-        final fullOldIndex = activeIndex + 1 + oldIndex;
-        final fullNewIndex = activeIndex + 1 + newIndex;
-        controller.reorderQueue(fullOldIndex, fullNewIndex);
-      },
-      itemBuilder: (context, index) {
-        final track = upcomingList[index];
-
-        return Padding(
-          key: ValueKey('queue_item_${track.id}_$index'),
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: Row(
-            children: [
-              // Drag Indicator handle icon on the left
-              ReorderableDragStartListener(
-                index: index,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.0),
-                  child: Icon(
-                    Icons.drag_indicator,
-                    color: AppColors.onSurfaceVariant,
-                    size: 20.0,
-                  ),
-                ),
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: AppRadius.radiusXl,
+      ),
+      child: SongTile(
+        imageUrl: currentTrack.imageUrl,
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        duration: currentTrack.duration,
+        isPlaying: isPlaying,
+        onTap: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.push('/player');
+          }
+        },
+        trailingWidget: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Play / Pause Action Button
+            IconButton(
+              icon: Icon(
+                isPlaying
+                    ? Icons.pause_circle_filled_rounded
+                    : Icons.play_circle_fill_rounded,
+                color: AppColors.primary,
+                size: 28.0,
               ),
-              AppSpacing.widthSm,
-              Expanded(
-                child: SongTile(
-                  imageUrl: track.imageUrl,
-                  title: track.title,
-                  artist: track.artist,
-                  duration: track.duration,
-                  isPlaying: false,
-                  onTap: () => controller.playTrack(track),
-                  trailingIcon: Icons.remove_circle_outline,
-                  onMoreTap: () {
-                    final fullIndex = activeIndex + 1 + index;
-                    controller.removeTrackAt(fullIndex);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Removed "${track.title}" from queue'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  sourceBadge: _SourceBadge(isYoutube: track.isYoutube),
-                ),
+              onPressed: () => controller.togglePlayPause(),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              splashRadius: 20.0,
+              tooltip: isPlaying ? 'Pause' : 'Play',
+            ),
+            const SizedBox(width: 4.0),
+            // Next Track Action Button
+            IconButton(
+              icon: const Icon(
+                Icons.skip_next_rounded,
+                color: AppColors.onSurfaceVariant,
+                size: 24.0,
               ),
-            ],
-          ),
-        );
-      },
+              onPressed: () => controller.next(),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              splashRadius: 20.0,
+              tooltip: 'Next Track',
+            ),
+            // More Options (Add to playlist sheet)
+            IconButton(
+              icon: const Icon(
+                Icons.more_horiz,
+                color: AppColors.onSurfaceVariant,
+                size: 20.0,
+              ),
+              onPressed: () => showAddToPlaylistSheet(context, currentTrack),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              splashRadius: 20.0,
+              tooltip: 'More Options',
+            ),
+          ],
+        ),
+        sourceBadge: _SourceBadge(isYoutube: currentTrack.isYoutube),
+      ),
     );
   }
 }

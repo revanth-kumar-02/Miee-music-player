@@ -779,9 +779,18 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                       .read(playerControllerProvider.notifier)
                       .selectTrack(item, favorites, playingFrom: 'Liked Songs');
                 } else if (item is MediaArtist) {
-                  context.push('/search');
+                  if (item.id.trim().isNotEmpty) {
+                    context.push(
+                      '/artist/${Uri.encodeComponent(item.id.trim())}',
+                      extra: item,
+                    );
+                  }
                 } else if (item is MediaAlbum) {
-                  context.push('/search');
+                  if (item.id.trim().isNotEmpty) {
+                    context.push(
+                      '/album/${Uri.encodeComponent(item.id.trim())}',
+                    );
+                  }
                 }
               },
               borderRadius: BorderRadius.circular(10),

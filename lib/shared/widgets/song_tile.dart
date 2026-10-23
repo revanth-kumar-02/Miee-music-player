@@ -44,6 +44,10 @@ class SongTile extends StatelessWidget {
   /// Optional trailing icon.
   final IconData? trailingIcon;
 
+  /// Optional custom trailing widget (e.g. playback action buttons).
+  /// If provided, replaces the default duration label and onMoreTap button.
+  final Widget? trailingWidget;
+
   const SongTile({
     super.key,
     required this.title,
@@ -58,6 +62,7 @@ class SongTile extends StatelessWidget {
     this.onLongPress,
     this.sourceBadge,
     this.trailingIcon,
+    this.trailingWidget,
   });
 
   @override
@@ -233,27 +238,32 @@ class SongTile extends StatelessWidget {
                 ],
               ),
             ),
-            AppSpacing.widthMd,
-            // Track Duration
-            Text(
-              duration,
-              style: AppTypography.labelSmall.copyWith(
-                color: isHighlighted ? AppColors.primary : AppColors.onSurfaceVariant,
-                fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            if (onMoreTap != null)
-              IconButton(
-                icon: Icon(
-                  trailingIcon ?? Icons.more_horiz,
-                  color: isPlaying ? AppColors.primary : AppColors.onSurfaceVariant,
-                  size: 20.0,
+            if (trailingWidget != null) ...[
+              AppSpacing.widthSm,
+              trailingWidget!,
+            ] else ...[
+              AppSpacing.widthMd,
+              // Track Duration
+              Text(
+                duration,
+                style: AppTypography.labelSmall.copyWith(
+                  color: isHighlighted ? AppColors.primary : AppColors.onSurfaceVariant,
+                  fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
                 ),
-                onPressed: onMoreTap,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                splashRadius: 20.0,
               ),
+              if (onMoreTap != null)
+                IconButton(
+                  icon: Icon(
+                    trailingIcon ?? Icons.more_horiz,
+                    color: isPlaying ? AppColors.primary : AppColors.onSurfaceVariant,
+                    size: 20.0,
+                  ),
+                  onPressed: onMoreTap,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  splashRadius: 20.0,
+                ),
+            ],
           ],
         ),
       ),

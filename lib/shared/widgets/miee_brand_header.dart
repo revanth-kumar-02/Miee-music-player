@@ -82,6 +82,10 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
   /// Optional tap callback for the brand logo. Defaults to navigating to `/home`.
   final VoidCallback? onLogoTap;
 
+  /// Optional tap callback for the notification bell icon.
+  /// If null, displays a brief, non-blocking SnackBar ("No new notifications").
+  final VoidCallback? onNotificationTap;
+
   /// Whether to display the Stitch default actions (notifications + avatar) when actions are not provided.
   final bool showProfileAvatar;
 
@@ -98,6 +102,7 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
     this.height = 56.0,
     this.automaticallyImplyLeading = true,
     this.onLogoTap,
+    this.onNotificationTap,
     this.showProfileAvatar = true,
     this.backgroundColor = AppColors.background,
   });
@@ -198,7 +203,19 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
           ),
           splashRadius: 20,
           tooltip: 'Notifications',
-          onPressed: () {},
+          onPressed: onNotificationTap ??
+              () {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                if (messenger == null) return;
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('No new notifications'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
         ),
         GestureDetector(
           onTap: () {

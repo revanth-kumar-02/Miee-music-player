@@ -1,9 +1,12 @@
+import 'dart:math';
 import '../../shared/models/music_item.dart';
 
 /// Reusable manager responsible for maintaining the track play queue list,
 /// active index pointers, and playlist reorder/remove events.
 class QueueManager {
   final List<MusicItem> _queue = [];
+  final List<MusicItem> _originalQueue = [];
+  bool _isShuffled = false;
   List<MusicItem>? _cachedUnmodifiableQueue;
   int _currentIndex = -1;
 
@@ -12,6 +15,9 @@ class QueueManager {
 
   /// Returns the currently active index.
   int get currentIndex => _currentIndex;
+
+  /// Whether the queue is currently in shuffled mode.
+  bool get isShuffled => _isShuffled;
 
   /// Returns the active track if a queue exists and is loaded.
   MusicItem? get currentTrack {
@@ -24,15 +30,64 @@ class QueueManager {
   /// Sets the play queue and resets the active index pointer.
   void setQueue(List<MusicItem> tracks, {int startIndex = 0}) {
     _cachedUnmodifiableQueue = null;
+    _originalQueue.clear();
+    _isShuffled = false;
     _queue.clear();
     _queue.addAll(tracks);
     _currentIndex = (startIndex >= 0 && startIndex < _queue.length) ? startIndex : 0;
+  }
+
+  /// Enables shuffle: retains current track at front and shuffles remaining tracks
+  /// cleanly without repeating. Preserves original order for later restoration.
+  void enableShuffle() {
+    if (_isShuffled || _queue.length <= 1) {
+      _isShuffled = true;
+      return;
+    }
+    _originalQueue.clear();
+    _originalQueue.addAll(_queue);
+
+    if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+      final current = _queue[_currentIndex];
+      final remaining = List<MusicItem>.from(_queue)..removeAt(_currentIndex);
+      remaining.shuffle(Random());
+      _cachedUnmodifiableQueue = null;
+      _queue.clear();
+      _queue.add(current);
+      _queue.addAll(remaining);
+      _currentIndex = 0;
+    } else {
+      _cachedUnmodifiableQueue = null;
+      _queue.shuffle(Random());
+      _currentIndex = 0;
+    }
+    _isShuffled = true;
+  }
+
+  /// Disables shuffle: restores the original queue order and updates active index.
+  void disableShuffle() {
+    if (!_isShuffled) return;
+    if (_originalQueue.isNotEmpty) {
+      final current = currentTrack;
+      _cachedUnmodifiableQueue = null;
+      _queue.clear();
+      _queue.addAll(_originalQueue);
+      _originalQueue.clear();
+      if (current != null) {
+        final idx = _queue.indexWhere((t) => t.id == current.id);
+        _currentIndex = idx >= 0 ? idx : 0;
+      }
+    }
+    _isShuffled = false;
   }
 
   /// Appends a track to the end of the queue.
   void addTrack(MusicItem track) {
     _cachedUnmodifiableQueue = null;
     _queue.add(track);
+    if (_isShuffled) {
+      _originalQueue.add(track);
+    }
     if (_currentIndex == -1) {
       _currentIndex = 0;
     }
@@ -42,6 +97,9 @@ class QueueManager {
   void addTracks(List<MusicItem> tracks) {
     _cachedUnmodifiableQueue = null;
     _queue.addAll(tracks);
+    if (_isShuffled) {
+      _originalQueue.addAll(tracks);
+    }
     if (_currentIndex == -1 && _queue.isNotEmpty) {
       _currentIndex = 0;
     }
@@ -110,10 +168,15 @@ class QueueManager {
   void removeTrackAt(int index) {
     if (index < 0 || index >= _queue.length) return;
     _cachedUnmodifiableQueue = null;
-    _queue.removeAt(index);
+    final removed = _queue.removeAt(index);
+    if (_isShuffled) {
+      _originalQueue.removeWhere((t) => t.id == removed.id);
+    }
 
     if (_queue.isEmpty) {
       _currentIndex = -1;
+      _originalQueue.clear();
+      _isShuffled = false;
     } else if (_currentIndex >= _queue.length) {
       _currentIndex = _queue.length - 1;
     } else if (_currentIndex > index) {
@@ -125,6 +188,8 @@ class QueueManager {
   void clear() {
     _cachedUnmodifiableQueue = null;
     _queue.clear();
+    _originalQueue.clear();
+    _isShuffled = false;
     _currentIndex = -1;
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import '../../app/theme/app_spacing.dart';
 import '../../core/audio/playback_state.dart' as pb;
 import '../../core/audio/providers.dart';
 import '../../features/auth/providers/auth_providers.dart';
+import '../../features/playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../features/playlists/presentation/widgets/create_playlist_dialog.dart';
 import '../../features/playlists/providers/playlist_providers.dart';
 import '../../features/profile/presentation/profile_controller.dart';
@@ -26,16 +28,34 @@ import '../../shared/widgets/widgets.dart';
 /// - Cocoa Plum Now Playing right panel drawer
 class MainAppShell extends ConsumerStatefulWidget {
   final Widget child;
+  final bool initialDrawerOpen;
 
-  const MainAppShell({super.key, required this.child});
+  const MainAppShell({
+    super.key,
+    required this.child,
+    this.initialDrawerOpen = false,
+  });
+
+  static String formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    return '$minutes:${twoDigits(seconds)}';
+  }
 
   @override
   ConsumerState<MainAppShell> createState() => _MainAppShellState();
 }
 
 class _MainAppShellState extends ConsumerState<MainAppShell> {
-  bool _isNowPlayingDrawerOpen = false;
+  late bool _isNowPlayingDrawerOpen;
   final TextEditingController _topSearchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _isNowPlayingDrawerOpen = widget.initialDrawerOpen;
+  }
 
   @override
   void dispose() {
@@ -618,9 +638,12 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                 color: AppColors.cocoaPlum,
               ),
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                if (messenger == null) return;
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
                   const SnackBar(
-                    content: Text("You're all caught up! No new notifications."),
+                    content: Text('No new notifications'),
                     behavior: SnackBarBehavior.floating,
                     duration: Duration(seconds: 2),
                   ),
@@ -1021,6 +1044,132 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
   // ── COCOA PLUM NOW PLAYING PANEL (Right Drawer on Desktop) ─────────────────
 
   Widget _buildNowPlayingPanel(pb.PlaybackState playback) {
+    return DesktopNowPlayingPanel(
+      playback: playback,
+      onClose: () {
+        setState(() => _isNowPlayingDrawerOpen = false);
+      },
+    );
+  }
+
+  // ── MOBILE MINI PLAYER ─────────────────────────────────────────────────────
+
+  Widget _buildMobileMiniPlayer(
+      BuildContext context, pb.PlaybackState playback) {
+    final track = playback.currentTrack;
+    if (track == null) return const SizedBox.shrink();
+
+    final isPlaying = playback.status == pb.PlaybackStatus.playing;
+    final favorites = ref.watch(favoritesProvider);
+    final isLiked = favorites.any((t) => t.id == track.id);
+
+    return MiniPlayer(
+      musicItem: track,
+      isPlaying: isPlaying,
+      isFavorited: isLiked,
+      progress: playback.duration.inMilliseconds > 0
+          ? playback.position.inMilliseconds / playback.duration.inMilliseconds
+          : 0.0,
+      onTap: () {
+        context.push('/player');
+      },
+      onPlayPauseTap: () {
+        if (isPlaying) {
+          ref.read(playerControllerProvider.notifier).pause();
+        } else {
+          ref.read(playerControllerProvider.notifier).play();
+        }
+      },
+      onFavoriteTap: () {
+        ref.read(favoritesProvider.notifier).toggleFavorite(track);
+      },
+    );
+  }
+
+  // ── HELPERS ────────────────────────────────────────────────────────────────
+
+  int _getNavIndex(String location) {
+    if (location == '/home') return 0;
+    if (location == '/search') return 1;
+    if (location == '/playlists' || location.startsWith('/playlist/')) return 2;
+    if (location == '/settings') return 3;
+    return 0;
+  }
+
+  void _handleNavigation(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.go('/home');
+        break;
+      case 1:
+        context.go('/search');
+        break;
+      case 2:
+        context.go('/playlists');
+        break;
+      case 3:
+        context.go('/settings');
+        break;
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60);
+    return '$minutes:${twoDigits(seconds)}';
+  }
+}
+
+/// The desktop right-hand Now Playing drawer panel.
+class DesktopNowPlayingPanel extends ConsumerWidget {
+  final pb.PlaybackState playback;
+  final VoidCallback? onClose;
+
+  const DesktopNowPlayingPanel({
+    super.key,
+    required this.playback,
+    this.onClose,
+  });
+
+  Widget _buildArtworkPlaceholder() {
+    return Container(
+      color: AppColors.softClay,
+      child: const Icon(
+        Icons.music_note_rounded,
+        size: 64,
+        color: AppColors.vanillaCream,
+      ),
+    );
+  }
+
+  Widget _buildArtwork(String rawUrl) {
+    if (rawUrl.isEmpty) {
+      return _buildArtworkPlaceholder();
+    }
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      return Image.network(
+        rawUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildArtworkPlaceholder(),
+      );
+    }
+    try {
+      final normalizedPath = rawUrl.startsWith('file://')
+          ? Uri.parse(rawUrl).toFilePath()
+          : rawUrl;
+      return Image.file(
+        File(normalizedPath),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildArtworkPlaceholder(),
+      );
+    } catch (_) {
+      return _buildArtworkPlaceholder();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final track = playback.currentTrack;
     if (track == null) return const SizedBox.shrink();
 
@@ -1034,6 +1183,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     final isLiked = favorites.any((t) => t.id == track.id);
 
     return Container(
+      width: 320,
       decoration: const BoxDecoration(
         color: AppColors.cocoaPlum,
         borderRadius: BorderRadius.only(
@@ -1054,9 +1204,8 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   color: AppColors.vanillaCream,
                   size: 24,
                 ),
-                onPressed: () {
-                  setState(() => _isNowPlayingDrawerOpen = false);
-                },
+                tooltip: 'Close panel',
+                onPressed: onClose,
               ),
               Column(
                 children: [
@@ -1089,7 +1238,10 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   color: AppColors.vanillaCream,
                   size: 20,
                 ),
-                onPressed: () {},
+                tooltip: 'More options',
+                onPressed: track != null
+                    ? () => showAddToPlaylistSheet(context, track)
+                    : null,
               ),
             ],
           ),
@@ -1103,26 +1255,16 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
               aspectRatio: 1.0,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  track.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: AppColors.softClay,
-                    child: const Icon(
-                      Icons.music_note_rounded,
-                      size: 64,
-                      color: AppColors.cocoaPlum,
-                    ),
-                  ),
-                ),
+                child: _buildArtwork(track.imageUrl),
               ),
             ),
           ),
 
-          const SizedBox(height: 24),
+          const Spacer(),
 
-          // Title & Artist + Heart
+          // Track Title & Artist + Favorite Heart
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Column(
@@ -1214,7 +1356,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _formatDuration(playback.position),
+                      MainAppShell.formatDuration(playback.position),
                       style: GoogleFonts.geist(
                         fontSize: 11,
                         color: AppColors.vanillaCream.withOpacity(0.6),
@@ -1222,7 +1364,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                     ),
                     Text(
                       playback.duration.inMilliseconds > 0
-                          ? _formatDuration(playback.duration)
+                          ? MainAppShell.formatDuration(playback.duration)
                           : '--:--',
                       style: GoogleFonts.geist(
                         fontSize: 11,
@@ -1339,57 +1481,5 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
       ),
     );
   }
-
-  // ── MOBILE MINI PLAYER ─────────────────────────────────────────────────────
-
-  Widget _buildMobileMiniPlayer(
-      BuildContext context, pb.PlaybackState playback) {
-    final track = playback.currentTrack;
-    if (track == null) return const SizedBox.shrink();
-
-    return MiniPlayer(
-      musicItem: track,
-      isPlaying: playback.status == pb.PlaybackStatus.playing,
-      progress: playback.duration.inMilliseconds > 0
-          ? playback.position.inMilliseconds / playback.duration.inMilliseconds
-          : 0.0,
-      onTap: () {
-        context.push('/player');
-      },
-    );
-  }
-
-  // ── HELPERS ────────────────────────────────────────────────────────────────
-
-  int _getNavIndex(String location) {
-    if (location == '/home') return 0;
-    if (location == '/search') return 1;
-    if (location == '/playlists' || location.startsWith('/playlist/')) return 2;
-    if (location == '/settings') return 3;
-    return 0;
-  }
-
-  void _handleNavigation(BuildContext context, int index) {
-    switch (index) {
-      case 0:
-        context.go('/home');
-        break;
-      case 1:
-        context.go('/search');
-        break;
-      case 2:
-        context.go('/playlists');
-        break;
-      case 3:
-        context.go('/settings');
-        break;
-    }
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds.remainder(60);
-    return '$minutes:${twoDigits(seconds)}';
-  }
 }
+

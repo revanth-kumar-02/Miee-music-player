@@ -31,6 +31,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   String _artworkCacheSize = 'Calculating...';
   String _databaseSize = 'Calculating...';
   PermissionStatus _permissionStatus = PermissionStatus.denied;
+  bool _isRefreshingMetadata = false;
 
   @override
   void initState() {
@@ -40,12 +41,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _checkPermission() async {
-    final status = await Permission.audio.status;
-    if (mounted) {
-      setState(() {
-        _permissionStatus = status;
-      });
-    }
+    try {
+      final status = await Permission.audio.status;
+      if (mounted) {
+        setState(() {
+          _permissionStatus = status;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadStats() async {
@@ -149,6 +152,80 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to reset library: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _refreshMetadata() async {
+    final isScanning = ref.read(loadingStateProvider);
+    if (_isRefreshingMetadata || isScanning) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A library scan is already in progress.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isRefreshingMetadata = true;
+    });
+
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refreshing metadata...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await ref.read(mediaLibraryServiceProvider.notifier).scanDevice(forceRefresh: true);
+
+      if (!mounted) return;
+
+      final mediaState = ref.read(mediaLibraryServiceProvider);
+      if (!mediaState.hasPermission) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mediaState.errorMessage ?? 'Storage permission was denied.'),
+          ),
+        );
+      } else if (mediaState.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mediaState.errorMessage!),
+          ),
+        );
+      } else {
+        final now = DateTime.now();
+        final scanStr =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+        await ref.read(settingsControllerProvider.notifier).updateLastScanTime(scanStr);
+        await _loadStats();
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Metadata tags refreshed successfully (${mediaState.songs.length} songs).',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh metadata: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshingMetadata = false;
+        });
       }
     }
   }
@@ -329,6 +406,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           : const Text('Scan directories for offline files'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () async {
+                        if (_isRefreshingMetadata || ref.read(loadingStateProvider)) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Scanning local library...')),
                         );
@@ -347,11 +425,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       leading: const Icon(Icons.refresh_outlined),
                       title: const Text('Refresh Metadata'),
                       subtitle: const Text('Reload tags and local file information'),
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Metadata tags refreshed successfully.')),
-                        );
-                      },
+                      trailing: _isRefreshingMetadata
+                          ? const SizedBox(
+                              width: 16.0,
+                              height: 16.0,
+                              child: CircularProgressIndicator(strokeWidth: 2.0),
+                            )
+                          : const Icon(Icons.chevron_right),
+                      onTap: _isRefreshingMetadata ? null : _refreshMetadata,
                     ),
                     ListTile(
                       leading: const Icon(Icons.folder_open_outlined),
@@ -474,7 +555,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       title: const Text('Media Notification'),
                       subtitle: const Text('Display playback widget in notification bar'),
                       value: settings.mediaNotification,
-                      onChanged: (val) => settingsNotifier.updateMediaNotification(val),
+                      onChanged: (val) async {
+                        if (val && Platform.isAndroid) {
+                          final status = await Permission.notification.status;
+                          if (status.isDenied) {
+                            final res = await Permission.notification.request();
+                            if (!res.isGranted) return;
+                          } else if (status.isPermanentlyDenied) {
+                            await openAppSettings();
+                            return;
+                          }
+                        }
+                        settingsNotifier.updateMediaNotification(val);
+                      },
                     ),
                     SwitchListTile(
                       secondary: const Icon(Icons.phonelink_lock_outlined),

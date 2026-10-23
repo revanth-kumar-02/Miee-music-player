@@ -7,6 +7,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/playback_state.dart';
 import '../../../../core/audio/providers.dart';
+import '../../../../shared/models/track.dart';
 import '../../domain/youtube_model.dart';
 import 'youtube_options_menu.dart';
 
@@ -14,8 +15,23 @@ import 'youtube_options_menu.dart';
 /// channel title, view count, and options.
 class YouTubeResultTile extends ConsumerWidget {
   final YouTubeVideo video;
+  final VoidCallback? onTap;
 
-  const YouTubeResultTile({super.key, required this.video});
+  const YouTubeResultTile({
+    super.key,
+    required this.video,
+    this.onTap,
+  });
+
+  static bool _isSameTrackId(String currentTrackId, String targetVideoId) {
+    final normCurrent = currentTrackId.startsWith('youtube_')
+        ? currentTrackId.replaceFirst('youtube_', '')
+        : currentTrackId;
+    final normTarget = targetVideoId.startsWith('youtube_')
+        ? targetVideoId.replaceFirst('youtube_', '')
+        : targetVideoId;
+    return normCurrent == normTarget;
+  }
 
   void _showOptions(BuildContext context) {
     showModalBottomSheet<void>(
@@ -28,20 +44,32 @@ class YouTubeResultTile extends ConsumerWidget {
     );
   }
 
+  void _handleTap(WidgetRef ref) {
+    if (onTap != null) {
+      onTap!();
+    } else {
+      final track = video.toTrack();
+      ref.read(playerControllerProvider.notifier).selectTrack(
+            track,
+            [track],
+            playingFrom: 'YouTube Search',
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.watch(playerControllerProvider);
-    final isCurrentTrack = playback.currentTrack?.id == video.id;
+    final currentTrackId = playback.currentTrack?.id;
+    final isCurrentTrack =
+        currentTrackId != null && _isSameTrackId(currentTrackId, video.id);
     final isPlaying = isCurrentTrack && playback.status == PlaybackStatus.playing;
 
     return Semantics(
       label: 'YouTube video: ${video.title} by ${video.channelTitle}, duration ${video.duration}',
       button: true,
       child: InkWell(
-        onTap: () {
-          // Play the selected YouTube video immediately in the persistent bottom player
-          ref.read(playerControllerProvider.notifier).selectTrack(video, [video]);
-        },
+        onTap: () => _handleTap(ref),
         borderRadius: BorderRadius.circular(10.0),
         child: Container(
           height: 72.0,
@@ -158,7 +186,7 @@ class YouTubeResultTile extends ConsumerWidget {
                   if (isCurrentTrack && isPlaying) {
                     ref.read(playerControllerProvider.notifier).pause();
                   } else {
-                    ref.read(playerControllerProvider.notifier).selectTrack(video, [video]);
+                    _handleTap(ref);
                   }
                 },
                 splashRadius: 20.0,

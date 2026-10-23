@@ -38,6 +38,11 @@ class MediaRepositoryImpl implements MediaRepository {
   Future<bool> checkAndRequestPermissions() async {
     if (kIsWeb || !Platform.isAndroid) return true;
     
+    // Request notification permission on Android 13+ (API 33+) if not determined
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+
     if (await Permission.audio.request().isGranted) {
       return true;
     }

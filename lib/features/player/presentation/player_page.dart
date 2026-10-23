@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -126,26 +127,8 @@ class PlayerPage extends ConsumerWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
                         child: hasTrack
-                            ? Image.network(
-                                currentTrack.imageUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  color: AppColors.softClay,
-                                  child: const Icon(
-                                    Icons.music_note_rounded,
-                                    size: 80,
-                                    color: AppColors.cocoaPlum,
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                color: AppColors.softClay,
-                                child: const Icon(
-                                  Icons.music_note_rounded,
-                                  size: 80,
-                                  color: AppColors.cocoaPlum,
-                                ),
-                              ),
+                            ? _buildArtworkImage(currentTrack.imageUrl)
+                            : _buildFallbackArtwork(),
                       ),
                     ),
                   ),
@@ -458,4 +441,44 @@ class PlayerPage extends ConsumerWidget {
   ),
 );
   }
+
+  Widget _buildFallbackArtwork() {
+    return Container(
+      color: AppColors.softClay,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.music_note_rounded,
+        size: 80,
+        color: AppColors.cocoaPlum,
+      ),
+    );
+  }
+
+  Widget _buildArtworkImage(String? rawUrl) {
+    if (rawUrl == null || rawUrl.trim().isEmpty) {
+      return _buildFallbackArtwork();
+    }
+    final cleanUrl = rawUrl.trim();
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      return Image.network(
+        cleanUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackArtwork(),
+      );
+    }
+    try {
+      final normalizedPath = cleanUrl.startsWith('file://')
+          ? Uri.parse(cleanUrl).toFilePath()
+          : cleanUrl;
+      final file = File(normalizedPath);
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackArtwork(),
+      );
+    } catch (_) {
+      return _buildFallbackArtwork();
+    }
+  }
 }
+

@@ -24,6 +24,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   /// Custom height for the App Bar. Defaults to 56.0.
   final double height;
 
+  /// Optional tap callback for the notification bell icon.
+  final VoidCallback? onNotificationTap;
+
   const AppHeader({
     super.key,
     required this.title,
@@ -32,6 +35,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.isScrolled = false,
     this.height = 56.0,
+    this.onNotificationTap,
   });
 
   @override
@@ -46,6 +50,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
       isScrolled: isScrolled,
       height: height,
+      onNotificationTap: onNotificationTap,
     );
   }
 }

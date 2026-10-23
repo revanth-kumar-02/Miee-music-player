@@ -12,6 +12,7 @@ import '../../media/providers/media_providers.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../providers/search_providers.dart';
 import '../domain/search_state.dart';
+import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
 import '../../recommendations/providers/recommendation_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
@@ -91,6 +92,34 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     setState(() => _searchQuery = query);
     _searchFocusNode.unfocus();
     ref.read(searchNotifierProvider.notifier).searchNow(query);
+  }
+
+  void _playYouTubeResult(YouTubeVideo video, List<YouTubeVideo> results) {
+    if (results.isEmpty) return;
+
+    final normVideoId = video.id.startsWith('youtube_')
+        ? video.id.replaceFirst('youtube_', '')
+        : video.id;
+
+    final targetIndex = results.indexWhere((v) {
+      final normV = v.id.startsWith('youtube_')
+          ? v.id.replaceFirst('youtube_', '')
+          : v.id;
+      return normV == normVideoId;
+    });
+
+    if (targetIndex < 0) return;
+
+    final tracks = List<Track>.unmodifiable(
+      results.map((v) => v.toTrack()),
+    );
+    final targetTrack = tracks[targetIndex];
+
+    ref.read(playerControllerProvider.notifier).selectTrack(
+          targetTrack,
+          tracks,
+          playingFrom: 'YouTube Search',
+        );
   }
 
   @override
@@ -439,7 +468,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         if (localSongs.isNotEmpty) {
           ref
               .read(playerControllerProvider.notifier)
-              .playTrack(localSongs.first);
+              .selectTrack(localSongs.first, localSongs, playingFrom: topArtistName);
         }
       };
     } else if (recs != null && recs.favoriteArtists.isNotEmpty) {
@@ -889,9 +918,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             },
             onPlay: () {
               if (state.youtubeResults.isNotEmpty) {
-                ref
-                    .read(playerControllerProvider.notifier)
-                    .selectTrack(state.youtubeResults.first, state.youtubeResults);
+                _playYouTubeResult(state.youtubeResults.first, state.youtubeResults);
               }
             },
           ),
@@ -903,14 +930,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             imageUrl: state.youtubeResults.first.thumbnailUrl,
             isSong: true,
             onTap: () {
-              ref
-                  .read(playerControllerProvider.notifier)
-                  .selectTrack(state.youtubeResults.first, state.youtubeResults);
+              _playYouTubeResult(state.youtubeResults.first, state.youtubeResults);
             },
             onPlay: () {
-              ref
-                  .read(playerControllerProvider.notifier)
-                  .selectTrack(state.youtubeResults.first, state.youtubeResults);
+              _playYouTubeResult(state.youtubeResults.first, state.youtubeResults);
             },
           ),
           const SizedBox(height: 28),
@@ -989,7 +1012,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ...state.youtubeResults.take(15).map(
                   (video) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: YouTubeResultTile(video: video),
+                    child: YouTubeResultTile(
+                      video: video,
+                      onTap: () => _playYouTubeResult(video, state.youtubeResults),
+                    ),
                   ),
                 ),
             const SizedBox(height: 24),

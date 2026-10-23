@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/providers.dart';
+import '../../../core/storage/adapters/history_entry.dart';
+import '../../history/domain/listening_event.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../shared/models/music_item.dart';
@@ -42,6 +45,25 @@ class _HomePageState extends ConsumerState<HomePage> {
     final currentTrack = ref.watch(playerControllerProvider).currentTrack;
     final playlists = ref.watch(allPlaylistsProvider);
     final favorites = ref.watch(favoritesProvider);
+    final recentlyPlayedAsync = ref.watch(recentlyPlayedProvider);
+    final queueManager = ref.watch(queueManagerProvider);
+
+    final recentEntries = recentlyPlayedAsync.valueOrNull ?? [];
+    final cloudHistory = recsAsync.valueOrNull?.recentlyPlayed ?? [];
+
+    final continueTrack = _resolveContinueListeningTrack(
+      recentEntries: recentEntries,
+      cloudHistory: cloudHistory,
+      localSongs: localSongs,
+    );
+    final continueQueue = continueTrack != null
+        ? _resolveContinueListeningQueue(
+            targetTrack: continueTrack,
+            recentEntries: recentEntries,
+            localSongs: localSongs,
+            activeQueue: queueManager.queue,
+          )
+        : <MusicItem>[];
 
     final hour = DateTime.now().hour;
     final greetingPrefix = hour < 12
@@ -92,13 +114,20 @@ class _HomePageState extends ConsumerState<HomePage> {
               error: (e, _) => _buildDiscoveryErrorBanner(context, e),
             ),
 
-            // ── 4. Local Music Spotlight (if present) ───────────────────────
-            if (localSongs.isNotEmpty) ...[
+            // ── 4. Continue Listening (Recent History / Local Fallback) ───────
+            if (continueTrack != null) ...[
               _buildSectionTitle('Continue Listening'),
               const SizedBox(height: 14),
-              _buildContinueListeningCard(context, localSongs),
+              _buildContinueListeningCard(
+                context: context,
+                recentSong: continueTrack,
+                resolvedQueue: continueQueue,
+              ),
               const SizedBox(height: 32),
+            ],
 
+            // ── 5. Local Music Spotlight (if present) ───────────────────────
+            if (localSongs.isNotEmpty) ...[
               _buildSectionTitle('Local Tracks'),
               const SizedBox(height: 14),
               _buildLocalTracksList(localAlbums, localSongs),
@@ -958,16 +987,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                 imageUrl: null,
                 isPlaying: currentTrack?.id == event.trackId,
                 onTap: () {
-                  final track = Track(
-                    id: event.trackId,
-                    title: event.title,
-                    artist: event.artist,
-                    imageUrl: '',
-                    duration: dur,
-                  );
+                  final recentTracks = sections.recentlyPlayed.map((e) {
+                    final em = e.durationSec ~/ 60;
+                    final es = e.durationSec % 60;
+                    return Track(
+                      id: e.trackId,
+                      title: e.title,
+                      artist: e.artist,
+                      imageUrl: '',
+                      duration: '$em:${es.toString().padLeft(2, '0')}',
+                    );
+                  }).toList();
+                  final selectedTrack = recentTracks[index];
                   ref
                       .read(playerControllerProvider.notifier)
-                      .playTrack(track);
+                      .selectTrack(selectedTrack, recentTracks, playingFrom: 'Recently Played');
                 },
               );
             },
@@ -1179,12 +1213,155 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildContinueListeningCard(
-      BuildContext context, List<MediaSong> localSongs) {
-    final recentSong = localSongs.first;
+  MusicItem? _resolveContinueListeningTrack({
+    required List<HistoryEntry> recentEntries,
+    required List<ListeningEvent> cloudHistory,
+    required List<MediaSong> localSongs,
+  }) {
+    // 1. Check local Hive recently played entries (sorted newest first)
+    if (recentEntries.isNotEmpty) {
+      final newest = recentEntries.first.track.toTrack();
+      if (!newest.isYoutube) {
+        final localMatch = localSongs.where((s) {
+          if (s.id == newest.id) return true;
+          if (s.filePath.isNotEmpty && s.filePath == newest.filePath) return true;
+          return s.id == newest.id.replaceFirst('youtube_', '');
+        }).firstOrNull;
+        if (localMatch != null) return localMatch;
+      }
+      return newest;
+    }
+
+    // 2. Check cloud listening history
+    if (cloudHistory.isNotEmpty) {
+      final event = cloudHistory.first;
+      final localMatch = localSongs.where((s) {
+        if (s.id == event.trackId) return true;
+        return s.id == event.trackId.replaceFirst('youtube_', '');
+      }).firstOrNull;
+      if (localMatch != null) return localMatch;
+
+      final m = event.durationSec ~/ 60;
+      final s = event.durationSec % 60;
+      return Track(
+        id: event.trackId.startsWith('youtube_')
+            ? event.trackId
+            : 'youtube_${event.trackId}',
+        title: event.title,
+        artist: event.artist,
+        imageUrl: '',
+        duration: '$m:${s.toString().padLeft(2, '0')}',
+      );
+    }
+
+    // 3. Fallback to first available local track
+    return localSongs.firstOrNull;
+  }
+
+  List<MusicItem> _resolveContinueListeningQueue({
+    required MusicItem targetTrack,
+    required List<HistoryEntry> recentEntries,
+    required List<MediaSong> localSongs,
+    required List<MusicItem> activeQueue,
+  }) {
+    final normTargetId = targetTrack.id.replaceFirst('youtube_', '');
+
+    // 1. If active player queue contains this track, preserve active queue!
+    final activeIndex = activeQueue.indexWhere((t) =>
+        t.id == targetTrack.id ||
+        t.id.replaceFirst('youtube_', '') == normTargetId);
+    if (activeIndex >= 0) {
+      return activeQueue;
+    }
+
+    // 2. If target is in localSongs, use localSongs queue
+    final localIndex = localSongs.indexWhere(
+        (s) => s.id == targetTrack.id || s.id == normTargetId);
+    if (localIndex >= 0) {
+      return localSongs;
+    }
+
+    // 3. If recent entries exist, use the recent history queue
+    if (recentEntries.isNotEmpty) {
+      return recentEntries.map((e) => e.track.toTrack()).toList();
+    }
+
+    // 4. Standalone track
+    return [targetTrack];
+  }
+
+  Widget _buildContinueListeningCard({
+    required BuildContext context,
+    required MusicItem? recentSong,
+    required List<MusicItem> resolvedQueue,
+  }) {
+    if (recentSong == null) {
+      return const SizedBox.shrink();
+    }
+
+    final imageUrl = recentSong.imageUrl;
+    final hasHttpArt =
+        imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
+    final hasFileArt = !hasHttpArt && imageUrl.isNotEmpty;
+
+    Widget artworkWidget = Container(
+      width: 54,
+      height: 54,
+      color: AppColors.softClay,
+      child: const Icon(
+        Icons.music_note_rounded,
+        color: AppColors.cocoaPlum,
+      ),
+    );
+
+    if (hasHttpArt) {
+      artworkWidget = Image.network(
+        imageUrl,
+        width: 54,
+        height: 54,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 54,
+          height: 54,
+          color: AppColors.softClay,
+          child: const Icon(
+            Icons.music_note_rounded,
+            color: AppColors.cocoaPlum,
+          ),
+        ),
+      );
+    } else if (hasFileArt) {
+      try {
+        final normPath = imageUrl.startsWith('file://')
+            ? Uri.parse(imageUrl).toFilePath()
+            : imageUrl;
+        artworkWidget = Image.file(
+          File(normPath),
+          width: 54,
+          height: 54,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: 54,
+            height: 54,
+            color: AppColors.softClay,
+            child: const Icon(
+              Icons.music_note_rounded,
+              color: AppColors.cocoaPlum,
+            ),
+          ),
+        );
+      } catch (_) {
+        // Fallback assigned by default
+      }
+    }
+
     return GestureDetector(
       onTap: () {
-        ref.read(playerControllerProvider.notifier).playTrack(recentSong);
+        ref.read(playerControllerProvider.notifier).selectTrack(
+              recentSong,
+              resolvedQueue,
+              playingFrom: 'Continue Listening',
+            );
       },
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -1197,15 +1374,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Container(
-                width: 54,
-                height: 54,
-                color: AppColors.softClay,
-                child: const Icon(
-                  Icons.music_note_rounded,
-                  color: AppColors.cocoaPlum,
-                ),
-              ),
+              child: artworkWidget,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1270,7 +1439,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           duration: song.duration,
           isPlaying: false,
           onTap: () {
-            ref.read(playerControllerProvider.notifier).playTrack(song);
+            ref.read(playerControllerProvider.notifier).selectTrack(
+                  song,
+                  songs,
+                  playingFrom: 'Device Tracks',
+                );
           },
         );
       },

@@ -64,9 +64,11 @@ class RecentlyPlayedRepository {
   List<Track> getRecentTracks() =>
       getRecentlyPlayed().map((e) => e.track.toTrack()).toList(growable: false);
 
-  /// Stream that emits whenever the history changes.
-  Stream<List<HistoryEntry>> watchRecentlyPlayed() =>
-      _box.watch().map((_) => getRecentlyPlayed());
+  /// Stream that emits whenever the history changes, starting with the current state.
+  Stream<List<HistoryEntry>> watchRecentlyPlayed() async* {
+    yield getRecentlyPlayed();
+    yield* _box.watch().map((_) => getRecentlyPlayed());
+  }
 
   /// Clears all recently played history.
   Future<void> clear() async => _box.clear();

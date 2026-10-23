@@ -313,7 +313,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/artist/:id',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
-              return ArtistDetailPage(artistId: id);
+              return ArtistDetailPage(
+                artistId: id,
+                initialArtist: state.extra,
+              );
             },
           ),
           GoRoute(
