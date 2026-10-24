@@ -7,7 +7,6 @@ import 'package:Miee/core/audio/player_controller.dart';
 import 'package:Miee/core/audio/providers.dart';
 import 'package:Miee/core/audio/queue_manager.dart';
 import 'package:Miee/features/queue/presentation/queue_page.dart';
-import 'package:Miee/shared/models/music_item.dart';
 import 'package:Miee/shared/models/track.dart';
 
 /// Test Spy for PlayerController tracking calls to play, pause, togglePlayPause, and next.

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Miee/shared/models/music_item.dart';
 import 'package:Miee/shared/models/track.dart';
-import 'package:Miee/features/media/domain/models.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/core/audio/queue_manager.dart';
 

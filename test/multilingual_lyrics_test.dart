@@ -1,12 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:Miee/features/lyrics/data/lyrics_repository.dart';
 import 'package:Miee/features/lyrics/domain/lyrics_model.dart';
 import 'package:Miee/features/lyrics/domain/lyrics_search_query_builder.dart';
 import 'package:Miee/features/lyrics/domain/lyrics_validator.dart';
-import 'package:Miee/features/lyrics/domain/indic_transliterator.dart';
-import 'package:Miee/features/lyrics/providers/lyrics_providers.dart';
 import 'package:Miee/shared/models/track.dart';
 
 void main() {

@@ -180,6 +180,26 @@ Cleaned unreferenced imports and dead elements across:
 - `lib/features/settings/presentation/settings_page.dart`
 - `lib/features/youtube/presentation/widgets/youtube_result_tile.dart`
 
+### 5.5 Group 5: Test & Documentation Hygiene Cleanup
+- **Removed Obsolete Documentation Files (7 files, ~129 KB):**
+  - `docs/ANDROID_MANIFEST_INSTRUCTIONS.md` (Already merged into `AndroidManifest.xml`)
+  - `docs/overnight-engineering-report.md` (Outdated Oct 17 session log)
+  - `docs/MIEE_TWO_DAY_STABILIZATION_PLAN.md` (Completed Oct 22 sprint plan)
+  - `docs/REPOSITORY_CLEANUP_REPORT.md` (Superseded Oct 19 report)
+  - `docs/MIEE_PROJECT_STATUS.md` (Outdated Oct 1 tracker)
+  - `docs/MIEE_FINAL_VERIFICATION_REPORT.md` (Superseded Oct 22 report)
+  - `docs/MIEE_REMAINING_FEATURE_AUDIT.md` (Superseded 60 KB Oct 22 checklist)
+- **Removed Obsolete Tests:**
+  - `test/live_search_dedup_test.dart` (39 lines, unmocked live network test superseded by `search_deduplication_test.dart` and `song_search_view_count_quality_test.dart`)
+- **Preserved Canonical Documentation Sources:**
+  - `README.md`, `PROJECT_RULES.md`, `GSD-STYLE.md`
+  - `docs/MIEE_CODEBASE_AUDIT.md` (Source of truth for repository structure and audits)
+  - `docs/MIEE_SUPABASE_MIGRATION_REPORT.md` (Source of truth for Supabase backend)
+  - `docs/YOUTUBE_PLAYBACK_RUNTIME_DEBUG.md` (Source of truth for YouTube streaming & ExoPlayer headers)
+  - `docs/MIEE_FUNCTIONAL_REFERENCE_AUDIT.md` (Source of truth for Spotify/YT Music interaction mechanics)
+  - `docs/MIEE_PERFORMANCE_AUDIT.md` (Source of truth for Flutter jank reduction and rebuild isolation)
+  - Feature specifications: Multilingual lyrics, title normalization, track identity, recommendations, and artist avatars.
+
 ---
 
 ## 6. Verification Results

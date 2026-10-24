@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Miee/features/search/domain/search_deduplicator.dart';
 import 'package:Miee/features/search/domain/search_state.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
-import 'package:Miee/shared/models/track.dart';
 import 'package:Miee/features/media/domain/models.dart';
 
 void main() {
