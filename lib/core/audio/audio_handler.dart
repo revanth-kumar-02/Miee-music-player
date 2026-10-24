@@ -27,7 +27,7 @@ const _kMaxYouTubeRetries = 2;
 /// [ProcessingState.completed] because this handler already does so in
 /// [_onPlayerStateChanged]. Doing both causes a double-skip.
 class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _player;
 
   /// Current ordered queue of tracks.
   final List<MusicItem> _queue = [];
@@ -37,6 +37,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   /// Null if loading, in-flight, failed, or stopped.
   String? _loadedAudioTrackId;
   String? get loadedAudioTrackId => _loadedAudioTrackId;
+
+  /// Tracks whether playback was interrupted mid-stream by a transient system
+  /// interruption (e.g. phone call). If the user explicitly pauses/stops the
+  /// song, or if the song was already paused when an interruption occurred,
+  /// this is ALWAYS false. This guarantees Miee NEVER resumes playback when
+  /// external apps (like Instagram Reels, TikTok, YouTube, Twitter) lose or
+  /// yield audio focus.
+  bool _playInterrupted = false;
+
+  @visibleForTesting
+  bool get playInterrupted => _playInterrupted;
 
   /// Monotonically increasing token to discard stale in-flight loads
   /// when a user rapidly selects a different song.
@@ -53,7 +64,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlaybackEvent>? _playbackEventSub;
 
-  MieeAudioHandler() {
+  MieeAudioHandler({AudioPlayer? player})
+      : _player = player ?? AudioPlayer(handleInterruptions: false) {
     _listenToPlayerStreams();
     queue.add([]);
     debugPrint('[AudioHandler] MieeAudioHandler() constructed');
@@ -65,27 +77,91 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
 
-      session.interruptionEventStream.listen((event) {
-        if (event.begin) {
-          debugPrint('[BackgroundAudio] Audio interruption began — pausing');
-          _player.pause();
-        } else {
-          if (event.type == AudioInterruptionType.pause ||
-              event.type == AudioInterruptionType.duck) {
-            debugPrint('[BackgroundAudio] Audio interruption ended — resuming');
-            _player.play();
-          }
-        }
-      });
+      session.interruptionEventStream.listen(handleInterruptionEvent);
 
       session.becomingNoisyEventStream.listen((_) {
         debugPrint('[BackgroundAudio] Becoming noisy (headset removed) — pausing');
+        _playInterrupted = false;
         _player.pause();
       });
 
       debugPrint('[BackgroundAudio] AudioSession initialized for music playback');
     } catch (e) {
       debugPrint('[AudioHandler] initialize() error: $e');
+    }
+  }
+
+  /// Handles incoming audio interruption events from the system audio session.
+  @visibleForTesting
+  void handleInterruptionEvent(AudioInterruptionEvent event) {
+    debugPrint(
+      '[BackgroundAudio] Audio interruption event: begin=${event.begin}, type=${event.type}, '
+      'player.playing=${_player.playing}, playInterrupted=$_playInterrupted',
+    );
+
+    if (event.begin) {
+      switch (event.type) {
+        case AudioInterruptionType.duck:
+          if (_player.playing) {
+            _player.setVolume((_player.volume * 0.5).clamp(0.1, 1.0));
+          }
+          break;
+        case AudioInterruptionType.pause:
+          // Transient interruption (e.g. incoming phone call).
+          // ONLY mark to resume if Miee was actively playing right now!
+          if (_player.playing) {
+            debugPrint(
+              '[BackgroundAudio] Audio interruption began while playing — pausing with resume intent',
+            );
+            _playInterrupted = true;
+            _player.pause();
+          } else {
+            debugPrint(
+              '[BackgroundAudio] Audio interruption began while already paused — will NOT resume',
+            );
+            _playInterrupted = false;
+          }
+          break;
+        case AudioInterruptionType.unknown:
+          // Permanent loss of audio focus (e.g. another media app like Spotify/YouTube/Instagram started playing).
+          // Never resume after permanent loss!
+          debugPrint(
+            '[BackgroundAudio] Permanent audio focus loss — pausing without auto-resume',
+          );
+          _playInterrupted = false;
+          _player.pause();
+          break;
+      }
+    } else {
+      // Interruption ended / audio focus returned to Miee
+      switch (event.type) {
+        case AudioInterruptionType.duck:
+          if (_player.playing) {
+            _player.setVolume(1.0);
+          }
+          _playInterrupted = false;
+          break;
+        case AudioInterruptionType.pause:
+          if (_playInterrupted) {
+            debugPrint(
+              '[BackgroundAudio] Audio interruption ended — resuming prior playing state',
+            );
+            _playInterrupted = false;
+            play();
+          } else {
+            debugPrint(
+              '[BackgroundAudio] Audio interruption ended — staying paused (user had paused or stopped)',
+            );
+            _playInterrupted = false;
+          }
+          break;
+        case AudioInterruptionType.unknown:
+          debugPrint(
+            '[BackgroundAudio] Permanent interruption ended — staying paused',
+          );
+          _playInterrupted = false;
+          break;
+      }
     }
   }
 
@@ -217,6 +293,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   // ---------------------------------------------------------------------------
 
   Future<void> loadQueue(List<MusicItem> tracks, {int startIndex = 0}) async {
+    _playInterrupted = false;
     _queue.clear();
     _queue.addAll(tracks);
     _currentIndex = startIndex.clamp(0, tracks.length - 1);
@@ -497,7 +574,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     if (_crossfadeEnabled && _player.playing) {
       for (double v = 1.0; v >= 0.1; v -= 0.3) {
         await _player.setVolume(v.clamp(0.0, 1.0));
-        await Future.delayed(const Duration(milliseconds: 30));
+        await Future<void>.delayed(const Duration(milliseconds: 30));
       }
     }
 
@@ -514,7 +591,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       await _player.setVolume(0.1);
       for (double v = 0.2; v <= 1.0; v += 0.2) {
         await _player.setVolume(v.clamp(0.0, 1.0));
-        await Future.delayed(const Duration(milliseconds: 35));
+        await Future<void>.delayed(const Duration(milliseconds: 35));
       }
     } else {
       await _player.setVolume(1.0);
@@ -666,6 +743,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> play() async {
+    _playInterrupted = false;
     if (_currentIndex < 0 || _currentIndex >= _queue.length) {
       debugPrint('[Playback] play() ignored: queue is empty or index invalid');
       return;
@@ -691,12 +769,14 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> pause() async {
+    _playInterrupted = false;
     await _player.pause();
     debugPrint('[Playback] pause() called');
   }
 
   @override
   Future<void> stop() async {
+    _playInterrupted = false;
     _loadedAudioTrackId = null;
     await _player.stop();
     _pushPlaybackState(playerState: PlayerState(false, ProcessingState.idle));
@@ -717,6 +797,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToNext() async {
+    _playInterrupted = false;
     if (_queue.isEmpty) return;
     if (_currentIndex < _queue.length - 1) {
       _currentIndex++;
@@ -744,6 +825,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToPrevious() async {
+    _playInterrupted = false;
     if (_queue.isEmpty) return;
     if (_player.position.inSeconds > 3) {
       await _player.seek(Duration.zero);
@@ -776,6 +858,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToQueueItem(int index) async {
+    _playInterrupted = false;
     if (index < 0 || index >= _queue.length) return;
     _currentIndex = index;
     debugPrint('[Queue] skipToQueueItem → index $index');
