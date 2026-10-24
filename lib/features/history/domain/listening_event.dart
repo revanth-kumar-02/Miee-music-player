@@ -5,6 +5,7 @@ class ListeningEvent {
   final String title;
   final String artist;
   final String? artistId;
+  final String? imageUrl;
   final String source; // 'youtube' | 'local'
   final DateTime timestamp;
   final int durationSec;
@@ -17,6 +18,7 @@ class ListeningEvent {
     required this.title,
     required this.artist,
     this.artistId,
+    this.imageUrl,
     required this.source,
     required this.timestamp,
     required this.durationSec,
@@ -43,6 +45,7 @@ class ListeningEvent {
       title: data['title'] as String? ?? 'Unknown Title',
       artist: data['artist'] as String? ?? 'Unknown Artist',
       artistId: data['artistId'] as String?,
+      imageUrl: data['imageUrl'] as String? ?? data['image_url'] as String?,
       source: data['source'] as String? ?? 'youtube',
       timestamp: parseDate(data['timestamp']),
       durationSec: (data['durationSec'] as num?)?.toInt() ?? 0,
@@ -57,6 +60,8 @@ class ListeningEvent {
       'title': title,
       'artist': artist,
       'artistId': artistId,
+      'imageUrl': imageUrl,
+      'image_url': imageUrl,
       'source': source,
       'timestamp': timestamp.toIso8601String(),
       'durationSec': durationSec,

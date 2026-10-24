@@ -7,7 +7,7 @@ import 'package:Miee/core/storage/hive_boxes.dart';
 import 'package:Miee/features/auth/domain/auth_user.dart';
 import 'package:Miee/features/auth/providers/auth_providers.dart';
 import 'package:Miee/features/onboarding/domain/artist_model.dart';
-import 'package:Miee/features/profile/data/firestore_user_profile_repository.dart';
+import 'package:Miee/features/profile/domain/user_profile_repository.dart';
 import 'package:Miee/features/profile/domain/profile_model.dart';
 import 'package:Miee/features/profile/domain/user_profile.dart';
 import 'package:Miee/features/profile/presentation/profile_controller.dart';

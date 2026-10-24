@@ -13,6 +13,93 @@ enum VersionType {
   instrumental,
 }
 
+/// Identifies categorized derivative upload types.
+enum EditType {
+  none,
+  fourKEdit,       // 4K edit, 4K status, 4K 60fps, 4K HDR edit
+  fanEdit,         // fan edit, edit audio, AMV edit, fanmade edit
+  slowedReverb,    // slowed + reverb, slowed down
+  spedUpNightcore, // sped up, speed up, nightcore
+  statusVideo,     // whatsapp status, status video, #shorts
+  compilationMix,  // jukebox, non-stop, continuous mix, full album
+}
+
+/// Configuration for view-count ranking, edit filtering, and candidate pruning.
+class SearchRankingConfig {
+  /// Whether to filter out derivative edits (4K status, fan edits, slowed+reverb, nightcore, status videos, compilations).
+  final bool filterDerivativeEdits;
+
+  /// Relative view ratio threshold: when high-view canonical results exist,
+  /// derivative or extreme low-view results with view counts below this fraction of the top match
+  /// are filtered out (default: 0.05 = 5% of top match's view count).
+  final double relativeViewRatioThreshold;
+
+  /// Absolute minimum view count for derivative edits when canonical versions exist.
+  final int minViewCountForEdits;
+
+  /// Maximum number of candidates to return.
+  final int maxResults;
+
+  const SearchRankingConfig({
+    this.filterDerivativeEdits = false,
+    this.relativeViewRatioThreshold = 0.05,
+    this.minViewCountForEdits = 50000,
+    this.maxResults = 25,
+  });
+}
+
+/// Structured detection of user search intent to avoid filtering requested variations.
+class QueryIntent {
+  final String normalizedQuery;
+  final bool wants4kEdit;
+  final bool wantsFanEdit;
+  final bool wantsSlowed;
+  final bool wantsSpedUp;
+  final bool wantsStatus;
+  final bool wantsCompilation;
+  final bool wantsRemix;
+  final bool wantsLive;
+  final bool wantsAcoustic;
+  final bool wantsCover;
+  final bool wantsInstrumental;
+
+  const QueryIntent({
+    required this.normalizedQuery,
+    this.wants4kEdit = false,
+    this.wantsFanEdit = false,
+    this.wantsSlowed = false,
+    this.wantsSpedUp = false,
+    this.wantsStatus = false,
+    this.wantsCompilation = false,
+    this.wantsRemix = false,
+    this.wantsLive = false,
+    this.wantsAcoustic = false,
+    this.wantsCover = false,
+    this.wantsInstrumental = false,
+  });
+
+  factory QueryIntent.fromQuery(String? rawQuery) {
+    if (rawQuery == null || rawQuery.trim().isEmpty) {
+      return const QueryIntent(normalizedQuery: '');
+    }
+    final q = rawQuery.toLowerCase();
+    return QueryIntent(
+      normalizedQuery: q,
+      wants4kEdit: q.contains('4k') || q.contains('edit'),
+      wantsFanEdit: q.contains('fan edit') || q.contains('edit audio') || q.contains('amv'),
+      wantsSlowed: q.contains('slowed') || q.contains('reverb') || q.contains('slow down') || q.contains('slow'),
+      wantsSpedUp: q.contains('sped up') || q.contains('speed up') || q.contains('nightcore') || q.contains('speedup'),
+      wantsStatus: q.contains('status') || q.contains('shorts') || q.contains('short'),
+      wantsCompilation: q.contains('jukebox') || q.contains('non stop') || q.contains('nonstop') || q.contains('mix') || q.contains('compilation'),
+      wantsRemix: q.contains('remix') || q.contains('club mix') || q.contains('vip mix'),
+      wantsLive: q.contains('live') || q.contains('concert') || q.contains('tour'),
+      wantsAcoustic: q.contains('acoustic') || q.contains('unplugged'),
+      wantsCover: q.contains('cover') || q.contains('tribute'),
+      wantsInstrumental: q.contains('instrumental') || q.contains('karaoke'),
+    );
+  }
+}
+
 /// A deduplication and ranking engine for YouTube search results.
 ///
 /// Detects multiple redundant uploads of the same canonical song (e.g.,
@@ -25,6 +112,7 @@ class SearchDeduplicator {
   static List<YouTubeVideo> deduplicateAndRank(
     List<YouTubeVideo> videos, {
     String? query,
+    SearchRankingConfig config = const SearchRankingConfig(),
   }) {
     if (videos.isEmpty) return const [];
 
@@ -71,9 +159,60 @@ class SearchDeduplicator {
       representatives.add((orderIndex: orderIndex, video: finalizedVideo));
     }
 
-    // 4. Sort the representatives by original discovery relevance order
-    representatives.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+    // 4. If filterDerivativeEdits is true, apply view-count filtering and quality ranking
+    if (config.filterDerivativeEdits && query != null && query.trim().isNotEmpty) {
+      final intent = QueryIntent.fromQuery(query);
+      final candidateList = representatives.map((r) => r.video).toList();
 
+      // Find max views among relevant candidates
+      int maxViews = 0;
+      for (final v in candidateList) {
+        final rel = calculateQueryRelevance(v, query);
+        if (rel >= 0.4) {
+          final views = parseViewCount(v);
+          if (views != null && views > maxViews) {
+            maxViews = views;
+          }
+        }
+      }
+
+      // Separate canonical/legitimate songs from derivative edits
+      final canonicalList = <YouTubeVideo>[];
+
+      for (final v in candidateList) {
+        final editType = detectEditType(v, intent);
+        final views = parseViewCount(v);
+
+        final isUnwantedEdit = editType != EditType.none;
+        // Check relative view threshold: if maxViews is substantial (e.g. >= 100K)
+        // and this video has extremely low views (< 5% of maxViews and < minViewCountForEdits)
+        final isLowViewDerivative = maxViews >= 100000 &&
+            views != null &&
+            views < (maxViews * config.relativeViewRatioThreshold) &&
+            views < config.minViewCountForEdits &&
+            isUnwantedEdit;
+
+        if (!isUnwantedEdit && !isLowViewDerivative) {
+          canonicalList.add(v);
+        }
+      }
+
+      // Safe fallback: If filtering would eliminate every result (e.g. indie/regional song
+      // or only edits exist for this query), retain the candidate pool so the user isn't left empty.
+      final resultPool = canonicalList.isNotEmpty ? canonicalList : candidateList;
+
+      // Sort by global candidate score (relevance, official authenticity, view count)
+      resultPool.sort((a, b) {
+        final scoreA = calculateGlobalCandidateScore(a, query: query, maxViewsInResultSet: maxViews);
+        final scoreB = calculateGlobalCandidateScore(b, query: query, maxViewsInResultSet: maxViews);
+        return scoreB.compareTo(scoreA);
+      });
+
+      return resultPool.take(config.maxResults).toList();
+    }
+
+    // 5. Default sorting: by original discovery relevance order (preserves existing tests)
+    representatives.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
     return representatives.map((item) => item.video).toList();
   }
 
@@ -375,8 +514,8 @@ class SearchDeduplicator {
     }
 
     // 4. View count popularity bonus (logarithmic scaling)
-    final views = _parseViewCount(video.viewCount);
-    if (views > 0) {
+    final views = parseViewCount(video);
+    if (views != null && views > 0) {
       score += ((math.log(views + 1) / math.ln10) * 6).toInt();
     }
 
@@ -438,10 +577,26 @@ class SearchDeduplicator {
     return 0;
   }
 
+  /// Parses view count from a YouTubeVideo or formatted String.
+  /// Returns null when reliable view count is missing or unavailable.
+  static int? parseViewCount(dynamic viewCountOrVideo) {
+    if (viewCountOrVideo is YouTubeVideo) {
+      if (viewCountOrVideo.rawViewCount != null) {
+        return viewCountOrVideo.rawViewCount;
+      }
+      return _parseViewCount(viewCountOrVideo.viewCount);
+    } else if (viewCountOrVideo is String) {
+      return _parseViewCount(viewCountOrVideo);
+    }
+    return null;
+  }
+
   /// Parses view count string like "1.2M views", "450K views", or "12,400 views".
-  static int _parseViewCount(String viewCountStr) {
-    if (viewCountStr.isEmpty) return 0;
+  static int? _parseViewCount(String viewCountStr) {
+    if (viewCountStr.isEmpty) return null;
     final clean = viewCountStr.toLowerCase().replaceAll('views', '').replaceAll(',', '').trim();
+    if (clean.isEmpty || clean.contains('no views')) return null;
+
     if (clean.endsWith('b')) {
       final val = double.tryParse(clean.replaceAll('b', '')) ?? 0.0;
       return (val * 1000000000).toInt();
@@ -452,6 +607,246 @@ class SearchDeduplicator {
       final val = double.tryParse(clean.replaceAll('k', '')) ?? 0.0;
       return (val * 1000).toInt();
     }
-    return int.tryParse(clean) ?? 0;
+    return int.tryParse(clean);
+  }
+
+  /// Identifies derivative / edit upload types unless explicitly requested in query intent.
+  static EditType detectEditType(YouTubeVideo video, QueryIntent intent) {
+    final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
+    final cleanTitle = video.title.toLowerCase();
+
+    // 1. 4K edit / status check
+    if (!intent.wants4kEdit) {
+      if (rawTitle.contains('4k edit') ||
+          rawTitle.contains('4k status') ||
+          rawTitle.contains('4k 60fps') ||
+          rawTitle.contains('4k hdr edit') ||
+          RegExp(r'\b4k\s+(edit|audio|status|version)\b').hasMatch(rawTitle)) {
+        return EditType.fourKEdit;
+      }
+    }
+
+    // 2. Fan edit / edit audio
+    if (!intent.wantsFanEdit && !intent.wants4kEdit) {
+      if (rawTitle.contains('fan edit') ||
+          rawTitle.contains('edit audio') ||
+          rawTitle.contains('audio edit') ||
+          rawTitle.contains('amv edit') ||
+          rawTitle.contains('fanmade edit') ||
+          RegExp(r'[\(\[\{]\s*(edit|fan\s*edit|audio\s*edit)\s*[\)\]\}]').hasMatch(rawTitle)) {
+        return EditType.fanEdit;
+      }
+    }
+
+    // 3. Status video / shorts
+    if (!intent.wantsStatus) {
+      if (rawTitle.contains('whatsapp status') ||
+          rawTitle.contains('status video') ||
+          rawTitle.contains('fullscreen status') ||
+          rawTitle.contains('full screen status') ||
+          rawTitle.contains('shorts video') ||
+          rawTitle.contains('#shorts') ||
+          rawTitle.contains('short video') ||
+          RegExp(r'\b(status\s+video|wa\s+status|lyric\s+status)\b').hasMatch(rawTitle)) {
+        return EditType.statusVideo;
+      }
+    }
+
+    // 4. Slowed + reverb (Conservative: don't flag "Slow Down" or "Slow Hands")
+    if (!intent.wantsSlowed) {
+      final isSongTitleSlow = cleanTitle == 'slow down' ||
+          cleanTitle == 'slow hands' ||
+          cleanTitle.startsWith('slow down ') ||
+          cleanTitle.startsWith('slow hands ');
+      if (!isSongTitleSlow) {
+        if (rawTitle.contains('slowed') ||
+            rawTitle.contains('slowed + reverb') ||
+            rawTitle.contains('slowed and reverb') ||
+            rawTitle.contains('slowed & reverb') ||
+            rawTitle.contains('slowed down') ||
+            RegExp(r'[\(\[\{]\s*(slowed|reverb)\s*[\)\]\}]').hasMatch(rawTitle)) {
+          return EditType.slowedReverb;
+        }
+      }
+    }
+
+    // 5. Sped up / Nightcore (Conservative: don't flag "Speed Demon")
+    if (!intent.wantsSpedUp) {
+      final isSongTitleSpeed = cleanTitle == 'speed demon' || cleanTitle.startsWith('speed demon ');
+      if (!isSongTitleSpeed) {
+        if (rawTitle.contains('nightcore') ||
+            rawTitle.contains('sped up') ||
+            rawTitle.contains('speed up') ||
+            rawTitle.contains('speedup') ||
+            RegExp(r'[\(\[\{]\s*(sped\s+up|speed\s+up|nightcore)\s*[\)\]\}]').hasMatch(rawTitle)) {
+          return EditType.spedUpNightcore;
+        }
+      }
+    }
+
+    // 6. Jukebox / Non-stop compilations
+    if (!intent.wantsCompilation) {
+      if (rawTitle.contains('jukebox') ||
+          rawTitle.contains('non stop') ||
+          rawTitle.contains('nonstop') ||
+          rawTitle.contains('continuous mix') ||
+          rawTitle.contains('audio jukebox') ||
+          rawTitle.contains('video jukebox') ||
+          rawTitle.contains('all songs compilation') ||
+          rawTitle.contains('full album compilation')) {
+        return EditType.compilationMix;
+      }
+      final durSec = _parseDurationSeconds(video.duration);
+      if (durSec > 900 &&
+          !rawTitle.contains('symphony') &&
+          !rawTitle.contains('raga') &&
+          !rawTitle.contains('recital') &&
+          !rawTitle.contains('classical')) {
+        return EditType.compilationMix;
+      }
+    }
+
+    return EditType.none;
+  }
+
+  /// Calculates text relevance of video title & artist to search query (0.0 to 1.0).
+  static double calculateQueryRelevance(YouTubeVideo video, String query) {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return 1.0;
+
+    final normQuery = _sanitizeText(cleanQuery);
+    if (normQuery.isEmpty) return 1.0;
+
+    final cleanTitle = _sanitizeText(video.title);
+    final rawTitle = _sanitizeText(video.rawTitle ?? video.title);
+    final channel = _sanitizeText(video.rawChannelTitle ?? video.channelTitle);
+    final allText = '$cleanTitle $rawTitle $channel';
+
+    // 1. Exact match to query
+    if (cleanTitle == normQuery || rawTitle == normQuery) {
+      return 1.0;
+    }
+
+    // 2. Title contains query phrase or query phrase contains title
+    if (cleanTitle.contains(normQuery) || rawTitle.contains(normQuery)) {
+      return 0.95;
+    }
+    if (normQuery.contains(cleanTitle) && cleanTitle.length >= 3) {
+      return 0.90;
+    }
+
+    // 3. Token overlap
+    final qTokens = normQuery.split(' ').where((s) => s.isNotEmpty).toList();
+    if (qTokens.isEmpty) return 1.0;
+
+    int titleTokensMatched = 0;
+    int allTokensMatched = 0;
+
+    for (final token in qTokens) {
+      if (cleanTitle.contains(token) || rawTitle.contains(token)) {
+        titleTokensMatched++;
+      }
+      if (allText.contains(token)) {
+        allTokensMatched++;
+      }
+    }
+
+    final titleRatio = titleTokensMatched / qTokens.length;
+    final allRatio = allTokensMatched / qTokens.length;
+
+    // Weighted composite
+    return (titleRatio * 0.75) + (allRatio * 0.25);
+  }
+
+  /// Calculates global candidate score combining query relevance, official channel signals,
+  /// view-count popularity, duration, and edit demotions.
+  static double calculateGlobalCandidateScore(
+    YouTubeVideo video, {
+    required String query,
+    required int maxViewsInResultSet,
+  }) {
+    final relevance = calculateQueryRelevance(video, query);
+    // If relevance is near zero, video is completely unrelated to query!
+    // A completely unrelated video (e.g. Despacito with 8B views when searching Enna Sona)
+    // will be severely clamped down and will never outrank a relevant song.
+    if (relevance < 0.25) {
+      return relevance * 10.0;
+    }
+
+    double score = relevance * 1000.0;
+
+    final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
+    final channel = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+
+    // 1. Official channel bonus
+    if (channel.contains('- topic') || channel.endsWith('topic')) {
+      score += 250; // Official YouTube Music delivery
+    } else if (channel.contains('vevo')) {
+      score += 200; // Official VEVO
+    } else if (channel.contains('official')) {
+      score += 80;
+    }
+
+    // 2. Title upload signals
+    if (rawTitle.contains('official audio')) {
+      score += 150;
+    } else if (rawTitle.contains('official music video') || rawTitle.contains('official video')) {
+      score += 130;
+    } else if (rawTitle.contains('official lyric video') || rawTitle.contains('official visualizer')) {
+      score += 70;
+    } else if (rawTitle.contains('audio')) {
+      score += 30;
+    }
+
+    // 3. View count signal (logarithmic & relative)
+    final views = parseViewCount(video);
+    if (views != null && views > 0) {
+      final logScore = (math.log(views + 1) / math.ln10) * 12.0;
+      score += logScore;
+
+      if (maxViewsInResultSet > 0) {
+        final ratio = views / maxViewsInResultSet;
+        score += ratio * 50.0;
+      }
+    }
+
+    // 4. Duration sanity
+    final durSec = _parseDurationSeconds(video.duration);
+    if (durSec > 0) {
+      if (durSec >= 75 && durSec <= 480) {
+        score += 25;
+      } else if (durSec > 900) {
+        score -= 250;
+      } else if (durSec < 40) {
+        score -= 150;
+      }
+    }
+
+    // 5. Derivative edit demotion
+    final intent = QueryIntent.fromQuery(query);
+    final editType = detectEditType(video, intent);
+    if (editType != EditType.none) {
+      score -= 400.0;
+    }
+
+    // 6. Fan lyric-only upload slight demotion compared to official
+    if (rawTitle.contains('lyrics') && !rawTitle.contains('official')) {
+      score -= 40.0;
+    }
+
+    return score;
+  }
+
+  /// Checks whether candidates contain a high proportion of edits or low-quality results.
+  static bool hasHighEditRatio(List<YouTubeVideo> videos, String query) {
+    if (videos.isEmpty) return false;
+    final intent = QueryIntent.fromQuery(query);
+    int editCount = 0;
+    for (final v in videos) {
+      if (detectEditType(v, intent) != EditType.none) {
+        editCount++;
+      }
+    }
+    return (editCount / videos.length) >= 0.35;
   }
 }

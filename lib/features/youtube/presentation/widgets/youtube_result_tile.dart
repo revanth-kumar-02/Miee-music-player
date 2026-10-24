@@ -7,7 +7,6 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/playback_state.dart';
 import '../../../../core/audio/providers.dart';
-import '../../../../shared/models/track.dart';
 import '../../domain/youtube_model.dart';
 import 'youtube_options_menu.dart';
 
@@ -22,10 +21,6 @@ class YouTubeResultTile extends ConsumerWidget {
     required this.video,
     this.onTap,
   });
-
-  static bool _isSameTrackId(String currentTrackId, String targetVideoId) {
-    return isSameTrackId(currentTrackId, targetVideoId);
-  }
 
   void _showOptions(BuildContext context) {
     showModalBottomSheet<void>(

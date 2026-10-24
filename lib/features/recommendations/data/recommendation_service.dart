@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../../shared/models/music_item.dart';
-import '../../history/data/listening_history_repository.dart';
+import '../../history/data/supabase_listening_history_repository.dart';
+import '../../history/domain/listening_history_repository.dart';
 import '../../history/domain/listening_event.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
@@ -39,7 +40,7 @@ class RecommendationService {
     ListeningHistoryRepository? historyRepo,
   })  : _youtubeRepo = youtubeRepo ?? YouTubeRepository(),
         _artistRepo = artistRepo ?? DeezerArtistRepository(),
-        _historyRepo = historyRepo ?? FirestoreListeningHistoryRepository();
+        _historyRepo = historyRepo ?? SupabaseListeningHistoryRepository();
 
   /// Filters out playlists, multi-song compilations, jukeboxes, full movies, and podcasts
   /// while strictly preserving genuine individual songs (including legitimate long individual songs

@@ -957,9 +957,25 @@ class DeezerArtistRepository implements ArtistRepository {
     }
 
     // 1. Check local catalog first for instant, verified high-resolution matches
+    final normClean = cleanQuery.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final collapsedClean = normClean.replaceAllMapped(RegExp(r'(.)\1+'), (m) => m[1]!);
+
     final localMatches = _curatedArtists.where((artist) {
-      final matchesQuery = artist.name.toLowerCase().contains(cleanQuery.toLowerCase());
-      if (!matchesQuery) return false;
+      final nameLower = artist.name.toLowerCase();
+      final directMatch = nameLower.contains(cleanQuery.toLowerCase());
+
+      final normArtist = nameLower.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final collapsedArtist = normArtist.replaceAllMapped(RegExp(r'(.)\1+'), (m) => m[1]!);
+
+      final punctuationMatch = normClean.length >= 3 &&
+          (normArtist == normClean || normArtist.contains(normClean) || normClean.contains(normArtist));
+
+      final spellingVariationMatch = collapsedClean.length >= 3 &&
+          (collapsedArtist == collapsedClean ||
+              collapsedArtist.contains(collapsedClean) ||
+              collapsedClean.contains(collapsedArtist));
+
+      if (!directMatch && !punctuationMatch && !spellingVariationMatch) return false;
       if (hasLangFilter) {
         return artist.matchesLanguage(lang);
       }
@@ -979,8 +995,7 @@ class DeezerArtistRepository implements ArtistRepository {
       final resp = await req.close();
 
       if (resp.statusCode != 200) {
-        if (localMatches.isNotEmpty) return localMatches;
-        throw Exception('Server returned ${resp.statusCode}');
+        return localMatches;
       }
 
       final body = await resp.transform(utf8.decoder).join();
@@ -1023,8 +1038,7 @@ class DeezerArtistRepository implements ArtistRepository {
       return combined.isNotEmpty ? combined : localMatches;
     } catch (e) {
       debugPrint('[ArtistDiscoveryRepository] Search failed for "$cleanQuery": $e');
-      if (localMatches.isNotEmpty) return localMatches;
-      rethrow;
+      return localMatches;
     }
   }
 

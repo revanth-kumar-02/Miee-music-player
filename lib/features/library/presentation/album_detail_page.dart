@@ -9,7 +9,6 @@ import '../../../app/theme/app_typography.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../core/audio/providers.dart';
 import '../../media/providers/media_providers.dart';
-import '../../media/domain/models.dart';
 import '../../../shared/models/track.dart';
 import '../../../core/widgets/empty_state.dart';
 

@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 /// Represents an authenticated user in the domain layer.
 class AuthUser {
@@ -16,13 +16,17 @@ class AuthUser {
     this.isEmailVerified = false,
   });
 
-  factory AuthUser.fromFirebase(fb.User user) {
+  factory AuthUser.fromSupabase(sb.User user) {
+    final meta = user.userMetadata ?? {};
+    final displayName = (meta['display_name'] ?? meta['full_name']) as String?;
+    final photoUrl = meta['avatar_url'] as String?;
+
     return AuthUser(
-      uid: user.uid,
+      uid: user.id,
       email: user.email ?? '',
-      displayName: user.displayName,
-      photoUrl: user.photoURL,
-      isEmailVerified: user.emailVerified,
+      displayName: displayName,
+      photoUrl: photoUrl,
+      isEmailVerified: user.emailConfirmedAt != null,
     );
   }
 

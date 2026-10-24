@@ -26,7 +26,7 @@ void main() {
       expect(summary.imageUrl, equals('https://e-cdns-images.dzcdn.net/images/artist/coldplay_big.jpg'));
     });
 
-    test('ArtistSummary Firestore map serialization and deserialization', () {
+    test('ArtistSummary map serialization and deserialization', () {
       const summary = ArtistSummary(
         id: '27',
         name: 'Daft Punk',
@@ -46,7 +46,7 @@ void main() {
   });
 
   group('UserProfile Tests', () {
-    test('UserProfile serialization round-trip matches Firestore schema', () {
+    test('UserProfile serialization round-trip matches schema', () {
       final now = DateTime.now();
       final profile = UserProfile(
         uid: 'user_123',

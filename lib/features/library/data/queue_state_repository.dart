@@ -3,7 +3,6 @@ import 'package:hive/hive.dart';
 import '../../../core/storage/adapters/queue_snapshot.dart';
 import '../../../core/storage/adapters/track_hive_model.dart';
 import '../../../core/storage/hive_boxes.dart';
-import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
 
 /// Saves and restores the full playback queue state across app restarts.

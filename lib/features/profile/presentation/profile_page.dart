@@ -1,10 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../app/theme/app_colors.dart';
-import '../../../../app/theme/app_spacing.dart';
 import '../../../../shared/widgets/profile_avatar.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../library/providers/library_providers.dart';
@@ -50,6 +47,12 @@ class ProfilePage extends ConsumerWidget {
         : (resolvedDisplayName != 'Miee User' && resolvedDisplayName != 'Miee Listener')
             ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
             : null;
+
+    final resolvedAvatarUrl = (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
+        ? profile.profilePicturePath
+        : (cloudProfile?.avatarUrl?.isNotEmpty == true
+            ? cloudProfile!.avatarUrl
+            : authUser?.photoUrl);
 
     // Watch auth and sync states
     final authState = ref.watch(authControllerProvider);
@@ -103,7 +106,7 @@ class ProfilePage extends ConsumerWidget {
                 alignment: Alignment.bottomRight,
                 children: [
                   ProfileAvatar(
-                    imageUrl: profile.profilePicturePath,
+                    imageUrl: resolvedAvatarUrl,
                     size: 96.0,
                   ),
                   CircleAvatar(

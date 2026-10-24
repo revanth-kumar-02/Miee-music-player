@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/audio/providers.dart';
 import '../../../features/library/data/playlists_repository.dart';
 import '../../../features/library/providers/library_providers.dart';
-import '../../../shared/models/track.dart';
 import '../data/playlist_repository.dart';
 import '../domain/playlist_model.dart';
 

@@ -5,6 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:Miee/core/audio/playback_state.dart' as pb;
 import 'package:Miee/core/audio/player_controller.dart';
 import 'package:Miee/core/audio/providers.dart';
+import 'package:Miee/features/library/providers/library_providers.dart';
+import 'package:Miee/features/playlists/domain/playlist_model.dart';
+import 'package:Miee/features/playlists/providers/playlist_providers.dart';
+import 'package:Miee/features/profile/domain/profile_model.dart';
+import 'package:Miee/features/profile/presentation/profile_controller.dart';
+import 'package:Miee/features/profile/providers/profile_providers.dart';
 import 'package:Miee/shared/models/track.dart';
 import 'package:Miee/shared/widgets/app_header.dart';
 import 'package:Miee/shared/widgets/main_app_shell.dart';
@@ -14,6 +20,30 @@ class FakeShellPlayerController extends StateNotifier<pb.PlaybackState>
     implements PlayerController {
   FakeShellPlayerController([pb.PlaybackState? initialState])
       : super(initialState ?? pb.PlaybackState.initial());
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeShellPlaylistController extends StateNotifier<PlaylistsState>
+    implements PlaylistController {
+  FakeShellPlaylistController() : super(const PlaylistsState(playlists: []));
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeShellProfileController extends StateNotifier<ProfileModel>
+    implements ProfileController {
+  FakeShellProfileController() : super(ProfileModel.defaultProfile());
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeShellFavoritesNotifier extends StateNotifier<List<Track>>
+    implements FavoritesNotifier {
+  FakeShellFavoritesNotifier() : super(const []);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -151,6 +181,9 @@ void main() {
         ProviderScope(
           overrides: [
             playerControllerProvider.overrideWith((ref) => fakePlayer),
+            playlistControllerProvider.overrideWith((ref) => FakeShellPlaylistController()),
+            profileProvider.overrideWith((ref) => FakeShellProfileController()),
+            favoritesProvider.overrideWith((ref) => FakeShellFavoritesNotifier()),
           ],
           child: const MaterialApp(
             home: MainAppShell(

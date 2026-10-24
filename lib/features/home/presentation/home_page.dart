@@ -21,6 +21,7 @@ import '../../playlists/domain/playlist_model.dart';
 import '../../playlists/providers/playlist_providers.dart';
 import '../../playlists/presentation/widgets/create_playlist_dialog.dart';
 import '../../library/providers/library_providers.dart';
+import '../../rooms/providers/room_providers.dart';
 
 /// Recreated Miee Home Screen matching the reference design:
 /// - Vanilla Cream primary canvas
@@ -52,6 +53,13 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     final recentEntries = recentlyPlayedAsync.valueOrNull ?? [];
     final cloudHistory = recsAsync.valueOrNull?.recentlyPlayed ?? [];
+
+    final recentlyPlayedTracks = _resolveRecentlyPlayedTracks(
+      recentEntries: recentEntries,
+      cloudHistory: cloudHistory,
+      localSongs: localSongs,
+      limit: 10,
+    );
 
     final continueTrack = _resolveContinueListeningTrack(
       recentEntries: recentEntries,
@@ -90,6 +98,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             // ── 1. Editorial Hero Banner ────────────────────────────────────
             _buildEditorialHeroBanner(context, greetingPrefix, recsAsync, localSongs),
 
+            const SizedBox(height: 24),
+
+            // ── 1.5 Listen Together Banner ──────────────────────────────────
+            _buildListenTogetherBanner(context),
+
             const SizedBox(height: 32),
 
             // ── 2. "Made for you" Section ───────────────────────────────────
@@ -103,17 +116,40 @@ class _HomePageState extends ConsumerState<HomePage> {
                 context,
                 sections,
                 currentTrack,
+                recentlyPlayedTracks,
               ),
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.dustyRose,
+              loading: () => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.dustyRose,
+                      ),
+                    ),
                   ),
-                ),
+                  if (recentlyPlayedTracks.isNotEmpty)
+                    _buildRecentlyPlayedList(
+                      context,
+                      recentlyPlayedTracks,
+                      currentTrack,
+                    ),
+                ],
               ),
-              error: (e, _) => _buildDiscoveryErrorBanner(context, e),
+              error: (e, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDiscoveryErrorBanner(context, e),
+                  if (recentlyPlayedTracks.isNotEmpty)
+                    _buildRecentlyPlayedList(
+                      context,
+                      recentlyPlayedTracks,
+                      currentTrack,
+                    ),
+                ],
+              ),
             ),
 
             // ── 4. Continue Listening (Recent History / Local Fallback) ───────
@@ -144,6 +180,154 @@ class _HomePageState extends ConsumerState<HomePage> {
             ],
 
             const SizedBox(height: 80),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListenTogetherBanner(BuildContext context) {
+    final activeRoom = ref.watch(activeRoomProvider);
+
+    if (activeRoom != null) {
+      return InkWell(
+        onTap: () => context.push('/rooms/active'),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.cocoaPlum,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.cocoaPlum.withOpacity(0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.dustyRose.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.groups_rounded, color: AppColors.dustyRose, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.greenAccent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'LISTENING TOGETHER • ${activeRoom.joinCode}',
+                          style: GoogleFonts.geist(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            color: AppColors.dustyRose,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      activeRoom.name,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.vanillaCream,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.vanillaCream, size: 14),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: () => context.push('/rooms'),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.cocoaPlum.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.cocoaPlum.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.dustyRose.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.groups_outlined, color: AppColors.dustyRose, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Listen Together',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.cocoaPlum,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Host or join private rooms with up to 5 friends',
+                    style: GoogleFonts.geist(
+                      fontSize: 11,
+                      color: AppColors.cocoaPlum.withOpacity(0.65),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.cocoaPlum,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Join',
+                style: GoogleFonts.geist(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.vanillaCream,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -668,6 +852,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     BuildContext context,
     RecommendationSections sections,
     MusicItem? currentTrack,
+    List<Track> recentlyPlayedTracks,
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
@@ -972,59 +1157,12 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
 
         // ── 5. Recently Played (hidden when empty) ───────────────────────────
-        if (sections.recentlyPlayed.isNotEmpty) ...[
-          _buildSectionTitle('Recently Played'),
-          const SizedBox(height: 14),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: sections.recentlyPlayed.take(5).length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final event = sections.recentlyPlayed[index];
-              final m = event.durationSec ~/ 60;
-              final s = event.durationSec % 60;
-              final dur = '$m:${s.toString().padLeft(2, '0')}';
-              return Consumer(
-                builder: (context, ref, _) {
-                  final isTrackLoading = ref.watch(
-                    playerControllerProvider.select((s) =>
-                        s.loadingTrackId != null &&
-                        isSameTrackId(s.loadingTrackId, event.trackId)),
-                  );
-                  return SongTile(
-                    title: event.title,
-                    artist: event.artist,
-                    duration: dur,
-                    imageUrl: null,
-                    isPlaying: currentTrack?.id == event.trackId,
-                    isLoading: isTrackLoading,
-                    onTap: isTrackLoading
-                        ? null
-                        : () {
-                            final recentTracks = sections.recentlyPlayed.map((e) {
-                              final em = e.durationSec ~/ 60;
-                              final es = e.durationSec % 60;
-                              return Track(
-                                id: e.trackId,
-                                title: e.title,
-                                artist: e.artist,
-                                imageUrl: '',
-                                duration: '$em:${es.toString().padLeft(2, '0')}',
-                              );
-                            }).toList();
-                            final selectedTrack = recentTracks[index];
-                            ref
-                                .read(playerControllerProvider.notifier)
-                                .selectTrack(selectedTrack, recentTracks,
-                                    playingFrom: 'Recently Played');
-                          },
-                  );
-                },
-              );
-            },
+        if (recentlyPlayedTracks.isNotEmpty) ...[
+          _buildRecentlyPlayedList(
+            context,
+            recentlyPlayedTracks,
+            currentTrack,
           ),
-          const SizedBox(height: 36),
         ],
       ],
     );
@@ -1280,6 +1418,18 @@ class _HomePageState extends ConsumerState<HomePage> {
           return s.id == newest.id.replaceFirst('youtube_', '');
         }).firstOrNull;
         if (localMatch != null) return localMatch;
+      } else {
+        if (newest.imageUrl.isEmpty || !newest.imageUrl.startsWith('http')) {
+          final vid = newest.id.replaceFirst('youtube_', '');
+          return Track(
+            id: newest.id,
+            title: newest.title,
+            artist: newest.artist,
+            imageUrl: 'https://i.ytimg.com/vi/$vid/hqdefault.jpg',
+            duration: newest.duration,
+            filePath: newest.filePath,
+          );
+        }
       }
       return newest;
     }
@@ -1295,19 +1445,182 @@ class _HomePageState extends ConsumerState<HomePage> {
 
       final m = event.durationSec ~/ 60;
       final s = event.durationSec % 60;
+      final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
+      final vid = event.trackId.replaceFirst('youtube_', '');
+      final resolvedArt = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
+          ? event.imageUrl!
+          : (isYoutube ? 'https://i.ytimg.com/vi/$vid/hqdefault.jpg' : '');
+
       return Track(
         id: event.trackId.startsWith('youtube_')
             ? event.trackId
             : 'youtube_${event.trackId}',
         title: event.title,
         artist: event.artist,
-        imageUrl: '',
+        imageUrl: resolvedArt,
         duration: '$m:${s.toString().padLeft(2, '0')}',
       );
     }
 
     // 3. Fallback to first available local track
     return localSongs.firstOrNull;
+  }
+
+  /// Resolves the unified Recently Played track list with correct cover artwork,
+  /// newest-first ordering, and stable deduplication across online and local libraries.
+  List<Track> _resolveRecentlyPlayedTracks({
+    required List<HistoryEntry> recentEntries,
+    required List<ListeningEvent> cloudHistory,
+    required List<MediaSong> localSongs,
+    int limit = 10,
+  }) {
+    final resolved = <Track>[];
+    final seenTrackIds = <String>{};
+
+    // 1. Process local Hive recently played entries (reactive, immediate, offline-ready)
+    if (recentEntries.isNotEmpty) {
+      final sorted = List<HistoryEntry>.from(recentEntries)
+        ..sort((a, b) => b.playedAt.compareTo(a.playedAt));
+
+      for (final entry in sorted) {
+        if (resolved.length >= limit) break;
+        final rawTrack = entry.track.toTrack();
+        final normId = rawTrack.id.replaceFirst('youtube_', '');
+        if (seenTrackIds.contains(rawTrack.id) || seenTrackIds.contains(normId)) {
+          continue;
+        }
+        seenTrackIds.add(rawTrack.id);
+        seenTrackIds.add(normId);
+
+        String resolvedImageUrl = rawTrack.imageUrl;
+
+        if (!rawTrack.isYoutube) {
+          final localMatch = localSongs.where((s) {
+            if (s.id == rawTrack.id || s.id == normId) return true;
+            if (s.filePath.isNotEmpty && s.filePath == rawTrack.filePath) return true;
+            return s.title.trim().toLowerCase() == rawTrack.title.trim().toLowerCase() &&
+                s.artist.trim().toLowerCase() == rawTrack.artist.trim().toLowerCase();
+          }).firstOrNull;
+
+          if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
+            resolvedImageUrl = localMatch.artworkPath;
+          }
+        } else {
+          if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
+            resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
+          }
+        }
+
+        resolved.add(Track(
+          id: rawTrack.id,
+          title: rawTrack.title,
+          artist: rawTrack.artist,
+          imageUrl: resolvedImageUrl,
+          duration: rawTrack.duration,
+          filePath: rawTrack.filePath,
+        ));
+      }
+    }
+
+    // 2. Process cloud listening history if we haven't reached the limit
+    if (resolved.length < limit && cloudHistory.isNotEmpty) {
+      final sortedCloud = List<ListeningEvent>.from(cloudHistory)
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      for (final event in sortedCloud) {
+        if (resolved.length >= limit) break;
+        final normId = event.trackId.replaceFirst('youtube_', '');
+        if (seenTrackIds.contains(event.trackId) || seenTrackIds.contains(normId)) {
+          continue;
+        }
+        seenTrackIds.add(event.trackId);
+        seenTrackIds.add(normId);
+
+        final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
+        String resolvedImageUrl = event.imageUrl ?? '';
+
+        if (isYoutube) {
+          if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
+            resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
+          }
+        } else {
+          final localMatch = localSongs.where((s) {
+            if (s.id == event.trackId || s.id == normId) return true;
+            return s.title.trim().toLowerCase() == event.title.trim().toLowerCase() &&
+                s.artist.trim().toLowerCase() == event.artist.trim().toLowerCase();
+          }).firstOrNull;
+          if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
+            resolvedImageUrl = localMatch.artworkPath;
+          }
+        }
+
+        final m = event.durationSec ~/ 60;
+        final s = event.durationSec % 60;
+        final dur = '$m:${s.toString().padLeft(2, '0')}';
+
+        resolved.add(Track(
+          id: isYoutube && !event.trackId.startsWith('youtube_')
+              ? 'youtube_${event.trackId}'
+              : event.trackId,
+          title: event.title,
+          artist: event.artist,
+          imageUrl: resolvedImageUrl,
+          duration: dur,
+        ));
+      }
+    }
+
+    return resolved;
+  }
+
+  Widget _buildRecentlyPlayedList(
+    BuildContext context,
+    List<Track> recentlyPlayedTracks,
+    MusicItem? currentTrack,
+  ) {
+    return Column(
+      key: const ValueKey('recently_played_section'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Recently Played'),
+        const SizedBox(height: 14),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: recentlyPlayedTracks.take(5).length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final track = recentlyPlayedTracks[index];
+            return Consumer(
+              builder: (context, ref, _) {
+                final isTrackLoading = ref.watch(
+                  playerControllerProvider.select((s) =>
+                      s.loadingTrackId != null &&
+                      isSameTrackId(s.loadingTrackId, track.id)),
+                );
+                return SongTile(
+                  title: track.title,
+                  artist: track.artist,
+                  duration: track.duration,
+                  imageUrl: track.imageUrl,
+                  isPlaying: currentTrack?.id == track.id,
+                  isLoading: isTrackLoading,
+                  onTap: isTrackLoading
+                      ? null
+                      : () {
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .selectTrack(track, recentlyPlayedTracks,
+                                  playingFrom: 'Recently Played');
+                        },
+                );
+              },
+            );
+          },
+        ),
+        const SizedBox(height: 36),
+      ],
+    );
   }
 
   List<MusicItem> _resolveContinueListeningQueue({

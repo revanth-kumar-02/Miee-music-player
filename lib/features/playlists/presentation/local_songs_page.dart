@@ -10,9 +10,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../../../core/audio/providers.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../media/providers/media_providers.dart';
-import '../../media/domain/models.dart';
 import '../../library/providers/library_providers.dart';
-import '../providers/playlist_providers.dart';
 import 'widgets/add_to_playlist_sheet.dart';
 
 enum _SortOption { title, artist, duration }

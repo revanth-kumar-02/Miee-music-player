@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:audio_service/audio_service.dart' hide PlaybackState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -578,16 +577,32 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   void _recordRecentlyPlayed(MusicItem track) {
     try {
-      final trackToRecord = track is Track
-          ? track
-          : Track(
-              id: track.id,
-              title: track.title,
-              artist: track.artist,
-              imageUrl: track.imageUrl,
-              duration: track.duration,
-              filePath: track.filePath,
-            );
+      String resolvedImage = track.imageUrl;
+      if (track.isYoutube && (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
+        final videoId = _normalizeTrackId(track.id);
+        if (videoId.isNotEmpty) {
+          resolvedImage = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+        }
+      } else if (!track.isYoutube && resolvedImage.isEmpty) {
+        try {
+          final localSongs = _ref.read(songsProvider);
+          final match = localSongs.where((s) =>
+              s.id == track.id ||
+              (s.filePath.isNotEmpty && s.filePath == track.filePath)).firstOrNull;
+          if (match != null && match.artworkPath.isNotEmpty) {
+            resolvedImage = match.artworkPath;
+          }
+        } catch (_) {}
+      }
+
+      final trackToRecord = Track(
+        id: track.id,
+        title: track.title,
+        artist: track.artist,
+        imageUrl: resolvedImage,
+        duration: track.duration,
+        filePath: track.filePath,
+      );
       _ref.read(recentlyPlayedRepositoryProvider).recordPlay(trackToRecord);
     } catch (e) {
       debugLog('[RecentlyPlayed] Record error: $e');

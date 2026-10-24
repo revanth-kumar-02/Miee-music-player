@@ -3,6 +3,8 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
 import '../domain/youtube_model.dart';
 import '../domain/youtube_metadata_cleaner.dart';
 import '../domain/youtube_failures.dart';
+import '../../search/domain/search_deduplicator.dart';
+import '../../onboarding/domain/artist_model.dart';
 import 'youtube_data_source.dart';
 import 'web_music_discovery_source.dart';
 
@@ -15,6 +17,7 @@ class YouTubeRepository {
 
   /// In-memory search cache (bounded to 50 queries)
   final Map<String, List<YouTubeVideo>> _searchCache = {};
+  final Map<String, List<ArtistModel>> _artistSearchCache = {};
   static const int _maxCacheSize = 50;
 
   YouTubeRepository({
@@ -91,45 +94,62 @@ class YouTubeRepository {
       final searchList = await yt.search.search(cleanQuery);
       final candidateVideos = <YouTubeVideo>[];
 
-      for (final video in searchList) {
-        final videoId = video.id.value;
-        if (videoId.isEmpty) continue;
+      void processBatch(Iterable<yte.Video> batch) {
+        for (final video in batch) {
+          final videoId = video.id.value;
+          if (videoId.isEmpty) continue;
 
-        final title = video.title;
-        final channelTitle = video.author;
+          final title = video.title;
+          final channelTitle = video.author;
 
-        final durationStr = video.duration != null
-            ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
-            : '3:30';
+          final durationStr = video.duration != null
+              ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
+              : '3:30';
 
-        final viewCountStr = _formatViewCount(video.engagement.viewCount);
+          final rawViews = video.engagement.viewCount;
+          final viewCountStr = _formatViewCount(rawViews);
 
-        String thumbnailUrl = video.thumbnails.highResUrl;
-        if (thumbnailUrl.isEmpty) {
-          thumbnailUrl = video.thumbnails.mediumResUrl;
-        }
-        if (thumbnailUrl.isEmpty) {
-          thumbnailUrl = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
-        }
+          String thumbnailUrl = video.thumbnails.highResUrl;
+          if (thumbnailUrl.isEmpty) {
+            thumbnailUrl = video.thumbnails.mediumResUrl;
+          }
+          if (thumbnailUrl.isEmpty) {
+            thumbnailUrl = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+          }
 
-        final cleaned = YouTubeMetadataCleaner.clean(
-          rawTitle: title,
-          rawChannel: channelTitle,
-        );
-
-        candidateVideos.add(
-          YouTubeVideo(
-            id: videoId,
-            title: cleaned.title,
-            channelTitle: cleaned.artist,
-            thumbnailUrl: thumbnailUrl,
-            duration: durationStr,
-            viewCount: viewCountStr,
+          final cleaned = YouTubeMetadataCleaner.clean(
             rawTitle: title,
-            rawChannelTitle: channelTitle,
-          ),
-        );
+            rawChannel: channelTitle,
+          );
+
+          candidateVideos.add(
+            YouTubeVideo(
+              id: videoId,
+              title: cleaned.title,
+              channelTitle: cleaned.artist,
+              thumbnailUrl: thumbnailUrl,
+              duration: durationStr,
+              viewCount: viewCountStr,
+              rawTitle: title,
+              rawChannelTitle: channelTitle,
+              rawViewCount: rawViews,
+            ),
+          );
+        }
       }
+
+      processBatch(searchList);
+
+      // Fetch additional candidates if early results contain mostly edits or fewer than 20 candidates
+      if (candidateVideos.length < 20 || SearchDeduplicator.hasHighEditRatio(candidateVideos, cleanQuery)) {
+        try {
+          final nextPage = await searchList.nextPage();
+          if (nextPage != null && nextPage.isNotEmpty) {
+            processBatch(nextPage);
+          }
+        } catch (_) {}
+      }
+
       return candidateVideos;
     } finally {
       yt.close();
@@ -137,7 +157,7 @@ class YouTubeRepository {
   }
 
   Future<List<YouTubeVideo>> _searchWithDataApi(String cleanQuery) async {
-    final rawItems = await _dataSource.searchVideos(cleanQuery, maxResults: 25);
+    final rawItems = await _dataSource.searchVideos(cleanQuery, maxResults: 35);
     if (rawItems.isEmpty) return [];
 
     // Extract video IDs to fetch duration & statistics
@@ -216,6 +236,7 @@ class YouTubeRepository {
       final detail = detailsMap[videoId];
       String durationStr = '3:30';
       String viewCountStr = '';
+      int? viewsRaw;
 
       if (detail != null) {
         final contentDetails = detail['contentDetails'] as Map<String, dynamic>?;
@@ -227,7 +248,7 @@ class YouTubeRepository {
         }
 
         if (statistics != null) {
-          final viewsRaw = int.tryParse(statistics['viewCount'] as String? ?? '');
+          viewsRaw = int.tryParse(statistics['viewCount'] as String? ?? '');
           if (viewsRaw != null) {
             viewCountStr = _formatViewCount(viewsRaw);
           }
@@ -249,6 +270,7 @@ class YouTubeRepository {
           viewCount: viewCountStr,
           rawTitle: title,
           rawChannelTitle: channelTitle,
+          rawViewCount: viewsRaw,
         ),
       );
     }
@@ -317,5 +339,178 @@ class YouTubeRepository {
     }
   }
 
-  void clearCache() => _searchCache.clear();
+  /// Searches for verified artist / channel entities matching [query].
+  Future<List<ArtistModel>> searchArtists(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return const [];
+
+    final cacheKey = cleanQuery.toLowerCase();
+    if (_artistSearchCache.containsKey(cacheKey)) {
+      return _artistSearchCache[cacheKey]!;
+    }
+
+    final candidates = <ArtistModel>[];
+
+    // 1. Primary: YouTube Data API v3 if configured
+    if (_dataSource.isConfigured) {
+      try {
+        final rawChannels = await _dataSource.searchChannels(cleanQuery);
+        for (final item in rawChannels) {
+          final idObj = item['id'];
+          final channelId = (idObj is Map ? idObj['channelId'] : null) as String?;
+          if (channelId == null || channelId.isEmpty) continue;
+
+          final snippet = item['snippet'] as Map<String, dynamic>? ?? {};
+          final rawTitle = snippet['title'] as String? ?? '';
+          if (isExcludedArtistChannel(rawTitle, cleanQuery)) continue;
+
+          final cleanName = cleanArtistName(rawTitle);
+          final thumbnails = snippet['thumbnails'] as Map<String, dynamic>? ?? {};
+          String imgUrl = '';
+          if (thumbnails['high'] != null) {
+            imgUrl = thumbnails['high']['url'] as String? ?? '';
+          } else if (thumbnails['medium'] != null) {
+            imgUrl = thumbnails['medium']['url'] as String? ?? '';
+          } else if (thumbnails['default'] != null) {
+            imgUrl = thumbnails['default']['url'] as String? ?? '';
+          }
+
+          candidates.add(
+            ArtistModel(
+              id: channelId,
+              name: cleanName,
+              imageUrl: normalizeImageUrl(imgUrl),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('YouTubeRepository: Data API searchChannels error: $e');
+      }
+    }
+
+    // 2. Secondary: YoutubeExplode on native platforms
+    if (candidates.isEmpty && !kIsWeb) {
+      final yt = yte.YoutubeExplode();
+      try {
+        final searchResults = await yt.search.searchContent(
+          cleanQuery,
+          filter: yte.TypeFilters.channel,
+        );
+
+        for (final item in searchResults) {
+          if (item is yte.SearchChannel) {
+            final rawName = item.name.trim();
+            if (isExcludedArtistChannel(rawName, cleanQuery)) continue;
+
+            final cleanName = cleanArtistName(rawName);
+            String imgUrl = '';
+            for (final t in item.thumbnails) {
+              if (t.url.toString().isNotEmpty) {
+                imgUrl = t.url.toString();
+              }
+            }
+
+            candidates.add(
+              ArtistModel(
+                id: item.id.value,
+                name: cleanName,
+                imageUrl: normalizeImageUrl(imgUrl),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('YouTubeRepository: YoutubeExplode searchChannels error: $e');
+      } finally {
+        yt.close();
+      }
+    }
+
+    final deduped = _deduplicateArtistEntities(candidates);
+
+    if (deduped.isNotEmpty) {
+      if (_artistSearchCache.length >= _maxCacheSize) {
+        _artistSearchCache.remove(_artistSearchCache.keys.first);
+      }
+      _artistSearchCache[cacheKey] = deduped;
+    }
+
+    return deduped;
+  }
+
+  static bool isExcludedArtistChannel(String rawName, String query) {
+    final lower = rawName.toLowerCase();
+    final queryLower = query.toLowerCase();
+
+    // Canonical artist search exclusions (fan channels, lyric uploaders, status edits)
+    final excludedKeywords = [
+      'fanpage',
+      'fan page',
+      'fan club',
+      'fans club',
+      'fangirl',
+      'fangurl',
+      'fanbase',
+      'fp',
+      'lyrics',
+      'lyric',
+      'edits',
+      'edit',
+      'status',
+      'tribute',
+      'all india',
+      'official fan',
+      'unofficial',
+      'reaction',
+      'hub',
+    ];
+
+    for (final kw in excludedKeywords) {
+      if (!queryLower.contains(kw) && lower.contains(kw)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  static String cleanArtistName(String rawName) {
+    var name = rawName.trim();
+    // Strip YouTube Music Topic channel indicator
+    name = name.replaceFirst(RegExp(r'\s*-\s*Topic$', caseSensitive: false), '');
+    // Strip leading @ handle indicator
+    if (name.startsWith('@')) {
+      name = name.substring(1);
+    }
+    return name.trim();
+  }
+
+  static String normalizeImageUrl(String url) {
+    var clean = url.trim();
+    if (clean.startsWith('https:https://')) {
+      clean = clean.replaceFirst('https:https://', 'https://');
+    }
+    return clean;
+  }
+
+  static List<ArtistModel> _deduplicateArtistEntities(List<ArtistModel> candidates) {
+    final seenIds = <String>{};
+    final seenNames = <String>{};
+    final result = <ArtistModel>[];
+
+    for (final artist in candidates) {
+      if (artist.id.isEmpty) continue;
+      final normName = artist.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (seenIds.add(artist.id) && (normName.isEmpty || seenNames.add(normName))) {
+        result.add(artist);
+      }
+    }
+
+    return result;
+  }
+
+  void clearCache() {
+    _searchCache.clear();
+    _artistSearchCache.clear();
+  }
 }

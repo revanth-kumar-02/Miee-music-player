@@ -5,7 +5,6 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../../shared/models/track.dart';
 import '../../../../shared/models/music_item.dart';
 import '../../providers/playlist_providers.dart';
 import 'create_playlist_dialog.dart';

@@ -1,6 +1,6 @@
 import '../../onboarding/domain/artist_model.dart';
 
-/// Represents a persistent cloud user profile in Firestore.
+/// Represents a persistent cloud user profile.
 class UserProfile {
   final String uid;
   final String displayName;

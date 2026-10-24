@@ -1,4 +1,4 @@
-/// Summary of an artist stored inside the user's Firestore profile and preferences.
+/// Summary of an artist stored inside the user's profile and preferences.
 class ArtistSummary {
   final String id;
   final String name;

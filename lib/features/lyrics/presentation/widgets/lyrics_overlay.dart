@@ -5,9 +5,7 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/providers.dart';
-import '../../../../core/audio/playback_state.dart';
 import '../../../../shared/models/music_item.dart';
-import '../../domain/lyrics_model.dart';
 import '../../providers/lyrics_providers.dart';
 
 class LyricsOverlay extends ConsumerStatefulWidget {

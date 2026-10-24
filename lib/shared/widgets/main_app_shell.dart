@@ -249,14 +249,17 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
             padding: const EdgeInsets.fromLTRB(20, 24, 16, 20),
             child: isCollapsed
                 ? const Center(
-                    child: MieeWaveSymbol(size: 26, color: AppColors.dustyRose),
+                    child: MieeBrandMark.emblem(
+                      emblemSize: 32,
+                      showWordmark: false,
+                      emblemColor: AppColors.dustyRose,
+                    ),
                   )
-                : const MieeReferenceLogo(
-                    symbolSize: 26,
-                    fontSize: 24,
-                    symbolColor: AppColors.dustyRose,
+                : const MieeBrandMark.soundwaveWordmark(
+                    fontSize: 22,
+                    emblemColor: AppColors.dustyRose,
+                    dotColor: AppColors.dustyRose,
                     textColor: AppColors.vanillaCream,
-                    isDarkBackground: true,
                   ),
           ),
 

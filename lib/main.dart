@@ -5,14 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
 import 'core/audio/audio_handler.dart';
 import 'core/audio/providers.dart';
-import 'core/services/firebase_service.dart';
 import 'core/storage/hive_service.dart';
+import 'core/sync/supabase_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await HiveService.init();
-  await FirebaseService.initialize();
+  await SupabaseConfig.initialize();
 
   // AudioService.init() starts the Android foreground service and returns the
   // fully registered handler. The handler constructor is intentionally kept

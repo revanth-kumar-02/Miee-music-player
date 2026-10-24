@@ -1,5 +1,3 @@
-import 'dart:math';
-
 /// Domain helper that implements non-destructive merge resolution strategies for offline-first sync.
 class ConflictResolver {
   /// Merges two list of items based on a unique identifier key.

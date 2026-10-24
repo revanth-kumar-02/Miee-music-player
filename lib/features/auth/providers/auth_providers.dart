@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/firebase_auth_repository.dart';
+import '../data/supabase_auth_repository.dart';
+import '../domain/auth_repository.dart';
 import '../domain/auth_user.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return FirebaseAuthRepository();
+  return SupabaseAuthRepository();
 });
 
 final authStateChangesProvider = StreamProvider<AuthUser?>((ref) {

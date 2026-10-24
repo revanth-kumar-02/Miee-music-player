@@ -11,7 +11,6 @@ import '../../../app/theme/app_typography.dart';
 import '../../../core/audio/providers.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/widgets/widgets.dart';
-import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
 import '../domain/playlist_model.dart';
 import '../providers/playlist_providers.dart';

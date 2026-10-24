@@ -1,4 +1,3 @@
-import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
 
 /// Rich domain model for a user playlist.

@@ -1,11 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../data/firestore_user_profile_repository.dart';
+import '../data/supabase_user_profile_repository.dart';
 import '../domain/user_profile.dart';
+import '../domain/user_profile_repository.dart';
 
 final userProfileRepositoryProvider = Provider<UserProfileRepository>((ref) {
-  return FirestoreUserProfileRepository();
+  return SupabaseUserProfileRepository();
 });
 
 class UserProfileState {

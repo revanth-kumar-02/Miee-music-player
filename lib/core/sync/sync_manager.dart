@@ -8,8 +8,6 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/library/data/favorites_repository.dart';
 import '../../features/library/data/playlists_repository.dart';
 import '../../features/library/data/playback_history_repository.dart';
-import '../../features/library/data/most_played_repository.dart';
-import '../../features/library/data/search_history_repository.dart';
 import '../../features/profile/domain/profile_model.dart';
 import '../../features/profile/presentation/profile_controller.dart';
 import '../../core/storage/hive_boxes.dart';
@@ -77,24 +75,23 @@ class SyncManager {
 
         switch (op.type) {
           case 'favorite_add':
-            await client.from('favorites').upsert({
-              'id': payload['id'],
+            await client.from('liked_songs').upsert({
               'user_id': userId,
-              'title': payload['title'],
-              'artist': payload['artist'],
+              'track_id': payload['id'],
+              'title': payload['title'] ?? 'Unknown Track',
+              'artist': payload['artist'] ?? 'Unknown Artist',
               'image_url': payload['imageUrl'],
-              'duration': payload['duration'],
               'file_path': payload['filePath'],
               'is_youtube': payload['isYoutube'] ?? false,
-              'updated_at': op.timestamp.toIso8601String(),
-            });
+              'liked_at': op.timestamp.toIso8601String(),
+            }, onConflict: 'user_id,track_id');
             break;
 
           case 'favorite_remove':
             await client
-                .from('favorites')
+                .from('liked_songs')
                 .delete()
-                .eq('id', payload['id'] as Object)
+                .eq('track_id', payload['id'] as Object)
                 .eq('user_id', userId);
             break;
 
@@ -105,7 +102,6 @@ class SyncManager {
               'name': payload['name'],
               'created_at': payload['createdAt'],
               'last_modified': payload['lastModified'],
-              'updated_at': op.timestamp.toIso8601String(),
             });
             break;
 
@@ -115,11 +111,6 @@ class SyncManager {
                 .delete()
                 .eq('id', payload['id'] as Object)
                 .eq('user_id', userId);
-            await client
-                .from('playlist_songs')
-                .delete()
-                .eq('playlist_id', payload['id'] as Object)
-                .eq('user_id', userId);
             break;
 
           case 'playlist_rename':
@@ -128,29 +119,28 @@ class SyncManager {
               'user_id': userId,
               'name': payload['name'],
               'last_modified': payload['lastModified'],
-              'updated_at': op.timestamp.toIso8601String(),
             });
             break;
 
           case 'playlist_song_add':
             final song = payload['track'];
-            await client.from('playlist_songs').upsert({
+            await client.from('playlist_tracks').upsert({
               'playlist_id': payload['playlistId'],
               'track_id': song['id'],
               'user_id': userId,
-              'title': song['title'],
-              'artist': song['artist'],
+              'title': song['title'] ?? 'Unknown Track',
+              'artist': song['artist'] ?? 'Unknown Artist',
               'image_url': song['imageUrl'],
-              'duration': song['duration'],
               'file_path': song['filePath'],
               'is_youtube': song['isYoutube'] ?? false,
-              'updated_at': op.timestamp.toIso8601String(),
-            });
+              'position': payload['position'] ?? 0,
+              'added_at': op.timestamp.toIso8601String(),
+            }, onConflict: 'playlist_id,track_id');
             break;
 
           case 'playlist_song_remove':
             await client
-                .from('playlist_songs')
+                .from('playlist_tracks')
                 .delete()
                 .eq('playlist_id', payload['playlistId'] as Object)
                 .eq('track_id', payload['trackId'] as Object)
@@ -347,15 +337,15 @@ class SyncManager {
         });
       }
 
-      // B. Favorites Table
-      final favsRes = await client.from('favorites').select().eq('user_id', userId);
+      // B. Favorites Table (liked_songs)
+      final favsRes = await client.from('liked_songs').select().eq('user_id', userId);
       final List<Track> remoteFavs = (favsRes as List).map((f) {
         return Track(
-          id: f['id'] as String,
+          id: f['track_id'] as String,
           title: f['title'] as String,
           artist: f['artist'] as String,
-          imageUrl: f['image_url'] as String,
-          duration: f['duration'] as String,
+          imageUrl: f['image_url'] as String? ?? '',
+          duration: '3:00',
           filePath: f['file_path'] as String?,
         );
       }).toList();
@@ -376,23 +366,27 @@ class SyncManager {
         await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
       }
 
-      // C. Playlists & Playlist Songs
+      // C. Playlists & Playlist Tracks
       final playlistsRes = await client.from('playlists').select().eq('user_id', userId);
-      final playlistSongsRes = await client.from('playlist_songs').select().eq('user_id', userId);
+      final playlistTracksRes = await client
+          .from('playlist_tracks')
+          .select()
+          .eq('user_id', userId)
+          .order('position', ascending: true);
 
       final playlistsBox = Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
       final localPlaylists = playlistsBox.values.toList();
 
       final List<PlaylistHiveModel> remotePlaylists = (playlistsRes as List).map((p) {
         final pId = p['id'] as String;
-        final songs = (playlistSongsRes as List)
+        final songs = (playlistTracksRes as List)
             .where((s) => s['playlist_id'] == pId)
             .map((s) => TrackHiveModel(
                   id: s['track_id'] as String,
                   title: s['title'] as String,
                   artist: s['artist'] as String,
-                  imageUrl: s['image_url'] as String,
-                  duration: s['duration'] as String,
+                  imageUrl: s['image_url'] as String? ?? '',
+                  duration: '3:00',
                   filePath: s['file_path'] as String?,
                 ))
             .toList();
@@ -568,37 +562,41 @@ class SyncManager {
       _ref.invalidate(profileProvider);
     }
 
-    // B. Favorites
-    final favsRes = await client.from('favorites').select().eq('user_id', userId);
+    // B. Favorites (liked_songs)
+    final favsRes = await client.from('liked_songs').select().eq('user_id', userId);
     final favsBox = Hive.box<TrackHiveModel>(HiveBoxes.favorites);
     await favsBox.clear();
     for (final f in favsRes as List) {
       final track = Track(
-        id: f['id'] as String,
+        id: f['track_id'] as String,
         title: f['title'] as String,
         artist: f['artist'] as String,
-        imageUrl: f['image_url'] as String,
-        duration: f['duration'] as String,
+        imageUrl: f['image_url'] as String? ?? '',
+        duration: '3:00',
         filePath: f['file_path'] as String?,
       );
       await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
     }
 
-    // C. Playlists & Songs
+    // C. Playlists & Tracks
     final playlistsRes = await client.from('playlists').select().eq('user_id', userId);
-    final playlistSongsRes = await client.from('playlist_songs').select().eq('user_id', userId);
+    final playlistTracksRes = await client
+        .from('playlist_tracks')
+        .select()
+        .eq('user_id', userId)
+        .order('position', ascending: true);
     final playlistsBox = Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
     await playlistsBox.clear();
     for (final p in playlistsRes as List) {
       final pId = p['id'] as String;
-      final songs = (playlistSongsRes as List)
+      final songs = (playlistTracksRes as List)
           .where((s) => s['playlist_id'] == pId)
           .map((s) => TrackHiveModel(
                 id: s['track_id'] as String,
                 title: s['title'] as String,
                 artist: s['artist'] as String,
-                imageUrl: s['image_url'] as String,
-                duration: s['duration'] as String,
+                imageUrl: s['image_url'] as String? ?? '',
+                duration: '3:00',
                 filePath: s['file_path'] as String?,
               ))
           .toList();

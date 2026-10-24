@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:Miee/features/history/data/listening_history_repository.dart';
+import 'package:Miee/features/history/domain/listening_history_repository.dart';
 import 'package:Miee/features/history/domain/listening_event.dart';
 import 'package:Miee/features/onboarding/data/artist_discovery_repository.dart';
 import 'package:Miee/features/onboarding/domain/artist_model.dart';
@@ -31,6 +31,9 @@ class MockYouTubeRepository implements YouTubeRepository {
 
   @override
   Future<List<String>> getSuggestions(String query) async => [];
+
+  @override
+  Future<List<ArtistModel>> searchArtists(String query) async => const [];
 }
 
 class MockArtistRepository implements ArtistRepository {

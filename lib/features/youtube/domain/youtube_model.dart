@@ -16,6 +16,7 @@ class YouTubeVideo implements MusicItem {
   final String? rawTitle;
   final String? rawChannelTitle;
   final String? audioStreamUrl;
+  final int? rawViewCount;
 
   const YouTubeVideo({
     required this.id,
@@ -27,6 +28,7 @@ class YouTubeVideo implements MusicItem {
     this.rawTitle,
     this.rawChannelTitle,
     this.audioStreamUrl,
+    this.rawViewCount,
   });
 
   YouTubeVideo copyWith({
@@ -39,6 +41,7 @@ class YouTubeVideo implements MusicItem {
     String? rawTitle,
     String? rawChannelTitle,
     String? audioStreamUrl,
+    int? rawViewCount,
   }) {
     return YouTubeVideo(
       id: id ?? this.id,
@@ -50,6 +53,7 @@ class YouTubeVideo implements MusicItem {
       rawTitle: rawTitle ?? this.rawTitle,
       rawChannelTitle: rawChannelTitle ?? this.rawChannelTitle,
       audioStreamUrl: audioStreamUrl ?? this.audioStreamUrl,
+      rawViewCount: rawViewCount ?? this.rawViewCount,
     );
   }
 

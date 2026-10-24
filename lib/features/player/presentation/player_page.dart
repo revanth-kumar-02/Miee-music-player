@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/player_controller.dart';
 import '../../../core/audio/providers.dart';
@@ -14,6 +13,7 @@ import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 import '../../library/providers/library_providers.dart';
 import '../../../shared/widgets/waveform_widget.dart';
 import '../../lyrics/presentation/widgets/lyrics_overlay.dart';
+import '../../rooms/providers/room_providers.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B)
@@ -47,6 +47,7 @@ class PlayerPage extends ConsumerWidget {
     final hasTrack = currentTrack != null;
     final favorites = ref.watch(favoritesProvider);
     final isLiked = hasTrack ? favorites.any((t) => t.id == currentTrack.id) : false;
+    final activeRoom = ref.watch(activeRoomProvider);
 
     return Scaffold(
       backgroundColor: AppColors.cocoaPlum,
@@ -98,7 +99,21 @@ class PlayerPage extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 48),
+                  IconButton(
+                    icon: Icon(
+                      activeRoom != null ? Icons.groups_rounded : Icons.groups_outlined,
+                      size: 26,
+                      color: activeRoom != null ? AppColors.dustyRose : AppColors.vanillaCream,
+                    ),
+                    tooltip: activeRoom != null ? 'Active Room (${activeRoom.joinCode})' : 'Listen Together',
+                    onPressed: () {
+                      if (activeRoom != null) {
+                        context.push('/rooms/active');
+                      } else {
+                        context.push('/rooms');
+                      }
+                    },
+                  ),
                 ],
               ),
 

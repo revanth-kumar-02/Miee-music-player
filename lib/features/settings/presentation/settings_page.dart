@@ -8,9 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_radius.dart';
-import '../../../app/theme/app_spacing.dart';
-import '../../../app/theme/app_typography.dart';
 import '../../library/providers/library_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -314,6 +311,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
             : null;
 
+    final resolvedAvatarUrl = (profile.profilePicturePath as String?)?.isNotEmpty == true
+        ? profile.profilePicturePath as String
+        : (cloudProfile?.avatarUrl?.isNotEmpty == true
+            ? cloudProfile!.avatarUrl
+            : authUser?.photoUrl);
+
     final selectedArtists = cloudProfile?.selectedArtists ?? [];
 
     return Scaffold(
@@ -341,6 +344,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       _buildAccountProfileTile(
                         context,
                         profile: profile,
+                        avatarUrl: resolvedAvatarUrl,
                         displayName: resolvedDisplayName,
                         username: resolvedUsername,
                         email: authUser?.email,
@@ -863,6 +867,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _buildAccountProfileTile(
     BuildContext context, {
     required dynamic profile,
+    String? avatarUrl,
     required String displayName,
     String? username,
     String? email,
@@ -880,7 +885,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               alignment: Alignment.bottomRight,
               children: [
                 ProfileAvatar(
-                  imageUrl: profile.profilePicturePath as String?,
+                  imageUrl: avatarUrl ?? (profile.profilePicturePath as String?),
                   size: 60.0,
                 ),
                 Container(

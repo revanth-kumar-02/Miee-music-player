@@ -121,4 +121,36 @@ class YouTubeDataSource {
     }
     return {};
   }
+
+  /// Performs a channel/artist search against YouTube Data API v3 search endpoint.
+  Future<List<Map<String, dynamic>>> searchChannels(String query, {int maxResults = 10}) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty || !isConfigured) return [];
+
+    try {
+      final response = await _dio.get<dynamic>(
+        '${YouTubeApiConfig.baseUrl}/search',
+        queryParameters: {
+          'part': 'snippet',
+          'q': cleanQuery,
+          'type': 'channel',
+          'maxResults': maxResults,
+          'key': _apiKey,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data is String
+            ? jsonDecode(response.data as String) as Map<String, dynamic>
+            : Map<String, dynamic>.from(response.data as Map);
+
+        final items = data['items'] as List<dynamic>? ?? [];
+        return items.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('YouTubeDataSource.searchChannels error: $e');
+      return [];
+    }
+  }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/services/firebase_service.dart';
+import '../../core/sync/supabase_config.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
@@ -24,6 +24,10 @@ import '../../features/library/presentation/artists_page.dart';
 import '../../features/library/presentation/artist_detail_page.dart';
 import '../../features/library/presentation/genres_page.dart';
 import '../../features/library/presentation/genre_detail_page.dart';
+import '../../features/rooms/presentation/room_landing_page.dart';
+import '../../features/rooms/presentation/create_room_page.dart';
+import '../../features/rooms/presentation/join_room_page.dart';
+import '../../features/rooms/presentation/active_room_page.dart';
 import '../../shared/widgets/main_app_shell.dart';
 
 /// Listens to authentication and profile state to trigger router re-evaluation.
@@ -56,9 +60,9 @@ class AppRouterNotifier extends ChangeNotifier {
     final authUser = _ref.read(currentAuthUserProvider);
 
     // 3. Unauthenticated user: restrict access to /login and /register
-    // If Firebase is not configured, allow guest access to all music features
+    // If Supabase is not configured, allow guest access to all music features
     if (authUser == null) {
-      if (!FirebaseService.isConfigured) return null;
+      if (!SupabaseConfig.hasActiveSupabase) return null;
       if (isGoingToLogin || isGoingToRegister || isGoingToOnboarding) return null;
       return '/login';
     }
@@ -66,7 +70,7 @@ class AppRouterNotifier extends ChangeNotifier {
     // 3. Authenticated user: verify onboarding status
     final profileState = _ref.read(userProfileNotifierProvider);
 
-    // If profile is still loading from Firestore/cache, do not redirect prematurely
+    // If profile is still loading from database/cache, do not redirect prematurely
     if (profileState.isLoading && profileState.profile == null) {
       return null;
     }
@@ -329,6 +333,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final id = state.pathParameters['id']!;
               return GenreDetailPage(genreId: id);
             },
+          ),
+          GoRoute(
+            path: '/rooms',
+            builder: (context, state) => const RoomLandingPage(),
+          ),
+          GoRoute(
+            path: '/rooms/create',
+            builder: (context, state) => const CreateRoomPage(),
+          ),
+          GoRoute(
+            path: '/rooms/join',
+            builder: (context, state) => const JoinRoomPage(),
+          ),
+          GoRoute(
+            path: '/rooms/active',
+            builder: (context, state) => const ActiveRoomPage(),
           ),
         ],
       ),

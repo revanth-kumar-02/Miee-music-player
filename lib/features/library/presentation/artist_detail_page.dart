@@ -213,8 +213,13 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
             )));
       } else {
         try {
-          final onlineAlbums = await artistRepo.getArtistAlbums(artist.id);
-          albums.addAll(onlineAlbums);
+          final deezerId = (int.tryParse(artist.id) != null)
+              ? artist.id
+              : (DeezerArtistRepository.findCuratedByName(artist.name)?.id ?? '');
+          if (deezerId.isNotEmpty) {
+            final onlineAlbums = await artistRepo.getArtistAlbums(deezerId);
+            albums.addAll(onlineAlbums);
+          }
         } catch (_) {}
       }
 
