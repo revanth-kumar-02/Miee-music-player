@@ -204,5 +204,31 @@ void main() {
 
       container.dispose();
     });
+
+    test('5. ProfileModel.copyWith with clearProfilePicture: true clears profilePicturePath', () {
+      final model = ProfileModel.defaultProfile().copyWith(profilePicturePath: '/path/to/pic.png');
+      expect(model.profilePicturePath, equals('/path/to/pic.png'));
+
+      final clearedModel = model.copyWith(clearProfilePicture: true);
+      expect(clearedModel.profilePicturePath, isNull);
+    });
+
+    test('6. ProfileController removes profile picture and clears state', () async {
+      final container = ProviderContainer();
+      final controller = container.read(profileProvider.notifier);
+
+      await controller.updateProfile(
+        displayName: 'Test User',
+        favoriteGenre: 'Pop',
+        favoriteArtist: 'Test Artist',
+        profilePicturePath: '/path/to/pic.png',
+      );
+      expect(container.read(profileProvider).profilePicturePath, equals('/path/to/pic.png'));
+
+      await controller.removeProfilePicture();
+      expect(container.read(profileProvider).profilePicturePath, isNull);
+
+      container.dispose();
+    });
   });
 }

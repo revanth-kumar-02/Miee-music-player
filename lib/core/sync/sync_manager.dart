@@ -155,8 +155,6 @@ class SyncManager {
               'profile_picture_path': payload['profilePicturePath'],
               'favorite_genre': payload['favoriteGenre'],
               'favorite_artist': payload['favoriteArtist'],
-              'created_date': payload['createdDate'],
-              'last_opened': payload['lastOpened'],
               'playback_speed': payload['playbackSpeed'],
               'preferred_source': payload['preferredSource'],
               'default_shuffle': payload['defaultShuffle'],
@@ -250,14 +248,17 @@ class SyncManager {
       final profileRes = await client.from('profiles').select().eq('id', userId).maybeSingle();
       if (profileRes != null) {
         final localProfile = _ref.read(profileProvider);
+        final remoteCreated = DateTime.tryParse(profileRes['created_at']?.toString() ?? profileRes['created_date']?.toString() ?? '') ?? localProfile.createdDate;
+        final remoteUpdated = DateTime.tryParse(profileRes['updated_at']?.toString() ?? profileRes['last_opened']?.toString() ?? '') ?? localProfile.lastOpened;
+
         final remoteProfile = ProfileModel(
-          displayName: profileRes['display_name'] as String,
-          username: profileRes['username'] as String?,
-          profilePicturePath: profileRes['profile_picture_path'] as String?,
+          displayName: profileRes['display_name'] as String? ?? localProfile.displayName,
+          username: profileRes['username'] as String? ?? localProfile.username,
+          profilePicturePath: profileRes['profile_picture_path'] as String? ?? localProfile.profilePicturePath,
           favoriteGenre: profileRes['favorite_genre'] as String? ?? 'Acoustic',
           favoriteArtist: profileRes['favorite_artist'] as String? ?? 'Unknown Artist',
-          createdDate: DateTime.parse(profileRes['created_date'] as String),
-          lastOpened: DateTime.parse(profileRes['last_opened'] as String),
+          createdDate: remoteCreated,
+          lastOpened: remoteUpdated,
           playbackSpeed: (profileRes['playback_speed'] as num? ?? 1.0).toDouble(),
           preferredSource: profileRes['preferred_source'] as String? ?? 'preferLocal',
           defaultShuffle: profileRes['default_shuffle'] as bool? ?? false,
@@ -271,12 +272,11 @@ class SyncManager {
           lastScanTime: profileRes['last_scan_time'] as String?,
         );
 
-        final remoteTime = DateTime.parse(profileRes['updated_at'] as String? ?? profileRes['last_opened'] as String);
         final resolved = ConflictResolver.resolveLatest(
           local: localProfile,
           localTime: localProfile.lastOpened,
           remote: remoteProfile,
-          remoteTime: remoteTime,
+          remoteTime: remoteUpdated,
         );
 
         // Update local profile box synchronously
@@ -320,8 +320,6 @@ class SyncManager {
           'profile_picture_path': local.profilePicturePath,
           'favorite_genre': local.favoriteGenre,
           'favorite_artist': local.favoriteArtist,
-          'created_date': local.createdDate.toIso8601String(),
-          'last_opened': local.lastOpened.toIso8601String(),
           'playback_speed': local.playbackSpeed,
           'preferred_source': local.preferredSource,
           'default_shuffle': local.defaultShuffle,
@@ -333,6 +331,7 @@ class SyncManager {
           'gapless_playback': local.gaplessPlayback,
           'crossfade': local.crossfade,
           'last_scan_time': local.lastScanTime,
+          'created_at': local.createdDate.toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
       }
@@ -446,11 +445,11 @@ class SyncManager {
             id: h['track_id'] as String,
             title: h['title'] as String,
             artist: h['artist'] as String,
-            imageUrl: h['image_url'] as String,
-            duration: h['duration'] as String,
+            imageUrl: h['image_url'] as String? ?? '',
+            duration: h['duration'] as String? ?? '3:00',
             filePath: h['file_path'] as String?,
           ),
-          playedAt: DateTime.parse(h['played_at'] as String),
+          playedAt: h['played_at'] != null ? DateTime.tryParse(h['played_at'] as String) ?? DateTime.now() : DateTime.now(),
         );
       }).toList();
 
@@ -517,8 +516,8 @@ class SyncManager {
       _ref.invalidate(recentlyPlayedProvider);
       _ref.invalidate(searchHistoryProvider);
 
-    } catch (e) {
-      debugPrint('Sync failed: $e');
+    } catch (e, st) {
+      debugPrint('[SyncManager] Sync failed: $e\n$st');
       syncNotifier.setError(e.toString());
     }
   }
@@ -545,8 +544,8 @@ class SyncManager {
         'profilePicturePath': profileRes['profile_picture_path'] as String?,
         'favoriteGenre': profileRes['favorite_genre'] as String? ?? 'Acoustic',
         'favoriteArtist': profileRes['favorite_artist'] as String? ?? 'Unknown Artist',
-        'createdDate': profileRes['created_date'] as String,
-        'lastOpened': profileRes['last_opened'] as String,
+        'createdDate': profileRes['created_at']?.toString() ?? profileRes['created_date']?.toString() ?? DateTime.now().toIso8601String(),
+        'lastOpened': profileRes['updated_at']?.toString() ?? profileRes['last_opened']?.toString() ?? DateTime.now().toIso8601String(),
         'playbackSpeed': (profileRes['playback_speed'] as num? ?? 1.0).toDouble(),
         'preferredSource': profileRes['preferred_source'] as String? ?? 'preferLocal',
         'defaultShuffle': profileRes['default_shuffle'] as bool? ?? false,
@@ -622,11 +621,11 @@ class SyncManager {
           id: h['track_id'] as String,
           title: h['title'] as String,
           artist: h['artist'] as String,
-          imageUrl: h['image_url'] as String,
-          duration: h['duration'] as String,
+          imageUrl: h['image_url'] as String? ?? '',
+          duration: h['duration'] as String? ?? '3:00',
           filePath: h['file_path'] as String?,
         ),
-        playedAt: DateTime.parse(h['played_at'] as String),
+        playedAt: h['played_at'] != null ? DateTime.tryParse(h['played_at'] as String) ?? DateTime.now() : DateTime.now(),
       );
       await historyBox.put(i, entry);
     }

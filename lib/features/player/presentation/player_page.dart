@@ -339,10 +339,14 @@ class PlayerPage extends ConsumerWidget {
                             showModalBottomSheet(
                               context: context,
                               isScrollControlled: true,
+                              useRootNavigator: true,
                               backgroundColor: Colors.transparent,
-                              builder: (ctx) => LyricsOverlay(
-                                track: currentTrack,
-                                onClose: () => Navigator.of(ctx).pop(),
+                              builder: (ctx) => FractionallySizedBox(
+                                heightFactor: 0.92,
+                                child: LyricsOverlay(
+                                  track: currentTrack,
+                                  onClose: () => Navigator.of(ctx).pop(),
+                                ),
                               ),
                             );
                           }

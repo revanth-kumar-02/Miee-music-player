@@ -3,9 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../library/providers/library_providers.dart';
@@ -15,6 +17,8 @@ import '../../auth/providers/auth_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../legal/presentation/legal_document_page.dart';
+import '../../about/presentation/miee_dedication_page.dart';
 import 'settings_controller.dart';
 
 /// Cleaned and unified Settings screen organized strictly into seven categories:
@@ -273,7 +277,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final settings = ref.watch(settingsControllerProvider);
     final settingsNotifier = ref.read(settingsControllerProvider.notifier);
 
@@ -306,14 +309,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ? authUser!.email.split('@').first
                     : profile.displayName);
 
-    final resolvedUsername = (profile.username as String?)?.isNotEmpty == true
-        ? profile.username as String
+    final resolvedUsername = (profile.username != null && profile.username!.isNotEmpty)
+        ? profile.username!
         : (resolvedDisplayName != 'Miee User' && resolvedDisplayName != 'Miee Listener')
             ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
             : null;
 
-    final resolvedAvatarUrl = (profile.profilePicturePath as String?)?.isNotEmpty == true
-        ? profile.profilePicturePath as String
+    final resolvedAvatarUrl = (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
+        ? profile.profilePicturePath
         : (cloudProfile?.avatarUrl?.isNotEmpty == true
             ? cloudProfile!.avatarUrl
             : authUser?.photoUrl);
@@ -754,13 +757,37 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   _buildSectionHeader('About Miee'),
                   _buildSectionCard(
                     children: [
-                      const ListTile(
-                        leading: Icon(Icons.info_outline, color: AppColors.cocoaPlum),
-                        title: Text(
+                      ListTile(
+                        leading: const Icon(Icons.bookmark_outline_rounded, color: AppColors.cocoaPlum),
+                        title: const Text(
+                          'About Miee',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
+                        ),
+                        subtitle: const Text(
+                          'A quiet note on how this space came to be',
+                          style: TextStyle(color: AppColors.mutedMauve),
+                        ),
+                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
+                        onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const MieeDedicationPage(),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1, color: AppColors.oatBeige),
+                      ListTile(
+                        leading: const Icon(Icons.info_outline, color: AppColors.cocoaPlum),
+                        title: const Text(
                           'Miee Version',
                           style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
                         ),
-                        subtitle: Text('v1.0.0 (Build 1) • Stable', style: TextStyle(color: AppColors.mutedMauve)),
+                        subtitle: const Text('v2.0.0 (Build 2) • Production Release', style: TextStyle(color: AppColors.mutedMauve)),
+                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
+                        onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.about),
+                          ),
+                        ),
                       ),
                       const Divider(height: 1, color: AppColors.oatBeige),
                       ListTile(
@@ -770,34 +797,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
                         ),
                         subtitle: const Text(
-                          'View licenses of libraries and dependencies',
+                          'Review third-party library notices and license terms',
                           style: TextStyle(color: AppColors.mutedMauve),
                         ),
                         trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () {
-                          showLicensePage(
-                            context: context,
-                            applicationName: 'Miee Music',
-                            applicationVersion: '1.0.0',
-                            applicationLegalese: 'Crafted with Flutter & Material 3',
-                          );
-                        },
+                        onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.licenses),
+                          ),
+                        ),
                       ),
                       const Divider(height: 1, color: AppColors.oatBeige),
                       ListTile(
-                        leading: const Icon(Icons.description_outlined, color: AppColors.cocoaPlum),
+                        leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.cocoaPlum),
                         title: const Text(
                           'Privacy Policy',
                           style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
                         ),
-                        subtitle: const Text('Read our local-first privacy statement', style: TextStyle(color: AppColors.mutedMauve)),
+                        subtitle: const Text('Review data handling, cloud sync, and user rights', style: TextStyle(color: AppColors.mutedMauve)),
                         trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () {
-                          _showInfoDialog(
-                            'Privacy Policy',
-                            'Miee Music Player is a local-first application. We do not transmit your private local music files, personal storage contents, or playback logs to external servers. Online audio streams are retrieved directly through public streams without third-party data tracking.',
-                          );
-                        },
+                        onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.privacyPolicy),
+                          ),
+                        ),
                       ),
                       const Divider(height: 1, color: AppColors.oatBeige),
                       ListTile(
@@ -806,14 +829,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           'Terms of Service',
                           style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
                         ),
-                        subtitle: const Text('Review user agreements and terms of usage', style: TextStyle(color: AppColors.mutedMauve)),
+                        subtitle: const Text('Review conditions of usage, content rights, and disclaimers', style: TextStyle(color: AppColors.mutedMauve)),
                         trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () {
-                          _showInfoDialog(
-                            'Terms of Service',
-                            'By using Miee, you agree to comply with your local copyright laws regarding private music files and media streams. Miee operates on user-supplied storage directories and public media feeds.',
-                          );
-                        },
+                        onTap: () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.termsOfService),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1, color: AppColors.oatBeige),
+                      ListTile(
+                        leading: const Icon(Icons.mail_outline_rounded, color: AppColors.cocoaPlum),
+                        title: const Text(
+                          'Contact Support',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
+                        ),
+                        subtitle: const Text('imposterz.rev02@gmail.com', style: TextStyle(color: AppColors.mutedMauve)),
+                        trailing: const Icon(Icons.open_in_new_rounded, size: 18.0, color: AppColors.mutedMauve),
+                        onTap: () => _contactSupport(context),
                       ),
                     ],
                   ),
@@ -874,7 +907,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     String? email,
     required bool isAuthenticated,
   }) {
-    final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -986,62 +1018,129 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final profile = ref.read(profileProvider);
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.surfaceContainerLowest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Text(
-                'Profile Photo',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0, color: AppColors.cocoaPlum),
+      builder: (bottomSheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                decoration: BoxDecoration(
+                  color: AppColors.oatBeige,
+                  borderRadius: BorderRadius.circular(2.0),
+                ),
               ),
-            ),
-            const Divider(color: AppColors.oatBeige),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: AppColors.cocoaPlum),
-              title: const Text('Choose from Gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickSettingsProfileImage();
-              },
-            ),
-            if (profile.profilePicturePath != null)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12.0),
+                child: Text(
+                  'Profile Photo',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0, color: AppColors.cocoaPlum),
+                ),
+              ),
+              const Divider(color: AppColors.oatBeige, height: 1),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                title: const Text('Remove Photo', style: TextStyle(color: Colors.redAccent)),
+                leading: const Icon(Icons.photo_camera_outlined, color: AppColors.cocoaPlum),
+                title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
                 onTap: () {
-                  Navigator.pop(context);
-                  _removeSettingsProfileImage();
+                  Navigator.pop(bottomSheetCtx);
+                  _pickSettingsProfileImage(ImageSource.camera);
                 },
               ),
-            const SizedBox(height: 12.0),
-          ],
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined, color: AppColors.cocoaPlum),
+                title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
+                onTap: () {
+                  Navigator.pop(bottomSheetCtx);
+                  _pickSettingsProfileImage(ImageSource.gallery);
+                },
+              ),
+              if (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: const Text('Remove Photo', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.redAccent)),
+                  onTap: () {
+                    Navigator.pop(bottomSheetCtx);
+                    _removeSettingsProfileImage();
+                  },
+                ),
+              const SizedBox(height: 16.0),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _pickSettingsProfileImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-    if (picked == null) return;
-    final profile = ref.read(profileProvider);
-    await ref.read(profileProvider.notifier).updateProfile(
-          displayName: profile.displayName,
-          username: profile.username,
-          profilePicturePath: picked.path,
-          favoriteGenre: profile.favoriteGenre,
-          favoriteArtist: profile.favoriteArtist,
+  Future<void> _pickSettingsProfileImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 90);
+      if (picked == null) return;
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final savedPath = '${appDir.path}/profile_avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      // Enforce 1:1 square aspect ratio crop
+      final bytes = await File(picked.path).readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded != null) {
+        final side = min(decoded.width, decoded.height);
+        final offsetX = (decoded.width - side) ~/ 2;
+        final offsetY = (decoded.height - side) ~/ 2;
+        final cropped = img.copyCrop(decoded, x: offsetX, y: offsetY, width: side, height: side);
+        final encoded = img.encodeJpg(cropped, quality: 90);
+        await File(savedPath).writeAsBytes(encoded);
+      } else {
+        await File(picked.path).copy(savedPath);
+      }
+
+      final profile = ref.read(profileProvider);
+      await ref.read(profileProvider.notifier).updateProfile(
+            displayName: profile.displayName,
+            username: profile.username,
+            profilePicturePath: savedPath,
+            favoriteGenre: profile.favoriteGenre,
+            favoriteArtist: profile.favoriteArtist,
+          );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo updated successfully.')),
         );
+      }
+    } catch (e) {
+      debugPrint('[SettingsPage] Error picking profile image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update photo: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _removeSettingsProfileImage() async {
-    await ref.read(profileProvider.notifier).removeProfilePicture();
+    try {
+      await ref.read(profileProvider.notifier).removeProfilePicture();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo removed.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('[SettingsPage] Error removing profile photo: $e');
+    }
   }
 
   Widget _buildStatBadge(String label, String value) {
@@ -1102,7 +1201,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     required VoidCallback onConfirm,
     bool isDestructive = false,
   }) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: AppColors.surfaceContainerLowest,
@@ -1221,7 +1320,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _showInfoDialog(String title, String body) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceContainerLowest,
@@ -1237,4 +1336,34 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       ),
     );
   }
+
+  Future<void> _contactSupport(BuildContext context) async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: 'imposterz.rev02@gmail.com',
+      queryParameters: {
+        'subject': 'Miee Support & Feedback (v2.0.0)',
+      },
+    );
+    try {
+      if (await canLaunchUrl(emailUri)) {
+        await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          _showInfoDialog(
+            'Contact Support',
+            'Please send your inquiries, bug reports, or feedback directly to our official support email:\n\nimposterz.rev02@gmail.com',
+          );
+        }
+      }
+    } catch (_) {
+      if (context.mounted) {
+        _showInfoDialog(
+          'Contact Support',
+          'Please send your inquiries, bug reports, or feedback directly to our official support email:\n\nimposterz.rev02@gmail.com',
+        );
+      }
+    }
+  }
 }
+

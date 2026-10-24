@@ -104,7 +104,7 @@ class ProfileController extends StateNotifier<ProfileModel> {
   }
 
   Future<void> removeProfilePicture() async {
-    final updated = state.copyWith(profilePicturePath: null);
+    final updated = state.copyWith(clearProfilePicture: true);
     await _repository.saveProfile(updated);
     state = updated;
     await _queueProfileUpdate(updated);

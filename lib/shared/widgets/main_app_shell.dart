@@ -582,6 +582,13 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                     ? authUser!.email.split('@').first
                     : localProfile.displayName);
 
+    final resolvedAvatarUrl = (localProfile.profilePicturePath != null &&
+            localProfile.profilePicturePath!.isNotEmpty)
+        ? localProfile.profilePicturePath
+        : (cloudProfile?.avatarUrl?.isNotEmpty == true
+            ? cloudProfile!.avatarUrl
+            : authUser?.photoUrl);
+
     final globalQuery = ref.watch(searchNotifierProvider.select((s) => s.query));
     if (_topSearchController.text != globalQuery && _topSearchController.selection.baseOffset <= 0) {
       _topSearchController.text = globalQuery;
@@ -675,39 +682,6 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
           const SizedBox(width: 16),
 
-          // Notification Bell
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.white,
-              border: Border.all(color: AppColors.oatBeige, width: 1.0),
-            ),
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              icon: const Icon(
-                Icons.notifications_none_rounded,
-                size: 20,
-                color: AppColors.cocoaPlum,
-              ),
-              onPressed: () {
-                final messenger = ScaffoldMessenger.maybeOf(context);
-                if (messenger == null) return;
-                messenger.hideCurrentSnackBar();
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('No new notifications'),
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
           // User Profile Avatar
           InkWell(
             onTap: () => context.go('/profile'),
@@ -719,18 +693,15 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                 shape: BoxShape.circle,
                 color: AppColors.softClay,
                 border: Border.all(color: AppColors.oatBeige, width: 1.5),
-                image: (cloudProfile?.avatarUrl != null &&
-                        cloudProfile!.avatarUrl!.isNotEmpty)
-                    ? DecorationImage(
-                        image: NetworkImage(cloudProfile.avatarUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
               ),
+              clipBehavior: Clip.antiAlias,
               alignment: Alignment.center,
-              child: (cloudProfile?.avatarUrl == null ||
-                      cloudProfile!.avatarUrl!.isEmpty)
-                  ? Text(
+              child: (resolvedAvatarUrl != null && resolvedAvatarUrl.isNotEmpty)
+                  ? ProfileAvatar(
+                      imageUrl: resolvedAvatarUrl,
+                      size: 38,
+                    )
+                  : Text(
                       effectiveName.isNotEmpty
                           ? effectiveName[0].toUpperCase()
                           : 'M',
@@ -739,8 +710,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                         fontWeight: FontWeight.w700,
                         color: AppColors.cocoaPlum,
                       ),
-                    )
-                  : null,
+                    ),
             ),
           ),
         ],

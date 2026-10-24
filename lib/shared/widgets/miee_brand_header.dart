@@ -195,28 +195,6 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
     List<Widget>? effectiveActions = actions;
     if (effectiveActions == null && showProfileAvatar) {
       effectiveActions = [
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: AppColors.onSurfaceVariant,
-            size: 22,
-          ),
-          splashRadius: 20,
-          tooltip: 'Notifications',
-          onPressed: onNotificationTap ??
-              () {
-                final messenger = ScaffoldMessenger.maybeOf(context);
-                if (messenger == null) return;
-                messenger.hideCurrentSnackBar();
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('No new notifications'),
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-        ),
         GestureDetector(
           onTap: () {
             try {

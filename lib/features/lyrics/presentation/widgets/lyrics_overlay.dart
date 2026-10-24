@@ -24,9 +24,9 @@ class LyricsOverlay extends ConsumerStatefulWidget {
 
 class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
   final ScrollController _scrollController = ScrollController();
+  final Map<int, GlobalKey> _lineKeys = {};
   int _currentLineIndex = -1;
   String? _lastTrackId;
-  static const double _itemHeight = 70.0;
 
   @override
   void dispose() {
@@ -37,14 +37,34 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
   void _scrollToActiveLine(int index) {
     if (!_scrollController.hasClients || index < 0) return;
 
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final targetOffset = (index * _itemHeight) - (viewportHeight / 2) + (_itemHeight / 2);
-
-    _scrollController.animateTo(
-      targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOutCubic,
-    );
+    final key = _lineKeys[index];
+    if (key?.currentContext != null) {
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        alignment: 0.42,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+      );
+    } else {
+      final viewportHeight = _scrollController.position.viewportDimension;
+      final targetOffset = (index * 68.0) - (viewportHeight * 0.42);
+      _scrollController.animateTo(
+        targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOutCubic,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final freshKey = _lineKeys[index];
+        if (freshKey?.currentContext != null) {
+          Scrollable.ensureVisible(
+            freshKey!.currentContext!,
+            alignment: 0.42,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
   }
 
   @override
@@ -56,6 +76,7 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
     if (_lastTrackId != activeTrack.id) {
       _lastTrackId = activeTrack.id;
       _currentLineIndex = -1;
+      _lineKeys.clear();
     }
 
     final lyricsAsync = ref.watch(lyricsProvider(activeTrack));
@@ -87,125 +108,150 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
           }
         }
 
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.background.withValues(alpha: 0.85),
-          ),
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.marginMobile,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'LYRICS',
-                      style: AppTypography.labelSmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
-                        color: AppColors.onSurfaceVariant,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      color: AppColors.onSurface,
-                      onPressed: widget.onClose,
-                      splashRadius: 20.0,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Unsynchronized indicator badge if timing is unavailable
-              if (!isSynced)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28.0)),
+          child: Container(
+            color: AppColors.vanillaCream,
+            child: Column(
+              children: [
+                // Top drag pill
+                Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    width: 38,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 10.0, bottom: 4.0),
                     decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 13,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Unsynchronized lyrics',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
+                      color: AppColors.oatBeige,
+                      borderRadius: BorderRadius.circular(2.0),
                     ),
                   ),
                 ),
 
-              // Lyrics List View
-              Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: 40.0),
-                  itemCount: lyricsData.length,
-                  itemBuilder: (context, index) {
-                    final line = lyricsData[index];
-                    final isActive = isSynced && index == activeIndex;
-
-                    return GestureDetector(
-                      onTap: isSynced
-                          ? () {
-                              ref.read(playerControllerProvider.notifier).seek(line.time);
-                            }
-                          : null,
-                      child: Container(
-                        height: isSynced ? _itemHeight : null,
-                        constraints: const BoxConstraints(minHeight: 52.0),
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                          vertical: 8.0,
-                        ),
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 300),
-                          style: isSynced
-                              ? (isActive
-                                  ? AppTypography.headlineMedium.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                      height: 1.35,
-                                    )
-                                  : AppTypography.bodyLarge.copyWith(
-                                      color: AppColors.onSurfaceVariant.withValues(alpha: 0.45),
-                                      height: 1.35,
-                                    ))
-                              : AppTypography.bodyLarge.copyWith(
-                                  color: AppColors.onSurface.withValues(alpha: 0.85),
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.35,
-                                ),
-                          textAlign: TextAlign.center,
-                          child: Text(
-                            line.text,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.marginMobile,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'LYRICS',
+                        style: AppTypography.labelSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2.0,
+                          color: AppColors.mutedMauve,
                         ),
                       ),
-                    );
-                  },
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        color: AppColors.cocoaPlum,
+                        onPressed: widget.onClose,
+                        splashRadius: 20.0,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+
+                // Unsynchronized indicator badge if timing is unavailable
+                if (!isSynced)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.cocoaPlum.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 13,
+                            color: AppColors.mutedMauve,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Unsynchronized lyrics',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.mutedMauve,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Lyrics List View
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    cacheExtent: 4000.0,
+                    padding: EdgeInsets.only(
+                      top: 16.0,
+                      bottom: MediaQuery.of(context).padding.bottom + 80.0,
+                    ),
+                    itemCount: lyricsData.length,
+                    itemBuilder: (context, index) {
+                      final line = lyricsData[index];
+                      final isActive = isSynced && index == activeIndex;
+                      final itemKey = _lineKeys.putIfAbsent(index, () => GlobalKey());
+
+                      return GestureDetector(
+                        key: itemKey,
+                        behavior: HitTestBehavior.opaque,
+                        onTap: isSynced
+                            ? () {
+                                ref.read(playerControllerProvider.notifier).seek(line.time);
+                              }
+                            : null,
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 52.0),
+                          alignment: Alignment.center,
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 20.0,
+                            vertical: 3.0,
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: isActive ? 14.0 : 10.0,
+                          ),
+                          child: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 300),
+                            style: isSynced
+                                ? (isActive
+                                    ? AppTypography.headlineMedium.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.45,
+                                      )
+                                    : AppTypography.bodyLarge.copyWith(
+                                        color: AppColors.cocoaPlum.withValues(alpha: 0.40),
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.4,
+                                      ))
+                                : AppTypography.bodyLarge.copyWith(
+                                    color: AppColors.cocoaPlum.withValues(alpha: 0.85),
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.4,
+                                  ),
+                            textAlign: TextAlign.center,
+                            child: Text(
+                              line.text,
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

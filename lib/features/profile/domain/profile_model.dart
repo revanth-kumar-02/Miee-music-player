@@ -66,6 +66,7 @@ class ProfileModel {
     String? displayName,
     String? username,
     String? profilePicturePath,
+    bool clearProfilePicture = false,
     String? favoriteGenre,
     String? favoriteArtist,
     DateTime? createdDate,
@@ -85,7 +86,7 @@ class ProfileModel {
     return ProfileModel(
       displayName: displayName ?? this.displayName,
       username: username ?? this.username,
-      profilePicturePath: profilePicturePath ?? this.profilePicturePath,
+      profilePicturePath: clearProfilePicture ? null : (profilePicturePath ?? this.profilePicturePath),
       favoriteGenre: favoriteGenre ?? this.favoriteGenre,
       favoriteArtist: favoriteArtist ?? this.favoriteArtist,
       createdDate: createdDate ?? this.createdDate,

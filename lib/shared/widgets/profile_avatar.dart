@@ -49,14 +49,18 @@ class ProfileAvatar extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: SizedBox(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: avatarChild,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: avatarChild,
       ),
     );
   }

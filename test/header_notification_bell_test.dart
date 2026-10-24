@@ -50,8 +50,8 @@ class FakeShellFavoritesNotifier extends StateNotifier<List<Track>>
 }
 
 void main() {
-  group('Header Notification Bell Interaction Tests', () {
-    testWidgets('Tapping notification bell in MieeBrandHeader displays non-blocking SnackBar', (tester) async {
+  group('Header Clean Layout Tests — Unused Notification Bell Removed', () {
+    testWidgets('MieeBrandHeader omits notification bell for clean minimalist profile header', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -65,177 +65,49 @@ void main() {
       );
 
       final bellFinder = find.byTooltip('Notifications');
-      expect(bellFinder, findsOneWidget);
-
-      await tester.tap(bellFinder);
-      await tester.pump();
-
-      expect(find.text('No new notifications'), findsOneWidget);
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(bellFinder, findsNothing);
+      expect(find.byIcon(Icons.notifications_none_rounded), findsNothing);
     });
 
-    testWidgets('Rapid taps on notification bell clear previous SnackBar safely', (tester) async {
+    testWidgets('AppHeader renders clean title and profile without notification bell clutter', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            appBar: MieeBrandHeader(
-              showProfileAvatar: true,
-            ),
-            body: Center(child: Text('Content')),
-          ),
-        ),
-      );
-
-      final bellFinder = find.byTooltip('Notifications');
-      expect(bellFinder, findsOneWidget);
-
-      // Perform three rapid taps
-      await tester.tap(bellFinder);
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(bellFinder);
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(bellFinder);
-      await tester.pump();
-
-      // Exactly one SnackBar is visible on screen
-      expect(find.text('No new notifications'), findsOneWidget);
-      expect(find.byType(SnackBar), findsOneWidget);
-    });
-
-    testWidgets('Custom onNotificationTap callback overrides default SnackBar behavior', (tester) async {
-      int tapCount = 0;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            appBar: MieeBrandHeader(
-              showProfileAvatar: true,
-              onNotificationTap: () {
-                tapCount++;
-              },
-            ),
-            body: const Center(child: Text('Content')),
-          ),
-        ),
-      );
-
-      final bellFinder = find.byTooltip('Notifications');
-      expect(bellFinder, findsOneWidget);
-
-      await tester.tap(bellFinder);
-      await tester.pump();
-
-      expect(tapCount, equals(1));
-      expect(find.byType(SnackBar), findsNothing);
-    });
-
-    testWidgets('AppHeader properly connects onNotificationTap', (tester) async {
-      bool tapped = false;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
             appBar: AppHeader(
-              title: 'Playlists',
-              onNotificationTap: () {
-                tapped = true;
-              },
+              title: 'Settings',
             ),
-            body: const Center(child: Text('Content')),
+            body: Center(child: Text('Settings Body')),
           ),
         ),
       );
 
-      final bellFinder = find.byTooltip('Notifications');
-      expect(bellFinder, findsOneWidget);
-
-      await tester.tap(bellFinder);
-      await tester.pump();
-
-      expect(tapped, isTrue);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.byIcon(Icons.notifications_none_rounded), findsNothing);
     });
 
-    testWidgets('Desktop MainAppShell top bar notification bell triggers truthful feedback', (tester) async {
-      final fakePlayer = FakeShellPlayerController(
-        pb.PlaybackState.initial().copyWith(
-          currentTrack: Track(
-            id: 'trk_1',
-            title: 'Sample Track',
-            artist: 'Sample Artist',
-            imageUrl: '',
-            duration: '3:00',
-          ),
-        ),
-      );
-
-      // Desktop viewport size
-      tester.view.physicalSize = const Size(1200, 800);
+    testWidgets('MainAppShell top bar displays avatar and search without notification bell', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      addTearDown(() => tester.view.resetPhysicalSize());
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            playerControllerProvider.overrideWith((ref) => fakePlayer),
+            playerControllerProvider.overrideWith((ref) => FakeShellPlayerController()),
             playlistControllerProvider.overrideWith((ref) => FakeShellPlaylistController()),
             profileProvider.overrideWith((ref) => FakeShellProfileController()),
             favoritesProvider.overrideWith((ref) => FakeShellFavoritesNotifier()),
           ],
           child: const MaterialApp(
             home: MainAppShell(
-              child: Scaffold(
-                body: Text('Desktop Content Area'),
-              ),
+              child: Scaffold(body: Text('Home Feed')),
             ),
           ),
         ),
       );
-
       await tester.pumpAndSettle();
 
-      final bellFinder = find.byIcon(Icons.notifications_none_rounded);
-      expect(bellFinder, findsOneWidget);
-
-      await tester.tap(bellFinder);
-      await tester.pump();
-
-      expect(find.text('No new notifications'), findsOneWidget);
-      expect(find.byType(SnackBar), findsOneWidget);
-    });
-
-    testWidgets('MieeBrandHeader preserves brand logo, back navigation, and profile avatar', (tester) async {
-      bool logoTapped = false;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            appBar: MieeBrandHeader(
-              showProfileAvatar: true,
-              onLogoTap: () {
-                logoTapped = true;
-              },
-            ),
-            body: const Center(child: Text('Content')),
-          ),
-        ),
-      );
-
-      // Verify wordmark is present
-      expect(find.byType(MieeWordmarkDot), findsOneWidget);
-
-      // Verify profile avatar is present
-      expect(find.byIcon(Icons.person), findsOneWidget);
-
-      // Verify notification bell is present
-      expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
-
-      // Tap logo
-      await tester.tap(find.byType(MieeWordmarkDot));
-      expect(logoTapped, isTrue);
+      expect(find.byIcon(Icons.notifications_none_rounded), findsNothing);
     });
   });
 }

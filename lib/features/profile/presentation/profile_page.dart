@@ -1,8 +1,12 @@
+import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
-import '../../../../shared/widgets/profile_avatar.dart';
+import 'package:path_provider/path_provider.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../library/providers/library_providers.dart';
 import '../../../../core/storage/adapters/history_entry.dart';
@@ -393,9 +397,36 @@ class ProfilePage extends ConsumerWidget {
           style: theme.textTheme.bodySmall?.copyWith(color: Colors.green),
         );
       case SyncStatus.error:
-        return Text(
-          'Sync failed. Retrying...',
-          style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+        final shortMsg = state.message != null && state.message!.isNotEmpty
+            ? state.message!.replaceFirst('Exception: ', '').split('\n').first
+            : 'Retrying...';
+        return GestureDetector(
+          onTap: () {
+            if (state.message != null && state.message!.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Sync Error: ${state.message}'),
+                  backgroundColor: Colors.redAccent,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+            }
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  'Sync failed ($shortMsg)',
+                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.red, fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.info_outline, size: 12, color: Colors.red),
+            ],
+          ),
         );
     }
   }
@@ -427,42 +458,129 @@ class ProfilePage extends ConsumerWidget {
   }
 
   void _showEditProfilePictureSheet(BuildContext context, WidgetRef ref, ProfileController notifier) {
-    showModalBottomSheet(
+    final profile = ref.read(profileProvider);
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Pick image from Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final ImagePicker picker = ImagePicker();
-                final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                if (image != null) {
-                  final activeProfile = ref.read(profileProvider);
-                  await notifier.updateProfile(
-                    displayName: activeProfile.displayName,
-                    username: activeProfile.username,
-                    profilePicturePath: image.path,
-                    favoriteGenre: activeProfile.favoriteGenre,
-                    favoriteArtist: activeProfile.favoriteArtist,
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Remove profile picture', style: TextStyle(color: Colors.red)),
-              onTap: () async {
-                Navigator.pop(context);
-                await notifier.removeProfilePicture();
-              },
-            ),
-          ],
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (bottomSheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                decoration: BoxDecoration(
+                  color: AppColors.oatBeige,
+                  borderRadius: BorderRadius.circular(2.0),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12.0),
+                child: Text(
+                  'Profile Photo',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0, color: AppColors.cocoaPlum),
+                ),
+              ),
+              const Divider(color: AppColors.oatBeige, height: 1),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined, color: AppColors.cocoaPlum),
+                title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
+                onTap: () {
+                  Navigator.pop(bottomSheetCtx);
+                  _pickProfileImage(context, ref, notifier, ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined, color: AppColors.cocoaPlum),
+                title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
+                onTap: () {
+                  Navigator.pop(bottomSheetCtx);
+                  _pickProfileImage(context, ref, notifier, ImageSource.gallery);
+                },
+              ),
+              if (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: const Text('Remove Photo', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.redAccent)),
+                  onTap: () async {
+                    Navigator.pop(bottomSheetCtx);
+                    await notifier.removeProfilePicture();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Profile photo removed.')),
+                      );
+                    }
+                  },
+                ),
+              const SizedBox(height: 16.0),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _pickProfileImage(
+    BuildContext context,
+    WidgetRef ref,
+    ProfileController notifier,
+    ImageSource source,
+  ) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? picked = await picker.pickImage(source: source, imageQuality: 90);
+      if (picked == null) return;
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final savedPath = '${appDir.path}/profile_avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      // Enforce 1:1 square aspect ratio crop
+      final bytes = await File(picked.path).readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded != null) {
+        final side = min(decoded.width, decoded.height);
+        final offsetX = (decoded.width - side) ~/ 2;
+        final offsetY = (decoded.height - side) ~/ 2;
+        final cropped = img.copyCrop(decoded, x: offsetX, y: offsetY, width: side, height: side);
+        final encoded = img.encodeJpg(cropped, quality: 90);
+        await File(savedPath).writeAsBytes(encoded);
+      } else {
+        await File(picked.path).copy(savedPath);
+      }
+
+      final activeProfile = ref.read(profileProvider);
+      await notifier.updateProfile(
+        displayName: activeProfile.displayName,
+        username: activeProfile.username,
+        profilePicturePath: savedPath,
+        favoriteGenre: activeProfile.favoriteGenre,
+        favoriteArtist: activeProfile.favoriteArtist,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo updated successfully.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('[ProfilePage] Error picking profile image: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update photo: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   void _showEditProfileDialog(BuildContext context, ProfileModel profile, ProfileController notifier) {

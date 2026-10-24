@@ -163,6 +163,56 @@ void main() {
       expect(find.text('Unsynced line 2'), findsOneWidget);
       expect(find.byType(Divider), findsNothing);
     });
+
+    testWidgets('Multi-line lyric line expands container naturally beyond fixed 70px to prevent clipping', (tester) async {
+      final multiLineData = LyricsData(
+        lines: [
+          const LyricLine(
+            time: Duration(seconds: 1),
+            text: 'சுட்டு வட்டாரமே வழியவுட்டா கண்ணாவே ஒரு பட்டாளமே ஏங்கும்படி பாப்பாளே',
+          ),
+        ],
+        isSynced: true,
+      );
+
+      final fakePlayer = _FakePlayerController(
+        pb.PlaybackState.initial().copyWith(
+          status: pb.PlaybackStatus.playing,
+          position: const Duration(seconds: 2),
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            lyricsProvider(testTrack).overrideWith((ref) => Future.value(multiLineData)),
+            playerControllerProvider.overrideWith((ref) => fakePlayer),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 360,
+                height: 700,
+                child: LyricsOverlay(
+                  track: testTrack,
+                  onClose: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final textFinder = find.text('சுட்டு வட்டாரமே வழியவுட்டா கண்ணாவே ஒரு பட்டாளமே ஏங்கும்படி பாப்பாளே');
+      expect(textFinder, findsOneWidget);
+
+      // Verify container height exceeds former 70px cap to show all wrapped lines
+      final containerFinder = find.ancestor(of: textFinder, matching: find.byType(Container)).first;
+      final size = tester.getSize(containerFinder);
+      expect(size.height, greaterThan(70.0));
+    });
   });
 }
 
