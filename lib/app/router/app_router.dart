@@ -36,6 +36,7 @@ class AppRouterNotifier extends ChangeNotifier {
 
   AppRouterNotifier(this._ref) {
     _ref.listen(authStateChangesProvider, (_, __) => notifyListeners());
+    _ref.listen(currentAuthUserProvider, (_, __) => notifyListeners());
     _ref.listen(userProfileNotifierProvider, (_, __) => notifyListeners());
     _ref.listen(guestModeProvider, (_, __) => notifyListeners());
   }

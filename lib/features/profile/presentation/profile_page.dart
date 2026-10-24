@@ -639,36 +639,83 @@ class ProfilePage extends ConsumerWidget {
   }
 
   void _showSignOutDialog(BuildContext context, AuthController authNotifier, SyncManager syncManager) {
-    showDialog(
+    bool isSigningOut = false;
+
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out?'),
-        content: const Text(
-          'Before logging out, all pending changes will be uploaded to the cloud backup. '
-          'Your local cache data will be kept intact on this device.',
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Sign Out?'),
+          content: isSigningOut
+              ? const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Text('Uploading changes and signing out...'),
+                    ),
+                  ],
+                )
+              : const Text(
+                  'Before logging out, all pending changes will be uploaded to the cloud backup. '
+                  'Your local cache data will be kept intact on this device.',
+                ),
+          actions: isSigningOut
+              ? null
+              : [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.pop(dialogCtx),
+                  ),
+                  TextButton(
+                    child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                    onPressed: () async {
+                      setDialogState(() {
+                        isSigningOut = true;
+                      });
+                      try {
+                        // 1. Upload local changes before signing out (with 4-second timeout for offline safety)
+                        await syncManager.replayOfflineQueue().timeout(
+                          const Duration(seconds: 4),
+                          onTimeout: () => debugPrint('[ProfilePage] Sync timed out during sign out, continuing.'),
+                        );
+
+                        // 2. Perform real authentication sign out
+                        await authNotifier.signOut();
+
+                        if (dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                        }
+                        if (context.mounted) {
+                          context.go('/login');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Signed out successfully.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (dialogCtx.mounted) {
+                          setDialogState(() {
+                            isSigningOut = false;
+                          });
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Sign out failed: ${e.toString().replaceFirst('Exception: ', '')}'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ],
         ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          TextButton(
-            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
-            onPressed: () async {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Uploading local changes and signing out...')),
-              );
-              // 1. Upload local changes before signing out
-              await syncManager.replayOfflineQueue();
-              // 2. Perform sign out
-              await authNotifier.signOut();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Signed out successfully.')),
-              );
-            },
-          ),
-        ],
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -47,6 +48,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
 
     try {
+      ref.read(guestModeProvider.notifier).state = false;
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -238,34 +240,42 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= 900;
 
-    return AuthScaffold(
-      desktopHeader: const AuthDesktopHeader(),
-      desktopFooter: const AuthDesktopFooter(),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isDesktop ? 1100 : 420,
-          ),
-          child: isDesktop
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Left Column: Form
-                    Expanded(
-                      flex: 5,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 48.0),
-                        child: _buildFormContent(isDesktop: true),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          SystemNavigator.pop();
+        }
+      },
+      child: AuthScaffold(
+        desktopHeader: const AuthDesktopHeader(),
+        desktopFooter: const AuthDesktopFooter(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isDesktop ? 1100 : 420,
+            ),
+            child: isDesktop
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Left Column: Form
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 48.0),
+                          child: _buildFormContent(isDesktop: true),
+                        ),
                       ),
-                    ),
-                    // Right Column: Album Artwork Showcase Card
-                    Expanded(
-                      flex: 5,
-                      child: _buildDesktopShowcaseCard(),
-                    ),
-                  ],
-                )
-              : _buildFormContent(isDesktop: false),
+                      // Right Column: Album Artwork Showcase Card
+                      Expanded(
+                        flex: 5,
+                        child: _buildDesktopShowcaseCard(),
+                      ),
+                    ],
+                  )
+                : _buildFormContent(isDesktop: false),
+          ),
         ),
       ),
     );

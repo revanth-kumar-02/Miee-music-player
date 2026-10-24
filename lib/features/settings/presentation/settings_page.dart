@@ -37,6 +37,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   String _databaseSize = 'Calculating...';
   PermissionStatus _permissionStatus = PermissionStatus.denied;
   bool _isRefreshingMetadata = false;
+  bool _isSigningOut = false;
 
   @override
   void initState() {
@@ -1132,34 +1133,89 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _confirmSignOut(BuildContext context) {
-    showDialog(
+    if (_isSigningOut) return;
+
+    showDialog<void>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-        title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
-        content: const Text(
-          'Are you sure you want to sign out of your Miee account? Local offline songs will remain accessible.',
-          style: TextStyle(color: AppColors.mutedMauve),
+      barrierDismissible: !_isSigningOut,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
+          content: _isSigningOut
+              ? const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'Signing out of Miee...',
+                        style: TextStyle(color: AppColors.mutedMauve),
+                      ),
+                    ),
+                  ],
+                )
+              : const Text(
+                  'Are you sure you want to sign out of your Miee account? Local offline songs will remain accessible.',
+                  style: TextStyle(color: AppColors.mutedMauve),
+                ),
+          actions: _isSigningOut
+              ? null
+              : [
+                  TextButton(
+                    child: const Text('Cancel', style: TextStyle(color: AppColors.mutedMauve)),
+                    onPressed: () => Navigator.pop(dialogCtx),
+                  ),
+                  TextButton(
+                    child: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                    onPressed: () async {
+                      setDialogState(() {
+                        _isSigningOut = true;
+                      });
+                      try {
+                        await ref.read(authControllerProvider.notifier).signOut();
+                        if (mounted && dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                        }
+                        if (mounted) {
+                          context.go('/login');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Signed out successfully.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted && dialogCtx.mounted) {
+                          setDialogState(() {
+                            _isSigningOut = false;
+                          });
+                        }
+                        if (mounted) {
+                          setState(() {
+                            _isSigningOut = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Sign out failed: ${e.toString().replaceFirst('Exception: ', '')}'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isSigningOut = false;
+                          });
+                        }
+                      }
+                    },
+                  ),
+                ],
         ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedMauve)),
-            onPressed: () => Navigator.pop(dialogCtx),
-          ),
-          TextButton(
-            child: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-            onPressed: () async {
-              Navigator.pop(dialogCtx);
-              await ref.read(authControllerProvider.notifier).signOut();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Signed out successfully.')),
-                );
-              }
-            },
-          ),
-        ],
       ),
     );
   }

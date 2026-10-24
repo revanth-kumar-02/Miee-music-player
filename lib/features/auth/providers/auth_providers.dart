@@ -14,7 +14,10 @@ final authStateChangesProvider = StreamProvider<AuthUser?>((ref) {
 
 final currentAuthUserProvider = Provider<AuthUser?>((ref) {
   final asyncUser = ref.watch(authStateChangesProvider);
-  return asyncUser.valueOrNull ?? ref.read(authRepositoryProvider).currentUser;
+  if (asyncUser.hasValue) {
+    return asyncUser.value;
+  }
+  return ref.read(authRepositoryProvider).currentUser;
 });
 
 /// Allows users to explore and play music as a guest without signing in.

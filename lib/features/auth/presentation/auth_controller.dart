@@ -1,6 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/sync/supabase_config.dart';
+import '../../profile/presentation/profile_controller.dart';
+import '../../profile/providers/profile_providers.dart';
+import '../../rooms/providers/room_providers.dart';
+import '../providers/auth_providers.dart';
 
 class AuthState {
   final User? user;
@@ -31,7 +36,6 @@ class AuthState {
 }
 
 class AuthController extends StateNotifier<AuthState> {
-  // ignore: unused_field
   final Ref _ref;
 
   AuthController(this._ref) : super(const AuthState()) {
@@ -40,12 +44,22 @@ class AuthController extends StateNotifier<AuthState> {
 
   void _init() {
     if (SupabaseConfig.hasActiveSupabase) {
-      final client = Supabase.instance.client;
-      state = AuthState(user: client.auth.currentUser);
+      try {
+        final client = Supabase.instance.client;
+        state = AuthState(user: client.auth.currentUser);
 
-      client.auth.onAuthStateChange.listen((data) {
-        state = state.copyWith(user: data.session?.user);
-      });
+        client.auth.onAuthStateChange.listen((data) {
+          if (!mounted) return;
+          if (data.event == AuthChangeEvent.signedOut) {
+            state = const AuthState(user: null, isLoading: false, isOfflineMock: false);
+          } else {
+            state = state.copyWith(user: data.session?.user, isLoading: false);
+          }
+        });
+      } catch (_) {
+        // Uninitialized client in test environments
+        state = const AuthState();
+      }
     } else {
       // Local Guest Auth Mode
       state = const AuthState(isOfflineMock: true);
@@ -61,8 +75,9 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<bool> signIn(String email, String password) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      _ref.read(guestModeProvider.notifier).state = false;
       if (SupabaseConfig.hasActiveSupabase) {
         final client = Supabase.instance.client;
         final response = await client.auth.signInWithPassword(
@@ -86,8 +101,9 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<bool> signUp(String email, String password, String displayName) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      _ref.read(guestModeProvider.notifier).state = false;
       if (SupabaseConfig.hasActiveSupabase) {
         final client = Supabase.instance.client;
         final response = await client.auth.signUp(
@@ -111,14 +127,36 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> signOut() async {
-    state = state.copyWith(isLoading: true);
+    if (state.isLoading) return;
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      if (SupabaseConfig.hasActiveSupabase) {
-        await Supabase.instance.client.auth.signOut();
+      // 1. Leave any active collaborative listening room
+      try {
+        await _ref.read(roomControllerProvider.notifier).leaveRoom();
+      } catch (e) {
+        debugPrint('[AuthController] Note: Room leave during signOut: $e');
       }
-      state = const AuthState(isOfflineMock: true);
+
+      // 2. Reset guest mode
+      _ref.read(guestModeProvider.notifier).state = false;
+
+      // 3. Perform real sign out via Supabase
+      if (SupabaseConfig.hasActiveSupabase) {
+        await _ref.read(authRepositoryProvider).signOut();
+      }
+
+      // 4. Update auth state to fully signed out
+      state = const AuthState(user: null, isLoading: false, isOfflineMock: false);
+
+      // 5. Invalidate profile state so user-specific caches do not linger
+      _ref.invalidate(userProfileNotifierProvider);
+      _ref.invalidate(currentUserProfileProvider);
+      _ref.invalidate(profileProvider);
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      if (!mounted) rethrow;
+      final errorMsg = e.toString().replaceFirst('Exception: ', '');
+      state = state.copyWith(isLoading: false, errorMessage: errorMsg);
+      rethrow;
     }
   }
 }

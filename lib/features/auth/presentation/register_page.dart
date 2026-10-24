@@ -58,6 +58,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     });
 
     try {
+      ref.read(guestModeProvider.notifier).state = false;
       final authRepo = ref.read(authRepositoryProvider);
       final rawName = _nameController.text.trim();
       final authUser = await authRepo.signUpWithEmailAndPassword(
@@ -100,34 +101,46 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final width = MediaQuery.of(context).size.width;
     final isDesktop = width >= 900;
 
-    return AuthScaffold(
-      desktopHeader: const AuthDesktopHeader(),
-      desktopFooter: const AuthDesktopFooter(),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isDesktop ? 1140 : 440,
-          ),
-          child: isDesktop
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Left Column: Register Form
-                    Expanded(
-                      flex: 5,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 56.0),
-                        child: _buildFormContent(isDesktop: true),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/login');
+          }
+        }
+      },
+      child: AuthScaffold(
+        desktopHeader: const AuthDesktopHeader(),
+        desktopFooter: const AuthDesktopFooter(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isDesktop ? 1140 : 440,
+            ),
+            child: isDesktop
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Left Column: Register Form
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 56.0),
+                          child: _buildFormContent(isDesktop: true),
+                        ),
                       ),
-                    ),
-                    // Right Column: Editorial Showcase
-                    Expanded(
-                      flex: 6,
-                      child: _buildDesktopShowcaseCard(),
-                    ),
-                  ],
-                )
-              : _buildFormContent(isDesktop: false),
+                      // Right Column: Editorial Showcase
+                      Expanded(
+                        flex: 6,
+                        child: _buildDesktopShowcaseCard(),
+                      ),
+                    ],
+                  )
+                : _buildFormContent(isDesktop: false),
+          ),
         ),
       ),
     );

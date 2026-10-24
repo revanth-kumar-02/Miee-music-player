@@ -22,7 +22,10 @@ class SupabaseAuthRepository implements AuthRepository {
       return Stream.value(null);
     }
     return client.auth.onAuthStateChange.map((data) {
-      final user = data.session?.user ?? client.auth.currentUser;
+      if (data.event == AuthChangeEvent.signedOut) {
+        return null;
+      }
+      final user = data.session?.user;
       return user != null ? AuthUser.fromSupabase(user) : null;
     });
   }
@@ -31,6 +34,8 @@ class SupabaseAuthRepository implements AuthRepository {
   AuthUser? get currentUser {
     final client = _client;
     if (client == null) return null;
+    final session = client.auth.currentSession;
+    if (session == null) return null;
     final user = client.auth.currentUser;
     return user != null ? AuthUser.fromSupabase(user) : null;
   }
@@ -111,10 +116,13 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    final client = _client;
+    if (client == null) return;
     try {
-      await _client?.auth.signOut();
+      await client.auth.signOut();
     } catch (e) {
       debugPrint('[SupabaseAuthRepository] Error during signOut: $e');
+      rethrow;
     }
   }
 
