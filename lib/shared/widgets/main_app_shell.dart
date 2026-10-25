@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
+import '../../app/theme/web_colors.dart';
+import 'desktop_waveform_scrubber.dart';
 import '../../core/audio/playback_state.dart' as pb;
 import '../../core/audio/providers.dart';
 import '../../features/auth/providers/auth_providers.dart';
@@ -159,69 +161,65 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     }
 
     // ── DESKTOP VIEWPORT (~1536 x 1024 Reference Layout) ──
-    const double sidebarWidth = 215.0;
-    const double playerHeight = 84.0;
-    const double topBarHeight = 56.0;
+    const double sidebarWidth = 240.0;
+    const double playerHeight = 88.0;
+    const double topBarHeight = 64.0;
 
     final showDrawer = _isNowPlayingDrawerOpen && hasTrack;
+    final effectiveSidebarWidth = isTablet ? 76.0 : sidebarWidth;
 
     return Scaffold(
-      backgroundColor: AppColors.vanillaCream,
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      backgroundColor: MieeWebColors.surface,
+      body: Stack(
         children: [
-          // ── 1. Cocoa Plum Left Sidebar ──
-          SizedBox(
-            width: isTablet ? 76.0 : sidebarWidth,
+          // ── 1. Light Linen Left Sidebar (full height above player) ──
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: (hasTrack && !isNowPlayingRoute) ? playerHeight : 0,
+            width: effectiveSidebarWidth,
             child: _buildDesktopSidebar(context, location, isTablet),
           ),
 
-          // ── 2. Vanilla Cream Main Canvas + TopBar + Bottom Player ──
-          Expanded(
-            child: Stack(
-              children: [
-                // Scrollable main canvas
-                Positioned(
-                  left: 0,
-                  top: topBarHeight + 16,
-                  right: showDrawer ? 320.0 : 0,
-                  bottom: (hasTrack && !isNowPlayingRoute) ? (playerHeight + 28) : 16,
-                  child: widget.child,
-                ),
-
-                // Top Header Bar
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  right: showDrawer ? 320.0 : 0,
-                  height: topBarHeight + 16,
-                  child: _buildTopHeaderBar(context),
-                ),
-
-                // Persistent Bottom Player (hidden on full Now Playing route)
-                if (hasTrack && !isNowPlayingRoute)
-                  Positioned(
-                    left: 20.0,
-                    right: showDrawer ? 340.0 : 20.0,
-                    bottom: 14.0,
-                    height: playerHeight,
-                    child: _DesktopPlayerBarHost(shellState: this),
-                  ),
-
-                // Cocoa Plum Now Playing Right Drawer
-                if (showDrawer)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    width: 320.0,
-                    child: _DesktopNowPlayingPanelHost(
-                      onClose: () => setState(() => _isNowPlayingDrawerOpen = false),
-                    ),
-                  ),
-              ],
-            ),
+          // ── 2. Top Header Bar (from sidebar to drawer/edge) ──
+          Positioned(
+            left: effectiveSidebarWidth,
+            top: 0,
+            right: showDrawer ? 360.0 : 0,
+            height: topBarHeight,
+            child: _buildTopHeaderBar(context),
           ),
+
+          // ── 3. Main Content Canvas ──
+          Positioned(
+            left: effectiveSidebarWidth,
+            top: topBarHeight,
+            right: showDrawer ? 360.0 : 0,
+            bottom: (hasTrack && !isNowPlayingRoute) ? playerHeight : 0,
+            child: widget.child,
+          ),
+
+          // ── 4. Now Playing Right Drawer ──
+          if (showDrawer)
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: (hasTrack && !isNowPlayingRoute) ? playerHeight : 0,
+              width: 360.0,
+              child: _DesktopNowPlayingPanelHost(
+                onClose: () => setState(() => _isNowPlayingDrawerOpen = false),
+              ),
+            ),
+
+          // ── 5. Full-Width Docked Bottom Player Bar ──
+          if (hasTrack && !isNowPlayingRoute)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: playerHeight,
+              child: _DesktopPlayerBarHost(shellState: this),
+            ),
         ],
       ),
     );
@@ -233,43 +231,117 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
       BuildContext context, String location, bool isCollapsed) {
     final playlistsState = ref.watch(playlistControllerProvider);
     final userPlaylists = playlistsState.playlists;
+    final favorites = ref.watch(favoritesProvider);
+
+    final localProfile = ref.watch(profileProvider);
+    final cloudProfile = ref.watch(currentUserProfileProvider);
+    final authUser = ref.watch(currentAuthUserProvider);
+    final effectiveName = (cloudProfile?.displayName.trim().isNotEmpty == true &&
+            cloudProfile?.displayName != 'Miee Listener' &&
+            cloudProfile?.displayName != 'Miee User')
+        ? cloudProfile!.displayName
+        : (authUser?.displayName?.trim().isNotEmpty == true &&
+                authUser?.displayName != 'Miee Listener' &&
+                authUser?.displayName != 'Miee User')
+            ? authUser!.displayName!
+            : (localProfile.displayName.isNotEmpty &&
+                    localProfile.displayName != 'Miee User' &&
+                    localProfile.displayName != 'Miee Listener')
+                ? localProfile.displayName
+                : (authUser?.email.isNotEmpty == true
+                    ? authUser!.email.split('@').first
+                    : 'Listener');
+
+    final resolvedAvatarUrl = (localProfile.profilePicturePath != null &&
+            localProfile.profilePicturePath!.isNotEmpty)
+        ? localProfile.profilePicturePath
+        : (cloudProfile?.avatarUrl?.isNotEmpty == true
+            ? cloudProfile!.avatarUrl
+            : authUser?.photoUrl);
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.cocoaPlum,
-        borderRadius: BorderRadius.only(
-          topRight: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+        color: MieeWebColors.surfaceLow,
+        border: Border(
+          right: BorderSide(color: MieeWebColors.subtleBorder, width: 1.0),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Logo & Branding
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 16, 20),
+          Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            alignment: Alignment.centerLeft,
             child: isCollapsed
-                ? const Center(
-                    child: MieeBrandMark.emblem(
-                      emblemSize: 32,
-                      showWordmark: false,
-                      emblemColor: AppColors.dustyRose,
+                ? Center(
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: const BoxDecoration(
+                        color: MieeWebColors.primaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'm',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   )
-                : const MieeBrandMark.soundwaveWordmark(
-                    fontSize: 22,
-                    emblemColor: AppColors.dustyRose,
-                    dotColor: AppColors.dustyRose,
-                    textColor: AppColors.vanillaCream,
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        'miee',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                          color: MieeWebColors.textDark,
+                        ),
+                      ),
+                      Container(
+                        width: 7,
+                        height: 7,
+                        margin: const EdgeInsets.only(left: 3),
+                        decoration: const BoxDecoration(
+                          color: MieeWebColors.primaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
                   ),
           ),
 
-          // Primary Navigation Items
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
+          // Sidebar Navigation Content
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
-                _buildNavItem(
+                // ── SECTION 1: MENU ──
+                if (!isCollapsed)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+                    child: Text(
+                      'MENU',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: MieeWebColors.outline,
+                      ),
+                    ),
+                  ),
+
+                _buildSidebarNavItem(
                   icon: Icons.home_outlined,
                   activeIcon: Icons.home_rounded,
                   label: 'Home',
@@ -277,7 +349,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   isCollapsed: isCollapsed,
                   onTap: () => context.go('/home'),
                 ),
-                _buildNavItem(
+                _buildSidebarNavItem(
                   icon: Icons.search_rounded,
                   activeIcon: Icons.search_rounded,
                   label: 'Search',
@@ -285,177 +357,282 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   isCollapsed: isCollapsed,
                   onTap: () => context.go('/search'),
                 ),
-                _buildNavItem(
-                  icon: Icons.auto_stories_outlined,
-                  activeIcon: Icons.auto_stories_rounded,
+                _buildSidebarNavItem(
+                  icon: Icons.local_library_outlined,
+                  activeIcon: Icons.local_library_rounded,
                   label: 'Your Library',
-                  isSelected: location == '/playlists',
+                  isSelected: location == '/playlists' && !location.startsWith('/playlist/'),
                   isCollapsed: isCollapsed,
                   onTap: () => context.go('/playlists'),
                 ),
-                _buildNavItem(
-                  icon: Icons.queue_music_rounded,
-                  activeIcon: Icons.queue_music_rounded,
-                  label: 'Playlists',
-                  isSelected: location.startsWith('/playlist/'),
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/playlists'),
-                ),
-                _buildNavItem(
-                  icon: Icons.favorite_border_rounded,
+
+                const SizedBox(height: 18),
+
+                // ── SECTION 2: LIBRARY ──
+                if (!isCollapsed)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+                    child: Text(
+                      'LIBRARY',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: MieeWebColors.outline,
+                      ),
+                    ),
+                  ),
+
+                _buildSidebarNavItem(
+                  icon: Icons.favorite_rounded,
                   activeIcon: Icons.favorite_rounded,
+                  iconColor: MieeWebColors.secondary,
                   label: 'Liked Songs',
+                  badgeText: favorites.isNotEmpty ? '${favorites.length}' : null,
                   isSelected: location == '/liked-songs',
                   isCollapsed: isCollapsed,
                   onTap: () => context.go('/liked-songs'),
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          if (!isCollapsed) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Divider(
-                color: AppColors.white.withOpacity(0.12),
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // "PLAYLISTS" Section Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                'PLAYLISTS',
-                style: GoogleFonts.geist(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                  color: AppColors.softClay.withOpacity(0.7),
+                _buildSidebarNavItem(
+                  icon: Icons.schedule_rounded,
+                  activeIcon: Icons.schedule_rounded,
+                  label: 'Recently Played',
+                  isSelected: location == '/history',
+                  isCollapsed: isCollapsed,
+                  onTap: () => context.go('/playlists'),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
+                _buildSidebarNavItem(
+                  icon: Icons.album_outlined,
+                  activeIcon: Icons.album_rounded,
+                  label: 'Albums',
+                  isSelected: location == '/albums',
+                  isCollapsed: isCollapsed,
+                  onTap: () => context.go('/albums'),
+                ),
+                _buildSidebarNavItem(
+                  icon: Icons.mic_none_outlined,
+                  activeIcon: Icons.mic_rounded,
+                  label: 'Artists',
+                  isSelected: location == '/artists',
+                  isCollapsed: isCollapsed,
+                  onTap: () => context.go('/artists'),
+                ),
+                _buildSidebarNavItem(
+                  icon: Icons.arrow_circle_down_outlined,
+                  activeIcon: Icons.arrow_circle_down_rounded,
+                  label: 'Downloaded',
+                  isSelected: location == '/local-songs',
+                  isCollapsed: isCollapsed,
+                  onTap: () => context.go('/local-songs'),
+                ),
+                _buildSidebarNavItem(
+                  icon: Icons.groups_outlined,
+                  activeIcon: Icons.groups_rounded,
+                  label: 'Rooms',
+                  isSelected: location.startsWith('/rooms'),
+                  isCollapsed: isCollapsed,
+                  onTap: () => context.go('/rooms'),
+                ),
 
-            // Playlists list (user playlists or clean prompt)
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: [
+                const SizedBox(height: 18),
+
+                // ── SECTION 3: PLAYLISTS ──
+                if (!isCollapsed) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 0, 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'PLAYLISTS',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                            color: MieeWebColors.outline,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add, size: 18),
+                          color: MieeWebColors.onSurfaceVariant,
+                          hoverColor: MieeWebColors.surfaceContainerHigh,
+                          splashRadius: 16,
+                          tooltip: 'New Playlist',
+                          onPressed: () => showCreatePlaylistDialog(context),
+                        ),
+                      ],
+                    ),
+                  ),
                   if (userPlaylists.isNotEmpty)
                     ...userPlaylists.map(
-                      (p) => _buildPlaylistTile(
+                      (p) => _buildSidebarPlaylistItem(
                         title: p.name,
-                        songCount: '${p.tracks.length} songs',
-                        thumbnail: p.customCoverPath,
-                        fallbackColor: AppColors.softClay,
+                        isSelected: location == '/playlist/${p.id}',
                         onTap: () => context.go('/playlist/${p.id}'),
                       ),
                     )
                   else
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                       child: Text(
-                        'No playlists created yet',
-                        style: GoogleFonts.geist(
+                        'No playlists yet',
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
-                          color: AppColors.softClay.withOpacity(0.6),
+                          color: MieeWebColors.outline,
                         ),
                       ),
                     ),
                 ],
+              ],
+            ),
+          ),
+
+          // ── USER PROFILE FOOTER ──
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: MieeWebColors.subtleBorder, width: 1.0),
               ),
             ),
-
-            // "+ New Playlist" action at the bottom
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-              child: InkWell(
-                onTap: () => showCreatePlaylistDialog(context),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.white.withOpacity(0.18),
-                      width: 1,
-                    ),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.add,
-                            size: 18,
-                            color: AppColors.vanillaCream,
+            child: isCollapsed
+                ? Center(
+                    child: InkWell(
+                      onTap: () => context.go('/profile'),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(
+                          color: MieeWebColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'New Playlist',
-                            style: GoogleFonts.geist(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.vanillaCream,
+                        ),
+                      ),
+                    ),
+                  )
+                : InkWell(
+                    onTap: () => context.go('/profile'),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: MieeWebColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: MieeWebColors.subtleBorder.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: const BoxDecoration(
+                              color: MieeWebColors.primary,
+                              shape: BoxShape.circle,
                             ),
+                            clipBehavior: Clip.antiAlias,
+                            child: (resolvedAvatarUrl != null && resolvedAvatarUrl.isNotEmpty)
+                                ? Image.network(
+                                    resolvedAvatarUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Center(
+                                      child: Text(
+                                        effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  effectiveName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: MieeWebColors.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'HI-FI MASTER',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                    color: MieeWebColors.secondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.settings_outlined, size: 18),
+                            color: MieeWebColors.onSurfaceVariant,
+                            splashRadius: 16,
+                            tooltip: 'Settings',
+                            onPressed: () => context.go('/settings'),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ] else
-            const Spacer(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem({
+  Widget _buildSidebarNavItem({
     required IconData icon,
     required IconData activeIcon,
     required String label,
+    Color? iconColor,
+    String? badgeText,
     required bool isSelected,
     required bool isCollapsed,
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            height: 42,
-            padding: EdgeInsets.symmetric(
-              horizontal: isCollapsed ? 0 : 12,
-            ),
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: isSelected ? MieeWebColors.primaryContainer : MieeWebColors.surfaceContainerHigh,
+          child: Container(
+            height: 38,
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 0 : 12),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.dustyRose : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
+              color: isSelected ? MieeWebColors.primaryContainer : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
-              mainAxisAlignment: isCollapsed
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
+              mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
               children: [
                 Icon(
                   isSelected ? activeIcon : icon,
                   size: 20,
                   color: isSelected
-                      ? AppColors.white
-                      : AppColors.vanillaCream.withOpacity(0.85),
+                      ? Colors.white
+                      : (iconColor ?? MieeWebColors.onSurfaceVariant),
                 ),
                 if (!isCollapsed) ...[
                   const SizedBox(width: 12),
@@ -464,16 +641,29 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.geist(
-                        fontSize: 13.5,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected
-                            ? AppColors.white
-                            : AppColors.vanillaCream.withOpacity(0.85),
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected ? Colors.white : MieeWebColors.onSurfaceVariant,
                       ),
                     ),
                   ),
+                  if (badgeText != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.white.withValues(alpha: 0.2) : MieeWebColors.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : MieeWebColors.onSurface,
+                        ),
+                      ),
+                    ),
                 ],
               ],
             ),
@@ -483,85 +673,42 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     );
   }
 
-  Widget _buildPlaylistTile({
+  Widget _buildSidebarPlaylistItem({
     required String title,
-    required String songCount,
-    String? thumbnail,
-    required Color fallbackColor,
+    required bool isSelected,
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: thumbnail != null && thumbnail.isNotEmpty
-                    ? Image.network(
-                        thumbnail,
-                        width: 34,
-                        height: 34,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 34,
-                          height: 34,
-                          color: fallbackColor,
-                          child: const Icon(
-                            Icons.music_note,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      )
-                    : Container(
-                        width: 34,
-                        height: 34,
-                        color: fallbackColor,
-                        child: const Icon(
-                          Icons.music_note,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          hoverColor: MieeWebColors.surfaceContainerHigh,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: isSelected ? MieeWebColors.surfaceContainerHigh : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? MieeWebColors.primaryContainer : MieeWebColors.onSurfaceVariant,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.geist(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.vanillaCream,
-                      ),
-                    ),
-                    Text(
-                      songCount,
-                      style: GoogleFonts.geist(
-                        fontSize: 11,
-                        color: AppColors.softClay.withOpacity(0.65),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ── TOPBAR (Header on Vanilla Cream Canvas) ────────────────────────────────
+  // ── TOPBAR (Header on Canvas) ─────────────────────────────────────────────
 
   Widget _buildTopHeaderBar(BuildContext context) {
     final localProfile = ref.watch(profileProvider);
@@ -581,7 +728,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                 ? localProfile.displayName
                 : (authUser?.email.isNotEmpty == true
                     ? authUser!.email.split('@').first
-                    : localProfile.displayName);
+                    : 'Listener');
 
     final resolvedAvatarUrl = (localProfile.profilePicturePath != null &&
             localProfile.profilePicturePath!.isNotEmpty)
@@ -595,86 +742,147 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
       _topSearchController.text = globalQuery;
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 14, 28, 6),
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: MieeWebColors.surface.withValues(alpha: 0.92),
+        border: const Border(
+          bottom: BorderSide(color: MieeWebColors.subtleBorder, width: 1.0),
+        ),
+      ),
       child: Row(
         children: [
-          // Search Field (Pill Shape)
+          // Navigation Back & Forward buttons
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: MieeWebColors.surfaceLowest,
+                  border: Border.all(color: MieeWebColors.subtleBorder),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                  color: MieeWebColors.onSurfaceVariant,
+                  hoverColor: MieeWebColors.surfaceContainerHigh,
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: MieeWebColors.surfaceLowest,
+                  border: Border.all(color: MieeWebColors.subtleBorder),
+                ),
+                child: const IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(Icons.chevron_right_rounded, size: 20),
+                  color: MieeWebColors.onSurfaceVariant,
+                  hoverColor: MieeWebColors.surfaceContainerHigh,
+                  onPressed: null,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(width: 16),
+
+          // Search Field
           Expanded(
             child: Align(
               alignment: Alignment.centerLeft,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
+                constraints: const BoxConstraints(maxWidth: 360),
                 child: Container(
-                  height: 42,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: AppColors.oatBeige,
-                      width: 1.0,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.cocoaPlum.withOpacity(0.03),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    color: MieeWebColors.surfaceLow,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: MieeWebColors.subtleBorder, width: 1.0),
                   ),
-                  child: TextField(
-                    controller: _topSearchController,
-                    onChanged: (query) {
-                      setState(() {});
-                      ref.read(searchNotifierProvider.notifier).updateQuery(query);
-                    },
-                    onSubmitted: (query) {
-                      final trimmed = query.trim();
-                      if (trimmed.isNotEmpty) {
-                        ref
-                            .read(searchNotifierProvider.notifier)
-                            .updateQuery(trimmed);
-                        ref
-                            .read(searchNotifierProvider.notifier)
-                            .searchNow(trimmed);
-                        if (GoRouterState.of(context).matchedLocation != '/search') {
-                          context.go('/search');
-                        }
-                      }
-                    },
-                    style: GoogleFonts.geist(
-                      fontSize: 13.5,
-                      color: AppColors.cocoaPlum,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 11,
-                        horizontal: 16,
+                  child: Row(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(left: 10, right: 8),
+                        child: Icon(
+                          Icons.search_rounded,
+                          size: 18,
+                          color: MieeWebColors.outline,
+                        ),
                       ),
-                      border: InputBorder.none,
-                      hintText: 'Search songs, artists, albums...',
-                      hintStyle: GoogleFonts.geist(
-                        fontSize: 13,
-                        color: AppColors.mutedMauve,
+                      Expanded(
+                        child: TextField(
+                          controller: _topSearchController,
+                          onChanged: (query) {
+                            setState(() {});
+                            ref.read(searchNotifierProvider.notifier).updateQuery(query);
+                          },
+                          onSubmitted: (query) {
+                            final trimmed = query.trim();
+                            if (trimmed.isNotEmpty) {
+                              ref.read(searchNotifierProvider.notifier).updateQuery(trimmed);
+                              ref.read(searchNotifierProvider.notifier).searchNow(trimmed);
+                              if (GoRouterState.of(context).matchedLocation != '/search') {
+                                context.go('/search');
+                              }
+                            }
+                          },
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            color: MieeWebColors.onSurface,
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                            border: InputBorder.none,
+                            hintText: 'Search artists, tracks, or soundscapes...',
+                            hintStyle: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              color: MieeWebColors.outline,
+                            ),
+                          ),
+                        ),
                       ),
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        size: 20,
-                        color: AppColors.mutedMauve,
-                      ),
-                      suffixIcon: _topSearchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.mutedMauve),
-                              splashRadius: 16,
-                              onPressed: () {
-                                _topSearchController.clear();
-                                ref.read(searchNotifierProvider.notifier).updateQuery('');
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                    ),
+                      if (_topSearchController.text.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 16, color: MieeWebColors.outline),
+                          splashRadius: 14,
+                          onPressed: () {
+                            _topSearchController.clear();
+                            ref.read(searchNotifierProvider.notifier).updateQuery('');
+                            setState(() {});
+                          },
+                        )
+                      else
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: MieeWebColors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '⌘K',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: MieeWebColors.outline,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -683,33 +891,92 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
           const SizedBox(width: 16),
 
-          // User Profile Avatar
+          // Output Device Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: MieeWebColors.surfaceContainer,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: MieeWebColors.subtleBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.speaker_group_outlined,
+                  size: 15,
+                  color: MieeWebColors.primaryContainer,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Living Room Amp',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: MieeWebColors.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Notification Bell
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, size: 20),
+                color: MieeWebColors.onSurfaceVariant,
+                hoverColor: MieeWebColors.surfaceContainerHigh,
+                splashRadius: 18,
+                onPressed: () {},
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: MieeWebColors.secondaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(width: 8),
+
+          // Profile Avatar
           InkWell(
             onTap: () => context.go('/profile'),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: MieeWebColors.primary,
                 shape: BoxShape.circle,
-                color: AppColors.softClay,
-                border: Border.all(color: AppColors.oatBeige, width: 1.5),
               ),
               clipBehavior: Clip.antiAlias,
-              alignment: Alignment.center,
               child: (resolvedAvatarUrl != null && resolvedAvatarUrl.isNotEmpty)
-                  ? ProfileAvatar(
-                      imageUrl: resolvedAvatarUrl,
-                      size: 38,
+                  ? Image.network(
+                      resolvedAvatarUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
                     )
-                  : Text(
-                      effectiveName.isNotEmpty
-                          ? effectiveName[0].toUpperCase()
-                          : 'M',
-                      style: GoogleFonts.geist(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.cocoaPlum,
+                  : Center(
+                      child: Text(
+                        effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
             ),
@@ -739,353 +1006,353 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.oatBeige, width: 1.0),
+      height: 88,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(
+        color: MieeWebColors.surfaceLowest,
+        border: Border(
+          top: BorderSide(color: MieeWebColors.subtleBorder, width: 1.0),
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.cocoaPlum.withOpacity(0.06),
+            color: Color(0x0A1A0F12),
             blurRadius: 20,
-            offset: const Offset(0, 4),
+            offset: Offset(0, -4),
           ),
         ],
       ),
       child: Row(
         children: [
-          // ── Left: Artwork + Title + Artist + Like Action ──
-          GestureDetector(
-            onTap: () => context.push('/player'),
-            child: Tooltip(
-              message: 'Open Now Playing',
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  track.imageUrl,
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 50,
-                    height: 50,
-                    color: AppColors.softClay,
-                    child: const Icon(
-                      Icons.music_note_rounded,
-                      color: AppColors.cocoaPlum,
+          // ── Left: Artwork + Title + Artist + Like Action (width ~260) ──
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => context.push('/player'),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: MieeWebColors.surfaceContainerHigh,
+                        border: Border.all(color: MieeWebColors.subtleBorder),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: _buildPlayerBarArtwork(track.imageUrl),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 180),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  track.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.geist(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.cocoaPlum,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                        onTap: () => context.push('/player'),
+                        child: Text(
+                          track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: MieeWebColors.onSurface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        track.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: MieeWebColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  track.artist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.geist(
-                    fontSize: 11.5,
-                    color: AppColors.mutedMauve,
+                IconButton(
+                  icon: Icon(
+                    isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: isLiked ? MieeWebColors.secondary : MieeWebColors.outline,
+                    size: 20,
                   ),
+                  splashRadius: 18,
+                  onPressed: () {
+                    final favNotifier = ref.read(favoritesProvider.notifier);
+                    if (isLiked) {
+                      favNotifier.removeFavorite(track.id);
+                    } else {
+                      favNotifier.addFavorite(
+                        Track(
+                          id: track.id,
+                          title: track.title,
+                          artist: track.artist,
+                          imageUrl: track.imageUrl,
+                          duration: track.duration,
+                          filePath: track.filePath,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.playlist_add,
+                    color: MieeWebColors.onSurfaceVariant,
+                    size: 20,
+                  ),
+                  splashRadius: 18,
+                  onPressed: () => showAddToPlaylistSheet(context, track),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(width: 6),
+          const SizedBox(width: 16),
 
-          // Heart Like Action
-          IconButton(
-            icon: Icon(
-              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-              color: isLiked ? AppColors.dustyRose : AppColors.mutedMauve,
-              size: 20,
-            ),
-            splashRadius: 18,
-            onPressed: () {
-              final favNotifier = ref.read(favoritesProvider.notifier);
-              if (isLiked) {
-                favNotifier.removeFavorite(track.id);
-              } else {
-                favNotifier.addFavorite(
-                  Track(
-                    id: track.id,
-                    title: track.title,
-                    artist: track.artist,
-                    imageUrl: track.imageUrl,
-                    duration: track.duration,
-                    filePath: track.filePath,
-                  ),
-                );
-              }
-            },
-          ),
-          const SizedBox(width: 12),
-
-          // ── Center: Playback Controls & Clean Progress Slider ──
+          // ── Center: Transport Controls & Discrete Waveform Scrubber (max 640) ──
           Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: SizedBox(
-                width: 460,
-                height: 84,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                // Controls Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Shuffle
-                    IconButton(
-                      icon: const Icon(Icons.shuffle_rounded),
-                      iconSize: 18,
-                      color: playback.isShuffleEnabled
-                          ? AppColors.dustyRose
-                          : AppColors.mutedMauve,
-                      splashRadius: 16,
-                      onPressed: () => ref
-                          .read(playerControllerProvider.notifier)
-                          .toggleShuffle(),
-                    ),
-                    const SizedBox(width: 4),
-
-                    // Previous
-                    IconButton(
-                      icon: const Icon(Icons.skip_previous_rounded),
-                      iconSize: 22,
-                      color: AppColors.cocoaPlum,
-                      splashRadius: 16,
-                      onPressed: () => ref
-                          .read(playerControllerProvider.notifier)
-                          .previous(),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Circular Dusty Rose Play/Pause Button
-                    Material(
-                      color: AppColors.dustyRose,
-                      shape: const CircleBorder(),
-                      elevation: 2,
-                      shadowColor: AppColors.dustyRose.withOpacity(0.4),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: isLoading
-                            ? null
-                            : () {
-                                if (isPlaying) {
-                                  ref.read(playerControllerProvider.notifier).pause();
-                                } else {
-                                  ref.read(playerControllerProvider.notifier).play();
-                                }
-                              },
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          alignment: Alignment.center,
-                          child: isLoading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.0,
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
-                                  ),
-                                )
-                              : Icon(
-                                  isPlaying
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                  size: 22,
-                                  color: AppColors.white,
-                                ),
+                    // Transport row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.shuffle_rounded),
+                          iconSize: 18,
+                          color: playback.isShuffleEnabled
+                              ? MieeWebColors.primaryContainer
+                              : MieeWebColors.outline,
+                          splashRadius: 16,
+                          onPressed: () => ref
+                              .read(playerControllerProvider.notifier)
+                              .toggleShuffle(),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Next
-                    IconButton(
-                      icon: const Icon(Icons.skip_next_rounded),
-                      iconSize: 22,
-                      color: AppColors.cocoaPlum,
-                      splashRadius: 16,
-                      onPressed: () =>
-                          ref.read(playerControllerProvider.notifier).next(),
-                    ),
-                    const SizedBox(width: 4),
-
-                    // Repeat
-                    IconButton(
-                      icon: const Icon(Icons.repeat_rounded),
-                      iconSize: 18,
-                      color: playback.repeatMode != pb.RepeatMode.off
-                          ? AppColors.dustyRose
-                          : AppColors.mutedMauve,
-                      splashRadius: 16,
-                      onPressed: () => ref
-                          .read(playerControllerProvider.notifier)
-                          .toggleRepeatMode(),
-                    ),
-                  ],
-                ),
-
-                // Seek Progress Slider Row (Clean linear bar)
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 36,
-                      child: Text(
-                        _formatDuration(playback.position),
-                        textAlign: TextAlign.right,
-                        style: GoogleFonts.geist(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.mutedMauve,
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.skip_previous_rounded),
+                          iconSize: 22,
+                          color: MieeWebColors.onSurface,
+                          splashRadius: 16,
+                          onPressed: () => ref
+                              .read(playerControllerProvider.notifier)
+                              .previous(),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 3.5,
-                          activeTrackColor: AppColors.dustyRose,
-                          inactiveTrackColor: AppColors.oatBeige,
-                          thumbColor: AppColors.dustyRose,
-                          thumbShape: const RoundSliderThumbShape(
-                            enabledThumbRadius: 4.5,
-                            elevation: 1.0,
+                        const SizedBox(width: 10),
+                        // Bordeaux Circular Play/Pause Button (#6E0D25)
+                        Material(
+                          color: MieeWebColors.primaryContainer,
+                          shape: const CircleBorder(),
+                          elevation: 2,
+                          shadowColor: MieeWebColors.primaryContainer.withValues(alpha: 0.3),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: isLoading
+                                ? null
+                                : () {
+                                    if (isPlaying) {
+                                      ref.read(playerControllerProvider.notifier).pause();
+                                    } else {
+                                      ref.read(playerControllerProvider.notifier).play();
+                                    }
+                                  },
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              alignment: Alignment.center,
+                              child: isLoading
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.0,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : Icon(
+                                      isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      size: 22,
+                                      color: Colors.white,
+                                    ),
+                            ),
                           ),
-                          overlayShape: const RoundSliderOverlayShape(
-                            overlayRadius: 10.0,
-                          ),
-                          overlayColor: AppColors.dustyRose.withOpacity(0.15),
                         ),
-                        child: SizedBox(
-                          height: 20,
-                          child: Slider(
-                            value: progress,
-                            onChanged: (val) {
+                        const SizedBox(width: 10),
+                        IconButton(
+                          icon: const Icon(Icons.skip_next_rounded),
+                          iconSize: 22,
+                          color: MieeWebColors.onSurface,
+                          splashRadius: 16,
+                          onPressed: () =>
+                              ref.read(playerControllerProvider.notifier).next(),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.repeat_rounded),
+                          iconSize: 18,
+                          color: playback.repeatMode != pb.RepeatMode.off
+                              ? MieeWebColors.primaryContainer
+                              : MieeWebColors.outline,
+                          splashRadius: 16,
+                          onPressed: () => ref
+                              .read(playerControllerProvider.notifier)
+                              .toggleRepeatMode(),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 2),
+
+                    // Waveform Timeline Scrubber Row
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 36,
+                          child: Text(
+                            _formatDuration(playback.position),
+                            textAlign: TextAlign.right,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: MieeWebColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DiscreteWaveformScrubber(
+                            progress: progress,
+                            isPlaying: isPlaying,
+                            height: 20,
+                            barWidth: 2.8,
+                            playedColor: MieeWebColors.waveformPlayed,
+                            unplayedColor: MieeWebColors.waveformNeutral,
+                            onSeek: (val) {
                               if (playback.duration.inMilliseconds > 0) {
                                 final seekPos = Duration(
-                                  milliseconds:
-                                      (val * playback.duration.inMilliseconds).toInt(),
+                                  milliseconds: (val * playback.duration.inMilliseconds).toInt(),
                                 );
-                                ref
-                                    .read(playerControllerProvider.notifier)
-                                    .seek(seekPos);
+                                ref.read(playerControllerProvider.notifier).seek(seekPos);
                               }
                             },
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 36,
-                      child: Text(
-                        playback.duration.inMilliseconds > 0
-                            ? _formatDuration(playback.duration)
-                            : '--:--',
-                        textAlign: TextAlign.left,
-                        style: GoogleFonts.geist(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.mutedMauve,
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 36,
+                          child: Text(
+                            playback.duration.inMilliseconds > 0
+                                ? _formatDuration(playback.duration)
+                                : '--:--',
+                            textAlign: TextAlign.left,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: MieeWebColors.onSurfaceVariant,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+          // ── Right: Queue / Volume / Fullscreen Expand (width ~240) ──
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 200, maxWidth: 240),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.queue_music_rounded),
+                  iconSize: 19,
+                  color: _isNowPlayingDrawerOpen
+                      ? MieeWebColors.primaryContainer
+                      : MieeWebColors.onSurfaceVariant,
+                  tooltip: 'Queue / Now Playing',
+                  splashRadius: 18,
+                  onPressed: () => setState(() => _isNowPlayingDrawerOpen = !_isNowPlayingDrawerOpen),
+                ),
+                IconButton(
+                  icon: Icon(
+                    playback.volume == 0
+                        ? Icons.volume_off_rounded
+                        : (playback.volume < 0.5
+                            ? Icons.volume_down_rounded
+                            : Icons.volume_up_rounded),
+                  ),
+                  iconSize: 19,
+                  color: MieeWebColors.onSurfaceVariant,
+                  splashRadius: 18,
+                  onPressed: () {
+                    final newVol = playback.volume > 0 ? 0.0 : 1.0;
+                    ref.read(playerControllerProvider.notifier).setVolume(newVol);
+                  },
+                ),
+                SizedBox(
+                  width: 80,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3.0,
+                      activeTrackColor: MieeWebColors.primaryContainer,
+                      inactiveTrackColor: MieeWebColors.surfaceContainerHighest,
+                      thumbColor: MieeWebColors.primaryContainer,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4.5),
+                    ),
+                    child: Slider(
+                      value: playback.volume.clamp(0.0, 1.0),
+                      onChanged: (v) {
+                        ref.read(playerControllerProvider.notifier).setVolume(v);
+                      },
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.open_in_full_rounded),
+                  iconSize: 16,
+                  color: MieeWebColors.onSurfaceVariant,
+                  tooltip: 'Expand Now Playing',
+                  splashRadius: 18,
+                  onPressed: () => context.push('/player'),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-
-          const SizedBox(width: 12),
-
-          // ── Right: Queue / Volume / Fullscreen Expand ──
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.queue_music_rounded),
-                iconSize: 20,
-                color: AppColors.cocoaPlum,
-                tooltip: 'Queue',
-                splashRadius: 18,
-                onPressed: () => context.push('/queue'),
-              ),
-              IconButton(
-                icon: Icon(
-                  playback.volume == 0
-                      ? Icons.volume_off_rounded
-                      : (playback.volume < 0.5
-                          ? Icons.volume_down_rounded
-                          : Icons.volume_up_rounded),
-                ),
-                iconSize: 20,
-                color: AppColors.cocoaPlum,
-                splashRadius: 18,
-                onPressed: () {
-                  final newVol = playback.volume > 0 ? 0.0 : 1.0;
-                  ref.read(playerControllerProvider.notifier).setVolume(newVol);
-                },
-              ),
-              SizedBox(
-                width: 76,
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3.0,
-                    activeTrackColor: AppColors.dustyRose,
-                    inactiveTrackColor: AppColors.oatBeige,
-                    thumbColor: AppColors.dustyRose,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 4.5,
-                    ),
-                  ),
-                  child: Slider(
-                    value: playback.volume.clamp(0.0, 1.0),
-                    onChanged: (v) {
-                      ref.read(playerControllerProvider.notifier).setVolume(v);
-                    },
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.open_in_full_rounded),
-                iconSize: 17,
-                color: AppColors.mutedMauve,
-                tooltip: 'Expand Now Playing',
-                splashRadius: 18,
-                onPressed: () => context.push('/player'),
-              ),
-            ],
-          ),
         ],
       ),
     );
+  }
+
+  Widget _buildPlayerBarArtwork(String rawUrl) {
+    if (rawUrl.isEmpty) {
+      return const Icon(Icons.music_note_rounded, size: 24, color: MieeWebColors.outline);
+    }
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      return Image.network(
+        rawUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(Icons.music_note_rounded, size: 24, color: MieeWebColors.outline),
+      );
+    }
+    return const Icon(Icons.music_note_rounded, size: 24, color: MieeWebColors.outline);
   }
 
 
@@ -1212,7 +1479,7 @@ class _DesktopNowPlayingPanelHost extends ConsumerWidget {
   }
 }
 
-/// The desktop right-hand Now Playing drawer panel.
+/// The desktop right-hand Now Playing drawer panel matching the editorial tactile design.
 class DesktopNowPlayingPanel extends ConsumerWidget {
   final pb.PlaybackState playback;
   final VoidCallback? onClose;
@@ -1225,11 +1492,11 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
 
   Widget _buildArtworkPlaceholder() {
     return Container(
-      color: AppColors.softClay,
+      color: MieeWebColors.surfaceContainerHigh,
       child: const Icon(
         Icons.music_note_rounded,
-        size: 64,
-        color: AppColors.vanillaCream,
+        size: 56,
+        color: MieeWebColors.outline,
       ),
     );
   }
@@ -1282,311 +1549,433 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
     final isLiked = ref.watch(
       favoritesProvider.select((favs) => favs.any((t) => t.id == track.id)),
     );
+    final queue = ref.watch(queueManagerProvider).queue;
 
     return Container(
-      width: 320,
+      width: 360,
       decoration: const BoxDecoration(
-        color: AppColors.cocoaPlum,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
+        color: MieeWebColors.surface,
+        border: Border(
+          left: BorderSide(color: MieeWebColors.subtleBorder, width: 1.0),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
         children: [
-          // Header: Chevron down + "PLAYING FROM" + 3-dots
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.vanillaCream,
-                  size: 24,
-                ),
-                tooltip: 'Close panel',
-                onPressed: onClose,
-              ),
-              Column(
-                children: [
-                  Text(
-                    'PLAYING FROM',
-                    style: GoogleFonts.geist(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                      color: AppColors.softClay.withOpacity(0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    playback.playingFrom ??
-                        (track.artist.isNotEmpty ? track.artist : 'Now Playing'),
-                    style: GoogleFonts.geist(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.vanillaCream,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: AppColors.vanillaCream,
-                  size: 20,
-                ),
-                tooltip: 'More options',
-                onPressed: () => showAddToPlaylistSheet(context, track),
-              ),
-            ],
-          ),
-
-          const Spacer(),
-
-          // Large Square Album Artwork
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 240, maxHeight: 240),
-            child: AspectRatio(
-              aspectRatio: 1.0,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: _buildArtwork(track.imageUrl),
-              ),
-            ),
-          ),
-
-          const Spacer(),
-
-          // Track Title & Artist + Favorite Heart
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.vanillaCream,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      track.artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.geist(
-                        fontSize: 13,
-                        color: AppColors.softClay.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  isLiked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color: isLiked ? AppColors.dustyRose : AppColors.vanillaCream,
-                  size: 22,
-                ),
-                onPressed: () {
-                  final favNotifier = ref.read(favoritesProvider.notifier);
-                  if (isLiked) {
-                    favNotifier.removeFavorite(track.id);
-                  } else {
-                    favNotifier.addFavorite(
-                      Track(
-                        id: track.id,
-                        title: track.title,
-                        artist: track.artist,
-                        imageUrl: track.imageUrl,
-                        duration: track.duration,
-                        filePath: track.filePath,
-                      ),
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // Linear Progress Slider & Timestamps
-          Column(
-            children: [
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 3.5,
-                  activeTrackColor: AppColors.dustyRose,
-                  inactiveTrackColor: AppColors.white.withOpacity(0.2),
-                  thumbColor: AppColors.dustyRose,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4.5),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10.0),
-                  overlayColor: AppColors.dustyRose.withOpacity(0.15),
-                ),
-                child: Slider(
-                  value: progress,
-                  onChanged: (val) {
-                    if (playback.duration.inMilliseconds > 0) {
-                      final seekPos = Duration(
-                        milliseconds:
-                            (val * playback.duration.inMilliseconds).toInt(),
-                      );
-                      ref.read(playerControllerProvider.notifier).seek(seekPos);
-                    }
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      MainAppShell.formatDuration(playback.position),
-                      style: GoogleFonts.geist(
-                        fontSize: 11,
-                        color: AppColors.vanillaCream.withOpacity(0.6),
-                      ),
-                    ),
-                    Text(
-                      playback.duration.inMilliseconds > 0
-                          ? MainAppShell.formatDuration(playback.duration)
-                          : '--:--',
-                      style: GoogleFonts.geist(
-                        fontSize: 11,
-                        color: AppColors.vanillaCream.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Controls Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shuffle_rounded),
-                iconSize: 20,
-                color: playback.isShuffleEnabled
-                    ? AppColors.dustyRose
-                    : AppColors.vanillaCream.withOpacity(0.6),
-                onPressed: () => ref
-                    .read(playerControllerProvider.notifier)
-                    .toggleShuffle(),
-              ),
-              IconButton(
-                icon: const Icon(Icons.skip_previous_rounded),
-                iconSize: 26,
-                color: AppColors.vanillaCream,
-                onPressed: () =>
-                    ref.read(playerControllerProvider.notifier).previous(),
-              ),
-              Material(
-                color: AppColors.dustyRose,
-                shape: const CircleBorder(),
-                elevation: 3,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: isLoading
-                      ? null
-                      : () {
-                          if (isPlaying) {
-                            ref.read(playerControllerProvider.notifier).pause();
-                          } else {
-                            ref.read(playerControllerProvider.notifier).play();
-                          }
-                        },
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.center,
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
-                            ),
-                          )
-                        : Icon(
-                            isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            size: 28,
-                            color: AppColors.white,
-                          ),
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.skip_next_rounded),
-                iconSize: 26,
-                color: AppColors.vanillaCream,
-                onPressed: () =>
-                    ref.read(playerControllerProvider.notifier).next(),
-              ),
-              IconButton(
-                icon: const Icon(Icons.repeat_rounded),
-                iconSize: 20,
-                color: playback.repeatMode != pb.RepeatMode.off
-                    ? AppColors.dustyRose
-                    : AppColors.vanillaCream.withOpacity(0.6),
-                onPressed: () => ref
-                    .read(playerControllerProvider.notifier)
-                    .toggleRepeatMode(),
-              ),
-            ],
-          ),
-
-          const Spacer(),
-
-          // Bottom "Lyrics" Pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
+          // ── Header: Close button + Status + Badges ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(
-                  Icons.lyrics_outlined,
-                  size: 16,
-                  color: AppColors.vanillaCream,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Lyrics',
-                  style: GoogleFonts.geist(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.vanillaCream,
+                IconButton(
+                  icon: const Icon(
+                    Icons.keyboard_arrow_right_rounded,
+                    color: MieeWebColors.onSurface,
+                    size: 24,
                   ),
+                  tooltip: 'Close panel',
+                  onPressed: onClose,
+                ),
+                Column(
+                  children: [
+                    Text(
+                      'NOW PLAYING',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                        color: MieeWebColors.outline,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Hi-Fi Direct Stream',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: MieeWebColors.primaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: MieeWebColors.onSurfaceVariant,
+                    size: 20,
+                  ),
+                  tooltip: 'More options',
+                  onPressed: () => showAddToPlaylistSheet(context, track),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+
+          const Divider(color: MieeWebColors.subtleBorder, height: 1),
+
+          // ── Scrollable Body: Artwork, Waveform, Controls, Queue Preview ──
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              children: [
+                // Square Artwork with "DIRECT MASTER" tag
+                Center(
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 260,
+                        height: 260,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x1A1A0F12),
+                              blurRadius: 24,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: _buildArtwork(track.imageUrl),
+                        ),
+                      ),
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: MieeWebColors.tertiary.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.graphic_eq_rounded,
+                                size: 13,
+                                color: MieeWebColors.primaryFixed,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'DIRECT MASTER',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // Track Title + Artist + Favorite
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: MieeWebColors.textDark,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              color: MieeWebColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: isLiked ? MieeWebColors.secondary : MieeWebColors.outline,
+                        size: 22,
+                      ),
+                      onPressed: () {
+                        final favNotifier = ref.read(favoritesProvider.notifier);
+                        if (isLiked) {
+                          favNotifier.removeFavorite(track.id);
+                        } else {
+                          favNotifier.addFavorite(
+                            Track(
+                              id: track.id,
+                              title: track.title,
+                              artist: track.artist,
+                              imageUrl: track.imageUrl,
+                              duration: track.duration,
+                              filePath: track.filePath,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Waveform Scrubber Card
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: MieeWebColors.surfaceLowest,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: MieeWebColors.subtleBorder),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            MainAppShell.formatDuration(playback.position),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: MieeWebColors.primaryContainer,
+                            ),
+                          ),
+                          Text(
+                            playback.duration.inMilliseconds > 0
+                                ? MainAppShell.formatDuration(playback.duration)
+                                : '--:--',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              color: MieeWebColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      DiscreteWaveformScrubber(
+                        progress: progress,
+                        isPlaying: isPlaying,
+                        height: 28,
+                        barWidth: 3.0,
+                        playedColor: MieeWebColors.waveformPlayed,
+                        unplayedColor: MieeWebColors.waveformNeutral,
+                        onSeek: (val) {
+                          if (playback.duration.inMilliseconds > 0) {
+                            final seekPos = Duration(
+                              milliseconds: (val * playback.duration.inMilliseconds).toInt(),
+                            );
+                            ref.read(playerControllerProvider.notifier).seek(seekPos);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Controls Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shuffle_rounded),
+                      iconSize: 20,
+                      color: playback.isShuffleEnabled
+                          ? MieeWebColors.primaryContainer
+                          : MieeWebColors.outline,
+                      onPressed: () => ref
+                          .read(playerControllerProvider.notifier)
+                          .toggleShuffle(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.skip_previous_rounded),
+                      iconSize: 26,
+                      color: MieeWebColors.onSurface,
+                      onPressed: () =>
+                          ref.read(playerControllerProvider.notifier).previous(),
+                    ),
+                    Material(
+                      color: MieeWebColors.primaryContainer,
+                      shape: const CircleBorder(),
+                      elevation: 3,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: isLoading
+                            ? null
+                            : () {
+                                if (isPlaying) {
+                                  ref.read(playerControllerProvider.notifier).pause();
+                                } else {
+                                  ref.read(playerControllerProvider.notifier).play();
+                                }
+                              },
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          alignment: Alignment.center,
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Icon(
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  size: 26,
+                                  color: Colors.white,
+                                ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.skip_next_rounded),
+                      iconSize: 26,
+                      color: MieeWebColors.onSurface,
+                      onPressed: () =>
+                          ref.read(playerControllerProvider.notifier).next(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.repeat_rounded),
+                      iconSize: 20,
+                      color: playback.repeatMode != pb.RepeatMode.off
+                          ? MieeWebColors.primaryContainer
+                          : MieeWebColors.outline,
+                      onPressed: () => ref
+                          .read(playerControllerProvider.notifier)
+                          .toggleRepeatMode(),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // Up Next Section
+                if (queue.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.queue_music_rounded, size: 18, color: MieeWebColors.primaryContainer),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Up Next',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: MieeWebColors.textDark,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: MieeWebColors.surfaceContainer,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${queue.length}',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: MieeWebColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: () => context.push('/queue'),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'View All',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: MieeWebColors.primaryContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...queue.take(4).map((qItem) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              color: MieeWebColors.surfaceContainerHigh,
+                              child: _buildArtwork(qItem.imageUrl),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  qItem.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: MieeWebColors.onSurface,
+                                  ),
+                                ),
+                                Text(
+                                  qItem.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10.5,
+                                    color: MieeWebColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
