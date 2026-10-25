@@ -21,8 +21,8 @@ class RoomRepository {
     return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
-  /// Creates a listening room with capacity constrained to 1-5.
-  /// Host identity is guaranteed by auth session.
+  /// Creates a listening room atomically via Postgres stored procedure,
+  /// enforcing capacity (1-5), host membership, and initial playback state.
   Future<ListeningRoom> createRoom({
     required String name,
     int capacity = 5,
@@ -41,42 +41,34 @@ class RoomRepository {
       throw Exception('User must be authenticated to host a room.');
     }
 
-    final joinCode = _generateJoinCode();
-    final now = DateTime.now();
+    final trimmedName = name.trim().isNotEmpty ? name.trim() : 'Miee Jam';
 
-    // 1. Insert room
-    final roomRes = await client.from('rooms').insert({
-      'host_id': userId,
-      'join_code': joinCode,
-      'name': name.trim().isNotEmpty ? name.trim() : 'Miee Jam',
-      'status': 'active',
-      'capacity': capacity,
-      'created_at': now.toIso8601String(),
-      'updated_at': now.toIso8601String(),
-    }).select().single();
+    try {
+      final response = await client.rpc(
+        'create_room',
+        params: {
+          'p_name': trimmedName,
+          'p_capacity': capacity,
+        },
+      );
 
-    final room = ListeningRoom.fromMap(roomRes);
-
-    // 2. Add host as member
-    await client.from('room_members').insert({
-      'room_id': room.id,
-      'user_id': userId,
-      'role': 'host',
-      'joined_at': now.toIso8601String(),
-      'last_seen_at': now.toIso8601String(),
-    });
-
-    // 3. Initialize room state
-    await client.from('room_state').insert({
-      'room_id': room.id,
-      'playback_status': 'paused',
-      'position_ms': 0,
-      'queue': [],
-      'updated_at': now.toIso8601String(),
-      'updated_by': userId,
-    });
-
-    return room;
+      if (response is Map) {
+        return ListeningRoom.fromMap(Map<String, dynamic>.from(response));
+      }
+      throw Exception('Unexpected response from room creation service.');
+    } on PostgrestException catch (e) {
+      debugPrint('[RoomRepository] createRoom PostgrestException: ${e.message} (code: ${e.code})');
+      if (e.code == '22023') {
+        throw ArgumentError('Room capacity must be between 1 and 5.');
+      }
+      if (e.code == '42501') {
+        throw Exception('You are not authorized to create a room. Please sign in again.');
+      }
+      throw Exception(e.message);
+    } catch (e) {
+      debugPrint('[RoomRepository] createRoom error: $e');
+      rethrow;
+    }
   }
 
   /// Atomically joins a room via Postgres stored procedure, enforcing capacity (1-5) server-side.

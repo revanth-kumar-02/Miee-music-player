@@ -44,6 +44,7 @@ class _CreateRoomPageState extends ConsumerState<CreateRoomPage> {
   }
 
   Future<void> _handleCreate() async {
+    if (_isCreating) return;
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Please enter a room name.');
@@ -67,10 +68,31 @@ class _CreateRoomPageState extends ConsumerState<CreateRoomPage> {
       if (mounted) {
         setState(() {
           _isCreating = false;
-          _error = e.toString().replaceFirst('Exception: ', '');
+          _error = _formatErrorMessage(e);
         });
       }
     }
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    final str = error.toString();
+    if (str.contains('42P17') || str.contains('infinite recursion')) {
+      return 'Database policy error. Please try again or update the app.';
+    }
+    if (str.contains('SocketException') || str.contains('Failed host lookup') || str.contains('Network')) {
+      return 'Network connection error. Please check your internet connection.';
+    }
+    if (str.contains('authenticated') || str.contains('sign in')) {
+      return 'Please sign in to host a room.';
+    }
+    if (str.contains('capacity') || str.contains('22023')) {
+      return 'Room capacity must be between 1 and 5.';
+    }
+    return str
+        .replaceFirst('Exception: ', '')
+        .replaceFirst('ArgumentError: ', '')
+        .replaceFirst('PostgrestException(message: ', '')
+        .split(', code:')[0];
   }
 
   @override
