@@ -219,11 +219,92 @@ class RoomRepository {
         .eq('user_id', userId);
   }
 
+  /// Fetches recent messages for a room ordered chronologically.
+  Future<List<RoomMessage>> getRoomMessages(String roomId, {int limit = 100}) async {
+    final client = _client;
+    if (client == null) return [];
+
+    try {
+      final res = await client
+          .from('room_messages')
+          .select()
+          .eq('room_id', roomId)
+          .order('created_at', ascending: true)
+          .limit(limit);
+
+      return (res as List)
+          .map((m) => RoomMessage.fromMap(m as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('[RoomRepository] getRoomMessages error: $e');
+      return [];
+    }
+  }
+
+  /// Sends a text message or rich song suggestion into the room.
+  Future<RoomMessage> sendMessage({
+    required String roomId,
+    required String content,
+    String type = 'text',
+    String? trackId,
+    String? trackTitle,
+    String? trackArtist,
+    String? trackImageUrl,
+    bool isYoutube = true,
+  }) async {
+    final client = _client;
+    if (client == null) {
+      throw Exception('Supabase is not configured.');
+    }
+
+    final user = client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User must be authenticated to chat.');
+    }
+
+    String? displayName = user.userMetadata?['display_name'] as String? ??
+        user.userMetadata?['name'] as String? ??
+        user.email?.split('@').first;
+    String? avatarUrl = user.userMetadata?['avatar_url'] as String?;
+
+    try {
+      final profile = await client
+          .from('profiles')
+          .select('display_name, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (profile != null) {
+        if (profile['display_name'] != null) displayName = profile['display_name'] as String?;
+        if (profile['avatar_url'] != null) avatarUrl = profile['avatar_url'] as String?;
+      }
+    } catch (_) {}
+
+    final now = DateTime.now();
+    final insertData = {
+      'room_id': roomId,
+      'user_id': user.id,
+      'user_name': displayName ?? 'Listener',
+      'user_avatar': avatarUrl,
+      'content': content.trim(),
+      'type': type,
+      'track_id': trackId,
+      'track_title': trackTitle,
+      'track_artist': trackArtist,
+      'track_image_url': trackImageUrl,
+      'is_youtube': isYoutube,
+      'created_at': now.toIso8601String(),
+    };
+
+    final res = await client.from('room_messages').insert(insertData).select().single();
+    return RoomMessage.fromMap(res);
+  }
+
   /// Subscribes to Supabase Realtime channel for room updates.
   RealtimeChannel? subscribeToRoom({
     required String roomId,
     required void Function(RoomPlaybackState state) onStateChanged,
     required void Function() onMembersChanged,
+    void Function(RoomMessage message)? onMessageReceived,
     void Function()? onRoomEnded,
   }) {
     final client = _client;
@@ -264,6 +345,26 @@ class RoomRepository {
           ),
           callback: (_) {
             onMembersChanged();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'room_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'room_id',
+            value: roomId,
+          ),
+          callback: (payload) {
+            try {
+              final newRecord = payload.newRecord;
+              if (newRecord.isNotEmpty) {
+                onMessageReceived?.call(RoomMessage.fromMap(newRecord));
+              }
+            } catch (e) {
+              debugPrint('[RoomRepository] Realtime message event error: $e');
+            }
           },
         )
         .onPostgresChanges(

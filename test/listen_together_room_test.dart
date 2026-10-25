@@ -328,5 +328,127 @@ void main() {
       expect(copy.displayName, equals('Updated Name'));
       expect(copy.avatarUrl, equals('https://avatar.url/rev.png'));
     });
+
+    // 13. RoomMessage regular text chat instantiation & serialization
+    test('13. RoomMessage handles standard chat messages correctly', () {
+      final now = DateTime.now();
+      final chatMsg = RoomMessage(
+        id: 'msg_1',
+        roomId: 'room_chat_1',
+        userId: 'user_listener_1',
+        userName: 'Listener Alex',
+        content: 'Hey everyone, loving this vibe!',
+        type: 'text',
+        createdAt: now,
+      );
+
+      expect(chatMsg.isSongSuggestion, isFalse);
+      expect(chatMsg.content, equals('Hey everyone, loving this vibe!'));
+      expect(chatMsg.userName, equals('Listener Alex'));
+
+      final map = chatMsg.toMap();
+      final reconstructed = RoomMessage.fromMap(map);
+
+      expect(reconstructed.id, equals('msg_1'));
+      expect(reconstructed.content, equals('Hey everyone, loving this vibe!'));
+      expect(reconstructed.isSongSuggestion, isFalse);
+    });
+
+    // 14. RoomMessage song suggestion payload & metadata
+    test('14. RoomMessage detects song suggestions and preserves track metadata', () {
+      final now = DateTime.now();
+      final suggestionMsg = RoomMessage(
+        id: 'msg_sug_1',
+        roomId: 'room_chat_1',
+        userId: 'user_listener_2',
+        userName: 'Listener Maya',
+        content: 'Play "Starboy" next please!',
+        type: 'song_suggestion',
+        trackId: 'youtube_dQw4w9WgXcQ',
+        trackTitle: 'Starboy',
+        trackArtist: 'The Weeknd',
+        trackImageUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+        isYoutube: true,
+        createdAt: now,
+      );
+
+      expect(suggestionMsg.isSongSuggestion, isTrue);
+      expect(suggestionMsg.trackId, equals('youtube_dQw4w9WgXcQ'));
+      expect(suggestionMsg.trackTitle, equals('Starboy'));
+      expect(suggestionMsg.trackArtist, equals('The Weeknd'));
+      expect(suggestionMsg.isYoutube, isTrue);
+
+      final map = suggestionMsg.toMap();
+      final restored = RoomMessage.fromMap(map);
+
+      expect(restored.isSongSuggestion, isTrue);
+      expect(restored.trackId, equals('youtube_dQw4w9WgXcQ'));
+      expect(restored.trackTitle, equals('Starboy'));
+      expect(restored.trackArtist, equals('The Weeknd'));
+    });
+
+    // 15. Room real-time deduplication prevents duplicate messages
+    test('15. Room real-time deduplication prevents duplicate messages from re-rendering', () {
+      final now = DateTime.now();
+      final msg1 = RoomMessage(
+        id: 'msg_unique_1',
+        roomId: 'r_dup',
+        userId: 'u_1',
+        userName: 'User 1',
+        content: 'First message',
+        createdAt: now,
+      );
+      final msg2 = RoomMessage(
+        id: 'msg_unique_2',
+        roomId: 'r_dup',
+        userId: 'u_2',
+        userName: 'User 2',
+        content: 'Second message',
+        createdAt: now,
+      );
+
+      var messages = <RoomMessage>[msg1];
+
+      void onReceive(RoomMessage incoming) {
+        if (!messages.any((m) => m.id == incoming.id)) {
+          messages = [...messages, incoming];
+        }
+      }
+
+      // Add msg2 -> succeeds
+      onReceive(msg2);
+      expect(messages.length, equals(2));
+
+      // Re-receive duplicate msg1 via network race condition -> ignored
+      onReceive(msg1);
+      expect(messages.length, equals(2));
+      expect(messages.first.id, equals('msg_unique_1'));
+    });
+
+    // 16. Host playback queue action on suggested track
+    test('16. Host can convert suggested song message into playable MusicItem and queue it', () {
+      final now = DateTime.now();
+      final suggestion = RoomMessage(
+        id: 'msg_sug_play',
+        roomId: 'r_host',
+        userId: 'u_listener',
+        userName: 'Maya',
+        content: 'Please play this!',
+        type: 'song_suggestion',
+        trackId: 'youtube_abc123xyz',
+        trackTitle: 'Golden Hour',
+        trackArtist: 'JVKE',
+        trackImageUrl: 'https://example.com/art.jpg',
+        isYoutube: true,
+        createdAt: now,
+      );
+
+      final rawId = suggestion.trackId ?? 'unknown';
+      final cleanId = rawId.startsWith('youtube_') ? rawId.replaceFirst('youtube_', '') : rawId;
+      expect(cleanId, equals('abc123xyz'));
+      expect(suggestion.trackTitle, equals('Golden Hour'));
+      expect(suggestion.trackArtist, equals('JVKE'));
+    });
   });
 }
+

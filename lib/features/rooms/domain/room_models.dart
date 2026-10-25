@@ -224,3 +224,108 @@ class RoomPlaybackState {
     );
   }
 }
+
+class RoomMessage {
+  final String id;
+  final String roomId;
+  final String userId;
+  final String? userName;
+  final String? userAvatar;
+  final String content;
+  final String type; // 'text' or 'song_suggestion'
+  final String? trackId;
+  final String? trackTitle;
+  final String? trackArtist;
+  final String? trackImageUrl;
+  final bool isYoutube;
+  final DateTime createdAt;
+
+  const RoomMessage({
+    required this.id,
+    required this.roomId,
+    required this.userId,
+    this.userName,
+    this.userAvatar,
+    required this.content,
+    this.type = 'text',
+    this.trackId,
+    this.trackTitle,
+    this.trackArtist,
+    this.trackImageUrl,
+    this.isYoutube = true,
+    required this.createdAt,
+  });
+
+  bool get isSongSuggestion => type == 'song_suggestion' && trackId != null && trackId!.isNotEmpty;
+
+  factory RoomMessage.fromMap(Map<String, dynamic> map) {
+    return RoomMessage(
+      id: map['id'] as String,
+      roomId: map['room_id'] as String,
+      userId: map['user_id'] as String,
+      userName: map['user_name'] as String?,
+      userAvatar: map['user_avatar'] as String?,
+      content: map['content'] as String? ?? '',
+      type: map['type'] as String? ?? 'text',
+      trackId: map['track_id'] as String?,
+      trackTitle: map['track_title'] as String?,
+      trackArtist: map['track_artist'] as String?,
+      trackImageUrl: map['track_image_url'] as String?,
+      isYoutube: map['is_youtube'] as bool? ?? true,
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'] as String)
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'room_id': roomId,
+      'user_id': userId,
+      'user_name': userName,
+      'user_avatar': userAvatar,
+      'content': content,
+      'type': type,
+      'track_id': trackId,
+      'track_title': trackTitle,
+      'track_artist': trackArtist,
+      'track_image_url': trackImageUrl,
+      'is_youtube': isYoutube,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
+  RoomMessage copyWith({
+    String? id,
+    String? roomId,
+    String? userId,
+    String? userName,
+    String? userAvatar,
+    String? content,
+    String? type,
+    String? trackId,
+    String? trackTitle,
+    String? trackArtist,
+    String? trackImageUrl,
+    bool? isYoutube,
+    DateTime? createdAt,
+  }) {
+    return RoomMessage(
+      id: id ?? this.id,
+      roomId: roomId ?? this.roomId,
+      userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      userAvatar: userAvatar ?? this.userAvatar,
+      content: content ?? this.content,
+      type: type ?? this.type,
+      trackId: trackId ?? this.trackId,
+      trackTitle: trackTitle ?? this.trackTitle,
+      trackArtist: trackArtist ?? this.trackArtist,
+      trackImageUrl: trackImageUrl ?? this.trackImageUrl,
+      isYoutube: isYoutube ?? this.isYoutube,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+

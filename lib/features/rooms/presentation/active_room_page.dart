@@ -6,13 +6,24 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
+import '../domain/room_models.dart';
 import '../providers/room_providers.dart';
+import 'widgets/in_room_song_search_sheet.dart';
+import 'widgets/room_chat_view.dart';
 
-class ActiveRoomPage extends ConsumerWidget {
+class ActiveRoomPage extends ConsumerStatefulWidget {
   const ActiveRoomPage({super.key});
+
+  @override
+  ConsumerState<ActiveRoomPage> createState() => _ActiveRoomPageState();
+}
+
+class _ActiveRoomPageState extends ConsumerState<ActiveRoomPage> {
+  int _selectedTab = 0; // 0: Chat & Requests, 1: Queue, 2: Listeners
 
   void _copyJoinCode(BuildContext context, String code) {
     Clipboard.setData(ClipboardData(text: code));
@@ -78,7 +89,7 @@ class ActiveRoomPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final roomState = ref.watch(roomControllerProvider);
     final activeRoom = roomState.activeRoom;
     final playbackState = roomState.playbackState;
@@ -213,6 +224,13 @@ class ActiveRoomPage extends ConsumerWidget {
         ),
         centerTitle: true,
         actions: [
+          // Host Search & Play Quick Action in AppBar
+          if (isHost)
+            IconButton(
+              icon: const Icon(Icons.search_rounded, color: AppColors.cocoaPlum),
+              tooltip: 'Search & Play in Room',
+              onPressed: () => InRoomSongSearchSheet.show(context, isSuggestionMode: false),
+            ),
           IconButton(
             icon: const Icon(Icons.exit_to_app_rounded, color: Colors.redAccent),
             tooltip: isHost ? 'End Room' : 'Leave Room',
@@ -222,13 +240,13 @@ class ActiveRoomPage extends ConsumerWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. Join Code Card
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -260,9 +278,9 @@ class ActiveRoomPage extends ConsumerWidget {
                           Text(
                             activeRoom.joinCode,
                             style: GoogleFonts.geistMono(
-                              fontSize: 26,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              letterSpacing: 6,
+                              letterSpacing: 5,
                               color: AppColors.cocoaPlum,
                             ),
                           ),
@@ -270,12 +288,12 @@ class ActiveRoomPage extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.copy_rounded, color: AppColors.dustyRose),
+                      icon: const Icon(Icons.copy_rounded, color: AppColors.dustyRose, size: 20),
                       tooltip: 'Copy Code',
                       onPressed: () => _copyJoinCode(context, activeRoom.joinCode),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.share_rounded, color: AppColors.cocoaPlum),
+                      icon: const Icon(Icons.share_rounded, color: AppColors.cocoaPlum, size: 20),
                       tooltip: 'Share Invite',
                       onPressed: () => _shareJoinCode(activeRoom.joinCode, activeRoom.name),
                     ),
@@ -283,7 +301,7 @@ class ActiveRoomPage extends ConsumerWidget {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
               // 2. Currently Playing Synchronized Track Card
               Container(
@@ -306,8 +324,8 @@ class ActiveRoomPage extends ConsumerWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
-                            width: 68,
-                            height: 68,
+                            width: 64,
+                            height: 64,
                             color: AppColors.cocoaPlum,
                             child: currentImageUrl != null && currentImageUrl.isNotEmpty
                                 ? Image.network(
@@ -372,7 +390,7 @@ class ActiveRoomPage extends ConsumerWidget {
                       ],
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
                     // Playback Controls (Host Only)
                     if (isHost)
@@ -393,7 +411,7 @@ class ActiveRoomPage extends ConsumerWidget {
                               icon: Icon(
                                 isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                                 color: Colors.white,
-                                size: 30,
+                                size: 28,
                               ),
                               onPressed: () => playerCtrl.togglePlayPause(),
                             ),
@@ -407,7 +425,7 @@ class ActiveRoomPage extends ConsumerWidget {
                       )
                     else
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(
                           'Playback is controlled authoritatively by the host.',
                           style: GoogleFonts.geist(
@@ -421,165 +439,363 @@ class ActiveRoomPage extends ConsumerWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
-
-              // 3. Participants List Section (Capacity 1-5 locked requirement)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'LISTENERS',
-                    style: GoogleFonts.geist(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                      color: AppColors.cocoaPlum.withOpacity(0.6),
-                    ),
+              // Host "Search & Play in Room" Action Button
+              if (isHost) ...[
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => InRoomSongSearchSheet.show(context, isSuggestionMode: false),
+                  icon: const Icon(Icons.search_rounded, size: 18),
+                  label: const Text('Search & Play Song in Room'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.dustyRose,
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    textStyle: GoogleFonts.geist(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: roomState.members.length >= activeRoom.capacity
-                          ? Colors.red.shade100
-                          : AppColors.softClay.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${roomState.members.length} / ${activeRoom.capacity} seats',
-                      style: GoogleFonts.geist(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: roomState.members.length >= activeRoom.capacity
-                            ? Colors.red.shade800
-                            : AppColors.cocoaPlum,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
+                ),
+              ],
 
+              const SizedBox(height: 18),
+
+              // 3. Segmented Tab Selector (Chat & Requests / Queue / Listeners)
               Container(
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cocoaPlum.withOpacity(0.08)),
+                  color: AppColors.softClay.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: roomState.members.length,
-                  separatorBuilder: (_, __) => Divider(
-                    height: 1,
-                    color: AppColors.cocoaPlum.withOpacity(0.06),
-                  ),
-                  itemBuilder: (context, index) {
-                    final member = roomState.members[index];
-                    final isMemberHost = member.role == 'host';
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isMemberHost
-                            ? AppColors.dustyRose.withOpacity(0.2)
-                            : AppColors.cocoaPlum.withOpacity(0.1),
-                        child: isMemberHost
-                            ? const Icon(Icons.star_rounded, color: AppColors.dustyRose, size: 20)
-                            : const Icon(Icons.person_rounded, color: AppColors.cocoaPlum, size: 20),
-                      ),
-                      title: Text(
-                        member.displayName ?? (isMemberHost ? 'Room Host' : 'Listener ${index + 1}'),
-                        style: GoogleFonts.geist(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.cocoaPlum,
-                        ),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isMemberHost
-                              ? AppColors.dustyRose.withOpacity(0.15)
-                              : Colors.green.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isMemberHost ? 'HOST' : 'LISTENING',
-                          style: GoogleFonts.geist(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                            color: isMemberHost ? AppColors.dustyRose : Colors.green.shade800,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                child: Row(
+                  children: [
+                    _buildTabPill(
+                      index: 0,
+                      label: 'Chat & Requests',
+                      countBadge: roomState.messages.isNotEmpty ? '${roomState.messages.length}' : null,
+                      icon: Icons.chat_bubble_outline_rounded,
+                    ),
+                    _buildTabPill(
+                      index: 1,
+                      label: 'Up Next',
+                      countBadge: playbackState?.queue.isNotEmpty == true ? '${playbackState!.queue.length}' : null,
+                      icon: Icons.queue_music_rounded,
+                    ),
+                    _buildTabPill(
+                      index: 2,
+                      label: 'Listeners',
+                      countBadge: '${roomState.members.length}/${activeRoom.capacity}',
+                      icon: Icons.people_outline_rounded,
+                    ),
+                  ],
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
 
-              // 4. Shared Queue Section
-              if (playbackState?.queue != null && playbackState!.queue.isNotEmpty) ...[
+              // 4. Tab Content Section
+              if (_selectedTab == 0)
+                // Tab 0: Chat & Song Requests
+                const SizedBox(
+                  height: 420,
+                  child: RoomChatView(),
+                )
+              else if (_selectedTab == 1)
+                // Tab 1: Queue Section
+                _buildQueueSection(playbackState, isHost)
+              else
+                // Tab 2: Listeners List Section
+                _buildListenersSection(roomState, activeRoom),
+
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabPill({
+    required int index,
+    required String label,
+    required IconData icon,
+    String? countBadge,
+  }) {
+    final isSelected = _selectedTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.cocoaPlum.withOpacity(0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? AppColors.cocoaPlum : AppColors.cocoaPlum.withOpacity(0.55),
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? AppColors.cocoaPlum : AppColors.cocoaPlum.withOpacity(0.65),
+                  ),
+                ),
+              ),
+              if (countBadge != null) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.dustyRose : AppColors.cocoaPlum.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    countBadge,
+                    style: GoogleFonts.geist(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.white : AppColors.cocoaPlum,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQueueSection(RoomPlaybackState? playbackState, bool isHost) {
+    final queue = playbackState?.queue ?? [];
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.cocoaPlum.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.cocoaPlum.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Text(
                   'UP NEXT IN ROOM',
                   style: GoogleFonts.geist(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                    color: AppColors.cocoaPlum.withOpacity(0.6),
+                    letterSpacing: 1.2,
+                    color: AppColors.cocoaPlum,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.cocoaPlum.withOpacity(0.08)),
-                  ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: playbackState.queue.length > 5 ? 5 : playbackState.queue.length,
-                    separatorBuilder: (_, __) => Divider(
-                      height: 1,
-                      color: AppColors.cocoaPlum.withOpacity(0.06),
+                if (isHost)
+                  TextButton.icon(
+                    onPressed: () => InRoomSongSearchSheet.show(context, isSuggestionMode: false),
+                    icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.dustyRose),
+                    label: Text(
+                      'Add Songs',
+                      style: GoogleFonts.geist(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.dustyRose),
                     ),
-                    itemBuilder: (context, idx) {
-                      final item = playbackState.queue[idx];
-                      return ListTile(
-                        leading: Text(
-                          '${idx + 1}',
-                          style: GoogleFonts.geist(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.cocoaPlum.withOpacity(0.4),
-                          ),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          if (queue.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.queue_music_rounded, size: 36, color: AppColors.cocoaPlum.withOpacity(0.2)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No tracks in queue',
+                      style: GoogleFonts.geist(fontSize: 13, color: AppColors.cocoaPlum.withOpacity(0.6)),
+                    ),
+                    if (isHost) ...[
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () => InRoomSongSearchSheet.show(context, isSuggestionMode: false),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.cocoaPlum,
+                          foregroundColor: AppColors.vanillaCream,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         ),
-                        title: Text(
-                          item['title'] as String? ?? 'Track',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.geist(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.cocoaPlum,
-                          ),
-                        ),
-                        subtitle: Text(
-                          item['artist'] as String? ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.geist(fontSize: 11),
-                        ),
-                      );
-                    },
+                        child: const Text('Add Songs to Queue'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: queue.length,
+              separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.cocoaPlum.withOpacity(0.06)),
+              itemBuilder: (context, idx) {
+                final item = queue[idx];
+                return ListTile(
+                  leading: Text(
+                    '${idx + 1}',
+                    style: GoogleFonts.geist(fontWeight: FontWeight.bold, color: AppColors.cocoaPlum.withOpacity(0.4)),
+                  ),
+                  title: Text(
+                    item['title'] as String? ?? 'Track',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.geist(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
+                  ),
+                  subtitle: Text(
+                    item['artist'] as String? ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.geist(fontSize: 11),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListenersSection(RoomState roomState, ListeningRoom activeRoom) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.cocoaPlum.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.cocoaPlum.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'ROOM PARTICIPANTS',
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: AppColors.cocoaPlum,
                   ),
                 ),
-                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: roomState.members.length >= activeRoom.capacity
+                        ? Colors.red.shade100
+                        : AppColors.softClay.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${roomState.members.length} / ${activeRoom.capacity} seats',
+                    style: GoogleFonts.geist(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: roomState.members.length >= activeRoom.capacity
+                          ? Colors.red.shade800
+                          : AppColors.cocoaPlum,
+                    ),
+                  ),
+                ),
               ],
-            ],
+            ),
           ),
-        ),
+          const Divider(height: 1),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: roomState.members.length,
+            separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.cocoaPlum.withOpacity(0.06)),
+            itemBuilder: (context, index) {
+              final member = roomState.members[index];
+              final isMemberHost = member.role == 'host';
+
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: isMemberHost
+                      ? AppColors.dustyRose.withOpacity(0.2)
+                      : AppColors.cocoaPlum.withOpacity(0.1),
+                  child: isMemberHost
+                      ? const Icon(Icons.star_rounded, color: AppColors.dustyRose, size: 20)
+                      : const Icon(Icons.person_rounded, color: AppColors.cocoaPlum, size: 20),
+                ),
+                title: Text(
+                  member.displayName ?? (isMemberHost ? 'Room Host' : 'Listener ${index + 1}'),
+                  style: GoogleFonts.geist(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.cocoaPlum,
+                  ),
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isMemberHost
+                        ? AppColors.dustyRose.withOpacity(0.15)
+                        : Colors.green.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    isMemberHost ? 'HOST' : 'LISTENING',
+                    style: GoogleFonts.geist(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: isMemberHost ? AppColors.dustyRose : Colors.green.shade800,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

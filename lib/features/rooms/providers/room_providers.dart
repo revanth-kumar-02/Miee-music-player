@@ -14,10 +14,12 @@ import '../domain/room_models.dart';
 class RoomState {
   final ListeningRoom? activeRoom;
   final List<RoomMember> members;
+  final List<RoomMessage> messages;
   final RoomPlaybackState? playbackState;
   final bool isHost;
   final bool isLoading;
   final bool isSyncing;
+  final bool isSendingMessage;
   final String? syncStatusText;
   final String? errorMessage;
   final bool roomEnded;
@@ -25,10 +27,12 @@ class RoomState {
   const RoomState({
     this.activeRoom,
     this.members = const [],
+    this.messages = const [],
     this.playbackState,
     this.isHost = false,
     this.isLoading = false,
     this.isSyncing = false,
+    this.isSendingMessage = false,
     this.syncStatusText,
     this.errorMessage,
     this.roomEnded = false,
@@ -38,11 +42,13 @@ class RoomState {
     ListeningRoom? activeRoom,
     bool clearActiveRoom = false,
     List<RoomMember>? members,
+    List<RoomMessage>? messages,
     RoomPlaybackState? playbackState,
     bool clearPlaybackState = false,
     bool? isHost,
     bool? isLoading,
     bool? isSyncing,
+    bool? isSendingMessage,
     String? syncStatusText,
     String? errorMessage,
     bool clearErrorMessage = false,
@@ -51,10 +57,12 @@ class RoomState {
     return RoomState(
       activeRoom: clearActiveRoom ? null : (activeRoom ?? this.activeRoom),
       members: members ?? this.members,
+      messages: messages ?? this.messages,
       playbackState: clearPlaybackState ? null : (playbackState ?? this.playbackState),
       isHost: isHost ?? this.isHost,
       isLoading: isLoading ?? this.isLoading,
       isSyncing: isSyncing ?? this.isSyncing,
+      isSendingMessage: isSendingMessage ?? this.isSendingMessage,
       syncStatusText: syncStatusText ?? this.syncStatusText,
       errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
       roomEnded: roomEnded ?? this.roomEnded,
@@ -175,10 +183,12 @@ class RoomController extends StateNotifier<RoomState> {
     try {
       final room = await _repo.createRoom(name: name, capacity: capacity);
       final members = await _repo.getRoomMembers(room.id);
+      final messages = await _repo.getRoomMessages(room.id);
 
       state = state.copyWith(
         activeRoom: room,
         members: members,
+        messages: messages,
         isHost: true,
         isLoading: false,
         roomEnded: false,
@@ -190,7 +200,7 @@ class RoomController extends StateNotifier<RoomState> {
       // Initialize room state with currently active track if any
       final currentPlayback = _ref.read(playerControllerProvider);
       if (currentPlayback.currentTrack != null) {
-        _broadcastHostState(
+        await _broadcastHostState(
           roomId: room.id,
           track: currentPlayback.currentTrack,
           status: currentPlayback.status == PlaybackStatus.playing ? 'playing' : 'paused',
@@ -225,10 +235,12 @@ class RoomController extends StateNotifier<RoomState> {
 
       final members = await _repo.getRoomMembers(roomId);
       final playbackState = await _repo.getRoomState(roomId);
+      final messages = await _repo.getRoomMessages(roomId);
 
       state = state.copyWith(
         activeRoom: room,
         members: members,
+        messages: messages,
         playbackState: playbackState,
         isHost: isHost,
         isLoading: false,
@@ -240,7 +252,7 @@ class RoomController extends StateNotifier<RoomState> {
 
       // If listener, synchronize to existing playback state immediately
       if (!isHost && playbackState != null) {
-        _syncListenerPlayback(playbackState);
+        unawaited(_syncListenerPlayback(playbackState));
       }
     } catch (e) {
       state = state.copyWith(
@@ -266,6 +278,12 @@ class RoomController extends StateNotifier<RoomState> {
           final members = await _repo.getRoomMembers(roomId);
           state = state.copyWith(members: members);
         } catch (_) {}
+      },
+      onMessageReceived: (newMsg) {
+        final existing = state.messages;
+        if (!existing.any((m) => m.id == newMsg.id)) {
+          state = state.copyWith(messages: [...existing, newMsg]);
+        }
       },
       onRoomEnded: () {
         state = state.copyWith(
@@ -385,6 +403,122 @@ class RoomController extends StateNotifier<RoomState> {
         artist: s.artist ?? 'Miee Host',
         imageUrl: s.imageUrl ?? '',
         duration: formattedDuration,
+      );
+    }
+  }
+
+  /// Sends a live text chat message to the room.
+  Future<void> sendChatMessage(String content) async {
+    final roomId = state.activeRoom?.id;
+    final text = content.trim();
+    if (roomId == null || text.isEmpty) return;
+
+    state = state.copyWith(isSendingMessage: true);
+    try {
+      final msg = await _repo.sendMessage(
+        roomId: roomId,
+        content: text,
+      );
+      final existing = state.messages;
+      if (!existing.any((m) => m.id == msg.id)) {
+        state = state.copyWith(messages: [...existing, msg]);
+      }
+    } catch (e) {
+      debugPrint('[RoomController] sendChatMessage error: $e');
+      rethrow;
+    } finally {
+      state = state.copyWith(isSendingMessage: false);
+    }
+  }
+
+  /// Sends a rich song suggestion to the room with track metadata.
+  Future<void> sendSongSuggestion(MusicItem track, {String? note}) async {
+    final roomId = state.activeRoom?.id;
+    if (roomId == null) return;
+
+    state = state.copyWith(isSendingMessage: true);
+    try {
+      final text = (note != null && note.trim().isNotEmpty)
+          ? note.trim()
+          : 'Can we play "${track.title}"?';
+      final msg = await _repo.sendMessage(
+        roomId: roomId,
+        content: text,
+        type: 'song_suggestion',
+        trackId: track.id,
+        trackTitle: track.title,
+        trackArtist: track.artist,
+        trackImageUrl: track.imageUrl,
+        isYoutube: track.isYoutube,
+      );
+      final existing = state.messages;
+      if (!existing.any((m) => m.id == msg.id)) {
+        state = state.copyWith(messages: [...existing, msg]);
+      }
+    } catch (e) {
+      debugPrint('[RoomController] sendSongSuggestion error: $e');
+      rethrow;
+    } finally {
+      state = state.copyWith(isSendingMessage: false);
+    }
+  }
+
+  /// Host action: Play any track in the room, immediately synchronizing all listeners.
+  Future<void> hostPlayTrack(MusicItem track) async {
+    if (!state.isHost || state.activeRoom == null) return;
+    final playerCtrl = _ref.read(playerControllerProvider.notifier);
+    await playerCtrl.playTrack(track, playingFrom: 'Room: ${state.activeRoom?.name}');
+  }
+
+  /// Host action: Play a track that was suggested in chat.
+  Future<void> hostPlaySuggestedTrack(RoomMessage message) async {
+    if (!state.isHost || state.activeRoom == null || !message.isSongSuggestion) return;
+    final track = _buildTrackFromSuggestion(message);
+    await hostPlayTrack(track);
+  }
+
+  /// Host action: Append a track to the room queue.
+  Future<void> hostQueueTrack(MusicItem track) async {
+    if (!state.isHost || state.activeRoom == null) return;
+    final queueMgr = _ref.read(queueManagerProvider);
+    queueMgr.addTrack(track);
+
+    final currentPlayback = _ref.read(playerControllerProvider);
+    await _broadcastHostState(
+      roomId: state.activeRoom!.id,
+      track: currentPlayback.currentTrack,
+      status: currentPlayback.status == PlaybackStatus.playing ? 'playing' : 'paused',
+      positionMs: currentPlayback.position.inMilliseconds,
+      durationMs: currentPlayback.duration.inMilliseconds,
+    );
+  }
+
+  /// Host action: Append a suggested track to the room queue.
+  Future<void> hostQueueSuggestedTrack(RoomMessage message) async {
+    if (!state.isHost || state.activeRoom == null || !message.isSongSuggestion) return;
+    final track = _buildTrackFromSuggestion(message);
+    await hostQueueTrack(track);
+  }
+
+  MusicItem _buildTrackFromSuggestion(RoomMessage msg) {
+    final rawId = msg.trackId ?? 'unknown';
+    final cleanId = rawId.startsWith('youtube_') ? rawId.replaceFirst('youtube_', '') : rawId;
+    if (msg.isYoutube) {
+      return YouTubeVideo(
+        id: cleanId,
+        title: msg.trackTitle ?? 'Suggested Song',
+        channelTitle: msg.trackArtist ?? 'Artist',
+        thumbnailUrl: msg.trackImageUrl ?? '',
+        duration: '3:30',
+        viewCount: '',
+      );
+    } else {
+      return Track(
+        id: rawId,
+        title: msg.trackTitle ?? 'Suggested Song',
+        artist: msg.trackArtist ?? 'Artist',
+        imageUrl: msg.trackImageUrl ?? '',
+        duration: '3:30',
       );
     }
   }
