@@ -556,30 +556,15 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  effectiveName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: MieeWebColors.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'HI-FI MASTER',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                    color: MieeWebColors.secondary,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              effectiveName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: MieeWebColors.onSurface,
+                              ),
                             ),
                           ),
                           IconButton(
@@ -890,37 +875,6 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
           ),
 
           const SizedBox(width: 16),
-
-          // Output Device Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: MieeWebColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: MieeWebColors.subtleBorder),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.speaker_group_outlined,
-                  size: 15,
-                  color: MieeWebColors.primaryContainer,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Living Room Amp',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: MieeWebColors.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 12),
 
           // Notification Bell
           Stack(
