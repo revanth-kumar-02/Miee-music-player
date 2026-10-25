@@ -178,9 +178,15 @@ class RoomController extends StateNotifier<RoomState> {
   Future<ListeningRoom> createRoom({
     required String name,
     int capacity = 5,
+    bool clearQueue = true,
   }) async {
     state = state.copyWith(isLoading: true, clearErrorMessage: true);
     try {
+      if (clearQueue) {
+        final playerCtrl = _ref.read(playerControllerProvider.notifier);
+        playerCtrl.clearQueue();
+      }
+
       final room = await _repo.createRoom(name: name, capacity: capacity);
       final members = await _repo.getRoomMembers(room.id);
       final messages = await _repo.getRoomMessages(room.id);
@@ -199,15 +205,13 @@ class RoomController extends StateNotifier<RoomState> {
 
       // Initialize room state with currently active track if any
       final currentPlayback = _ref.read(playerControllerProvider);
-      if (currentPlayback.currentTrack != null) {
-        await _broadcastHostState(
-          roomId: room.id,
-          track: currentPlayback.currentTrack,
-          status: currentPlayback.status == PlaybackStatus.playing ? 'playing' : 'paused',
-          positionMs: currentPlayback.position.inMilliseconds,
-          durationMs: currentPlayback.duration.inMilliseconds,
-        );
-      }
+      await _broadcastHostState(
+        roomId: room.id,
+        track: currentPlayback.currentTrack,
+        status: currentPlayback.status == PlaybackStatus.playing ? 'playing' : 'paused',
+        positionMs: currentPlayback.position.inMilliseconds,
+        durationMs: currentPlayback.duration.inMilliseconds,
+      );
 
       return room;
     } catch (e) {
@@ -480,8 +484,56 @@ class RoomController extends StateNotifier<RoomState> {
   /// Host action: Append a track to the room queue.
   Future<void> hostQueueTrack(MusicItem track) async {
     if (!state.isHost || state.activeRoom == null) return;
-    final queueMgr = _ref.read(queueManagerProvider);
-    queueMgr.addTrack(track);
+    final playerCtrl = _ref.read(playerControllerProvider.notifier);
+    await playerCtrl.addTrackToQueue(track);
+
+    final currentPlayback = _ref.read(playerControllerProvider);
+    await _broadcastHostState(
+      roomId: state.activeRoom!.id,
+      track: currentPlayback.currentTrack,
+      status: currentPlayback.status == PlaybackStatus.playing ? 'playing' : 'paused',
+      positionMs: currentPlayback.position.inMilliseconds,
+      durationMs: currentPlayback.duration.inMilliseconds,
+    );
+  }
+
+  /// Host action: Remove a track from the room queue by index.
+  Future<void> hostRemoveQueueTrack(int index) async {
+    if (!state.isHost || state.activeRoom == null) return;
+    final playerCtrl = _ref.read(playerControllerProvider.notifier);
+    await playerCtrl.removeTrackAt(index);
+
+    final currentPlayback = _ref.read(playerControllerProvider);
+    await _broadcastHostState(
+      roomId: state.activeRoom!.id,
+      track: currentPlayback.currentTrack,
+      status: currentPlayback.status == PlaybackStatus.playing ? 'playing' : 'paused',
+      positionMs: currentPlayback.position.inMilliseconds,
+      durationMs: currentPlayback.duration.inMilliseconds,
+    );
+  }
+
+  /// Host action: Clear all tracks from the room queue.
+  Future<void> hostClearQueue() async {
+    if (!state.isHost || state.activeRoom == null) return;
+    final playerCtrl = _ref.read(playerControllerProvider.notifier);
+    playerCtrl.clearQueue();
+
+    final currentPlayback = _ref.read(playerControllerProvider);
+    await _broadcastHostState(
+      roomId: state.activeRoom!.id,
+      track: currentPlayback.currentTrack,
+      status: currentPlayback.status == PlaybackStatus.playing ? 'playing' : 'paused',
+      positionMs: currentPlayback.position.inMilliseconds,
+      durationMs: currentPlayback.duration.inMilliseconds,
+    );
+  }
+
+  /// Host action: Immediately play a track from the room queue at [index].
+  Future<void> hostPlayQueueTrack(int index) async {
+    if (!state.isHost || state.activeRoom == null) return;
+    final playerCtrl = _ref.read(playerControllerProvider.notifier);
+    await playerCtrl.skipToQueueItem(index);
 
     final currentPlayback = _ref.read(playerControllerProvider);
     await _broadcastHostState(

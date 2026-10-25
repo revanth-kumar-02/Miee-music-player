@@ -116,12 +116,10 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         uriPath == '/settings' ||
         location.startsWith('/settings/') ||
         uriPath.startsWith('/settings/');
-    final isRoomEntranceRoute = location == '/rooms' ||
+    final isRoomRoute = location == '/rooms' ||
         uriPath == '/rooms' ||
-        location == '/rooms/create' ||
-        uriPath == '/rooms/create' ||
-        location == '/rooms/join' ||
-        uriPath == '/rooms/join';
+        location.startsWith('/rooms/') ||
+        uriPath.startsWith('/rooms/');
 
     // Detail screens where mobile bottom nav is hidden
     final hideBottomNav = (isNowPlayingRoute ||
@@ -132,7 +130,8 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         location.startsWith('/artist/') ||
         location.startsWith('/genre/') ||
         location == '/local-songs' ||
-        location == '/liked-songs');
+        location == '/liked-songs' ||
+        isRoomRoute);
 
     // ── MOBILE & COMPACT TABLET LAYOUT ──
     if (!isDesktop) {
@@ -141,8 +140,8 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
-            // Floating MiniPlayer (Hidden on full Now Playing, Settings, and Room Entrance screens)
-            if (!isNowPlayingRoute && !isSettingsRoute && !isRoomEntranceRoute && hasTrack)
+            // Floating MiniPlayer (Hidden on full Now Playing, Settings, and all Room screens)
+            if (!isNowPlayingRoute && !isSettingsRoute && !isRoomRoute && hasTrack)
               Positioned(
                 left: AppSpacing.sm,
                 right: AppSpacing.sm,

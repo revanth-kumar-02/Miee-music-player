@@ -18,6 +18,7 @@ class CreateRoomPage extends ConsumerStatefulWidget {
 class _CreateRoomPageState extends ConsumerState<CreateRoomPage> {
   final _nameController = TextEditingController(text: 'Miee Jam');
   int _selectedCapacity = 5; // Default capacity is 5 as locked requirement
+  bool _startWithEmptyQueue = true; // Default to starting clean queue
   bool _isCreating = false;
   String? _error;
 
@@ -60,6 +61,7 @@ class _CreateRoomPageState extends ConsumerState<CreateRoomPage> {
       await ref.read(roomControllerProvider.notifier).createRoom(
             name: name,
             capacity: _selectedCapacity,
+            clearQueue: _startWithEmptyQueue,
           );
       if (mounted) {
         context.pushReplacement('/rooms/active');
@@ -281,6 +283,51 @@ class _CreateRoomPageState extends ConsumerState<CreateRoomPage> {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 3. Queue Starting Option
+              Text(
+                'ROOM QUEUE OPTION',
+                style: GoogleFonts.geist(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                  color: AppColors.cocoaPlum.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              Material(
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: AppColors.cocoaPlum.withOpacity(0.1)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: SwitchListTile.adaptive(
+                  value: _startWithEmptyQueue,
+                  activeColor: AppColors.dustyRose,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  title: Text(
+                    'Start with Empty Queue',
+                    style: GoogleFonts.geist(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.cocoaPlum,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _startWithEmptyQueue
+                        ? 'Starts fresh with an empty queue for your room'
+                        : 'Imports your currently playing songs into the room',
+                    style: GoogleFonts.geist(
+                      fontSize: 12,
+                      color: AppColors.cocoaPlum.withOpacity(0.6),
+                    ),
+                  ),
+                  onChanged: (val) => setState(() => _startWithEmptyQueue = val),
                 ),
               ),
 

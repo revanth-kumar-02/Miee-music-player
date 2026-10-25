@@ -619,14 +619,73 @@ class _ActiveRoomPageState extends ConsumerState<ActiveRoomPage> {
                   ),
                 ),
                 if (isHost)
-                  TextButton.icon(
-                    onPressed: () => InRoomSongSearchSheet.show(context, isSuggestionMode: false),
-                    icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.dustyRose),
-                    label: Text(
-                      'Add Songs',
-                      style: GoogleFonts.geist(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.dustyRose),
-                    ),
-                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (queue.isNotEmpty) ...[
+                        TextButton(
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                backgroundColor: AppColors.vanillaCream,
+                                title: Text(
+                                  'Clear Room Queue?',
+                                  style: GoogleFonts.playfairDisplay(
+                                    color: AppColors.cocoaPlum,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                content: Text(
+                                  'This will remove all upcoming tracks from the room queue.',
+                                  style: GoogleFonts.geist(color: AppColors.cocoaPlum.withOpacity(0.8)),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel', style: TextStyle(color: AppColors.cocoaPlum)),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.redAccent,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('Clear All'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await ref.read(roomControllerProvider.notifier).hostClearQueue();
+                            }
+                          },
+                          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                          child: Text(
+                            'Clear',
+                            style: GoogleFonts.geist(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      TextButton.icon(
+                        onPressed: () => InRoomSongSearchSheet.show(context, isSuggestionMode: false),
+                        icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.dustyRose),
+                        label: Text(
+                          'Add Songs',
+                          style: GoogleFonts.geist(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.dustyRose,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -669,23 +728,95 @@ class _ActiveRoomPageState extends ConsumerState<ActiveRoomPage> {
               separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.cocoaPlum.withOpacity(0.06)),
               itemBuilder: (context, idx) {
                 final item = queue[idx];
+                final title = item['title'] as String? ?? 'Track';
+                final artist = item['artist'] as String? ?? '';
+                final imageUrl = item['imageUrl'] as String?;
+
                 return ListTile(
-                  leading: Text(
-                    '${idx + 1}',
-                    style: GoogleFonts.geist(fontWeight: FontWeight.bold, color: AppColors.cocoaPlum.withOpacity(0.4)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  leading: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        child: Text(
+                          '${idx + 1}',
+                          style: GoogleFonts.geist(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.cocoaPlum.withOpacity(0.4),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: (imageUrl != null && imageUrl.isNotEmpty)
+                            ? Image.network(
+                                imageUrl,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 40,
+                                  height: 40,
+                                  color: AppColors.cocoaPlum.withOpacity(0.1),
+                                  child: const Icon(Icons.music_note_rounded, size: 20, color: AppColors.cocoaPlum),
+                                ),
+                              )
+                            : Container(
+                                width: 40,
+                                height: 40,
+                                color: AppColors.cocoaPlum.withOpacity(0.1),
+                                child: const Icon(Icons.music_note_rounded, size: 20, color: AppColors.cocoaPlum),
+                              ),
+                      ),
+                    ],
                   ),
                   title: Text(
-                    item['title'] as String? ?? 'Track',
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.geist(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
                   ),
                   subtitle: Text(
-                    item['artist'] as String? ?? '',
+                    artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.geist(fontSize: 11),
+                    style: GoogleFonts.geist(fontSize: 11, color: AppColors.cocoaPlum.withOpacity(0.6)),
                   ),
+                  trailing: isHost
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.play_circle_outline_rounded, size: 22, color: AppColors.dustyRose),
+                              tooltip: 'Play Now in Room',
+                              onPressed: () => ref.read(roomControllerProvider.notifier).hostPlayQueueTrack(idx),
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              padding: EdgeInsets.zero,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.cocoaPlum),
+                              tooltip: 'Remove from Queue',
+                              onPressed: () async {
+                                await ref.read(roomControllerProvider.notifier).hostRemoveQueueTrack(idx);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Removed "$title" from room queue'),
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        )
+                      : null,
                 );
               },
             ),

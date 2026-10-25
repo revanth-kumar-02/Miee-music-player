@@ -17,11 +17,13 @@ enum VersionType {
 enum EditType {
   none,
   fourKEdit,       // 4K edit, 4K status, 4K 60fps, 4K HDR edit
-  fanEdit,         // fan edit, edit audio, AMV edit, fanmade edit
-  slowedReverb,    // slowed + reverb, slowed down
+  fanEdit,         // fan edit, edit audio, AMV edit, fanmade edit, standalone edits, trending
+  slowedReverb,    // slowed + reverb, slowed down, reverse, slowed+reverse
   spedUpNightcore, // sped up, speed up, nightcore
-  statusVideo,     // whatsapp status, status video, #shorts
+  statusVideo,     // whatsapp status, status video, #shorts, reels
   compilationMix,  // jukebox, non-stop, continuous mix, full album
+  mashupRemake,    // mashup, X spiderman, crossover, remake
+  audioModified,   // bass audio, bass boosted, 8D audio
 }
 
 /// Configuration for view-count ranking, edit filtering, and candidate pruning.
@@ -62,6 +64,8 @@ class QueryIntent {
   final bool wantsAcoustic;
   final bool wantsCover;
   final bool wantsInstrumental;
+  final bool wantsMashup;
+  final bool wantsAudioModified;
 
   const QueryIntent({
     required this.normalizedQuery,
@@ -76,6 +80,8 @@ class QueryIntent {
     this.wantsAcoustic = false,
     this.wantsCover = false,
     this.wantsInstrumental = false,
+    this.wantsMashup = false,
+    this.wantsAudioModified = false,
   });
 
   factory QueryIntent.fromQuery(String? rawQuery) {
@@ -86,16 +92,18 @@ class QueryIntent {
     return QueryIntent(
       normalizedQuery: q,
       wants4kEdit: q.contains('4k') || q.contains('edit'),
-      wantsFanEdit: q.contains('fan edit') || q.contains('edit audio') || q.contains('amv'),
-      wantsSlowed: q.contains('slowed') || q.contains('reverb') || q.contains('slow down') || q.contains('slow'),
+      wantsFanEdit: q.contains('fan edit') || q.contains('edit audio') || q.contains('amv') || q.contains('edit'),
+      wantsSlowed: q.contains('slowed') || q.contains('reverb') || q.contains('slow down') || q.contains('slow') || q.contains('reverse'),
       wantsSpedUp: q.contains('sped up') || q.contains('speed up') || q.contains('nightcore') || q.contains('speedup'),
-      wantsStatus: q.contains('status') || q.contains('shorts') || q.contains('short'),
+      wantsStatus: q.contains('status') || q.contains('shorts') || q.contains('short') || q.contains('reels'),
       wantsCompilation: q.contains('jukebox') || q.contains('non stop') || q.contains('nonstop') || q.contains('mix') || q.contains('compilation'),
       wantsRemix: q.contains('remix') || q.contains('club mix') || q.contains('vip mix'),
       wantsLive: q.contains('live') || q.contains('concert') || q.contains('tour'),
       wantsAcoustic: q.contains('acoustic') || q.contains('unplugged'),
       wantsCover: q.contains('cover') || q.contains('tribute'),
       wantsInstrumental: q.contains('instrumental') || q.contains('karaoke'),
+      wantsMashup: q.contains('mashup') || q.contains('crossover') || q.contains(' x ') || q.contains(' vs ') || q.contains('remake'),
+      wantsAudioModified: q.contains('bass') || q.contains('8d') || q.contains('boosted') || q.contains('atmos'),
     );
   }
 }
@@ -836,15 +844,23 @@ class SearchDeduplicator {
       }
     }
 
-    // 2. Fan edit / edit audio
+    // 2. Fan edit / edit audio / standalone edits / trending
     if (!intent.wantsFanEdit && !intent.wants4kEdit) {
       if (rawTitle.contains('fan edit') ||
           rawTitle.contains('edit audio') ||
           rawTitle.contains('audio edit') ||
           rawTitle.contains('amv edit') ||
           rawTitle.contains('fanmade edit') ||
-          RegExp(r'[\(\[\{]\s*(edit|fan\s*edit|audio\s*edit)\s*[\)\]\}]').hasMatch(rawTitle)) {
-        return EditType.fanEdit;
+          rawTitle.contains('anime edit') ||
+          rawTitle.contains('trending') ||
+          rawTitle.contains('new trending') ||
+          rawTitle.contains('viral song') ||
+          rawTitle.contains('trend song') ||
+          RegExp(r'[\(\[\{\|\-]\s*(edit|edits|fan\s*edit|audio\s*edit|trending)\b', caseSensitive: false).hasMatch(rawTitle) ||
+          RegExp(r'\b(edit|edits)\b', caseSensitive: false).hasMatch(rawTitle)) {
+        if (!rawTitle.contains('radio edit') && !rawTitle.contains('edition')) {
+          return EditType.fanEdit;
+        }
       }
     }
 
@@ -885,7 +901,7 @@ class SearchDeduplicator {
       }
     }
 
-    // 4. Slowed + reverb (Conservative: don't flag "Slow Down" or "Slow Hands")
+    // 4. Slowed + reverb / reverse (Conservative: don't flag "Slow Down" or "Slow Hands")
     if (!intent.wantsSlowed) {
       final isSongTitleSlow = cleanTitle == 'slow down' ||
           cleanTitle == 'slow hands' ||
@@ -897,7 +913,11 @@ class SearchDeduplicator {
             rawTitle.contains('slowed and reverb') ||
             rawTitle.contains('slowed & reverb') ||
             rawTitle.contains('slowed down') ||
-            RegExp(r'[\(\[\{]\s*(slowed|reverb)\s*[\)\]\}]').hasMatch(rawTitle)) {
+            rawTitle.contains('reverse') ||
+            rawTitle.contains('slowed+reverse') ||
+            rawTitle.contains('slowed + reverse') ||
+            rawTitle.contains('slowed & reverse') ||
+            RegExp(r'[\(\[\{]\s*(slowed|reverb|reverse)\s*[\)\]\}]').hasMatch(rawTitle)) {
           return EditType.slowedReverb;
         }
       }
@@ -936,6 +956,38 @@ class SearchDeduplicator {
           !rawTitle.contains('recital') &&
           !rawTitle.contains('classical')) {
         return EditType.compilationMix;
+      }
+    }
+
+    // 7. Mashups / Crossovers / Remakes (e.g. "radhima x spiderman", "radhimaXspiderman", "song x song", "mashup")
+    if (!intent.wantsMashup) {
+      if (rawTitle.contains('mashup') ||
+          rawTitle.contains('mash up') ||
+          rawTitle.contains('crossover') ||
+          rawTitle.contains('remake') ||
+          rawTitle.contains('re-make') ||
+          rawTitle.contains(' vs ') ||
+          rawTitle.contains(' vs. ') ||
+          RegExp(r'\b[a-zA-Z0-9]+\s*[xX]\s*[a-zA-Z0-9]+\b').hasMatch(rawTitle)) {
+        return EditType.mashupRemake;
+      }
+    }
+
+    // 8. Audio Modifications / Boosts (e.g. "bass audio", "bass boosted", "8D audio")
+    if (!intent.wantsAudioModified) {
+      if (rawTitle.contains('bass audio') ||
+          rawTitle.contains('bass boosted') ||
+          rawTitle.contains('bassboosted') ||
+          rawTitle.contains('bass boost') ||
+          rawTitle.contains('bass pro') ||
+          rawTitle.contains('8d audio') ||
+          rawTitle.contains('3d audio') ||
+          rawTitle.contains('16d audio') ||
+          rawTitle.contains('dolby atmos edit') ||
+          rawTitle.contains('dts audio') ||
+          rawTitle.contains('earrape') ||
+          RegExp(r'\b(bass\s+(audio|boosted|boost)|8d\s+audio)\b').hasMatch(rawTitle)) {
+        return EditType.audioModified;
       }
     }
 
