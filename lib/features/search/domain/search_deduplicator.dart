@@ -832,6 +832,8 @@ class SearchDeduplicator {
   static EditType detectEditType(YouTubeVideo video, QueryIntent intent) {
     final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
     final cleanTitle = video.title.toLowerCase();
+    final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+    final collapsedTitle = rawTitle.replaceAll(RegExp(r'\s+'), '');
 
     // 1. 4K edit / status check
     if (!intent.wants4kEdit) {
@@ -839,6 +841,8 @@ class SearchDeduplicator {
           rawTitle.contains('4k status') ||
           rawTitle.contains('4k 60fps') ||
           rawTitle.contains('4k hdr edit') ||
+          collapsedTitle.contains('4kedit') ||
+          collapsedTitle.contains('4kstatus') ||
           RegExp(r'\b4k\s+(edit|audio|status|version)\b').hasMatch(rawTitle)) {
         return EditType.fourKEdit;
       }
@@ -856,6 +860,8 @@ class SearchDeduplicator {
           rawTitle.contains('new trending') ||
           rawTitle.contains('viral song') ||
           rawTitle.contains('trend song') ||
+          collapsedTitle.contains('fanedit') ||
+          collapsedTitle.contains('audioedit') ||
           RegExp(r'[\(\[\{\|\-]\s*(edit|edits|fan\s*edit|audio\s*edit|trending)\b', caseSensitive: false).hasMatch(rawTitle) ||
           RegExp(r'\b(edit|edits)\b', caseSensitive: false).hasMatch(rawTitle)) {
         if (!rawTitle.contains('radio edit') && !rawTitle.contains('edition')) {
@@ -864,7 +870,7 @@ class SearchDeduplicator {
       }
     }
 
-    // 3. Status video / shorts / reels
+    // 3. Status video / shorts / reels / ringtones
     if (!intent.wantsStatus) {
       if (rawTitle.contains('whatsapp status') ||
           rawTitle.contains('status video') ||
@@ -876,7 +882,13 @@ class SearchDeduplicator {
           rawTitle.contains('#short') ||
           rawTitle.contains('#reels') ||
           rawTitle.contains('reels video') ||
-          RegExp(r'\b(status\s+video|wa\s+status|lyric\s+status)\b').hasMatch(rawTitle)) {
+          rawTitle.contains('ringtone') ||
+          rawTitle.contains('ringtones') ||
+          channelLower.contains('ringtone') ||
+          channelLower.contains('ringtones') ||
+          collapsedTitle.contains('statusvideo') ||
+          collapsedTitle.contains('whatsappstatus') ||
+          RegExp(r'\b(status\s+video|wa\s+status|lyric\s+status|ringtone|ringtones)\b').hasMatch(rawTitle)) {
         return EditType.statusVideo;
       }
 
@@ -884,13 +896,13 @@ class SearchDeduplicator {
       if (!intent.wants4kEdit && !intent.wantsFanEdit) {
         final durSec = _parseDurationSeconds(video.duration);
         if (durSec > 0 && durSec <= 85) {
-          final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
           if (channelLower.contains('status') ||
               channelLower.contains('fx') ||
               channelLower.contains('beatz') ||
               channelLower.contains('beats') ||
               channelLower.contains('edit') ||
               channelLower.contains('creation') ||
+              channelLower.contains('ringtone') ||
               rawTitle.contains('status') ||
               rawTitle.contains('edit') ||
               rawTitle.contains('clip') ||
@@ -917,6 +929,9 @@ class SearchDeduplicator {
             rawTitle.contains('slowed+reverse') ||
             rawTitle.contains('slowed + reverse') ||
             rawTitle.contains('slowed & reverse') ||
+            collapsedTitle.contains('slowed') ||
+            collapsedTitle.contains('reverb') ||
+            collapsedTitle.contains('reverse') ||
             RegExp(r'[\(\[\{]\s*(slowed|reverb|reverse)\s*[\)\]\}]').hasMatch(rawTitle)) {
           return EditType.slowedReverb;
         }
@@ -931,6 +946,9 @@ class SearchDeduplicator {
             rawTitle.contains('sped up') ||
             rawTitle.contains('speed up') ||
             rawTitle.contains('speedup') ||
+            collapsedTitle.contains('nightcore') ||
+            collapsedTitle.contains('spedup') ||
+            collapsedTitle.contains('speedup') ||
             RegExp(r'[\(\[\{]\s*(sped\s+up|speed\s+up|nightcore)\s*[\)\]\}]').hasMatch(rawTitle)) {
           return EditType.spedUpNightcore;
         }
@@ -959,7 +977,7 @@ class SearchDeduplicator {
       }
     }
 
-    // 7. Mashups / Crossovers / Remakes (e.g. "radhima x spiderman", "radhimaXspiderman", "song x song", "mashup")
+    // 7. Mashups / Crossovers / Remakes (e.g. "Radhima × Spider-Man", "radhima x spiderman", "song x song", "mashup")
     if (!intent.wantsMashup) {
       if (rawTitle.contains('mashup') ||
           rawTitle.contains('mash up') ||
@@ -968,7 +986,15 @@ class SearchDeduplicator {
           rawTitle.contains('re-make') ||
           rawTitle.contains(' vs ') ||
           rawTitle.contains(' vs. ') ||
-          RegExp(r'\b[a-zA-Z0-9]+\s*[xX]\s*[a-zA-Z0-9]+\b').hasMatch(rawTitle)) {
+          rawTitle.contains('×') ||
+          rawTitle.contains('\u00D7') ||
+          rawTitle.contains('\u2715') ||
+          rawTitle.contains('\u2716') ||
+          rawTitle.contains(' x ') ||
+          rawTitle.contains(' x-') ||
+          rawTitle.contains('-x ') ||
+          RegExp(r'[\s\(\[\{]([xX\u00D7]|vs\.?)\s+[a-zA-Z0-9]', caseSensitive: false).hasMatch(rawTitle) ||
+          RegExp(r'\b[a-zA-Z0-9]+\s*[xX\u00D7]\s*[a-zA-Z0-9]+\b').hasMatch(rawTitle)) {
         return EditType.mashupRemake;
       }
     }
@@ -986,6 +1012,8 @@ class SearchDeduplicator {
           rawTitle.contains('dolby atmos edit') ||
           rawTitle.contains('dts audio') ||
           rawTitle.contains('earrape') ||
+          collapsedTitle.contains('bassboost') ||
+          collapsedTitle.contains('8daudio') ||
           RegExp(r'\b(bass\s+(audio|boosted|boost)|8d\s+audio)\b').hasMatch(rawTitle)) {
         return EditType.audioModified;
       }

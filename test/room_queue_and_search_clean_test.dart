@@ -307,6 +307,37 @@ void main() {
           rawViewCount: 12000,
           rawTitle: 'New Trending Radhima | WhatsApp Status Edit',
         ),
+        const YouTubeVideo(
+          id: 'radhima_spiderman_cross',
+          title: 'Radhima × Spider-Man',
+          channelTitle: 'Red Lion',
+          thumbnailUrl: 'https://example.com/spiderman.jpg',
+          duration: '2:40',
+          viewCount: '25K views',
+          rawViewCount: 25000,
+          rawTitle: 'Radhima × Spider-Man ❤️ ft. Red Lion Mashup',
+        ),
+        const YouTubeVideo(
+          id: 'radhima_spaced_slowed',
+          title: 'radhima ( s l o w e d + r e v e ...',
+          channelTitle: 'lilvibe -',
+          thumbnailUrl: 'https://example.com/spaced.jpg',
+          duration: '4:30',
+          viewCount: '18K views',
+          rawViewCount: 18000,
+          rawTitle: 'radhima ( s l o w e d + r e v e r b )',
+        ),
+        const YouTubeVideo(
+          id: 'radhima_ringtone_epic',
+          title: 'Radhimaa (Thalapathy Vijay ...',
+          channelTitle: 'Ringtones Epic',
+          thumbnailUrl: 'https://example.com/ringtone.jpg',
+          duration: '0:35',
+          viewCount: '8K views',
+          rawViewCount: 8000,
+          rawTitle: 'Radhimaa (Thalapathy Vijay BGM Ringtone)',
+          rawChannelTitle: 'Ringtones Epic',
+        ),
       ];
 
       const config = SearchRankingConfig(filterDerivativeEdits: true);
