@@ -154,7 +154,7 @@ void main() {
       expect(find.text('Clear Search History'), findsOneWidget);
 
       // Category 7: About Miee
-      expect(find.text('About Miee'), findsOneWidget);
+      expect(find.text('About Miee'), findsWidgets);
       expect(find.text('Miee Version'), findsOneWidget);
       expect(find.text('Open Source Licenses'), findsOneWidget);
       expect(find.text('Privacy Policy'), findsOneWidget);

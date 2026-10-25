@@ -336,6 +336,41 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   // ── EDITORIAL HERO BANNER ──────────────────────────────────────────────────
 
+  void _handleBannerTap(int index) {
+    switch (index % 3) {
+      case 0:
+        // Slide 1: Discover Music -> Search
+        context.go('/search');
+        break;
+      case 1:
+        // Slide 2: Your Music -> Library / Playlists
+        context.go('/playlists');
+        break;
+      case 2:
+        // Slide 3: Listen Together -> Listening Room entrance
+        context.push('/rooms');
+        break;
+    }
+  }
+
+  Widget _buildBannerArtwork(int slideIndex, bool isNarrow) {
+    final assetPath = switch (slideIndex % 3) {
+      0 => 'assets/images/banner_discover.png',
+      1 => 'assets/images/banner_your_music.png',
+      2 => 'assets/images/banner_listen_together.png',
+      _ => 'assets/images/banner_discover.png',
+    };
+
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      alignment: Alignment.centerRight,
+      errorBuilder: (context, error, stackTrace) {
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
   Widget _buildEditorialHeroBanner(
     BuildContext context,
     String greeting,
@@ -364,217 +399,276 @@ class _HomePageState extends ConsumerState<HomePage> {
             ? 250.0
             : (isNarrow ? 230.0 : 220.0);
 
-        return Container(
-          width: double.infinity,
-          height: height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: const Color(0xFFEADFD2),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.cocoaPlum.withOpacity(0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFF7EFE6),
-                Color(0xFFEDE0D2),
-                Color(0xFFDFCBC0),
+        return GestureDetector(
+          onTap: () => _handleBannerTap(_heroSlideIndex),
+          onHorizontalDragEnd: (details) {
+            if (details.primaryVelocity != null) {
+              if (details.primaryVelocity! < -100) {
+                // Swiped left -> next slide
+                setState(() {
+                  _heroSlideIndex = (_heroSlideIndex + 1) % 3;
+                });
+              } else if (details.primaryVelocity! > 100) {
+                // Swiped right -> prev slide
+                setState(() {
+                  _heroSlideIndex = (_heroSlideIndex - 1 + 3) % 3;
+                });
+              }
+            }
+          },
+          child: Container(
+            width: double.infinity,
+            height: height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: const Color(0xFFEADFD2),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.cocoaPlum.withOpacity(0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
               ],
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7EFE6),
+                  Color(0xFFEDE0D2),
+                  Color(0xFFDFCBC0),
+                ],
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              // Subtle gradient overlay from left
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        const Color(0xFFF8F1E8).withOpacity(0.92),
-                        const Color(0xFFF8F1E8).withOpacity(0.75),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.48, 0.85],
+            child: Stack(
+              children: [
+                // Right-Side Artwork Area (Clean illustration blended into banner background)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: isNarrow
+                      ? constraints.maxWidth * 0.44
+                      : (constraints.maxWidth > 800 ? 340.0 : 250.0),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.horizontal(
+                      right: Radius.circular(20),
+                    ),
+                    child: ShaderMask(
+                      shaderCallback: (bounds) {
+                        return const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.transparent,
+                            Colors.white,
+                          ],
+                          stops: [0.0, 0.22],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: _buildBannerArtwork(_heroSlideIndex, isNarrow),
                     ),
                   ),
                 ),
-              ),
 
-              // Content on Left
-              Positioned(
-                left: isNarrow ? 20 : 28,
-                top: isNarrow ? 18 : 24,
-                bottom: isNarrow ? 18 : 24,
-                right: isNarrow ? 40 : 180,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          greeting,
-                          style: GoogleFonts.geist(
-                            fontSize: isNarrow ? 10 : 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2.0,
-                            color: AppColors.cocoaPlum.withOpacity(0.75),
-                          ),
-                        ),
-                        SizedBox(height: isNarrow ? 4 : 6),
-                        Text(
-                          currentTitle,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: height > 230 && !isNarrow
-                                ? 34
-                                : (isNarrow ? 24 : 28),
-                            fontWeight: FontWeight.bold,
-                            height: 1.12,
-                            color: AppColors.cocoaPlum,
-                          ),
-                        ),
-                        if (!isNarrow) ...[
-                          const SizedBox(height: 6),
+                // Subtle gradient overlay from left preserving headline readability
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          const Color(0xFFF8F1E8).withOpacity(0.94),
+                          const Color(0xFFF8F1E8).withOpacity(0.70),
+                          Colors.transparent,
+                        ],
+                        stops: isNarrow
+                            ? const [0.0, 0.55, 0.88]
+                            : const [0.0, 0.45, 0.78],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Content on Left (Text and Play Now button unchanged)
+                Positioned(
+                  left: isNarrow ? 20 : 28,
+                  top: isNarrow ? 18 : 24,
+                  bottom: isNarrow ? 18 : 24,
+                  right: isNarrow
+                      ? constraints.maxWidth * 0.38
+                      : (constraints.maxWidth > 800 ? 330.0 : 240.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            currentSubtitle,
+                            greeting,
                             style: GoogleFonts.geist(
-                              fontSize: 13,
-                              color: AppColors.mutedMauve,
+                              fontSize: isNarrow ? 10 : 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2.0,
+                              color: AppColors.cocoaPlum.withOpacity(0.75),
                             ),
                           ),
-                        ],
-                      ],
-                    ),
-
-                    // "Play now" Button
-                    Material(
-                      color: AppColors.dustyRose,
-                      borderRadius: BorderRadius.circular(20),
-                      elevation: 1,
-                      child: InkWell(
-                        onTap: () {
-                          recsAsync.whenData((sections) {
-                            final targetTrack = sections.featuredTrack ??
-                                sections.popularTracks.firstOrNull ??
-                                sections.fromYourArtists.firstOrNull ??
-                                sections.discoverMore.firstOrNull;
-                            final queue = sections.popularTracks.isNotEmpty
-                                ? sections.popularTracks
-                                : (sections.fromYourArtists.isNotEmpty
-                                    ? sections.fromYourArtists
-                                    : sections.discoverMore);
-
-                            if (targetTrack != null) {
-                              ref
-                                  .read(playerControllerProvider.notifier)
-                                  .selectTrack(
-                                    targetTrack,
-                                    queue,
-                                    playingFrom: 'Featured Music',
-                                  );
-                            } else if (localSongs.isNotEmpty) {
-                              ref
-                                  .read(playerControllerProvider.notifier)
-                                  .selectTrack(
-                                    localSongs.first,
-                                    localSongs,
-                                    playingFrom: 'Local Music',
-                                  );
-                            } else {
-                              context.go('/search');
-                            }
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
+                          SizedBox(height: isNarrow ? 4 : 6),
+                          Text(
+                            currentTitle,
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: height > 230 && !isNarrow
+                                  ? 34
+                                  : (isNarrow ? 24 : 28),
+                              fontWeight: FontWeight.bold,
+                              height: 1.12,
+                              color: AppColors.cocoaPlum,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.play_arrow_rounded,
-                                size: 18,
-                                color: AppColors.white,
+                          if (!isNarrow) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              currentSubtitle,
+                              style: GoogleFonts.geist(
+                                fontSize: 13,
+                                color: AppColors.mutedMauve,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Play now',
-                                style: GoogleFonts.geist(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
+                            ),
+                          ],
+                        ],
+                      ),
+
+                      // "Play now" Button
+                      Material(
+                        color: AppColors.dustyRose,
+                        borderRadius: BorderRadius.circular(20),
+                        elevation: 1,
+                        child: InkWell(
+                          onTap: () {
+                            recsAsync.whenData((sections) {
+                              final targetTrack = sections.featuredTrack ??
+                                  sections.popularTracks.firstOrNull ??
+                                  sections.fromYourArtists.firstOrNull ??
+                                  sections.discoverMore.firstOrNull;
+                              final queue = sections.popularTracks.isNotEmpty
+                                  ? sections.popularTracks
+                                  : (sections.fromYourArtists.isNotEmpty
+                                      ? sections.fromYourArtists
+                                      : sections.discoverMore);
+
+                              if (targetTrack != null) {
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .selectTrack(
+                                      targetTrack,
+                                      queue,
+                                      playingFrom: 'Featured Music',
+                                    );
+                              } else if (localSongs.isNotEmpty) {
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .selectTrack(
+                                      localSongs.first,
+                                      localSongs,
+                                      playingFrom: 'Local Music',
+                                    );
+                              } else {
+                                context.go('/search');
+                              }
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.play_arrow_rounded,
+                                  size: 18,
                                   color: AppColors.white,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Play now',
+                                  style: GoogleFonts.geist(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              // Carousel Controls on Bottom Right
-              Positioned(
-                right: 24,
-                bottom: 20,
-                child: Row(
-                  children: [
-                    // Dot indicators
-                    Row(
-                      children: List.generate(3, (index) {
-                        final isActive = index == _heroSlideIndex;
-                        return Container(
-                          margin: const EdgeInsets.only(right: 6),
-                          width: isActive ? 18 : 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? AppColors.white
-                                : AppColors.white.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(width: 14),
+                // Carousel Controls on Bottom Right
+                Positioned(
+                  right: isNarrow ? 16 : 24,
+                  bottom: isNarrow ? 16 : 20,
+                  child: Row(
+                    children: [
+                      // Dot indicators
+                      Row(
+                        children: List.generate(3, (index) {
+                          final isActive = index == _heroSlideIndex;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _heroSlideIndex = index;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              width: isActive ? 18 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? AppColors.white
+                                    : AppColors.white.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                      SizedBox(width: isNarrow ? 8 : 14),
 
-                    // Previous (<)
-                    _buildCircleArrowButton(
-                      icon: Icons.chevron_left_rounded,
-                      onTap: () {
-                        setState(() {
-                          _heroSlideIndex = (_heroSlideIndex - 1 + 3) % 3;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 8),
+                      // Previous (<)
+                      _buildCircleArrowButton(
+                        icon: Icons.chevron_left_rounded,
+                        onTap: () {
+                          setState(() {
+                            _heroSlideIndex = (_heroSlideIndex - 1 + 3) % 3;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
 
-                    // Next (>)
-                    _buildCircleArrowButton(
-                      icon: Icons.chevron_right_rounded,
-                      onTap: () {
-                        setState(() {
-                          _heroSlideIndex = (_heroSlideIndex + 1) % 3;
-                        });
-                      },
-                    ),
-                  ],
+                      // Next (>)
+                      _buildCircleArrowButton(
+                        icon: Icons.chevron_right_rounded,
+                        onTap: () {
+                          setState(() {
+                            _heroSlideIndex = (_heroSlideIndex + 1) % 3;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
