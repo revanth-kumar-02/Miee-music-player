@@ -33,7 +33,6 @@ def ensure_yt_service():
     repo_root = os.path.abspath(os.path.join(tools_dir, '..'))
     cmd = [
         'dart',
-        '--packages=.dart_tool/package_config.json',
         'run',
         os.path.join(tools_dir, 'yt_service.dart'),
         str(YT_PORT),

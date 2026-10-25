@@ -585,9 +585,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     await _player.setAudioSource(
       AudioSource.uri(
         Uri.parse(url),
-        headers: const {
-          'User-Agent': kYouTubeVisionOsUserAgent,
-        },
+        headers: kIsWeb
+            ? null
+            : const {
+                'User-Agent': kYouTubeVisionOsUserAgent,
+              },
       ),
     );
 
