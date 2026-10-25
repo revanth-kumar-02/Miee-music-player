@@ -1737,57 +1737,50 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
 
                 const SizedBox(height: 16),
 
-                // Waveform Scrubber Card
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: MieeWebColors.surfaceLowest,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: MieeWebColors.subtleBorder),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            MainAppShell.formatDuration(playback.position),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: MieeWebColors.primaryContainer,
-                            ),
+                // Clean Waveform Scrubber with timestamps below
+                Column(
+                  children: [
+                    DiscreteWaveformScrubber(
+                      progress: progress,
+                      isPlaying: isPlaying,
+                      height: 32,
+                      barWidth: 3.0,
+                      playedColor: MieeWebColors.waveformPlayed,
+                      unplayedColor: MieeWebColors.waveformNeutral,
+                      onSeek: (val) {
+                        if (playback.duration.inMilliseconds > 0) {
+                          final seekPos = Duration(
+                            milliseconds: (val * playback.duration.inMilliseconds).toInt(),
+                          );
+                          ref.read(playerControllerProvider.notifier).seek(seekPos);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          MainAppShell.formatDuration(playback.position),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: MieeWebColors.onSurfaceVariant,
                           ),
-                          Text(
-                            playback.duration.inMilliseconds > 0
-                                ? MainAppShell.formatDuration(playback.duration)
-                                : '--:--',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              color: MieeWebColors.onSurfaceVariant,
-                            ),
+                        ),
+                        Text(
+                          playback.duration.inMilliseconds > 0
+                              ? MainAppShell.formatDuration(playback.duration)
+                              : '--:--',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: MieeWebColors.onSurfaceVariant,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      DiscreteWaveformScrubber(
-                        progress: progress,
-                        isPlaying: isPlaying,
-                        height: 28,
-                        barWidth: 3.0,
-                        playedColor: MieeWebColors.waveformPlayed,
-                        unplayedColor: MieeWebColors.waveformNeutral,
-                        onSeek: (val) {
-                          if (playback.duration.inMilliseconds > 0) {
-                            final seekPos = Duration(
-                              milliseconds: (val * playback.duration.inMilliseconds).toInt(),
-                            );
-                            ref.read(playerControllerProvider.notifier).seek(seekPos);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 16),

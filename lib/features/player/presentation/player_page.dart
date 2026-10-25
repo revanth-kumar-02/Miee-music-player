@@ -559,55 +559,7 @@ class PlayerPage extends ConsumerWidget {
                           ],
                         ],
                       ),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: MieeWebColors.surfaceContainer,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: MieeWebColors.outlineVariant.withValues(alpha: 0.4),
-                              ),
-                            ),
-                            child: Text(
-                              '24-BIT / 96kHz LOSSLESS',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: MieeWebColors.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: MieeWebColors.surfaceLowest,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: MieeWebColors.outlineVariant.withValues(alpha: 0.3),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              'MQA STUDIO',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                                color: MieeWebColors.onSurface,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      const SizedBox.shrink(),
                     ],
                   ),
                   const SizedBox(height: 28),
@@ -724,31 +676,6 @@ class PlayerPage extends ConsumerWidget {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              'LOSSLESS AUDIO',
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 1.0,
-                                                color: MieeWebColors.secondary,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            const Text('•', style: TextStyle(color: MieeWebColors.outline)),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              'Studio Bit-Perfect Stream',
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w500,
-                                                color: MieeWebColors.outline,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
                                         Text(
                                           hasTrack ? currentTrack.title : 'No Track Selected',
                                           maxLines: 1,
@@ -842,86 +769,47 @@ class PlayerPage extends ConsumerWidget {
                             ),
                             const SizedBox(height: 24),
 
-                            // 3. Discrete Waveform Audio Stream Card
+                            // 3. Discrete Waveform Audio Scrubber (Clean, no card background, timestamps below)
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 500),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                                decoration: BoxDecoration(
-                                  color: MieeWebColors.surfaceLowest,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: MieeWebColors.outlineVariant.withValues(alpha: 0.25),
+                              child: Column(
+                                children: [
+                                  DiscreteWaveformScrubber(
+                                    progress: progress,
+                                    isPlaying: isPlaying,
+                                    height: 60.0,
+                                    onSeek: (val) {
+                                      if (hasTrack && duration.inMilliseconds > 0) {
+                                        final ms = (val * duration.inMilliseconds).toInt();
+                                        controller.seek(Duration(milliseconds: ms));
+                                      }
+                                    },
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.02),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Container(
-                                              width: 7,
-                                              height: 7,
-                                              decoration: const BoxDecoration(
-                                                color: MieeWebColors.primaryContainer,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              hasTrack ? _formatTimeDuration(position) : '0:00',
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                                color: MieeWebColors.primaryContainer,
-                                              ),
-                                            ),
-                                          ],
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        hasTrack ? _formatTimeDuration(position) : '0:00',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: MieeWebColors.onSurfaceVariant,
                                         ),
-                                        Text(
-                                          'LOSSLESS WAVEFORM AUDIO STREAM',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 1.0,
-                                            color: MieeWebColors.outline,
-                                          ),
+                                      ),
+                                      Text(
+                                        hasTrack && duration.inMilliseconds > 0
+                                            ? _formatTimeDuration(duration)
+                                            : '--:--',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: MieeWebColors.onSurfaceVariant,
                                         ),
-                                        Text(
-                                          hasTrack && duration.inMilliseconds > 0
-                                              ? _formatTimeDuration(duration)
-                                              : '--:--',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: MieeWebColors.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    DiscreteWaveformScrubber(
-                                      progress: progress,
-                                      isPlaying: isPlaying,
-                                      height: 56.0,
-                                      onSeek: (val) {
-                                        if (hasTrack && duration.inMilliseconds > 0) {
-                                          final ms = (val * duration.inMilliseconds).toInt();
-                                          controller.seek(Duration(milliseconds: ms));
-                                        }
-                                      },
-                                    ),
-                                  ],
-                                ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 24),
