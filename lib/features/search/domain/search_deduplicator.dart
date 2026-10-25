@@ -100,6 +100,29 @@ class QueryIntent {
   }
 }
 
+/// Internal representation of a track's canonical identity for clustering.
+class _CanonicalSongSignature {
+  final String normalizedTitle;
+  final String normalizedArtist;
+  final VersionType versionType;
+  final String versionTag;
+  final int durationSeconds;
+  final String rawTitle;
+  final String rawChannel;
+  final bool isGenericUploader;
+
+  const _CanonicalSongSignature({
+    required this.normalizedTitle,
+    required this.normalizedArtist,
+    required this.versionType,
+    required this.versionTag,
+    required this.durationSeconds,
+    required this.rawTitle,
+    required this.rawChannel,
+    required this.isGenericUploader,
+  });
+}
+
 /// A deduplication and ranking engine for YouTube search results.
 ///
 /// Detects multiple redundant uploads of the same canonical song (e.g.,
@@ -127,27 +150,38 @@ class SearchDeduplicator {
 
     if (uniqueVideos.isEmpty) return const [];
 
-    // 2. Group videos by canonical song key while tracking first discovery index
-    final groups = <String, List<YouTubeVideo>>{};
-    final groupFirstIndex = <String, int>{};
+    // 2. Group videos by canonical song signature while tracking first discovery index
+    final groups = <List<YouTubeVideo>>[];
+    final groupSignatures = <_CanonicalSongSignature>[];
+    final groupFirstIndex = <int>[];
 
     for (var i = 0; i < uniqueVideos.length; i++) {
       final video = uniqueVideos[i];
-      final key = _computeCanonicalKey(video);
+      final sig = _computeCanonicalSignature(video);
 
-      groups.putIfAbsent(key, () {
-        groupFirstIndex[key] = i;
-        return [];
-      }).add(video);
+      int matchingGroupIndex = -1;
+      for (var g = 0; g < groups.length; g++) {
+        if (_isSameCanonicalSong(groupSignatures[g], sig)) {
+          matchingGroupIndex = g;
+          break;
+        }
+      }
+
+      if (matchingGroupIndex >= 0) {
+        groups[matchingGroupIndex].add(video);
+      } else {
+        groups.add([video]);
+        groupSignatures.add(sig);
+        groupFirstIndex.add(i);
+      }
     }
 
     // 3. For each group, rank candidates and pick the best representative
     final representatives = <({int orderIndex, YouTubeVideo video})>[];
 
-    for (final entry in groups.entries) {
-      final key = entry.key;
-      final candidates = entry.value;
-      final orderIndex = groupFirstIndex[key] ?? 0;
+    for (var g = 0; g < groups.length; g++) {
+      final candidates = groups[g];
+      final orderIndex = groupFirstIndex[g];
 
       final bestVideo = _selectBestCandidate(candidates, query: query);
       final rawOrCleanTitle = (bestVideo.rawTitle != null && bestVideo.rawTitle!.isNotEmpty)
@@ -261,10 +295,15 @@ class SearchDeduplicator {
     return video;
   }
 
-  /// Computes a canonical key: `canonical_title|canonical_artist|version_tag`
-  static String _computeCanonicalKey(YouTubeVideo video) {
-    // Prefer video.title / video.channelTitle which have already undergone
-    // artist-separator splitting in YouTubeMetadataCleaner.
+  /// Checks whether two YouTube videos represent the same underlying canonical song.
+  static bool isSameCanonicalSong(YouTubeVideo a, YouTubeVideo b) {
+    final sigA = _computeCanonicalSignature(a);
+    final sigB = _computeCanonicalSignature(b);
+    return _isSameCanonicalSong(sigA, sigB);
+  }
+
+  /// Computes a canonical signature for clustering YouTube results.
+  static _CanonicalSongSignature _computeCanonicalSignature(YouTubeVideo video) {
     final rawOrCleanTitle = (video.rawTitle != null && video.rawTitle!.isNotEmpty)
         ? video.rawTitle!
         : video.title;
@@ -275,8 +314,157 @@ class SearchDeduplicator {
     final versionInfo = _extractVersion(rawOrCleanTitle, video.title);
     final normalizedTitle = _normalizeBaseTitle(video.title, rawOrCleanTitle, rawOrCleanChannel);
     final normalizedArtist = _normalizeArtist(rawOrCleanChannel);
+    final durSec = _parseDurationSeconds(video.duration);
+    final isGeneric = _isGenericUploader(rawOrCleanChannel);
 
-    return '$normalizedTitle|$normalizedArtist|${versionInfo.tag}';
+    return _CanonicalSongSignature(
+      normalizedTitle: normalizedTitle,
+      normalizedArtist: normalizedArtist,
+      versionType: versionInfo.type,
+      versionTag: versionInfo.tag,
+      durationSeconds: durSec,
+      rawTitle: rawOrCleanTitle,
+      rawChannel: rawOrCleanChannel,
+      isGenericUploader: isGeneric,
+    );
+  }
+
+  /// Computes a canonical key: `canonical_title|canonical_artist|version_tag`
+  static String computeCanonicalKey(YouTubeVideo video) {
+    final sig = _computeCanonicalSignature(video);
+    return '${sig.normalizedTitle}|${sig.normalizedArtist}|${sig.versionTag}';
+  }
+
+  /// Evaluates whether two signatures represent identical recordings or distinct songs.
+  static bool _isSameCanonicalSong(_CanonicalSongSignature a, _CanonicalSongSignature b) {
+    // 1. Version tags MUST match (e.g. standard vs remix vs cover vs acoustic vs live)
+    if (a.versionTag != b.versionTag) return false;
+
+    // 2. Base titles must match substantially
+    final titlesMatch = _titlesMatchSubstantially(a.normalizedTitle, b.normalizedTitle);
+    if (!titlesMatch) return false;
+
+    // 3. If normalized artists match, it's definitely the same song
+    if (a.normalizedArtist == b.normalizedArtist) return true;
+
+    // 4. Check durations if available
+    final hasDurations = a.durationSeconds > 0 && b.durationSeconds > 0;
+    final durDiff = (a.durationSeconds - b.durationSeconds).abs();
+
+    // If durations differ by more than 15s (e.g. Adele 4:55 vs Lionel Richie 5:07), they are distinct songs!
+    if (hasDurations && durDiff > 15) {
+      return false;
+    }
+
+    // 5. If one or both uploaders is a generic channel / record label / fan distributor,
+    // and durations match within 15s, they are alternate uploads of the same underlying track
+    if (a.isGenericUploader || b.isGenericUploader) {
+      return true;
+    }
+
+    // 6. Check if one artist is credited in the other's raw title or channel credits
+    final rawTitleA = a.rawTitle.toLowerCase();
+    final rawTitleB = b.rawTitle.toLowerCase();
+    final artistA = a.normalizedArtist;
+    final artistB = b.normalizedArtist;
+
+    if (artistA.isNotEmpty && rawTitleB.contains(artistA)) return true;
+    if (artistB.isNotEmpty && rawTitleA.contains(artistB)) return true;
+
+    // 7. For film music with identical duration (within 5s) and identical titles:
+    // (e.g. composer credited on one upload vs singer credited on another)
+    if (hasDurations && durDiff <= 5 && a.normalizedTitle == b.normalizedTitle) {
+      return true;
+    }
+
+    // Otherwise, conservatively preserve as different songs by different artists
+    return false;
+  }
+
+  /// Collapses interchangeable doubled vowels and phonetic variants in transliterated titles
+  static String _phoneticCollapse(String text) {
+    return text
+        .replaceAll('aa', 'a')
+        .replaceAll('ee', 'e')
+        .replaceAll('ii', 'i')
+        .replaceAll('oo', 'o')
+        .replaceAll('uu', 'u')
+        .replaceAll('dha', 'tha')
+        .replaceAll('dhe', 'the')
+        .replaceAll('dhi', 'thi');
+  }
+
+  /// Checks if two normalized titles match substantially (ignoring common regional prefixes and transliterations).
+  static bool _titlesMatchSubstantially(String t1, String t2) {
+    if (t1 == t2) return true;
+    if (t1.isEmpty || t2.isEmpty) return false;
+    if (t1 == 'en $t2' || t2 == 'en $t1') return true;
+    if ((t1.startsWith(t2) || t2.startsWith(t1)) && (t1.length - t2.length).abs() <= 5) {
+      return true;
+    }
+
+    final p1 = _phoneticCollapse(t1);
+    final p2 = _phoneticCollapse(t2);
+    if (p1 == p2) return true;
+    if (p1 == 'en $p2' || p2 == 'en $p1') return true;
+    if ((p1.startsWith(p2) || p2.startsWith(p1)) && (p1.length - p2.length).abs() <= 5) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Checks whether a channel is a generic record label, distributor, or fan uploader.
+  static bool _isGenericUploader(String channel) {
+    final lower = channel.toLowerCase();
+    // Do not flag official artist VEVO as generic (e.g. AdeleVEVO, LionelRichieVEVO)
+    final clean = lower.endsWith('vevo') ? lower.substring(0, lower.length - 4) : lower;
+    if (clean == 'adele' || clean == 'lionelrichie' || clean == 'lanadelrey') {
+      return false;
+    }
+
+    return lower.contains('vevo') ||
+        lower.contains('topic') ||
+        lower.contains('music') ||
+        lower.contains('records') ||
+        lower.contains('record') ||
+        lower.contains('label') ||
+        lower.contains('channel') ||
+        lower.contains('series') ||
+        lower.contains('saregama') ||
+        lower.contains('aditya') ||
+        lower.contains('lahari') ||
+        lower.contains('production') ||
+        lower.contains('productions') ||
+        lower.contains('entertainment') ||
+        lower.contains('studios') ||
+        lower.contains('studio') ||
+        lower.contains('films') ||
+        lower.contains('film') ||
+        lower.contains('media') ||
+        lower.contains('company') ||
+        lower.contains('audio') ||
+        lower.contains('creations') ||
+        lower.contains('creation') ||
+        lower.contains('divo') ||
+        lower.contains('think') ||
+        lower.contains('wunderbar') ||
+        lower.contains('t-series') ||
+        lower.contains('tseries') ||
+        lower.contains('sony') ||
+        lower.contains('zee') ||
+        lower.contains('beatz') ||
+        lower.contains('beats') ||
+        lower.contains('fx') ||
+        lower.contains('status') ||
+        lower.contains('edits') ||
+        lower.contains('edit') ||
+        lower.contains('bgm') ||
+        lower.contains('looper') ||
+        lower.contains('vibes') ||
+        lower == 'youtube' ||
+        lower == 'unknown' ||
+        lower == 'various artists';
   }
 
   /// Extracts version type and a specific version identifier (e.g. remixer name).
@@ -366,6 +554,28 @@ class SearchDeduplicator {
       caseSensitive: false,
     );
     title = title.replaceAll(commentaryBracketRegex, ' ');
+
+    // 2c. Remove leading packaging noise (e.g. "Full Video: ", "Video Song: ", "Official Video: ", "HD Video Song: ")
+    final leadingNoiseRegex = RegExp(
+      r'^(full\s+video(\s+song)?|official\s+video(\s+song)?|official\s+music\s+video|video\s+song|lyric\s+video|official\s+audio|audio\s+song|hd\s+video(\s+song)?|4k\s+video(\s+song)?|full\s+song|song)\s*[:\-\–\—\|\•]\s*',
+      caseSensitive: false,
+    );
+    title = title.replaceAll(leadingNoiseRegex, ' ');
+
+    // 2d. Remove leading composer brand prefixes (e.g. "A.R. Rahman Musical - ")
+    final composerPrefixRegex = RegExp(
+      r'^[a-z0-9\.\s]+musical\s*[:\-\–\—\|\•]\s*',
+      caseSensitive: false,
+    );
+    title = title.replaceAll(composerPrefixRegex, ' ');
+
+    // 2e. Remove movie prefix with colon (e.g. "Galatta Kalyanam: Kaadhalai Solla Mudiyatha")
+    if (title.contains(':')) {
+      final colonParts = title.split(':');
+      if (colonParts.length == 2 && colonParts[1].trim().length >= 4) {
+        title = colonParts[1].trim();
+      }
+    }
 
     // 3. Remove trailing upload noise (e.g. " - Official Audio", " | Lyric Video")
     final trailingNoiseRegex = RegExp(
@@ -638,7 +848,7 @@ class SearchDeduplicator {
       }
     }
 
-    // 3. Status video / shorts
+    // 3. Status video / shorts / reels
     if (!intent.wantsStatus) {
       if (rawTitle.contains('whatsapp status') ||
           rawTitle.contains('status video') ||
@@ -647,8 +857,31 @@ class SearchDeduplicator {
           rawTitle.contains('shorts video') ||
           rawTitle.contains('#shorts') ||
           rawTitle.contains('short video') ||
+          rawTitle.contains('#short') ||
+          rawTitle.contains('#reels') ||
+          rawTitle.contains('reels video') ||
           RegExp(r'\b(status\s+video|wa\s+status|lyric\s+status)\b').hasMatch(rawTitle)) {
         return EditType.statusVideo;
+      }
+
+      // Check short duration clip (<= 85s) from fan/status channels unless user requested edits
+      if (!intent.wants4kEdit && !intent.wantsFanEdit) {
+        final durSec = _parseDurationSeconds(video.duration);
+        if (durSec > 0 && durSec <= 85) {
+          final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+          if (channelLower.contains('status') ||
+              channelLower.contains('fx') ||
+              channelLower.contains('beatz') ||
+              channelLower.contains('beats') ||
+              channelLower.contains('edit') ||
+              channelLower.contains('creation') ||
+              rawTitle.contains('status') ||
+              rawTitle.contains('edit') ||
+              rawTitle.contains('clip') ||
+              rawTitle.contains('bgm')) {
+            return EditType.statusVideo;
+          }
+        }
       }
     }
 

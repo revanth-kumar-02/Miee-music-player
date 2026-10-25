@@ -15,6 +15,7 @@ import '../providers/search_providers.dart';
 import '../domain/search_state.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
+import '../../youtube/providers/youtube_providers.dart';
 import '../../recommendations/providers/recommendation_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
 import '../../library/providers/library_providers.dart';
@@ -103,29 +104,25 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         s.loadingTrackId != null && isSameTrackId(s.loadingTrackId, video.id)));
     if (isLoading) return;
 
-    final normVideoId = video.id.startsWith('youtube_')
-        ? video.id.replaceFirst('youtube_', '')
-        : video.id;
-
-    final targetIndex = results.indexWhere((v) {
-      final normV = v.id.startsWith('youtube_')
-          ? v.id.replaceFirst('youtube_', '')
-          : v.id;
-      return normV == normVideoId;
-    });
-
-    if (targetIndex < 0) return;
-
-    final tracks = List<Track>.unmodifiable(
-      results.map((v) => v.toTrack()),
+    final targetTrack = video.toTrack();
+    final playerNotifier = ref.read(playerControllerProvider.notifier);
+    final token = playerNotifier.startNewQueue(
+      targetTrack,
+      playingFrom: 'YouTube Search',
     );
-    final targetTrack = tracks[targetIndex];
 
-    ref.read(playerControllerProvider.notifier).selectTrack(
-          targetTrack,
-          tracks,
-          playingFrom: 'YouTube Search',
-        );
+    // Asynchronously fetch diverse, deduplicated recommendations seeded by this track
+    ref.read(youtubeRepositoryProvider).getRelatedTracks(video).then((relatedVideos) {
+      if (!mounted) return;
+      final upcomingTracks = relatedVideos.map((v) => v.toTrack()).toList();
+      playerNotifier.appendUpcomingTracks(
+        upcomingTracks,
+        token: token,
+        forTrackId: targetTrack.id,
+      );
+    }).catchError((Object e) {
+      debugPrint('[SearchPage] Error fetching diverse recommendations: $e');
+    });
   }
 
   @override

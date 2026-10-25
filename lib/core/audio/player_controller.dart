@@ -36,6 +36,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
   /// Monotonically increasing token to ignore stale async playTrack calls.
   int _playRequestToken = 0;
 
+  /// Monotonically increasing token to ignore stale async recommendation queue responses.
+  int _queueGenerationToken = 0;
+
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<Duration>? _bufferedSub;
@@ -232,6 +235,44 @@ class PlayerController extends StateNotifier<PlaybackState> {
     );
     if (index < 0) return;
     setQueue(currentList, startIndex: index, playingFrom: playingFrom);
+  }
+
+  /// Starts a new queue with [track] as the initial track and returns a generation token
+  /// to guard subsequent asynchronous recommendation responses against race conditions.
+  int startNewQueue(MusicItem track, {String? playingFrom}) {
+    final token = ++_queueGenerationToken;
+    setQueue([track], startIndex: 0, playingFrom: playingFrom);
+    return token;
+  }
+
+  /// Appends diverse upcoming recommendations to the Next Up queue,
+  /// guarded by the generation token and active track ID to prevent stale overwrites.
+  Future<void> appendUpcomingTracks(
+    List<MusicItem> tracks, {
+    required int token,
+    required String forTrackId,
+  }) async {
+    if (token != _queueGenerationToken) {
+      debugLog('[Queue] Stale recommendation response ignored (token $token vs $_queueGenerationToken)');
+      return;
+    }
+    if (state.currentTrack == null ||
+        _normalizeTrackId(state.currentTrack!.id) != _normalizeTrackId(forTrackId)) {
+      debugLog('[Queue] Active track changed, discarding upcoming tracks for $forTrackId');
+      return;
+    }
+    if (tracks.isEmpty) return;
+
+    // Filter out any track already in queue
+    final currentIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
+    final freshTracks = tracks.where((t) => !currentIds.contains(_normalizeTrackId(t.id))).toList();
+    if (freshTracks.isEmpty) return;
+
+    _queueManager.addTracks(freshTracks);
+    await _handler.appendTracks(freshTracks);
+    _persistQueueSnapshot();
+    state = state.copyWith(currentTrack: _queueManager.currentTrack);
+    debugLog('[Queue] Appended ${freshTracks.length} diverse upcoming tracks to Next Up');
   }
 
   Future<void> skipToQueueItem(int index) async {

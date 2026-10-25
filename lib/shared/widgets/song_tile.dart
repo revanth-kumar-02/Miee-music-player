@@ -1,4 +1,5 @@
- import 'dart:io';
+import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
@@ -25,6 +26,10 @@ class SongTile extends StatelessWidget {
 
   /// Controls the active highlighted playing style. Defaults to false.
   final bool isPlaying;
+
+  /// Controls whether this tile represents the current active track (e.g. in Now Playing row).
+  /// If null, defaults to [isPlaying].
+  final bool? isActive;
 
   /// Controls the active loading state (shows spinner on artwork). Defaults to false.
   final bool isLoading;
@@ -56,6 +61,7 @@ class SongTile extends StatelessWidget {
     this.imageUrl,
     this.index,
     this.isPlaying = false,
+    this.isActive,
     this.isLoading = false,
     this.onTap,
     this.onMoreTap,
@@ -67,25 +73,28 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Left-most leading element (Equalizer vs Number vs Artwork)
+    final effectiveImageUrl = imageUrl;
+    final isLocalFile = effectiveImageUrl != null &&
+        effectiveImageUrl.isNotEmpty &&
+        !effectiveImageUrl.startsWith('http://') &&
+        !effectiveImageUrl.startsWith('https://');
+
+    final normalizedPath = isLocalFile && effectiveImageUrl.startsWith('file://')
+        ? effectiveImageUrl.substring(7)
+        : effectiveImageUrl;
+
+    final isCurrent = isActive ?? isPlaying;
+
     Widget leadingWidget;
-
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      final isNetwork = imageUrl!.startsWith('http');
-      final normalizedPath = isNetwork
-          ? imageUrl!
-          : (imageUrl!.startsWith('file://')
-              ? Uri.parse(imageUrl!).toFilePath()
-              : imageUrl!);
-
+    if (normalizedPath != null && normalizedPath.isNotEmpty) {
       leadingWidget = ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            isNetwork
+            !isLocalFile && effectiveImageUrl != null
                 ? Image.network(
-                    normalizedPath,
+                    effectiveImageUrl,
                     width: 48.0,
                     height: 48.0,
                     fit: BoxFit.cover,
@@ -136,13 +145,13 @@ class SongTile extends StatelessWidget {
                   ),
                 ),
               )
-            else if (isPlaying)
+            else if (isCurrent)
               Container(
                 width: 48.0,
                 height: 48.0,
                 color: Colors.black.withOpacity(0.35),
-                child: const Center(
-                  child: _EqualizerAnimation(),
+                child: Center(
+                  child: _EqualizerAnimation(isPlaying: isPlaying),
                 ),
               ),
           ],
@@ -163,11 +172,11 @@ class SongTile extends StatelessWidget {
             ),
           ),
         );
-      } else if (isPlaying) {
-        leadingWidget = const SizedBox(
+      } else if (isCurrent) {
+        leadingWidget = SizedBox(
           width: 32.0,
           child: Center(
-            child: _EqualizerAnimation(),
+            child: _EqualizerAnimation(isPlaying: isPlaying),
           ),
         );
       } else {
@@ -216,13 +225,13 @@ class SongTile extends StatelessWidget {
                   ),
                 ),
               )
-            else if (isPlaying)
+            else if (isCurrent)
               Container(
                 width: 48.0,
                 height: 48.0,
                 color: Colors.black.withOpacity(0.35),
-                child: const Center(
-                  child: _EqualizerAnimation(),
+                child: Center(
+                  child: _EqualizerAnimation(isPlaying: isPlaying),
                 ),
               ),
           ],
@@ -247,84 +256,88 @@ class SongTile extends StatelessWidget {
             children: [
               leadingWidget,
               AppSpacing.widthMd,
-            // Track Metadata
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: isHighlighted
-                        ? AppTypography.bodyMedium.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          )
-                        : AppTypography.bodyMedium.copyWith(
-                            color: AppColors.onSurface,
+              // Track Metadata
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: isHighlighted
+                          ? AppTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            )
+                          : AppTypography.bodyMedium.copyWith(
+                              color: AppColors.onSurface,
+                            ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    AppSpacing.heightXs,
+                    Row(
+                      children: [
+                        if (sourceBadge != null) ...[
+                          sourceBadge!,
+                          AppSpacing.widthXs,
+                        ],
+                        Expanded(
+                          child: Text(
+                            artist,
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  AppSpacing.heightXs,
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          artist,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      if (sourceBadge != null) ...[
-                        AppSpacing.widthSm,
-                        sourceBadge!,
                       ],
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Trailing Actions (Custom widget or Duration + Options Menu)
+              if (trailingWidget != null)
+                trailingWidget!
+              else ...[
+                Text(
+                  duration,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+                if (onMoreTap != null) ...[
+                  AppSpacing.widthXs,
+                  IconButton(
+                    icon: Icon(
+                      trailingIcon ?? Icons.more_vert,
+                      color: AppColors.onSurfaceVariant,
+                      size: 20.0,
+                    ),
+                    onPressed: onMoreTap,
+                    splashRadius: 20.0,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32.0,
+                      minHeight: 32.0,
+                    ),
                   ),
                 ],
-              ),
-            ),
-            if (trailingWidget != null) ...[
-              AppSpacing.widthSm,
-              trailingWidget!,
-            ] else ...[
-              AppSpacing.widthMd,
-              // Track Duration
-              Text(
-                duration,
-                style: AppTypography.labelSmall.copyWith(
-                  color: isHighlighted ? AppColors.primary : AppColors.onSurfaceVariant,
-                  fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              if (onMoreTap != null)
-                IconButton(
-                  icon: Icon(
-                    trailingIcon ?? Icons.more_horiz,
-                    color: isPlaying ? AppColors.primary : AppColors.onSurfaceVariant,
-                    size: 20.0,
-                  ),
-                  onPressed: onMoreTap,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  splashRadius: 20.0,
-                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 /// Helper widget to paint and animate 3 EQ bar lines.
 class _EqualizerAnimation extends StatefulWidget {
-  const _EqualizerAnimation();
+  final bool isPlaying;
+  const _EqualizerAnimation({this.isPlaying = true});
 
   @override
   State<_EqualizerAnimation> createState() => _EqualizerAnimationState();
@@ -339,8 +352,25 @@ class _EqualizerAnimationState extends State<_EqualizerAnimation>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat();
+      duration: const Duration(milliseconds: 2000), // ~50% speed of the previous 1000ms duration
+    );
+    if (widget.isPlaying) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_EqualizerAnimation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        if (!_controller.isAnimating) {
+          _controller.repeat();
+        }
+      } else {
+        _controller.stop();
+      }
+    }
   }
 
   @override
@@ -361,7 +391,8 @@ class _EqualizerAnimationState extends State<_EqualizerAnimation>
             // Apply unique sinusoidal offsets to each equalizer bar
             final phaseShift = index * 0.3;
             final progress = (_controller.value + phaseShift) % 1.0;
-            final heightFactor = 0.3 + 0.7 * (0.5 + 0.5 * (progress * 2 * 3.14159).sin()).abs();
+            // Smooth sinusoidal oscillation between 0.25 and 1.0 height factor
+            final heightFactor = 0.25 + 0.75 * (0.5 + 0.5 * math.sin(progress * 2 * math.pi));
 
             return Container(
               width: 3.0,
@@ -377,28 +408,4 @@ class _EqualizerAnimationState extends State<_EqualizerAnimation>
       }),
     );
   }
-}
-
-extension on double {
-  double sin() => javaMathSin(this);
-}
-
-// Simple approximation of sin in pure Dart for the animation
-double javaMathSin(double rad) {
-  // Use core library approximation or standard expansion
-  // We can approximate sin(x) cleanly since it's just visual EQ bars
-  double x = rad % (2 * 3.141592653589793);
-  if (x < 0) x += 2 * 3.141592653589793;
-  double sinValue = 0.0;
-  double term = x;
-  double square = -x * x;
-  double fact = 1.0;
-  for (int i = 1; i <= 7; i += 2) {
-    if (i > 1) {
-      fact *= (i - 1) * i;
-      term *= square;
-    }
-    sinValue += term / fact;
-  }
-  return sinValue;
 }

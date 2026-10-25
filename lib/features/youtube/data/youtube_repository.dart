@@ -88,6 +88,91 @@ class YouTubeRepository {
     return results;
   }
 
+  /// Fetches diverse, high-relevance upcoming tracks seeded by [seedVideo].
+  ///
+  /// Excludes the seed track itself and any redundant uploads of the same canonical song.
+  /// Deduplicates upcoming recommendations so the user receives a varied listening queue.
+  Future<List<YouTubeVideo>> getRelatedTracks(
+    YouTubeVideo seedVideo, {
+    int limit = 15,
+  }) async {
+    final candidateTracks = <YouTubeVideo>[];
+
+    // 1. Primary: Try YouTubeExplode getRelatedVideos on native platforms
+    if (!kIsWeb) {
+      final yt = yte.YoutubeExplode();
+      try {
+        final video = await yt.videos.get(seedVideo.id);
+        final related = await yt.videos.getRelatedVideos(video);
+        if (related != null && related.isNotEmpty) {
+          for (final rel in related) {
+            final relId = rel.id.value;
+            if (relId.isEmpty || relId == seedVideo.id) continue;
+
+            final durationStr = rel.duration != null
+                ? '${rel.duration!.inMinutes}:${(rel.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
+                : '3:30';
+
+            final cleaned = YouTubeMetadataCleaner.clean(
+              rawTitle: rel.title,
+              rawChannel: rel.author,
+            );
+
+            candidateTracks.add(
+              YouTubeVideo(
+                id: relId,
+                title: cleaned.title,
+                channelTitle: cleaned.artist,
+                thumbnailUrl: rel.thumbnails.mediumResUrl.isNotEmpty
+                    ? rel.thumbnails.mediumResUrl
+                    : 'https://i.ytimg.com/vi/$relId/hqdefault.jpg',
+                duration: durationStr,
+                viewCount: _formatViewCount(rel.engagement.viewCount),
+                rawTitle: rel.title,
+                rawChannelTitle: rel.author,
+                rawViewCount: rel.engagement.viewCount,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('[YouTubeRepository] getRelatedVideos failed ($e), proceeding to query-based discovery');
+      } finally {
+        yt.close();
+      }
+    }
+
+    // 2. Secondary fallback: Search for related music by artist / composer if we need more candidates
+    if (candidateTracks.length < 5) {
+      try {
+        final artistQuery = seedVideo.channelTitle.isNotEmpty
+            ? seedVideo.channelTitle
+            : seedVideo.artist;
+        final query = artistQuery.isNotEmpty ? '$artistQuery songs' : '${seedVideo.title} songs';
+        final searchResults = await search(query);
+        candidateTracks.addAll(searchResults);
+      } catch (e) {
+        debugPrint('[YouTubeRepository] Related search fallback failed: $e');
+      }
+    }
+
+    // 3. Filter out the seed track and any duplicates of the seed song
+    final filtered = candidateTracks.where((track) {
+      if (track.id == seedVideo.id) return false;
+      if (SearchDeduplicator.isSameCanonicalSong(track, seedVideo)) return false;
+      return true;
+    }).toList();
+
+    // 4. Run deduplication on upcoming candidates so Next Up itself contains distinct songs
+    final deduplicated = SearchDeduplicator.deduplicateAndRank(
+      filtered,
+      query: seedVideo.channelTitle.isNotEmpty ? seedVideo.channelTitle : seedVideo.title,
+      config: const SearchRankingConfig(filterDerivativeEdits: true),
+    );
+
+    return deduplicated.take(limit).toList();
+  }
+
   Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery) async {
     final yt = yte.YoutubeExplode();
     try {

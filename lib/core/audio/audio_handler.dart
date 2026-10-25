@@ -312,6 +312,13 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     debugPrint('[Queue] Appended track "${track.title}" (queue size: ${_queue.length})');
   }
 
+  Future<void> appendTracks(List<MusicItem> tracks) async {
+    if (tracks.isEmpty) return;
+    _queue.addAll(tracks);
+    queue.add(_queue.map(_trackToMediaItem).toList());
+    debugPrint('[Queue] Appended ${tracks.length} tracks (queue size: ${_queue.length})');
+  }
+
   Future<void> removeTrackAt(int index) async {
     if (index >= 0 && index < _queue.length) {
       _queue.removeAt(index);
