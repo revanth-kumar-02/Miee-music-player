@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -535,7 +536,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ],
                         ),
                       ),
-                      if (Platform.isAndroid && _permissionStatus != PermissionStatus.granted) ...[
+                      if (!kIsWeb && Platform.isAndroid && _permissionStatus != PermissionStatus.granted) ...[
                         const Divider(height: 1, color: AppColors.oatBeige),
                         ListTile(
                           leading: const Icon(Icons.folder_shared_outlined, color: AppColors.dustyRose),
@@ -588,7 +589,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         activeColor: AppColors.dustyRose,
                         value: settings.mediaNotification,
                         onChanged: (val) async {
-                          if (val && Platform.isAndroid) {
+                          if (val && !kIsWeb && Platform.isAndroid) {
                             final status = await Permission.notification.status;
                             if (status.isDenied) {
                               final res = await Permission.notification.request();

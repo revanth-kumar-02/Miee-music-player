@@ -1,12 +1,12 @@
 {
-    "name": "miee",
-    "short_name": "miee",
+    "name": "Miee",
+    "short_name": "Miee",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FAF2E4",
     "theme_color": "#FAF2E4",
     "description": "Miee — A premium, minimalist music player.",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

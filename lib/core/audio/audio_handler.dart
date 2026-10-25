@@ -73,6 +73,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   /// Configures the audio session for music playback and wires up interruptions.
   Future<void> initialize() async {
+    if (kIsWeb) {
+      debugPrint('[BackgroundAudio] Web platform: skipping native AudioSession');
+      return;
+    }
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());

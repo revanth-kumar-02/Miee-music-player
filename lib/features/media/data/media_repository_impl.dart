@@ -151,7 +151,7 @@ class MediaRepositoryImpl implements MediaRepository {
   String _fixCachePath(String cachedPath, String currentArtDirPath) {
     if (cachedPath.isEmpty) return '';
     if (cachedPath.startsWith('http')) return cachedPath;
-    final fileName = cachedPath.split(Platform.isWindows ? '\\' : '/').last;
+    final fileName = cachedPath.split(RegExp(r'[/\\]')).last;
     return '$currentArtDirPath/$fileName';
   }
 
@@ -198,7 +198,7 @@ class MediaRepositoryImpl implements MediaRepository {
             if (fixedArtworkPath.isNotEmpty) {
               final file = File(fixedArtworkPath);
               if (!await file.exists()) {
-                final baseName = fixedArtworkPath.split(Platform.isWindows ? '\\' : '/').last;
+                final baseName = fixedArtworkPath.split(RegExp(r'[/\\]')).last;
                 if (baseName.startsWith('album_')) {
                   final idStr = baseName.replaceAll('album_', '').replaceAll('.png', '');
                   final albumId = int.tryParse(idStr);
@@ -537,7 +537,7 @@ class MediaRepositoryImpl implements MediaRepository {
 
     final List<MediaFolder> folders = [];
     folderCounts.forEach((path, count) {
-      var name = path.split(Platform.isWindows ? '\\' : '/').last;
+      var name = path.split(RegExp(r'[/\\]')).last;
       if (name.isEmpty) {
         name = 'Device Music';
       }
