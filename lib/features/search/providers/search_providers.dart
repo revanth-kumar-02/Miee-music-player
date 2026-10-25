@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../media/providers/media_providers.dart';
 import '../data/search_repository.dart';
 import '../domain/search_state.dart';
+import '../../onboarding/data/artist_discovery_repository.dart';
+import '../../onboarding/domain/artist_model.dart';
+import '../../youtube/domain/youtube_model.dart';
 
 /// Singleton [SearchRepository] provider.
 final searchRepositoryProvider = Provider<SearchRepository>((ref) {
@@ -159,6 +163,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
           isYouTubeLoading: false,
           errorMessage: null,
         );
+        _enrichArtistsFromSongs(query, youtube, reqId);
       }
     } catch (e) {
       if (reqId == _searchRequestId) {
@@ -178,6 +183,65 @@ class SearchNotifier extends StateNotifier<SearchState> {
         );
       }
     }
+  }
+
+  /// Automatically resolves and displays verified artists from top song results
+  /// when a user searches for a song title (e.g. "Alaakaa Loova" -> Sai Abhyankkar).
+  void _enrichArtistsFromSongs(
+    String query,
+    List<YouTubeVideo> youtube,
+    int reqId,
+  ) {
+    if (reqId != _searchRequestId || youtube.isEmpty) return;
+
+    final existingArtists = List<ArtistModel>.from(state.onlineArtists);
+    final cleanQuery = query.trim().toLowerCase();
+
+    // If existing artists already contain a direct match for the query, preserve them
+    final hasDirectArtist = existingArtists.any((a) {
+      final aName = a.name.trim().toLowerCase();
+      return aName == cleanQuery || aName.contains(cleanQuery);
+    });
+    if (hasDirectArtist && existingArtists.isNotEmpty) return;
+
+    // Extract potential artist tokens from top songs
+    final candidateNames = <String>[];
+    for (final video in youtube.take(5)) {
+      final artistName = video.channelTitle.trim();
+      if (artistName.isEmpty) continue;
+
+      final parts = artistName.split(
+        RegExp(r'\s*(&|,|\bft\.?\b|\bfeat\.?\b)\s*', caseSensitive: false),
+      );
+      for (final part in parts) {
+        final p = part.trim();
+        if (p.isNotEmpty && !candidateNames.contains(p)) {
+          candidateNames.add(p);
+        }
+      }
+    }
+
+    final resolvedArtists = <ArtistModel>[];
+    for (final name in candidateNames) {
+      final curated = DeezerArtistRepository.findCuratedByName(name);
+      if (curated != null && !resolvedArtists.any((a) => a.id == curated.id)) {
+        resolvedArtists.add(curated);
+      }
+    }
+
+    if (resolvedArtists.isNotEmpty && reqId == _searchRequestId) {
+      final merged = SearchRepository.mergeAndDeduplicateArtists(
+        curatedAndDeezer: [...resolvedArtists, ...existingArtists],
+        youtubeArtists: const [],
+        query: query,
+      );
+      state = state.copyWith(onlineArtists: merged);
+    }
+  }
+
+  @visibleForTesting
+  void enrichArtistsFromSongsForTesting(String query, List<YouTubeVideo> youtube) {
+    _enrichArtistsFromSongs(query, youtube, _searchRequestId);
   }
 
   /// Stores query in recent searches.

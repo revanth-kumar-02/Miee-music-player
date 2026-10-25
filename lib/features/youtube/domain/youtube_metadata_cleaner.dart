@@ -145,7 +145,7 @@ class YouTubeMetadataCleaner {
               for (final credit in creditClauses) {
                 final cleanedCredit = credit
                     .replaceFirst(
-                      RegExp(r'^(music|singer|singers|composed\s+by|starring|ft\.?|feat\.?)\s*[:\-]?\s*', caseSensitive: false),
+                      RegExp(r'^(music|singer|singers|composed\s+by|ft\.?|feat\.?)\s*[:\-]?\s*', caseSensitive: false),
                       '',
                     )
                     .trim();
@@ -407,6 +407,7 @@ class YouTubeMetadataCleaner {
         lower.contains('topic') ||
         lower.contains('music') ||
         lower.contains('records') ||
+        lower.contains('record') ||
         lower.contains('label') ||
         lower.contains('channel') ||
         lower.contains('clouds') ||
@@ -414,6 +415,24 @@ class YouTubeMetadataCleaner {
         lower.contains('saregama') ||
         lower.contains('aditya') ||
         lower.contains('lahari') ||
+        lower.contains('production') ||
+        lower.contains('productions') ||
+        lower.contains('entertainment') ||
+        lower.contains('studios') ||
+        lower.contains('studio') ||
+        lower.contains('films') ||
+        lower.contains('film') ||
+        lower.contains('media') ||
+        lower.contains('company') ||
+        lower.contains('audio') ||
+        lower.contains('creations') ||
+        lower.contains('divo') ||
+        lower.contains('think') ||
+        lower.contains('wunderbar') ||
+        lower.contains('t-series') ||
+        lower.contains('tseries') ||
+        lower.contains('sony') ||
+        lower.contains('zee') ||
         lower == 'youtube' ||
         lower == 'various artists';
   }

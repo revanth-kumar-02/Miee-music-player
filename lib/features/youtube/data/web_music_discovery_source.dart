@@ -65,33 +65,55 @@ class WebMusicDiscoverySource {
   }) async {
     try {
       Response<dynamic>? response;
-      if (kIsWeb) {
+      // 1. Direct verified discovery catalog (iTunes) - pristine studio artists, tracks, and 600x600 covers
       try {
-        debugPrint('[WebMusicDiscovery] Querying local/proxy API for "$cleanQuery"');
+        debugPrint('[WebMusicDiscovery] Querying direct discovery provider for "$cleanQuery"');
         response = await _dio.get<dynamic>(
-          '/api/search',
-          queryParameters: {'q': cleanQuery},
+          'https://itunes.apple.com/search',
+          queryParameters: {
+            'term': cleanQuery,
+            'entity': 'song',
+            'limit': limit,
+          },
         );
       } catch (e) {
-        debugPrint('[WebMusicDiscovery] Proxy request failed ($e), falling back to direct provider');
+        debugPrint('[WebMusicDiscovery] Direct discovery provider failed ($e), checking local proxy');
       }
-    }
 
-    if (response == null || response.statusCode != 200 || response.data == null) {
-      debugPrint('[WebMusicDiscovery] Querying direct discovery provider for "$cleanQuery"');
-      response = await _dio.get<dynamic>(
-        'https://itunes.apple.com/search',
-        queryParameters: {
-          'term': cleanQuery,
-          'entity': 'song',
-          'limit': limit,
-        },
-      );
-    }
+      // Check if direct catalog returned valid song results
+      bool hasValidResults = false;
+      if (response != null && response.statusCode == 200 && response.data != null) {
+        final Map<String, dynamic> checkData;
+        if (response.data is String) {
+          checkData = jsonDecode(response.data as String) as Map<String, dynamic>;
+        } else {
+          checkData = Map<String, dynamic>.from(response.data as Map);
+        }
+        final list = checkData['results'] as List<dynamic>? ?? [];
+        if (list.isNotEmpty) {
+          hasValidResults = true;
+        }
+      }
 
-    if (response.statusCode != 200 || response.data == null) {
-      throw Exception('Discovery provider returned status ${response.statusCode}');
-    }
+      // 2. If direct catalog has no results or failed, query local/proxy backend
+      if (!hasValidResults && kIsWeb) {
+        try {
+          debugPrint('[WebMusicDiscovery] Querying local/proxy API for "$cleanQuery"');
+          final proxyResp = await _dio.get<dynamic>(
+            '/api/search',
+            queryParameters: {'q': cleanQuery},
+          );
+          if (proxyResp.statusCode == 200 && proxyResp.data != null) {
+            response = proxyResp;
+          }
+        } catch (e) {
+          debugPrint('[WebMusicDiscovery] Proxy request failed: $e');
+        }
+      }
+
+      if (response == null || response.statusCode != 200 || response.data == null) {
+        throw Exception('Discovery provider returned status ${response?.statusCode}');
+      }
 
       final Map<String, dynamic> data;
       if (response.data is String) {

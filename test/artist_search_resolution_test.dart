@@ -69,6 +69,17 @@ void main() {
       expect(resultsAr.any((a) => a.name == 'A. R. Rahman'), isTrue);
     });
 
+    test('Short artist names (e.g. "K.K.") do not spuriously match song queries with substring "k"', () async {
+      final repo = DeezerArtistRepository();
+      // "alaakaa loova" has "k", must NOT match "K.K."
+      final results = await repo.searchArtists('alaakaa loova');
+      expect(results.any((a) => a.name == 'K.K.'), isFalse);
+
+      // But searching "KK" or "K.K." MUST match "K.K."
+      final resultsKk = await repo.searchArtists('KK');
+      expect(resultsKk.any((a) => a.name == 'K.K.'), isTrue);
+    });
+
     test('Resolves other canonical Indian & international artists', () async {
       final repo = DeezerArtistRepository();
       final anirudh = await repo.searchArtists('Anirudh');
@@ -184,6 +195,31 @@ void main() {
       expect(testState.onlineArtists.first.name, equals('Sai Abhyankkar'));
       expect(testState.youtubeResults.length, equals(2));
       expect(testState.youtubeResults.every((v) => v.id.isNotEmpty), isTrue);
+    });
+
+    test('SearchNotifier resolves Sai Abhyankkar under onlineArtists for song queries like "alaakaa loova"', () {
+      final container = ProviderContainer(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(SearchRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(searchNotifierProvider.notifier);
+      const alaakaaSong = YouTubeVideo(
+        id: 'yt_alaakaa',
+        title: 'Alaakaa Loova',
+        channelTitle: 'Sai Abhyankkar & Rokesh',
+        thumbnailUrl: 'https://example.com/art.jpg',
+        duration: '3:37',
+        viewCount: '50M views',
+      );
+
+      notifier.enrichArtistsFromSongsForTesting('alaakaa loova', [alaakaaSong]);
+      final state = container.read(searchNotifierProvider);
+
+      expect(state.onlineArtists.any((a) => a.name == 'Sai Abhyankkar'), isTrue);
+      expect(state.onlineArtists.any((a) => a.name == 'K.K.'), isFalse);
     });
 
     testWidgets('Artists filter tab renders artist entities and artist list tiles', (tester) async {

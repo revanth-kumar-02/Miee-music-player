@@ -967,13 +967,15 @@ class DeezerArtistRepository implements ArtistRepository {
       final normArtist = nameLower.replaceAll(RegExp(r'[^a-z0-9]'), '');
       final collapsedArtist = normArtist.replaceAllMapped(RegExp(r'(.)\1+'), (m) => m[1]!);
 
-      final punctuationMatch = normClean.length >= 3 &&
-          (normArtist == normClean || normArtist.contains(normClean) || normClean.contains(normArtist));
+      final punctuationMatch = (normArtist == normClean) ||
+          (normClean.length >= 3 &&
+              (normArtist.contains(normClean) ||
+                  (normArtist.length >= 4 && normClean.contains(normArtist))));
 
-      final spellingVariationMatch = collapsedClean.length >= 3 &&
-          (collapsedArtist == collapsedClean ||
-              collapsedArtist.contains(collapsedClean) ||
-              collapsedClean.contains(collapsedArtist));
+      final spellingVariationMatch = (collapsedArtist == collapsedClean && collapsedClean.length >= 2) ||
+          (collapsedClean.length >= 3 &&
+              (collapsedArtist.contains(collapsedClean) ||
+                  (collapsedArtist.length >= 4 && collapsedClean.contains(collapsedArtist))));
 
       if (!directMatch && !punctuationMatch && !spellingVariationMatch) return false;
       if (hasLangFilter) {
@@ -1090,7 +1092,10 @@ class DeezerArtistRepository implements ArtistRepository {
     return _curatedArtists.where((a) => a.name.trim().toLowerCase() == clean).firstOrNull ??
         _curatedArtists.where((a) {
           final an = a.name.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-          return an.isNotEmpty && (an == normClean || an.contains(normClean) || normClean.contains(an));
+          return an.isNotEmpty &&
+              (an == normClean ||
+                  (normClean.length >= 3 && an.contains(normClean)) ||
+                  (an.length >= 4 && normClean.contains(an)));
         }).firstOrNull;
   }
 
