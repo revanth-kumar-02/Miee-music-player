@@ -252,29 +252,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         desktopFooter: const AuthDesktopFooter(),
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: isDesktop ? 1100 : 420,
+            constraints: const BoxConstraints(
+              maxWidth: 440,
             ),
-            child: isDesktop
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Left Column: Form
-                      Expanded(
-                        flex: 5,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 48.0),
-                          child: _buildFormContent(isDesktop: true),
-                        ),
-                      ),
-                      // Right Column: Album Artwork Showcase Card
-                      Expanded(
-                        flex: 5,
-                        child: _buildDesktopShowcaseCard(),
-                      ),
-                    ],
-                  )
-                : _buildFormContent(isDesktop: false),
+            child: _buildFormContent(isDesktop: isDesktop),
           ),
         ),
       ),
@@ -504,47 +485,4 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
-  /// Right Column Showcase Card for Desktop Viewport
-  Widget _buildDesktopShowcaseCard() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 520),
-      child: AspectRatio(
-        aspectRatio: 1.0,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AuthPalette.cardSurface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AuthPalette.cardBorder,
-              width: 1.0,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0A1A0F12),
-                blurRadius: 24,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Image.network(
-            'https://lh3.googleusercontent.com/aida/AEtjO1Uw-0I01WxGbXGiYeS-vUtwwWWSN-C9DPKu4E3woEEzVuP6IpVcc4u7V4JIFlfQu58d9iO_amhINR64sGAzuQ_qIChcLN_Hhq-xGKQWdT5iTyFS-S-0EVYPUXY6r9MKPG3JPp7Gn1pNpKdGHe-q6DMTvKXX4RwvkJ9t21ue77c-BWr9Kr_kwxdUEtsCGjSisRYHr3VgQ-SolsX9k0SgraklH95j76hsIQ3jiWGpmhfIoKfI1xEkxXyGeCI',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: const Color(0xFFF4F3F1),
-                child: const Center(
-                  child: Icon(
-                    Icons.album_rounded,
-                    size: 80,
-                    color: AuthPalette.cardBorder,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
 }

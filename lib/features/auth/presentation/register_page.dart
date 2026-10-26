@@ -117,29 +117,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         desktopFooter: const AuthDesktopFooter(),
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: isDesktop ? 1140 : 440,
+            constraints: const BoxConstraints(
+              maxWidth: 460,
             ),
-            child: isDesktop
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Left Column: Register Form
-                      Expanded(
-                        flex: 5,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 56.0),
-                          child: _buildFormContent(isDesktop: true),
-                        ),
-                      ),
-                      // Right Column: Editorial Showcase
-                      Expanded(
-                        flex: 6,
-                        child: _buildDesktopShowcaseCard(),
-                      ),
-                    ],
-                  )
-                : _buildFormContent(isDesktop: false),
+            child: _buildFormContent(isDesktop: isDesktop),
           ),
         ),
       ),
@@ -542,110 +523,4 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  /// Right Column Showcase for Desktop Viewport
-  Widget _buildDesktopShowcaseCard() {
-    return Container(
-      height: 560,
-      constraints: const BoxConstraints(maxWidth: 540),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F3F1),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x101A0F12),
-            blurRadius: 32,
-            offset: Offset(0, 12),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background vinyl/analog image
-          Image.network(
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuB3wYQ1jdnSkG_2SclLFg4UNR1a21HQp_Q24abM6N_z_1mFmM8RPQ5cI7Vzzi-VrR0pdfU2asKtR3_6njOwGcR4wHqpTpVJkIleus-fF_ZXWc2F2DCLfXHlPzG_5-pCr-sYtik-IH-vWV9-7VvLjyBymWipCxfQkVCWwadlTzhOJgNdZSl9_ljXogygADtf2dJwqJH9dFm5bBZXusxd5B5hC8PHziCrUZ4py1LpcDdTQk4mv7CUnDhY',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: AuthPalette.primaryButton,
-                child: const Center(
-                  child: Icon(
-                    Icons.graphic_eq_rounded,
-                    size: 80,
-                    color: Colors.white30,
-                  ),
-                ),
-              );
-            },
-          ),
-          // Warm Atmospheric Gradient Scrim
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  AuthPalette.primaryButton.withValues(alpha: 0.4),
-                  AuthPalette.primaryButton.withValues(alpha: 0.95),
-                ],
-              ),
-            ),
-          ),
-          // Editorial Overlay Details
-          Positioned(
-            left: 36,
-            right: 36,
-            bottom: 40,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Soundwave bars in white
-                SizedBox(
-                  height: 20,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildBar(height: 8),
-                      const SizedBox(width: 4),
-                      _buildBar(height: 18),
-                      const SizedBox(width: 4),
-                      _buildBar(height: 12),
-                      const SizedBox(width: 4),
-                      _buildBar(height: 20),
-                      const SizedBox(width: 4),
-                      _buildBar(height: 14),
-                      const SizedBox(width: 4),
-                      _buildBar(height: 6),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'High-Fidelity Archival Playback',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Delivering pristine lossless audio directly to your personal sound sanctuary.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.8),
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
