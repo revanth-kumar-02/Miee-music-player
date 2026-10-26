@@ -98,8 +98,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final height = media.size.height;
     final isDesktop = width >= 900;
+    final isCompact = height < 860;
 
     return PopScope(
       canPop: false,
@@ -113,21 +116,55 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         }
       },
       child: AuthScaffold(
-        desktopHeader: const AuthDesktopHeader(),
-        desktopFooter: const AuthDesktopFooter(),
+        desktopHeader: AuthDesktopHeader(isCompact: isCompact),
+        desktopFooter: AuthDesktopFooter(isCompact: isCompact),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 460,
+            constraints: BoxConstraints(
+              maxWidth: isDesktop ? 1060 : 440,
             ),
-            child: _buildFormContent(isDesktop: isDesktop),
+            child: isDesktop
+                ? IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Left Column: Register Form
+                        Expanded(
+                          flex: 5,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              right: isCompact ? 36.0 : 48.0,
+                            ),
+                            child: _buildFormContent(
+                              isDesktop: true,
+                              isCompact: isCompact,
+                            ),
+                          ),
+                        ),
+                        // Right Column: Optimized Archival Artwork Showcase
+                        Expanded(
+                          flex: 6,
+                          child: _buildDesktopShowcaseCard(
+                            isCompact: isCompact,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _buildFormContent(
+                    isDesktop: false,
+                    isCompact: false,
+                  ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildFormContent({required bool isDesktop}) {
+  Widget _buildFormContent({
+    required bool isDesktop,
+    required bool isCompact,
+  }) {
     return Form(
       key: _formKey,
       child: Column(
@@ -209,57 +246,57 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             Row(
               children: [
                 Container(
-                  width: 10,
-                  height: 10,
+                  width: isCompact ? 7 : 8,
+                  height: isCompact ? 7 : 8,
                   decoration: const BoxDecoration(
                     color: AuthPalette.accent,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   'SOUND ARCHITECTURE',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
+                    fontSize: isCompact ? 10 : 11,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.1,
                     color: AuthPalette.textSecondary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isCompact ? 6 : 8),
           ],
 
           // Title & Subtitle
           Text(
             'Create your account',
             style: GoogleFonts.plusJakartaSans(
-              fontSize: isDesktop ? 34 : 28,
+              fontSize: isDesktop ? (isCompact ? 24 : 28) : 28,
               fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
+              letterSpacing: -0.4,
               color: AuthPalette.textPrimary,
-              height: 1.2,
+              height: 1.15,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           Text(
             'Your music, your way.',
             style: GoogleFonts.plusJakartaSans(
-              fontSize: isDesktop ? 16 : 14,
+              fontSize: isDesktop ? (isCompact ? 13 : 14) : 14,
               color: AuthPalette.textSecondary,
               fontWeight: FontWeight.w400,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isCompact ? 12 : 16),
 
           // Error banner
           if (_errorMessage != null) ...[
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: AuthPalette.errorContainer,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: AuthPalette.errorRed.withValues(alpha: 0.3),
                 ),
@@ -269,14 +306,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   const Icon(
                     Icons.error_outline_rounded,
                     color: AuthPalette.errorRed,
-                    size: 18,
+                    size: 16,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       _errorMessage!,
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: AuthPalette.errorRed,
                         fontWeight: FontWeight.w500,
                       ),
@@ -285,7 +322,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isCompact ? 10 : 12),
           ],
 
           // Full Name Input
@@ -299,9 +336,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             suffixIcon: const Icon(
               Icons.person_outline_rounded,
               color: Color(0xFF897173),
-              size: 20,
+              size: 18,
             ),
-            borderRadius: isDesktop ? 12 : 16,
+            borderRadius: isDesktop ? 10 : 16,
+            contentPadding: isCompact
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 9)
+                : null,
+            fontSize: isCompact ? 13.5 : null,
+            labelFontSize: isCompact ? 11 : null,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Please enter your name';
@@ -309,7 +351,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 9 : 12),
 
           // Email Address Input
           AuthTextField(
@@ -323,9 +365,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             suffixIcon: const Icon(
               Icons.mail_outline_rounded,
               color: Color(0xFF897173),
-              size: 20,
+              size: 18,
             ),
-            borderRadius: isDesktop ? 12 : 16,
+            borderRadius: isDesktop ? 10 : 16,
+            contentPadding: isCompact
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 9)
+                : null,
+            fontSize: isCompact ? 13.5 : null,
+            labelFontSize: isCompact ? 11 : null,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Please enter your email';
@@ -336,7 +383,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 9 : 12),
 
           // Password Input
           AuthTextField(
@@ -353,13 +400,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined,
                 color: AuthPalette.textSecondary,
-                size: 20,
+                size: 18,
               ),
               onPressed: () {
                 setState(() => _isPasswordVisible = !_isPasswordVisible);
               },
             ),
-            borderRadius: isDesktop ? 12 : 16,
+            borderRadius: isDesktop ? 10 : 16,
+            contentPadding: isCompact
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 9)
+                : null,
+            fontSize: isCompact ? 13.5 : null,
+            labelFontSize: isCompact ? 11 : null,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please create a password';
@@ -371,26 +423,26 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             },
           ),
           if (isDesktop) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
             Row(
               children: [
                 const Icon(
                   Icons.info_outline_rounded,
-                  size: 14,
+                  size: 13,
                   color: Color(0xFF897173),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(
                   'At least 6 characters with 1 number',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
+                    fontSize: isCompact ? 10 : 11,
                     color: AuthPalette.textSecondary,
                   ),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 9 : 12),
 
           // Confirm Password Input
           AuthTextField(
@@ -407,14 +459,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined,
                 color: AuthPalette.textSecondary,
-                size: 20,
+                size: 18,
               ),
               onPressed: () {
                 setState(() =>
                     _isConfirmPasswordVisible = !_isConfirmPasswordVisible);
               },
             ),
-            borderRadius: isDesktop ? 12 : 16,
+            borderRadius: isDesktop ? 10 : 16,
+            contentPadding: isCompact
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 9)
+                : null,
+            fontSize: isCompact ? 13.5 : null,
+            labelFontSize: isCompact ? 11 : null,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please confirm your password';
@@ -425,45 +482,48 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               return null;
             },
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isCompact ? 12 : 16),
 
           // Submit Button
           AuthPrimaryButton(
             label: 'Create account',
             trailingIcon: Icons.arrow_forward_rounded,
             isLoading: _isLoading,
-            borderRadius: isDesktop ? 12 : 9999,
+            borderRadius: isDesktop ? 10 : 9999,
+            height: isCompact ? 42 : 46,
+            fontSize: isCompact ? 14 : 15,
             onPressed: _handleRegister,
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: isCompact ? 8 : 12),
 
           // Legal Disclaimer
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Text(
               "By creating an account, you agree to Miee's Terms of Service and Privacy Policy.",
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
+                fontSize: isCompact ? 10.5 : 11.5,
                 color: AuthPalette.textSecondary,
-                height: 1.4,
+                height: 1.35,
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isCompact ? 8 : 12),
 
           // Footer link
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Already have an account?',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
+                  fontSize: isCompact ? 12.5 : 13.5,
                   color: AuthPalette.textSecondary,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               GestureDetector(
                 onTap: () {
                   if (context.canPop()) {
@@ -475,7 +535,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 child: Text(
                   'Log in',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
+                    fontSize: isCompact ? 12.5 : 13.5,
                     fontWeight: FontWeight.w700,
                     color: AuthPalette.primaryButton,
                   ),
@@ -483,7 +543,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 4 : 8),
 
           // Continue as Guest Option
           Center(
@@ -494,17 +554,165 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               },
               icon: const Icon(
                 Icons.arrow_forward_rounded,
-                size: 16,
+                size: 14,
                 color: AuthPalette.textSecondary,
               ),
               label: Text(
                 'Continue as Guest',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13.5,
+                  fontSize: isCompact ? 12 : 13,
                   fontWeight: FontWeight.w600,
                   color: AuthPalette.textSecondary,
                 ),
               ),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Right Column Showcase for Desktop Viewport
+  Widget _buildDesktopShowcaseCard({required bool isCompact}) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 520),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F3F1),
+        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
+        border: Border.all(
+          color: const Color(0xFFE3E2E0),
+          width: 1.0,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C1A0F12),
+            blurRadius: 28,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background vinyl/analog image
+          Image.asset(
+            'assets/images/register_showcase.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.network(
+                'https://lh3.googleusercontent.com/aida-public/AB6AXuB3wYQ1jdnSkG_2SclLFg4UNR1a21HQp_Q24abM6N_z_1mFmM8RPQ5cI7Vzzi-VrR0pdfU2asKtR3_6njOwGcR4wHqpTpVJkIleus-fF_ZXWc2F2DCLfXHlPzG_5-pCr-sYtik-IH-vWV9-7VvLjyBymWipCxfQkVCWwadlTzhOJgNdZSl9_ljXogygADtf2dJwqJH9dFm5bBZXusxd5B5hC8PHziCrUZ4py1LpcDdTQk4mv7CUnDhY',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: AuthPalette.primaryButton,
+                  child: const Center(
+                    child: Icon(
+                      Icons.graphic_eq_rounded,
+                      size: 64,
+                      color: Colors.white30,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Warm Atmospheric Gradient Scrim (matching Stitch 12_desktop_miee_web_register)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  AuthPalette.primaryButton.withValues(alpha: 0.35),
+                  AuthPalette.primaryButton.withValues(alpha: 0.95),
+                ],
+                stops: const [0.3, 0.65, 1.0],
+              ),
+            ),
+          ),
+          // Additional subtle side vignette
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  AuthPalette.primaryButton.withValues(alpha: 0.5),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          // Editorial Overlay Details
+          Positioned(
+            left: isCompact ? 24 : 32,
+            right: isCompact ? 24 : 32,
+            bottom: isCompact ? 24 : 32,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Soundwave Bars + Direct Acoustic Pipeline Metric
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: isCompact ? 16 : 18,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildBar(height: 6),
+                          const SizedBox(width: 3),
+                          _buildBar(height: 14),
+                          const SizedBox(width: 3),
+                          _buildBar(height: 10),
+                          const SizedBox(width: 3),
+                          _buildBar(height: 18),
+                          const SizedBox(width: 3),
+                          _buildBar(height: 12),
+                          const SizedBox(width: 3),
+                          _buildBar(height: 6),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'DIRECT ACOUSTIC PIPELINE',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: isCompact ? 9.5 : 10.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: const Color(0xFFFFB3B5),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isCompact ? 8 : 12),
+                Text(
+                  'Experience Sound in Its True Fidelity',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: isCompact ? 20 : 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
+                    height: 1.2,
+                  ),
+                ),
+                SizedBox(height: isCompact ? 4 : 6),
+                Text(
+                  'Native masterings and acoustic sessions tuned to your ear.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: isCompact ? 12 : 13.5,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -514,7 +722,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   Widget _buildBar({required double height}) {
     return Container(
-      width: 2,
+      width: 2.2,
       height: height,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -522,5 +730,4 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       ),
     );
   }
-
 }

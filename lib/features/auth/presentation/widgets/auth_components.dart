@@ -64,8 +64,11 @@ class AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final height = media.size.height;
     final isDesktop = width >= 900;
+    final isCompactHeight = height < 860;
 
     return Scaffold(
       backgroundColor: AuthPalette.background,
@@ -78,7 +81,9 @@ class AuthScaffold extends StatelessWidget {
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(
                     horizontal: isDesktop ? 40.0 : 24.0,
-                    vertical: isDesktop ? 24.0 : 16.0,
+                    vertical: isDesktop
+                        ? (isCompactHeight ? 8.0 : 16.0)
+                        : 16.0,
                   ),
                   child: child,
                 ),
@@ -94,17 +99,23 @@ class AuthScaffold extends StatelessWidget {
 
 /// Desktop standard navigation header matching Stitch `16_desktop_miee_web_login_clean_auth.html`.
 class AuthDesktopHeader extends StatelessWidget {
-  const AuthDesktopHeader({super.key});
+  final bool? isCompact;
+  const AuthDesktopHeader({super.key, this.isCompact});
 
   @override
   Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height;
+    final compact = isCompact ?? (height < 860);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
-      child: const Row(
+      padding: EdgeInsets.symmetric(
+        horizontal: 48,
+        vertical: compact ? 12 : 20,
+      ),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          MieeBrandMark.soundwaveWordmark(fontSize: 24),
+          MieeBrandMark.soundwaveWordmark(fontSize: compact ? 22 : 24),
         ],
       ),
     );
@@ -113,13 +124,19 @@ class AuthDesktopHeader extends StatelessWidget {
 
 /// Desktop standard footer matching Stitch `16_desktop_miee_web_login_clean_auth.html`.
 class AuthDesktopFooter extends StatelessWidget {
-  const AuthDesktopFooter({super.key});
+  final bool? isCompact;
+  const AuthDesktopFooter({super.key, this.isCompact});
 
   @override
   Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height;
+    final compact = isCompact ?? (height < 860);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+      padding: EdgeInsets.symmetric(
+        horizontal: 48,
+        vertical: compact ? 8 : 16,
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1200),
@@ -129,18 +146,18 @@ class AuthDesktopFooter extends StatelessWidget {
               Text(
                 '© 2024 miee audio systems inc.',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
+                  fontSize: compact ? 11 : 12,
                   color: AuthPalette.textMuted,
                   fontWeight: FontWeight.w400,
                 ),
               ),
               Row(
                 children: [
-                  _footerLink('Terms'),
+                  _footerLink('Terms', fontSize: compact ? 11 : 12),
                   _dot(),
-                  _footerLink('Privacy'),
+                  _footerLink('Privacy', fontSize: compact ? 11 : 12),
                   _dot(),
-                  _footerLink('Help'),
+                  _footerLink('Help', fontSize: compact ? 11 : 12),
                 ],
               ),
             ],
@@ -150,11 +167,11 @@ class AuthDesktopFooter extends StatelessWidget {
     );
   }
 
-  Widget _footerLink(String label) {
+  Widget _footerLink(String label, {double fontSize = 12}) {
     return Text(
       label,
       style: GoogleFonts.plusJakartaSans(
-        fontSize: 12,
+        fontSize: fontSize,
         color: AuthPalette.textMuted,
         fontWeight: FontWeight.w400,
       ),
@@ -173,6 +190,8 @@ class AuthDesktopFooter extends StatelessWidget {
       ),
     );
   }
+
+
 }
 
 /// Clean container matching Stitch:
@@ -296,6 +315,9 @@ class AuthTextField extends StatelessWidget {
   final ValueChanged<String>? onFieldSubmitted;
   final String? Function(String?)? validator;
   final double borderRadius;
+  final EdgeInsetsGeometry? contentPadding;
+  final double? fontSize;
+  final double? labelFontSize;
 
   const AuthTextField({
     super.key,
@@ -311,6 +333,9 @@ class AuthTextField extends StatelessWidget {
     this.onFieldSubmitted,
     this.validator,
     this.borderRadius = 12.0,
+    this.contentPadding,
+    this.fontSize,
+    this.labelFontSize,
   });
 
   @override
@@ -321,13 +346,13 @@ class AuthTextField extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 12,
+            fontSize: labelFontSize ?? 12,
             fontWeight: FontWeight.w600,
             color: AuthPalette.textPrimary,
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         TextFormField(
           controller: controller,
           focusNode: focusNode,
@@ -336,27 +361,27 @@ class AuthTextField extends StatelessWidget {
           textInputAction: textInputAction,
           onFieldSubmitted: onFieldSubmitted,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
+            fontSize: fontSize ?? 14,
             fontWeight: FontWeight.w500,
             color: AuthPalette.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: GoogleFonts.plusJakartaSans(
-              fontSize: 14,
+              fontSize: fontSize ?? 14,
               color: AuthPalette.textMuted.withValues(alpha: 0.6),
             ),
             prefixIcon: prefixIcon != null
                 ? Icon(
                     prefixIcon,
                     color: AuthPalette.textMuted,
-                    size: 20,
+                    size: 18,
                   )
                 : null,
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: AuthPalette.inputFill,
-            contentPadding:
+            contentPadding: contentPadding ??
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(borderRadius),
@@ -401,6 +426,8 @@ class AuthPrimaryButton extends StatelessWidget {
   final bool isLoading;
   final IconData? trailingIcon;
   final double borderRadius;
+  final double? height;
+  final double? fontSize;
 
   const AuthPrimaryButton({
     super.key,
@@ -409,13 +436,15 @@ class AuthPrimaryButton extends StatelessWidget {
     this.isLoading = false,
     this.trailingIcon,
     this.borderRadius = 9999.0, // Default pill
+    this.height,
+    this.fontSize,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: height ?? 52,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
@@ -429,8 +458,8 @@ class AuthPrimaryButton extends StatelessWidget {
         ),
         child: isLoading
             ? const SizedBox(
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.2,
                   color: Colors.white,
@@ -442,7 +471,7 @@ class AuthPrimaryButton extends StatelessWidget {
                   Text(
                     label,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
+                      fontSize: fontSize ?? 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
@@ -451,7 +480,7 @@ class AuthPrimaryButton extends StatelessWidget {
                     const SizedBox(width: 8),
                     Icon(
                       trailingIcon,
-                      size: 18,
+                      size: 17,
                       color: Colors.white,
                     ),
                   ],
