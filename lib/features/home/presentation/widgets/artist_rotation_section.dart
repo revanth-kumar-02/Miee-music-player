@@ -15,7 +15,8 @@ import '../../../recommendations/providers/recommendation_providers.dart';
 
 /// A cross-platform section for the Home screen that rotates spotlighted artists
 /// every 15 seconds, displays up to 6 tracks from the active artist, and provides
-/// manual Next/Previous controls without disrupting audio playback.
+/// manual Next/Previous controls with smooth sequential fade-out/fade-in transitions
+/// without disrupting audio playback.
 class ArtistRotationSection extends ConsumerStatefulWidget {
   final List<ArtistSummary> artists;
   final List<MusicItem> initialTracks;
@@ -34,17 +35,40 @@ class ArtistRotationSection extends ConsumerStatefulWidget {
 }
 
 class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   late List<ArtistSummary> _effectiveArtists;
   final Map<String, List<MusicItem>> _tracksByArtistId = {};
   int _currentIndex = 0;
   Timer? _rotationTimer;
   bool _isLoadingTarget = false;
+  bool _isTransitioning = false;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+      value: 1.0,
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.04),
+      end: Offset.zero,
+    ).animate(_fadeAnimation);
+
     _initArtists();
     _startRotationTimer();
   }
@@ -75,11 +99,28 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
 
       // Proactively prefetch initial artist tracks if not yet cached
       if (!_tracksByArtistId.containsKey(initialArtist.id)) {
-        _fetchTracksForArtist(initialArtist).then((tracks) {
+        _fetchTracksForArtist(initialArtist).then((tracks) async {
           if (mounted && tracks.isNotEmpty) {
-            setState(() {
-              _tracksByArtistId[initialArtist.id] = tracks;
-            });
+            if (_currentIndex == 0) {
+              await _fadeController.animateTo(
+                0.0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeInCubic,
+              );
+              if (!mounted) return;
+              setState(() {
+                _tracksByArtistId[initialArtist.id] = tracks;
+              });
+              await _fadeController.animateTo(
+                1.0,
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+              );
+            } else {
+              setState(() {
+                _tracksByArtistId[initialArtist.id] = tracks;
+              });
+            }
           }
         });
       }
@@ -137,7 +178,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
   }
 
   Future<void> _rotateToNext({required bool manual}) async {
-    if (_effectiveArtists.length <= 1) return;
+    if (_effectiveArtists.length <= 1 || _isTransitioning) return;
     if (manual) _resetTimer();
 
     final nextIndex = (_currentIndex + 1) % _effectiveArtists.length;
@@ -145,7 +186,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
   }
 
   Future<void> _rotateToPrevious({required bool manual}) async {
-    if (_effectiveArtists.length <= 1) return;
+    if (_effectiveArtists.length <= 1 || _isTransitioning) return;
     if (manual) _resetTimer();
 
     final prevIndex =
@@ -154,61 +195,72 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
   }
 
   Future<void> _navigateToIndex(int targetIndex) async {
-    if (targetIndex == _currentIndex ||
+    if (_isTransitioning ||
+        targetIndex == _currentIndex ||
         targetIndex < 0 ||
         targetIndex >= _effectiveArtists.length) {
       return;
     }
 
     final targetArtist = _effectiveArtists[targetIndex];
-    final cached = _tracksByArtistId[targetArtist.id];
+    List<MusicItem>? targetTracks = _tracksByArtistId[targetArtist.id];
 
-    if (cached != null && cached.isNotEmpty) {
-      setState(() {
-        _currentIndex = targetIndex;
-      });
-      // Prefetch upcoming artist
-      _prefetchArtistTracks((targetIndex + 1) % _effectiveArtists.length);
+    // If tracks for target artist are not yet cached, fetch them first while
+    // keeping the current artist and tracks visible at full opacity.
+    if (targetTracks == null || targetTracks.isEmpty) {
+      if (mounted) setState(() => _isLoadingTarget = true);
+      try {
+        final fetched = await _fetchTracksForArtist(targetArtist);
+        if (!mounted) return;
+        if (fetched.isNotEmpty) {
+          _tracksByArtistId[targetArtist.id] = fetched;
+          targetTracks = fetched;
+        } else {
+          setState(() => _isLoadingTarget = false);
+          return;
+        }
+      } catch (_) {
+        if (mounted) setState(() => _isLoadingTarget = false);
+        return;
+      }
+    }
+
+    _isTransitioning = true;
+    if (mounted) setState(() => _isLoadingTarget = false);
+
+    // ── PHASE 1: Smooth Fade-Out (cleanly dissolves existing artist & tracks) ──
+    await _fadeController.animateTo(
+      0.0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInCubic,
+    );
+
+    if (!mounted) {
+      _isTransitioning = false;
       return;
     }
 
-    // Retain current tracks and artist label while fetching next artist's tracks
-    if (mounted) {
-      setState(() {
-        _isLoadingTarget = true;
-      });
-    }
+    // ── PHASE 2: Invisible Data Swap at Opacity 0.0 (prevents visual superposition) ──
+    setState(() {
+      _currentIndex = targetIndex;
+    });
 
-    try {
-      final fetched = await _fetchTracksForArtist(targetArtist);
-      if (mounted) {
-        if (fetched.isNotEmpty) {
-          _tracksByArtistId[targetArtist.id] = fetched;
-          setState(() {
-            _currentIndex = targetIndex;
-            _isLoadingTarget = false;
-          });
-          _prefetchArtistTracks((targetIndex + 1) % _effectiveArtists.length);
-        } else {
-          // If no tracks found, stop loading and remain on current artist
-          setState(() {
-            _isLoadingTarget = false;
-          });
-        }
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isLoadingTarget = false;
-        });
-      }
-    }
+    // ── PHASE 3: Smooth Fade-In (emerges with subtle upward elevation) ──
+    await _fadeController.animateTo(
+      1.0,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+
+    _isTransitioning = false;
+    _prefetchArtistTracks((targetIndex + 1) % _effectiveArtists.length);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _stopRotationTimer();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -248,21 +300,30 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // Active Artist Badge Pill
-                      _buildArtistPill(currentArtist, isDesktop),
+                      // Active Artist Badge Pill with synchronized fade
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: _buildArtistPill(currentArtist, isDesktop),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: Text(
-                      'Featuring top songs by ${currentArtist.name}',
-                      key: ValueKey<String>('sub_${currentArtist.id}'),
-                      style: GoogleFonts.geist(
-                        fontSize: 13,
-                        color: isDesktop
-                            ? MieeWebColors.outline
-                            : AppColors.mutedMauve,
+                  // Subtitle with synchronized fade
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Text(
+                        'Featuring top songs by ${currentArtist.name}',
+                        style: GoogleFonts.geist(
+                          fontSize: 13,
+                          color: isDesktop
+                              ? MieeWebColors.outline
+                              : AppColors.mutedMauve,
+                        ),
                       ),
                     ),
                   ),
@@ -278,7 +339,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
                 _buildNavButton(
                   icon: Icons.chevron_left_rounded,
                   tooltip: 'Previous artist',
-                  enabled: hasMultiple && !_isLoadingTarget,
+                  enabled: hasMultiple && !_isTransitioning && !_isLoadingTarget,
                   isDesktop: isDesktop,
                   onPressed: () => _rotateToPrevious(manual: true),
                 ),
@@ -286,7 +347,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
                 _buildNavButton(
                   icon: Icons.chevron_right_rounded,
                   tooltip: 'Next artist',
-                  enabled: hasMultiple && !_isLoadingTarget,
+                  enabled: hasMultiple && !_isTransitioning && !_isLoadingTarget,
                   isDesktop: isDesktop,
                   onPressed: () => _rotateToNext(manual: true),
                 ),
@@ -298,27 +359,10 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
         const SizedBox(height: 14),
 
         // ── Smooth Animated Track List ──
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 320),
-          reverseDuration: const Duration(milliseconds: 220),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            final slideAnimation = Tween<Offset>(
-              begin: const Offset(0.0, 0.05),
-              end: Offset.zero,
-            ).animate(animation);
-
-            return FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: slideAnimation,
-                child: child,
-              ),
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey<String>(currentArtist.id),
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
             child: _buildTrackList(currentTracks),
           ),
         ),

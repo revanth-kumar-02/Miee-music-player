@@ -303,10 +303,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
       isYoutube: track.isYoutube,
     );
 
-    // Immediately pause active audio so Song A cuts off instantly (<50ms)
+    // Smoothly fade out active audio so Song A fades out cleanly (<180ms)
     // while Song B is resolving over the network, without tearing down the foreground service.
     try {
-      await _handler.pause();
+      if (_handler.isPlaying) {
+        await _handler.fadeOutAndPause(duration: const Duration(milliseconds: 180));
+      } else {
+        await _handler.pause();
+      }
     } catch (_) {}
 
     final isOnline = track.isYoutube;

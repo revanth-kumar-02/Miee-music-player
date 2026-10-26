@@ -360,9 +360,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     final track = _queue[_currentIndex];
     debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id}, token=$token)');
 
-    // 1. Immediately cut off prior audio and invalidate loaded track identity so old track never continues playing during resolution.
+    // 1. Smoothly fade out prior audio and invalidate loaded track identity so old track transitions cleanly.
     _loadedAudioTrackId = null;
     try {
+      if (_player.playing) {
+        await fadeOutAndPause(duration: const Duration(milliseconds: 120));
+      }
       await _player.stop();
     } catch (_) {}
 
@@ -808,10 +811,52 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   double get volume => _player.volume;
 
+  /// Smoothly fades out active audio over [duration] and pauses the player,
+  /// preventing jarring clicks or sudden cuts when switching songs.
+  Future<void> fadeOutAndPause({
+    Duration duration = const Duration(milliseconds: 180),
+  }) async {
+    if (!_player.playing) {
+      try {
+        await _player.pause();
+      } catch (_) {}
+      return;
+    }
+
+    try {
+      final initialVolume = _player.volume;
+      if (initialVolume <= 0.05) {
+        await _player.pause();
+        return;
+      }
+      const steps = 6;
+      final stepDelay = Duration(
+        milliseconds: (duration.inMilliseconds / steps).round().clamp(10, 40),
+      );
+      final stepSize = initialVolume / steps;
+
+      for (int i = 1; i <= steps; i++) {
+        final targetVol = (initialVolume - (stepSize * i)).clamp(0.0, 1.0);
+        await _player.setVolume(targetVol);
+        await Future<void>.delayed(stepDelay);
+      }
+      await _player.pause();
+      // Restore volume so the upcoming track starts at proper level
+      await _player.setVolume(initialVolume);
+    } catch (_) {
+      try {
+        await _player.pause();
+      } catch (_) {}
+    }
+  }
+
   @override
   Future<void> skipToNext() async {
     _playInterrupted = false;
     if (_queue.isEmpty) return;
+    if (_player.playing) {
+      await fadeOutAndPause(duration: const Duration(milliseconds: 140));
+    }
     if (_currentIndex < _queue.length - 1) {
       _currentIndex++;
       debugPrint('[Queue] skipToNext → index $_currentIndex');
@@ -846,6 +891,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       return;
     }
     if (_currentIndex > 0) {
+      if (_player.playing) {
+        await fadeOutAndPause(duration: const Duration(milliseconds: 140));
+      }
       _currentIndex--;
       debugPrint('[Queue] skipToPrevious → index $_currentIndex');
       try {
