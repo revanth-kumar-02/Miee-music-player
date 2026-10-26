@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -199,6 +200,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/local-songs',
+            redirect: (context, state) {
+              if (kIsWeb) return '/playlists';
+              return null;
+            },
             pageBuilder: (context, state) => CustomTransitionPage<void>(
               key: state.pageKey,
               child: const LocalSongsPage(),

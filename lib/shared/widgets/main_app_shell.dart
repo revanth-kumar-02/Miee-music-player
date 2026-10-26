@@ -40,6 +40,11 @@ class MainAppShell extends ConsumerStatefulWidget {
     this.initialDrawerOpen = false,
   });
 
+  /// Visibility flag for Web header notification controls.
+  /// Set to false per Web UI requirements to hide the notification bell
+  /// and badge while preserving the complete UI implementation for future re-enablement.
+  static const bool showWebNotifications = false;
+
   static String formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final minutes = duration.inMinutes;
@@ -430,14 +435,6 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   isSelected: location == '/artists',
                   isCollapsed: isCollapsed,
                   onTap: () => context.go('/artists'),
-                ),
-                _buildSidebarNavItem(
-                  icon: Icons.arrow_circle_down_outlined,
-                  activeIcon: Icons.arrow_circle_down_rounded,
-                  label: 'Downloaded',
-                  isSelected: location == '/local-songs',
-                  isCollapsed: isCollapsed,
-                  onTap: () => context.go('/local-songs'),
                 ),
                 _buildSidebarNavItem(
                   icon: Icons.groups_outlined,
@@ -926,33 +923,34 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
           const SizedBox(width: 16),
 
-          // Notification Bell
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined, size: 20),
-                color: MieeWebColors.onSurfaceVariant,
-                hoverColor: MieeWebColors.surfaceContainerHigh,
-                splashRadius: 18,
-                onPressed: () {},
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: MieeWebColors.secondaryContainer,
-                    shape: BoxShape.circle,
+          // Notification Bell (conditionally excluded on Web, preserved for future re-enablement)
+          if (MainAppShell.showWebNotifications) ...[
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined, size: 20),
+                  color: MieeWebColors.onSurfaceVariant,
+                  hoverColor: MieeWebColors.surfaceContainerHigh,
+                  splashRadius: 18,
+                  onPressed: () {},
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: MieeWebColors.secondaryContainer,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-
-          const SizedBox(width: 8),
+              ],
+            ),
+            const SizedBox(width: 8),
+          ],
 
           // Profile Avatar
           InkWell(
