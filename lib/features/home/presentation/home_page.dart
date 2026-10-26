@@ -22,6 +22,7 @@ import '../../playlists/providers/playlist_providers.dart';
 import '../../playlists/presentation/widgets/create_playlist_dialog.dart';
 import '../../library/providers/library_providers.dart';
 import '../../rooms/providers/room_providers.dart';
+import 'widgets/artist_rotation_section.dart';
 
 /// Recreated Miee Home Screen matching the reference design:
 /// - Vanilla Cream primary canvas
@@ -1098,55 +1099,12 @@ class _HomePageState extends ConsumerState<HomePage> {
           const SizedBox(height: 36),
         ],
 
-        // ── 3. From Your Artists ─────────────────────────────────────────────
-        if (sections.fromYourArtists.isNotEmpty) ...[
-          _buildSectionTitle('From Your Artists'),
-          const SizedBox(height: 6),
-          Text(
-            'Selected songs tailored to your taste',
-            style: GoogleFonts.geist(
-              fontSize: 13,
-              color: AppColors.mutedMauve,
-            ),
+        // ── 3. From Your Artists (Cross-Platform Dynamic Rotation) ──────────
+        if (sections.favoriteArtists.isNotEmpty || sections.fromYourArtists.isNotEmpty) ...[
+          ArtistRotationSection(
+            artists: sections.favoriteArtists,
+            initialTracks: sections.fromYourArtists,
           ),
-          const SizedBox(height: 14),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: sections.fromYourArtists.take(6).length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final track = sections.fromYourArtists[index];
-              final isPlaying = currentTrack?.id == track.id;
-
-              return Consumer(
-                builder: (context, ref, _) {
-                  final isTrackLoading = ref.watch(
-                    playerControllerProvider.select((s) =>
-                        s.loadingTrackId != null &&
-                        isSameTrackId(s.loadingTrackId, track.id)),
-                  );
-                  return SongTile(
-                    title: track.title,
-                    artist: track.artist,
-                    duration: track.duration,
-                    imageUrl: track.imageUrl,
-                    isPlaying: isPlaying,
-                    isLoading: isTrackLoading,
-                    onTap: isTrackLoading
-                        ? null
-                        : () {
-                            ref
-                                .read(playerControllerProvider.notifier)
-                                .selectTrack(track, sections.fromYourArtists,
-                                    playingFrom: 'From Your Artists');
-                          },
-                  );
-                },
-              );
-            },
-          ),
-          const SizedBox(height: 36),
         ],
 
         // ── 4. Discover More ─────────────────────────────────────────────────

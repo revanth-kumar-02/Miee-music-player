@@ -8,6 +8,7 @@ import '../../onboarding/domain/artist_model.dart';
 import '../../profile/domain/user_profile.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/data/youtube_repository.dart';
+import '../../search/domain/search_deduplicator.dart';
 
 class RecommendationSections {
   final List<ArtistSummary> favoriteArtists;
@@ -183,6 +184,35 @@ class RecommendationService {
     return score;
   }
 
+  /// Fetches up to [limit] individual legitimate tracks for a specific [artist].
+  /// Uses YouTube search with deduplication, ranking, and spam/jukebox filtering.
+  Future<List<MusicItem>> getTracksForArtist(
+    ArtistSummary artist, {
+    int limit = 6,
+  }) async {
+    final tracks = <MusicItem>[];
+    try {
+      final rawVideos = await _youtubeRepo.search('${artist.name} songs');
+      final deduplicated = SearchDeduplicator.deduplicateAndRank(
+        rawVideos,
+        query: artist.name,
+      );
+      final seenIds = <String>{};
+
+      for (final v in deduplicated) {
+        if (!isLegitimateSong(v)) continue;
+        final track = v.toTrack(reliableArtist: artist.name);
+        if (seenIds.add(track.id)) {
+          tracks.add(track);
+          if (tracks.length >= limit) break;
+        }
+      }
+    } catch (e) {
+      debugPrint('[RecommendationService] Fetch error for ${artist.name}: $e');
+    }
+    return tracks;
+  }
+
   /// Loads personalized sections tailored to [profile].
   Future<RecommendationSections> getPersonalizedSections({
     required UserProfile? profile,
@@ -202,21 +232,15 @@ class RecommendationService {
     final history = await _historyRepo.getRecentHistory(uid: uid, limit: 15);
     final seenTrackIds = <String>{};
 
-    // 1. From Your Artists: fetch top individual tracks for selected/curated artists
+    // 1. From Your Artists: fetch top individual tracks for spotlight artist
     final fromYourArtists = <MusicItem>[];
-    for (final artist in effectiveArtists.take(3)) {
-      try {
-        final videos = await _youtubeRepo.search('${artist.name} song');
-        for (final v in videos) {
-          if (!isLegitimateSong(v)) continue;
-          final track = v.toTrack(reliableArtist: artist.name);
-          if (seenTrackIds.add(track.id)) {
-            fromYourArtists.add(track);
-            if (fromYourArtists.length >= 6) break;
-          }
+    if (effectiveArtists.isNotEmpty) {
+      final initialArtist = effectiveArtists.first;
+      final initialTracks = await getTracksForArtist(initialArtist, limit: 6);
+      for (final track in initialTracks) {
+        if (seenTrackIds.add(track.id)) {
+          fromYourArtists.add(track);
         }
-      } catch (e) {
-        debugPrint('[RecommendationService] Fetch error for ${artist.name}: $e');
       }
     }
 

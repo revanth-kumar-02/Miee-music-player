@@ -21,6 +21,7 @@ import '../../features/library/providers/library_providers.dart';
 import '../../features/search/providers/search_providers.dart';
 import '../../shared/models/track.dart';
 import '../../shared/widgets/widgets.dart';
+import '../providers/web_navigation_provider.dart';
 
 /// The unified Shell Layout wrapper for Miee Web.
 /// Matches the reference design:
@@ -103,6 +104,14 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     } catch (_) {
       // Fallback for tests or widget harnesses rendered without GoRouter
     }
+
+    // Synchronize desktop web navigation history
+    final currentRoute = location;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(webNavigationProvider.notifier).recordRoute(currentRoute);
+      }
+    });
 
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
@@ -744,47 +753,83 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
       child: Row(
         children: [
           // Navigation Back & Forward buttons
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: MieeWebColors.surfaceLowest,
-                  border: Border.all(color: MieeWebColors.subtleBorder),
-                ),
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                  color: MieeWebColors.onSurfaceVariant,
-                  hoverColor: MieeWebColors.surfaceContainerHigh,
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: MieeWebColors.surfaceLowest,
-                  border: Border.all(color: MieeWebColors.subtleBorder),
-                ),
-                child: const IconButton(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(Icons.chevron_right_rounded, size: 20),
-                  color: MieeWebColors.onSurfaceVariant,
-                  hoverColor: MieeWebColors.surfaceContainerHigh,
-                  onPressed: null,
-                ),
-              ),
-            ],
+          Consumer(
+            builder: (context, ref, _) {
+              final webNav = ref.watch(webNavigationProvider);
+              final canGoBack = webNav.canGoBack;
+              final canGoForward = webNav.canGoForward;
+
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Tooltip(
+                    message: canGoBack ? 'Go back' : '',
+                    waitDuration: const Duration(milliseconds: 500),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: canGoBack
+                            ? MieeWebColors.surfaceLowest
+                            : MieeWebColors.surfaceLowest.withValues(alpha: 0.45),
+                        border: Border.all(
+                          color: canGoBack
+                              ? MieeWebColors.subtleBorder
+                              : MieeWebColors.subtleBorder.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                        color: canGoBack
+                            ? MieeWebColors.onSurfaceVariant
+                            : MieeWebColors.outline.withValues(alpha: 0.35),
+                        hoverColor: canGoBack
+                            ? MieeWebColors.surfaceContainerHigh
+                            : Colors.transparent,
+                        onPressed: canGoBack
+                            ? () => ref.read(webNavigationProvider.notifier).goBack(context)
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    message: canGoForward ? 'Go forward' : '',
+                    waitDuration: const Duration(milliseconds: 500),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: canGoForward
+                            ? MieeWebColors.surfaceLowest
+                            : MieeWebColors.surfaceLowest.withValues(alpha: 0.45),
+                        border: Border.all(
+                          color: canGoForward
+                              ? MieeWebColors.subtleBorder
+                              : MieeWebColors.subtleBorder.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                        color: canGoForward
+                            ? MieeWebColors.onSurfaceVariant
+                            : MieeWebColors.outline.withValues(alpha: 0.35),
+                        hoverColor: canGoForward
+                            ? MieeWebColors.surfaceContainerHigh
+                            : Colors.transparent,
+                        onPressed: canGoForward
+                            ? () => ref.read(webNavigationProvider.notifier).goForward(context)
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
 
           const SizedBox(width: 16),
