@@ -24,6 +24,8 @@ enum EditType {
   compilationMix,  // jukebox, non-stop, continuous mix, full album
   mashupRemake,    // mashup, X spiderman, crossover, remake
   audioModified,   // bass audio, bass boosted, 8D audio
+  promoTeaser,     // promo, teaser, trailer, preview, promo video, glimpse
+  documentaryMaking, // documentary, making of, behind the scenes, interview
 }
 
 /// Configuration for view-count ranking, edit filtering, and candidate pruning.
@@ -66,6 +68,8 @@ class QueryIntent {
   final bool wantsInstrumental;
   final bool wantsMashup;
   final bool wantsAudioModified;
+  final bool wantsPromo;
+  final bool wantsDocumentary;
 
   const QueryIntent({
     required this.normalizedQuery,
@@ -82,6 +86,8 @@ class QueryIntent {
     this.wantsInstrumental = false,
     this.wantsMashup = false,
     this.wantsAudioModified = false,
+    this.wantsPromo = false,
+    this.wantsDocumentary = false,
   });
 
   factory QueryIntent.fromQuery(String? rawQuery) {
@@ -104,6 +110,8 @@ class QueryIntent {
       wantsInstrumental: q.contains('instrumental') || q.contains('karaoke'),
       wantsMashup: q.contains('mashup') || q.contains('crossover') || q.contains(' x ') || q.contains(' vs ') || q.contains('remake'),
       wantsAudioModified: q.contains('bass') || q.contains('8d') || q.contains('boosted') || q.contains('atmos'),
+      wantsPromo: q.contains('promo') || q.contains('teaser') || q.contains('trailer') || q.contains('preview'),
+      wantsDocumentary: q.contains('documentary') || q.contains('making of') || q.contains('interview') || q.contains('bts'),
     );
   }
 }
@@ -682,6 +690,31 @@ class SearchDeduplicator {
     return best ?? candidates.first;
   }
 
+  /// Checks whether a channel is a recognized major music record label.
+  static bool _isOfficialMusicLabel(String rawChannel) {
+    final lower = rawChannel.toLowerCase();
+    return lower.contains('think music') ||
+        lower.contains('think indie') ||
+        lower.contains('sony music') ||
+        lower.contains('t-series') ||
+        lower.contains('tseries') ||
+        lower.contains('saregama') ||
+        lower.contains('zee music') ||
+        lower.contains('aditya music') ||
+        lower.contains('lahari music') ||
+        lower.contains('yrf') ||
+        lower.contains('speed records') ||
+        lower.contains('tips official') ||
+        lower.contains('muzik247') ||
+        lower.contains('satyam') ||
+        lower.contains('universal music') ||
+        lower.contains('warner music') ||
+        lower.contains('atlantic records') ||
+        lower.contains('columbia records') ||
+        lower.contains('def jam') ||
+        lower.contains('interscope');
+  }
+
   /// Calculates a heuristic quality score for a YouTube video candidate.
   static int _calculateCandidateScore(
     YouTubeVideo video, {
@@ -695,20 +728,26 @@ class SearchDeduplicator {
 
     // 1. High-confidence official channel signals
     if (rawChannel.contains('- topic') || rawChannel.endsWith('topic')) {
-      score += 120; // Official YouTube Music track delivery
-    }
-    if (rawChannel.contains('vevo')) {
-      score += 100; // Official VEVO channel
-    }
-    if (rawChannel.contains('official')) {
+      score += 130; // Official YouTube Music track delivery
+    } else if (rawChannel.contains('vevo')) {
+      score += 110; // Official VEVO channel
+    } else if (_isOfficialMusicLabel(rawChannel)) {
+      score += 120; // Official major music label (Think Music, Sony, T-Series, Saregama, etc.)
+    } else if (rawChannel.contains('official')) {
       score += 40;
     }
 
     // 2. Official audio / music video upload signals
     if (rawTitle.contains('official audio')) {
-      score += 90; // Preferred standard recording upload
-    } else if (rawTitle.contains('official music video') || rawTitle.contains('official video')) {
-      score += 80;
+      score += 100; // Preferred standard recording upload
+    } else if (rawTitle.contains('official music video') ||
+        rawTitle.contains('official video') ||
+        rawTitle.contains('(music video)') ||
+        rawTitle.contains('[music video]') ||
+        rawTitle.contains('music video') ||
+        rawTitle.contains('video song') ||
+        rawTitle.contains('full video')) {
+      score += 85;
     } else if (rawTitle.contains('official visualizer') || rawTitle.contains('visualizer')) {
       score += 50;
     } else if (rawTitle.contains('audio')) {
@@ -720,21 +759,23 @@ class SearchDeduplicator {
       score -= 15;
     }
 
-    // 3. Query match bonuses
+    // 3. Query match bonuses with phonetic variant support (e.g. radhima vs radhimaa)
     if (query != null && query.trim().isNotEmpty) {
       final sanitizedQuery = _sanitizeText(query);
       final sanitizedCleanTitle = _sanitizeText(cleanTitle);
-      if (sanitizedCleanTitle == sanitizedQuery) {
+      final pQuery = _phoneticCollapse(sanitizedQuery);
+      final pTitle = _phoneticCollapse(sanitizedCleanTitle);
+      if (sanitizedCleanTitle == sanitizedQuery || pTitle == pQuery) {
         score += 50;
-      } else if (sanitizedCleanTitle.contains(sanitizedQuery)) {
+      } else if (sanitizedCleanTitle.contains(sanitizedQuery) || pTitle.contains(pQuery)) {
         score += 25;
       }
     }
 
-    // 4. View count popularity bonus (logarithmic scaling)
+    // 4. View count popularity bonus (scaled logarithmic scaling)
     final views = parseViewCount(video);
     if (views != null && views > 0) {
-      score += ((math.log(views + 1) / math.ln10) * 6).toInt();
+      score += ((math.log(views + 1) / math.ln10) * 12).toInt();
     }
 
     // 5. Duration sanity check
@@ -752,7 +793,15 @@ class SearchDeduplicator {
       }
     }
 
-    // 6. Demote clickbait and low-quality modifiers
+    // 6. Demote clickbait, unofficial edit channels, and low-quality modifiers
+    if ((rawChannel.contains('editz') ||
+            rawChannel.contains('edits') ||
+            rawChannel.contains('beatz') ||
+            rawChannel.contains('status')) &&
+        !_isOfficialMusicLabel(rawChannel)) {
+      score -= 100;
+    }
+
     final clickbaitKeywords = [
       'bass boosted',
       'earrape',
@@ -767,6 +816,8 @@ class SearchDeduplicator {
       'loop',
       'teaser',
       'snippet',
+      'promo',
+      'documentary',
     ];
 
     for (final kw in clickbaitKeywords) {
@@ -977,13 +1028,17 @@ class SearchDeduplicator {
       }
     }
 
-    // 7. Mashups / Crossovers / Remakes (e.g. "Radhima × Spider-Man", "radhima x spiderman", "song x song", "mashup")
+    // 7. Mashups / Crossovers / Remakes / Multimixes
     if (!intent.wantsMashup) {
       if (rawTitle.contains('mashup') ||
           rawTitle.contains('mash up') ||
           rawTitle.contains('crossover') ||
           rawTitle.contains('remake') ||
           rawTitle.contains('re-make') ||
+          rawTitle.contains('multimix') ||
+          rawTitle.contains('multi mix') ||
+          rawTitle.contains('megamix') ||
+          rawTitle.contains('mega mix') ||
           rawTitle.contains(' vs ') ||
           rawTitle.contains(' vs. ') ||
           rawTitle.contains('×') ||
@@ -993,6 +1048,12 @@ class SearchDeduplicator {
           rawTitle.contains(' x ') ||
           rawTitle.contains(' x-') ||
           rawTitle.contains('-x ') ||
+          rawTitle.contains('500 days of summer') ||
+          rawTitle.contains('500 days') ||
+          rawTitle.contains('premalu') ||
+          collapsedTitle.contains('multimix') ||
+          collapsedTitle.contains('megamix') ||
+          collapsedTitle.contains('mashup') ||
           RegExp(r'[\s\(\[\{]([xX\u00D7]|vs\.?)\s+[a-zA-Z0-9]', caseSensitive: false).hasMatch(rawTitle) ||
           RegExp(r'\b[a-zA-Z0-9]+\s*[xX\u00D7]\s*[a-zA-Z0-9]+\b').hasMatch(rawTitle)) {
         return EditType.mashupRemake;
@@ -1012,10 +1073,60 @@ class SearchDeduplicator {
           rawTitle.contains('dolby atmos edit') ||
           rawTitle.contains('dts audio') ||
           rawTitle.contains('earrape') ||
+          rawTitle.contains('boosted') ||
+          collapsedTitle.contains('boosted') ||
           collapsedTitle.contains('bassboost') ||
           collapsedTitle.contains('8daudio') ||
-          RegExp(r'\b(bass\s+(audio|boosted|boost)|8d\s+audio)\b').hasMatch(rawTitle)) {
+          RegExp(r'\b(bass\s+(audio|boosted|boost)|8d\s+audio|boosted)\b').hasMatch(rawTitle)) {
         return EditType.audioModified;
+      }
+    }
+
+    // 9. Promos, Teasers, Previews, Trailers & Brand Promo Ads (e.g. "Radhimaa (Promo)", "Be a Thangamaana Paiyan | Spotify India")
+    if (!intent.wantsPromo) {
+      if (rawTitle.contains('promo') ||
+          rawTitle.contains('teaser') ||
+          rawTitle.contains('trailer') ||
+          rawTitle.contains('preview') ||
+          rawTitle.contains('sneak peek') ||
+          rawTitle.contains('glimpse') ||
+          rawTitle.contains('be a thangamaana paiyan') ||
+          collapsedTitle.contains('promo') ||
+          collapsedTitle.contains('teaser') ||
+          collapsedTitle.contains('trailer') ||
+          collapsedTitle.contains('thangamaanapaiyan') ||
+          RegExp(r'[\(\[\{\|\-]\s*(promo|teaser|trailer|preview|glimpse)\b', caseSensitive: false).hasMatch(rawTitle) ||
+          RegExp(r'\b(promo|teaser|trailer|preview|glimpse)\b', caseSensitive: false).hasMatch(rawTitle)) {
+        return EditType.promoTeaser;
+      }
+
+      // Short clips (<= 90s) from streaming brands / sponsors
+      final durSec = _parseDurationSeconds(video.duration);
+      if (durSec > 0 && durSec <= 90) {
+        if (channelLower.contains('spotify') ||
+            channelLower.contains('amazon music') ||
+            channelLower.contains('jiosaavn') ||
+            channelLower.contains('wynk') ||
+            channelLower.contains('apple music')) {
+          return EditType.promoTeaser;
+        }
+      }
+    }
+
+    // 10. Documentaries, Behind the Scenes, Making of, Interviews
+    if (!intent.wantsDocumentary) {
+      if (rawTitle.contains('documentary') ||
+          rawTitle.contains('making of') ||
+          rawTitle.contains('behind the scenes') ||
+          rawTitle.contains('interview') ||
+          rawTitle.contains('press meet') ||
+          rawTitle.contains('success meet') ||
+          rawTitle.contains('audio launch') ||
+          collapsedTitle.contains('documentary') ||
+          collapsedTitle.contains('behindthescenes') ||
+          RegExp(r'[\(\[\{\|\-]\s*(documentary|bts|making)\b', caseSensitive: false).hasMatch(rawTitle) ||
+          RegExp(r'\b(documentary|bts)\b', caseSensitive: false).hasMatch(rawTitle)) {
+        return EditType.documentaryMaking;
       }
     }
 
@@ -1035,13 +1146,17 @@ class SearchDeduplicator {
     final channel = _sanitizeText(video.rawChannelTitle ?? video.channelTitle);
     final allText = '$cleanTitle $rawTitle $channel';
 
-    // 1. Exact match to query
-    if (cleanTitle == normQuery || rawTitle == normQuery) {
+    // 1. Exact match to query (including phonetic variants like radhima / radhimaa)
+    final pQuery = _phoneticCollapse(normQuery);
+    final pClean = _phoneticCollapse(cleanTitle);
+    final pRaw = _phoneticCollapse(rawTitle);
+
+    if (cleanTitle == normQuery || rawTitle == normQuery || pClean == pQuery || pRaw == pQuery) {
       return 1.0;
     }
 
     // 2. Title contains query phrase or query phrase contains title
-    if (cleanTitle.contains(normQuery) || rawTitle.contains(normQuery)) {
+    if (cleanTitle.contains(normQuery) || rawTitle.contains(normQuery) || pClean.contains(pQuery) || pRaw.contains(pQuery)) {
       return 0.95;
     }
     if (normQuery.contains(cleanTitle) && cleanTitle.length >= 3) {
@@ -1056,10 +1171,11 @@ class SearchDeduplicator {
     int allTokensMatched = 0;
 
     for (final token in qTokens) {
-      if (cleanTitle.contains(token) || rawTitle.contains(token)) {
+      final pToken = _phoneticCollapse(token);
+      if (cleanTitle.contains(token) || rawTitle.contains(token) || pClean.contains(pToken) || pRaw.contains(pToken)) {
         titleTokensMatched++;
       }
-      if (allText.contains(token)) {
+      if (allText.contains(token) || _phoneticCollapse(allText).contains(pToken)) {
         allTokensMatched++;
       }
     }
@@ -1080,8 +1196,6 @@ class SearchDeduplicator {
   }) {
     final relevance = calculateQueryRelevance(video, query);
     // If relevance is near zero, video is completely unrelated to query!
-    // A completely unrelated video (e.g. Despacito with 8B views when searching Enna Sona)
-    // will be severely clamped down and will never outrank a relevant song.
     if (relevance < 0.25) {
       return relevance * 10.0;
     }
@@ -1096,6 +1210,8 @@ class SearchDeduplicator {
       score += 250; // Official YouTube Music delivery
     } else if (channel.contains('vevo')) {
       score += 200; // Official VEVO
+    } else if (_isOfficialMusicLabel(channel)) {
+      score += 220; // Official major music label (Think Music, Sony, T-Series, etc.)
     } else if (channel.contains('official')) {
       score += 80;
     }
@@ -1103,7 +1219,13 @@ class SearchDeduplicator {
     // 2. Title upload signals
     if (rawTitle.contains('official audio')) {
       score += 150;
-    } else if (rawTitle.contains('official music video') || rawTitle.contains('official video')) {
+    } else if (rawTitle.contains('official music video') ||
+        rawTitle.contains('official video') ||
+        rawTitle.contains('(music video)') ||
+        rawTitle.contains('[music video]') ||
+        rawTitle.contains('music video') ||
+        rawTitle.contains('video song') ||
+        rawTitle.contains('full video')) {
       score += 130;
     } else if (rawTitle.contains('official lyric video') || rawTitle.contains('official visualizer')) {
       score += 70;

@@ -10,6 +10,7 @@ import 'package:Miee/features/rooms/presentation/create_room_page.dart';
 import 'package:Miee/features/search/data/local_search_service.dart';
 import 'package:Miee/features/search/domain/search_deduplicator.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
+import 'package:Miee/features/youtube/domain/youtube_metadata_cleaner.dart';
 import 'package:Miee/features/media/domain/models.dart';
 import 'package:Miee/shared/models/track.dart';
 import 'package:Miee/shared/widgets/main_app_shell.dart';
@@ -338,6 +339,66 @@ void main() {
           rawTitle: 'Radhimaa (Thalapathy Vijay BGM Ringtone)',
           rawChannelTitle: 'Ringtones Epic',
         ),
+        const YouTubeVideo(
+          id: 'radhima_promo',
+          title: 'Radhimaa (Promo)',
+          channelTitle: 'Think Music India',
+          thumbnailUrl: 'https://example.com/promo.jpg',
+          duration: '1:26',
+          viewCount: '2.9M views',
+          rawViewCount: 2981215,
+          rawTitle: '@SaiAbhyankkar - Radhimaa (Promo) | Bhagyashri Borse | Think Indie',
+        ),
+        const YouTubeVideo(
+          id: 'radhima_spotify_ad',
+          title: 'Be a Thangamaana Paiyan',
+          channelTitle: 'Spotify India',
+          thumbnailUrl: 'https://example.com/spotify.jpg',
+          duration: '1:04',
+          viewCount: '8.5M views',
+          rawViewCount: 8572861,
+          rawTitle: 'Be a Thangamaana Paiyan | Radhimaa | Spotify India',
+        ),
+        const YouTubeVideo(
+          id: 'radhima_doc',
+          title: 'Radhimaa (Documentary)',
+          channelTitle: 'Think Music India',
+          thumbnailUrl: 'https://example.com/doc.jpg',
+          duration: '8:12',
+          viewCount: '450K views',
+          rawViewCount: 450000,
+          rawTitle: 'SaiAbhyankkar - Radhimaa (Documentary) | Bhagyshri Borse | Think Indie',
+        ),
+        const YouTubeVideo(
+          id: 'radhima_500_days',
+          title: 'Radhima ft 500 days of summer',
+          channelTitle: 'Aurinity',
+          thumbnailUrl: 'https://example.com/500days.jpg',
+          duration: '1:53',
+          viewCount: '89K views',
+          rawViewCount: 89000,
+          rawTitle: 'Radhima ft 500 days of summer (Movie Edit)',
+        ),
+        const YouTubeVideo(
+          id: 'radhima_multimix',
+          title: 'Ava Enna Enna Thedi Vantha Radhimaa Multimix',
+          channelTitle: 'Shayanthan Music',
+          thumbnailUrl: 'https://example.com/multimix.jpg',
+          duration: '1:18',
+          viewCount: '590K views',
+          rawViewCount: 590000,
+          rawTitle: 'Ava Enna Enna Thedi Vantha Radhimaa Multimix',
+        ),
+        const YouTubeVideo(
+          id: 'radhima_boosted',
+          title: 'Radhimaa Lyrica song',
+          channelTitle: 'The Antony',
+          thumbnailUrl: 'https://example.com/boosted.jpg',
+          duration: '4:20',
+          viewCount: '276K views',
+          rawViewCount: 276000,
+          rawTitle: 'Radhimaa Lyrica song | Audio release Boosted #youtube #music',
+        ),
       ];
 
       const config = SearchRankingConfig(filterDerivativeEdits: true);
@@ -350,6 +411,16 @@ void main() {
       // Must only contain the official original release
       expect(results.length, equals(1));
       expect(results.first.id, equals('radhima_original'));
+    });
+
+    test('YouTubeMetadataCleaner correctly extracts artist from leading @handle', () {
+      final cleaned = YouTubeMetadataCleaner.clean(
+        rawTitle: '@SaiAbhyankkar - Radhimaa (Music Video) | Bhagyashri Borse | Vivek | Thejo Bharathwaj | Think Indie',
+        rawChannel: 'Think Music India',
+      );
+
+      expect(cleaned.title, equals('Radhimaa'));
+      expect(cleaned.artist, equals('Sai Abhyankkar'));
     });
   });
 

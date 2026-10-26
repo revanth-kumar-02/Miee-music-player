@@ -84,8 +84,10 @@ class YouTubeMetadataCleaner {
           String cleanSong = _stripSongNoise(songClause);
 
           // Strip leading @handle prefix (including duplicate handles)
+          String? primaryHandle;
           var leadingHandle = _extractLeadingHandle(cleanSong);
           while (leadingHandle.handle != null) {
+            primaryHandle ??= leadingHandle.handle;
             cleanSong = leadingHandle.title;
             leadingHandle = _extractLeadingHandle(cleanSong);
           }
@@ -132,11 +134,13 @@ class YouTubeMetadataCleaner {
           if (reliableArtist != null && reliableArtist.trim().isNotEmpty) {
             artist = reliableArtist.trim();
           } else if (_isGenericChannel(channel) || _isGenericChannel(artist)) {
-            // First check if the leading handle in title is a curated artist
-            if (leadingHandle.handle != null) {
-              final curatedHandle = DeezerArtistRepository.findCuratedByName(leadingHandle.handle!);
+            // First check if the leading handle in title is a curated artist or uploader name
+            if (primaryHandle != null) {
+              final curatedHandle = DeezerArtistRepository.findCuratedByName(primaryHandle);
               if (curatedHandle != null) {
                 artist = curatedHandle.name;
+              } else {
+                artist = primaryHandle;
               }
             }
 
