@@ -23,6 +23,8 @@ import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/providers/onboarding_providers.dart';
 import '../../media/providers/media_providers.dart';
+import '../../connect/presentation/connect_sheet.dart';
+import '../../connect/providers/connect_providers.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B) on Mobile
@@ -117,6 +119,8 @@ class PlayerPage extends ConsumerWidget {
     final favorites = ref.watch(favoritesProvider);
     final isLiked = hasTrack ? favorites.any((t) => t.id == currentTrack.id) : false;
     final activeRoom = ref.watch(activeRoomProvider);
+    final connectState = ref.watch(connectControllerProvider);
+    final isRemoteConnectActive = connectState.isRemote;
 
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
@@ -327,7 +331,39 @@ class PlayerPage extends ConsumerWidget {
                 ],
               ),
 
-              const SizedBox(height: 16),
+              if (isRemoteConnectActive) ...[
+                GestureDetector(
+                  onTap: () => ConnectSheet.show(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.speaker_group_rounded,
+                          color: Color(0xFF1DB954),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Playing on ${connectState.activeDevice.name}',
+                          style: GoogleFonts.geist(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1DB954),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
 
               // ── 4. Waveform Progress & Timestamps ──
               _WaveformProgressSection(
@@ -494,6 +530,47 @@ class PlayerPage extends ConsumerWidget {
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
                               color: AppColors.vanillaCream,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  InkWell(
+                    onTap: () => ConnectSheet.show(context),
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isRemoteConnectActive
+                            ? const Color(0xFF1DB954).withValues(alpha: 0.2)
+                            : AppColors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(18),
+                        border: isRemoteConnectActive
+                            ? Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.5))
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.devices_rounded,
+                            size: 16,
+                            color: isRemoteConnectActive
+                                ? const Color(0xFF1DB954)
+                                : AppColors.vanillaCream,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isRemoteConnectActive ? 'Connected' : 'Devices',
+                            style: GoogleFonts.geist(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: isRemoteConnectActive
+                                  ? const Color(0xFF1DB954)
+                                  : AppColors.vanillaCream,
                             ),
                           ),
                         ],
