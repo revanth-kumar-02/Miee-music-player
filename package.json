@@ -16,8 +16,8 @@
     "url": "git+https://github.com/revanth-kumar-02/Miee-music-player.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Revanth Kumar (revanth-kumar-02)",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/revanth-kumar-02/Miee-music-player/issues"
