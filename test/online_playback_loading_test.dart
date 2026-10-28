@@ -23,7 +23,11 @@ class MockPlayerController extends StateNotifier<PlaybackState>
       : super(initial ?? PlaybackState.initial());
 
   @override
-  Future<void> playTrack(MusicItem track, {String? playingFrom}) async {
+  Future<void> playTrack(
+    MusicItem track, {
+    String? playingFrom,
+    Duration? initialPosition,
+  }) async {
     // 1. Debounce duplicate in-flight requests for the same track
     if (state.status == PlaybackStatus.loading &&
         state.loadingTrackId != null &&

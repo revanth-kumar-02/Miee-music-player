@@ -38,6 +38,16 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   String? _loadedAudioTrackId;
   String? get loadedAudioTrackId => _loadedAudioTrackId;
 
+  /// Remembers the last valid playback position across interruptions, stream refreshes,
+  /// and app lifecycle transitions to prevent unwanted resets to 00:00.
+  Duration _lastValidPosition = Duration.zero;
+  Duration get lastValidPosition => _lastValidPosition;
+
+  /// Indicates whether a track source load or transition is actively underway.
+  /// Prevents transient pause states from demoting the Android foreground service.
+  bool _isLoadingTrack = false;
+  bool get isLoadingTrack => _isLoadingTrack;
+
   /// Tracks whether playback was interrupted mid-stream by a transient system
   /// interruption (e.g. phone call). If the user explicitly pauses/stops the
   /// song, or if the song was already paused when an interruption occurred,
@@ -95,17 +105,32 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
     try {
       final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
+      await session.configure(
+        const AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.music,
+            flags: AndroidAudioFlags.none,
+            usage: AndroidAudioUsage.media,
+          ),
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+          // Do NOT pause music when transient ducking sounds (lock clicks, GPS chimes) occur
+          androidWillPauseWhenDucked: false,
+        ),
+      );
 
       session.interruptionEventStream.listen(handleInterruptionEvent);
 
       session.becomingNoisyEventStream.listen((_) {
         debugPrint('[BackgroundAudio] Becoming noisy (headset removed) — pausing');
         _playInterrupted = false;
+        if (_player.position > Duration.zero) {
+          _lastValidPosition = _player.position;
+        }
         _player.pause();
       });
 
-      debugPrint('[BackgroundAudio] AudioSession initialized for music playback');
+      debugPrint('[BackgroundAudio] AudioSession initialized for music playback (androidWillPauseWhenDucked: false)');
     } catch (e) {
       debugPrint('[AudioHandler] initialize() error: $e');
     }
@@ -134,6 +159,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
               '[BackgroundAudio] Audio interruption began while playing — pausing with resume intent',
             );
             _playInterrupted = true;
+            if (_player.position > Duration.zero) {
+              _lastValidPosition = _player.position;
+            }
             _player.pause();
           } else {
             debugPrint(
@@ -144,11 +172,14 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           break;
         case AudioInterruptionType.unknown:
           // Permanent loss of audio focus (e.g. another media app like Spotify/YouTube/Instagram started playing).
-          // Never resume after permanent loss!
+          // Never resume after permanent loss, but record position so manual resume works!
           debugPrint(
             '[BackgroundAudio] Permanent audio focus loss — pausing without auto-resume',
           );
           _playInterrupted = false;
+          if (_player.position > Duration.zero) {
+            _lastValidPosition = _player.position;
+          }
           _player.pause();
           break;
       }
@@ -225,6 +256,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       '[Playback] State → playing=${playerState.playing} '
       'processing=${playerState.processingState}',
     );
+
+    // If a track load/transition is actively underway, preserve foreground buffering state
+    // so audio_service does not demote the Android foreground service during temporary pause
+    if (_isLoadingTrack) {
+      final wasPlaying = playbackState.value.playing;
+      _pushPlaybackState(
+        playerState: PlayerState(wasPlaying, ProcessingState.buffering),
+      );
+      return;
+    }
+
     _pushPlaybackState(playerState: playerState);
 
     // Record confirmed playing latency metric
@@ -247,6 +289,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void _onPositionChanged(Duration position) {
+    if (position > Duration.zero) {
+      _lastValidPosition = position;
+    }
     _pushPlaybackState();
   }
 
@@ -304,7 +349,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         systemActions: systemActions,
         processingState: audioProcessingState,
         playing: isPlaying,
-        updatePosition: _player.position,
+        updatePosition: _player.position > Duration.zero
+            ? _player.position
+            : (_lastValidPosition > Duration.zero ? _lastValidPosition : Duration.zero),
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
         queueIndex: _currentIndex,
@@ -316,14 +363,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   // Queue management
   // ---------------------------------------------------------------------------
 
-  Future<void> loadQueue(List<MusicItem> tracks, {int startIndex = 0}) async {
+  Future<void> loadQueue(
+    List<MusicItem> tracks, {
+    int startIndex = 0,
+    Duration? initialPosition,
+  }) async {
     _playInterrupted = false;
     _queue.clear();
     _queue.addAll(tracks);
     _currentIndex = startIndex.clamp(0, tracks.length - 1);
     queue.add(_queue.map(_trackToMediaItem).toList());
-    debugPrint('[Queue] Loaded ${tracks.length} tracks, starting at index $_currentIndex');
-    await _loadCurrentTrack();
+    debugPrint('[Queue] Loaded ${tracks.length} tracks, starting at index $_currentIndex (initialPos=${initialPosition?.inSeconds}s)');
+    await _loadCurrentTrack(initialPosition: initialPosition);
   }
 
   Future<void> appendTrack(MusicItem track) async {
@@ -373,16 +424,24 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   // Core track loading
   // ---------------------------------------------------------------------------
 
-  Future<void> _loadCurrentTrack() async {
+  Future<void> _loadCurrentTrack({Duration? initialPosition}) async {
     if (_queue.isEmpty || _currentIndex < 0) return;
 
     final token = ++_activeLoadToken;
     final track = _queue[_currentIndex];
-    debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id}, token=$token)');
+    debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id}, token=$token, initialPos=${initialPosition?.inSeconds}s)');
 
     // 1. Smoothly fade out prior audio and invalidate loaded track identity so old track transitions cleanly.
     final wasPlaying = _player.playing || playbackState.value.playing;
+    _isLoadingTrack = true;
     _loadedAudioTrackId = null;
+
+    if (initialPosition != null && initialPosition > Duration.zero) {
+      _lastValidPosition = initialPosition;
+    } else {
+      _lastValidPosition = Duration.zero;
+    }
+
     try {
       if (_player.playing) {
         await fadeOutAndPause(duration: const Duration(milliseconds: 120));
@@ -404,13 +463,24 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       }
 
       if (token != _activeLoadToken) {
+        _isLoadingTrack = false;
         debugPrint('[Playback] Load completed but superseded (token $token vs $_activeLoadToken)');
         return;
       }
 
+      // Restore position if specified
+      if (_lastValidPosition > Duration.zero) {
+        debugPrint('[Playback] Restoring position to ${_lastValidPosition.inSeconds}s for "${track.title}"');
+        await _player.seek(_lastValidPosition);
+      }
+
+      _loadedAudioTrackId = track.id;
+      _isLoadingTrack = false;
+
       // 3. ONLY commit mediaItem after audio source has been prepared and verified successfully!
       mediaItem.add(_trackToMediaItem(track));
     } catch (e, stack) {
+      _isLoadingTrack = false;
       if (token != _activeLoadToken) {
         debugPrint('[Playback] Ignoring error for superseded track (token $token vs $_activeLoadToken)');
         return;
@@ -671,14 +741,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       '[Playback] Recovery attempt ${retryCount + 1}/$_kMaxYouTubeRetries for $videoId',
     );
 
-    final savedPosition = _player.position;
+    final savedPosition = _player.position > Duration.zero
+        ? _player.position
+        : (_lastValidPosition > Duration.zero ? _lastValidPosition : Duration.zero);
 
     try {
+      _isLoadingTrack = true;
       _pushPlaybackState(playerState: PlayerState(resumePlayback, ProcessingState.buffering));
       final freshUrl = await YouTubeAudioService()
           .getAudioStreamUrl(videoId, forceRefresh: true);
 
       if (token != _activeLoadToken) {
+        _isLoadingTrack = false;
         debugPrint('[Playback] Recovery discarded: superseded by newer track (token $token vs $_activeLoadToken)');
         return;
       }
@@ -686,10 +760,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (_currentIndex < 0 ||
           _currentIndex >= _queue.length ||
           _extractYouTubeVideoId(_queue[_currentIndex].id) != videoId) {
+        _isLoadingTrack = false;
         return;
       }
 
       if (freshUrl == null || freshUrl.isEmpty) {
+        _isLoadingTrack = false;
         debugPrint('[YouTubeResolver] Fresh URL still null on retry ${retryCount + 1}');
         await _recoverYouTubePlayback(
           videoId: videoId,
@@ -701,13 +777,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       }
 
       await _setAudioSourceUrl(freshUrl);
-      if (token != _activeLoadToken) return;
+      if (token != _activeLoadToken) {
+        _isLoadingTrack = false;
+        return;
+      }
 
       _loadedAudioTrackId = track.id;
 
       if (savedPosition > Duration.zero) {
+        _lastValidPosition = savedPosition;
         await _player.seek(savedPosition);
       }
+      _isLoadingTrack = false;
       debugPrint('[Playback] Recovery succeeded: audio source reloaded for $videoId at ${savedPosition.inSeconds}s');
 
       if (resumePlayback) {
@@ -715,6 +796,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         debugPrint('[Playback] Playback resumed after recovery for $videoId');
       }
     } catch (e) {
+      _isLoadingTrack = false;
       if (token != _activeLoadToken) return;
       debugPrint('[Playback] Recovery error (attempt ${retryCount + 1}) for $videoId: $e');
       await _recoverYouTubePlayback(
@@ -791,12 +873,26 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     final current = _queue[_currentIndex];
     if (_loadedAudioTrackId == null || !isSameTrackId(_loadedAudioTrackId, current.id)) {
       debugPrint(
-        '[Playback] play() blocked: active track "${current.title}" (${current.id}) '
-        'is not prepared in player (loaded: $_loadedAudioTrackId)',
+        '[Playback] play() unblocking: active track "${current.title}" (${current.id}) '
+        'is not prepared in player (loaded: $_loadedAudioTrackId) — reloading from lastValidPosition: ${_lastValidPosition.inSeconds}s',
       );
+      await _loadCurrentTrack(initialPosition: _lastValidPosition);
+      if (!kIsWeb) {
+        try {
+          final session = await AudioSession.instance;
+          await session.setActive(true);
+        } catch (_) {}
+      }
+      await _player.play();
       return;
     }
     try {
+      if (!kIsWeb) {
+        try {
+          final session = await AudioSession.instance;
+          await session.setActive(true);
+        } catch (_) {}
+      }
       await _player.play();
       debugPrint('[Playback] play() called for ${current.title}');
     } catch (e, stack) {
@@ -810,6 +906,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> pause() async {
     _playInterrupted = false;
+    if (_player.position > Duration.zero) {
+      _lastValidPosition = _player.position;
+    }
     await _player.pause();
     debugPrint('[Playback] pause() called');
   }
@@ -825,6 +924,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> seek(Duration position) async {
+    _lastValidPosition = position;
     await _player.seek(position);
     debugPrint('[Playback] seek(${position.inSeconds}s)');
   }
@@ -999,13 +1099,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> fastForward() async {
     final target = _player.position + _kSkipDuration;
     final duration = _player.duration ?? Duration.zero;
-    await _player.seek(target < duration ? target : duration);
+    final pos = target < duration ? target : duration;
+    _lastValidPosition = pos;
+    await _player.seek(pos);
   }
 
   @override
   Future<void> rewind() async {
     final target = _player.position - _kSkipDuration;
-    await _player.seek(target > Duration.zero ? target : Duration.zero);
+    final pos = target > Duration.zero ? target : Duration.zero;
+    _lastValidPosition = pos;
+    await _player.seek(pos);
   }
 
   @override

@@ -115,6 +115,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
           );
         }
       }
+      // Guard against transient zero-position emits during buffering, loading, or player recovery
+      if (pos == Duration.zero &&
+          (state.status == PlaybackStatus.loading ||
+              state.status == PlaybackStatus.error ||
+              _handler.isLoadingTrack) &&
+          state.position > Duration.zero) {
+        return;
+      }
       state = state.copyWith(position: pos);
     });
 
@@ -358,7 +366,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   // ── Playback ──────────────────────────────────────────────────────────────
 
-  Future<void> playTrack(MusicItem track, {String? playingFrom}) async {
+  Future<void> playTrack(
+    MusicItem track, {
+    String? playingFrom,
+    Duration? initialPosition,
+  }) async {
     // Prevent duplicate in-flight requests for the same track
     if (state.status == PlaybackStatus.loading &&
         state.loadingTrackId != null &&
@@ -411,6 +423,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     } catch (_) {}
 
     final isOnline = track.isYoutube;
+    final startPosition = initialPosition ?? Duration.zero;
 
     // 1. Immediately update UI state with selected track and loading status
     state = state.copyWith(
@@ -418,7 +431,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       currentTrack: track,
       loadingTrackId: isOnline ? track.id : null,
       clearLoadingTrackId: !isOnline,
-      position: Duration.zero,
+      position: startPosition,
       playingFrom: playingFrom ?? state.playingFrom,
       clearErrorMessage: true,
     );
@@ -475,7 +488,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
       final queueSnapshot = _queueManager.queue;
       final startIdx = targetIndex >= 0 ? targetIndex : 0;
-      await _handler.loadQueue(queueSnapshot, startIndex: startIdx);
+      await _handler.loadQueue(
+        queueSnapshot,
+        startIndex: startIdx,
+        initialPosition: startPosition > Duration.zero ? startPosition : null,
+      );
       if (token != _playRequestToken) return;
       await _handler.play();
       _recordRecentlyPlayed(resolvedTrack);
@@ -546,7 +563,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
   Future<void> play() async {
     if ((state.status == PlaybackStatus.idle || state.status == PlaybackStatus.error) &&
         state.currentTrack != null) {
-      await playTrack(state.currentTrack!);
+      final resumePos = state.position > Duration.zero ? state.position : null;
+      await playTrack(state.currentTrack!, initialPosition: resumePos);
     } else {
       await _handler.play();
     }

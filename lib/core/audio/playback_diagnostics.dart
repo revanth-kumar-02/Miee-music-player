@@ -13,7 +13,7 @@ class PlaybackDiagnostics {
   PlaybackDiagnostics._internal();
 
   /// Holds in-flight diagnostic timestamps for the active request.
-  _TrackTiming? _activeTiming;
+  TrackTiming? _activeTiming;
 
   /// Starts tracing a user song tap.
   void recordTap({
@@ -23,7 +23,7 @@ class PlaybackDiagnostics {
   }) {
     final sanitizedId = _sanitizeId(trackId);
     final now = DateTime.now();
-    _activeTiming = _TrackTiming(
+    _activeTiming = TrackTiming(
       sanitizedId: sanitizedId,
       sourceType: isYoutube ? 'YouTube' : 'Local',
       tapTime: now,
@@ -126,14 +126,14 @@ class PlaybackDiagnostics {
   }
 
   /// Helper to return current active timing for testing/asserting metrics.
-  _TrackTiming? get activeTiming => _activeTiming;
+  TrackTiming? get activeTiming => _activeTiming;
 
   String _sanitizeId(String id) {
     return id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '');
   }
 }
 
-class _TrackTiming {
+class TrackTiming {
   final String sanitizedId;
   final String sourceType;
   final DateTime tapTime;
@@ -148,7 +148,7 @@ class _TrackTiming {
   int totalLatencyMs = 0;
   bool isCacheHit = false;
 
-  _TrackTiming({
+  TrackTiming({
     required this.sanitizedId,
     required this.sourceType,
     required this.tapTime,
