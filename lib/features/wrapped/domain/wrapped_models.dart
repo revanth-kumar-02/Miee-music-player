@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/models/music_item.dart';
 
 /// Represents a single ranked song in Miee Wrapped.
 class WrappedTrackItem {
@@ -9,6 +10,8 @@ class WrappedTrackItem {
   final String? imageUrl;
   final int playCount;
   final int totalMinutes;
+  final bool isFavorited;
+  final MusicItem? musicItem; // For direct playback queue creation
 
   const WrappedTrackItem({
     required this.rank,
@@ -18,6 +21,8 @@ class WrappedTrackItem {
     this.imageUrl,
     required this.playCount,
     required this.totalMinutes,
+    this.isFavorited = false,
+    this.musicItem,
   });
 }
 
@@ -26,15 +31,81 @@ class WrappedArtistItem {
   final int rank;
   final String name;
   final int playCount;
-  final int totalMinutes;
+  final int songsCount;
+  final double totalHours;
   final String? imageUrl;
+  final String quote;
 
   const WrappedArtistItem({
     required this.rank,
     required this.name,
     required this.playCount,
-    required this.totalMinutes,
+    required this.songsCount,
+    required this.totalHours,
     this.imageUrl,
+    required this.quote,
+  });
+}
+
+/// Represents the top album in Miee Wrapped.
+class WrappedAlbumItem {
+  final String title;
+  final String artist;
+  final int playCount;
+  final double totalHours;
+  final String? artworkUrl;
+  final String quote;
+
+  const WrappedAlbumItem({
+    required this.title,
+    required this.artist,
+    required this.playCount,
+    required this.totalHours,
+    this.artworkUrl,
+    required this.quote,
+  });
+}
+
+/// Milestone event for the Music Timeline slide (Slide 7).
+class WrappedTimelineMilestone {
+  final String monthLabel; // e.g. "Jan", "Apr", "Jul", "Oct"
+  final String title;
+  final String description;
+  final String? imageUrl;
+
+  const WrappedTimelineMilestone({
+    required this.monthLabel,
+    required this.title,
+    required this.description,
+    this.imageUrl,
+  });
+}
+
+/// Language distribution item for Music Without Borders (Slide 8).
+class WrappedLanguageItem {
+  final String name;
+  final int percentage;
+  final Color color;
+
+  const WrappedLanguageItem({
+    required this.name,
+    required this.percentage,
+    required this.color,
+  });
+}
+
+/// Listening context / time pattern item (Slide 9).
+class WrappedContextItem {
+  final String label;
+  final String subLabel;
+  final int percentage;
+  final IconData icon;
+
+  const WrappedContextItem({
+    required this.label,
+    required this.subLabel,
+    required this.percentage,
+    required this.icon,
   });
 }
 
@@ -42,8 +113,8 @@ class WrappedArtistItem {
 class ListeningArchetype {
   final String id;
   final String title;
-  final String tagline;
   final String description;
+  final List<String> tags;
   final IconData icon;
   final Color primaryColor;
   final Color secondaryColor;
@@ -51,8 +122,8 @@ class ListeningArchetype {
   const ListeningArchetype({
     required this.id,
     required this.title,
-    required this.tagline,
     required this.description,
+    required this.tags,
     required this.icon,
     required this.primaryColor,
     required this.secondaryColor,
@@ -60,54 +131,54 @@ class ListeningArchetype {
 
   static const List<ListeningArchetype> allArchetypes = [
     ListeningArchetype(
-      id: 'nocturnal',
-      title: 'The Nocturnal Wanderer',
-      tagline: 'Music is your late-night sanctuary',
-      description: 'Most of your listening happened while the world was asleep. You gravitate towards deep, atmospheric melodies after dark.',
+      id: 'midnight',
+      title: 'The Midnight Listener',
+      description: 'You find your peace in the quiet hours, with music that keeps you company.',
+      tags: ['Late Night Vibes', 'Emotional Tracks', 'Consistent Listener'],
       icon: Icons.nightlight_round,
-      primaryColor: Color(0xFF6366F1), // Deep Indigo
-      secondaryColor: Color(0xFFC084FC),
-    ),
-    ListeningArchetype(
-      id: 'sunrise',
-      title: 'The Sunrise Architect',
-      tagline: 'First track before first coffee',
-      description: 'Your soundtrack starts at dawn. Morning energy sets your focus, powering productive days with rhythmic momentum.',
-      icon: Icons.wb_sunny_rounded,
-      primaryColor: Color(0xFFF59E0B), // Warm Amber
-      secondaryColor: Color(0xFFF97316),
-    ),
-    ListeningArchetype(
-      id: 'devotee',
-      title: 'The Sonic Devotee',
-      tagline: 'When you love an artist, you LOVE them',
-      description: 'You fall deep into favorite discographies and put top tracks on repeat until the lyrics become muscle memory.',
-      icon: Icons.favorite_rounded,
-      primaryColor: Color(0xFFE11D48), // Rose Crimson
-      secondaryColor: Color(0xFFFB7185),
+      primaryColor: Color(0xFFC87D6B), // Terracotta
+      secondaryColor: Color(0xFF7D9D8B), // Soft Sage
     ),
     ListeningArchetype(
       id: 'explorer',
-      title: 'The Endless Explorer',
-      tagline: 'An appetite for every sonic horizon',
-      description: 'Algorithms cannot pin you down. You bounce across artists, genres, and cultures with restless curiosity.',
+      title: 'The Explorer',
+      description: 'Your appetite for sound has no boundaries. You roam freely across moods, cultures, and continents.',
+      tags: ['Global Sounds', 'Endless Curiosity', 'Genre Hopper'],
       icon: Icons.explore_rounded,
-      primaryColor: Color(0xFF10B981), // Emerald
-      secondaryColor: Color(0xFF34D399),
+      primaryColor: Color(0xFF7D9D8B),
+      secondaryColor: Color(0xFFC87D6B),
     ),
     ListeningArchetype(
-      id: 'connoisseur',
-      title: 'The Melody Connoisseur',
-      tagline: 'Curating perfection, track by track',
-      description: 'You have a refined and balanced ear. Every listening session is intentional, spanning vibrant rhythms and quiet moments.',
-      icon: Icons.album_rounded,
-      primaryColor: Color(0xFFD78D9B), // Dusty Rose (Miee Signature)
+      id: 'repeat',
+      title: 'The Repeat Listener',
+      description: 'When you find a song you love, you live inside it until the melody becomes part of your soul.',
+      tags: ['Deep Devotion', 'Infinite Loop', 'Loyal Listener'],
+      icon: Icons.repeat_rounded,
+      primaryColor: Color(0xFFD78D9B),
       secondaryColor: Color(0xFFE9C9B7),
+    ),
+    ListeningArchetype(
+      id: 'curator',
+      title: 'The Mood Curator',
+      description: 'Every moment has a dedicated soundtrack. You craft emotional resonance through every playlist.',
+      tags: ['Vibe Architect', 'Sunset Melodies', 'Acoustic Soul'],
+      icon: Icons.filter_vintage_rounded,
+      primaryColor: Color(0xFFE9C9B7),
+      secondaryColor: Color(0xFF7D9D8B),
+    ),
+    ListeningArchetype(
+      id: 'loyalist',
+      title: 'The Album Loyalist',
+      description: 'You appreciate music as a complete body of work, listening from start to finish as the artist intended.',
+      tags: ['Front to Back', 'Sonic Purist', 'Vinyl Spirit'],
+      icon: Icons.album_rounded,
+      primaryColor: Color(0xFF3A252B),
+      secondaryColor: Color(0xFFD78D9B),
     ),
   ];
 }
 
-/// Complete aggregated statistical summary for Miee Wrapped.
+/// Complete aggregated statistical summary for Miee Wrapped across all 10 reference slides.
 class WrappedSummary {
   final int year;
   final String timeframeLabel;
@@ -115,8 +186,15 @@ class WrappedSummary {
   final double totalHours;
   final int totalTracks;
   final int totalArtists;
+  final int totalAlbums;
+  final int longestStreakDays;
+  final int totalLanguages;
   final List<WrappedTrackItem> topTracks;
-  final List<WrappedArtistItem> topArtists;
+  final WrappedArtistItem? topArtist;
+  final WrappedAlbumItem? topAlbum;
+  final List<WrappedTimelineMilestone> timelineMilestones;
+  final List<WrappedLanguageItem> languages;
+  final List<WrappedContextItem> listeningContexts;
   final ListeningArchetype archetype;
   final int peakHour;
   final String peakHourLabel;
@@ -133,8 +211,15 @@ class WrappedSummary {
     required this.totalHours,
     required this.totalTracks,
     required this.totalArtists,
+    required this.totalAlbums,
+    required this.longestStreakDays,
+    required this.totalLanguages,
     required this.topTracks,
-    required this.topArtists,
+    this.topArtist,
+    this.topAlbum,
+    required this.timelineMilestones,
+    required this.languages,
+    required this.listeningContexts,
     required this.archetype,
     required this.peakHour,
     required this.peakHourLabel,
@@ -146,5 +231,4 @@ class WrappedSummary {
   });
 
   WrappedTrackItem? get topTrack => topTracks.isNotEmpty ? topTracks.first : null;
-  WrappedArtistItem? get topArtist => topArtists.isNotEmpty ? topArtists.first : null;
 }

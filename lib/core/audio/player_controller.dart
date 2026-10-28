@@ -19,6 +19,7 @@ import '../../features/auth/providers/auth_providers.dart';
 import '../../features/history/providers/history_providers.dart';
 import '../../features/recommendations/providers/recommendation_providers.dart';
 import '../../features/profile/providers/profile_providers.dart';
+import '../../features/wrapped/data/playback_analytics_tracker.dart';
 
 import 'playback_diagnostics.dart';
 
@@ -36,6 +37,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   final MieeAudioHandler _handler;
   final QueueManager _queueManager;
   final Ref _ref;
+  late final PlaybackAnalyticsTracker _analyticsTracker;
 
   /// Monotonically increasing token to ignore stale async playTrack calls.
   int _playRequestToken = 0;
@@ -92,6 +94,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     // Attach dynamic queue replenishment hook to audio handler
     _handler.onQueueApproachingEnd = () => expandQueueIfNeeded();
 
+    _analyticsTracker = PlaybackAnalyticsTracker(
+      historyRepo: _ref.read(listeningHistoryRepositoryProvider),
+      getUid: () => _ref.read(currentAuthUserProvider)?.uid,
+    );
+
     // ── Position stream ───────────────────────────────────────────────────────
     // Only auto-recover from error state if the player is actively playing
     // and the position event belongs to the currently selected track.
@@ -124,6 +131,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
         return;
       }
       state = state.copyWith(position: pos);
+      _analyticsTracker.onPositionUpdated(pos, state.duration);
     });
 
     // ── Duration stream ───────────────────────────────────────────────────────
@@ -160,6 +168,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
           state = state.copyWith(currentTrack: queueList[index]);
           _persistQueueSnapshot();
           _recordRecentlyPlayed(queueList[index]);
+          _analyticsTracker.onTrackChanged(queueList[index]);
           unawaited(expandQueueIfNeeded());
         }
       }
@@ -204,6 +213,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
         clearErrorMessage: isHealthy,
         clearLoadingTrackId: clearLoading,
       );
+      _analyticsTracker.onPlaybackStatusChanged(status, state.currentTrack);
 
       // ── Completion handling ───────────────────────────────────────────────
       // IMPORTANT: MieeAudioHandler.skipToNext() is already called by the
@@ -796,6 +806,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   @override
   void dispose() {
+    _analyticsTracker.dispose();
     _positionSub?.cancel();
     _durationSub?.cancel();
     _bufferedSub?.cancel();
