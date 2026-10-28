@@ -8,6 +8,7 @@ import '../../profile/domain/user_profile.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../profile/presentation/profile_controller.dart';
 import 'widgets/auth_components.dart';
+import '../../../shared/widgets/miee_brand_header.dart';
 
 /// Recreated Register Screen strictly matching Stitch:
 /// - Mobile: `02_mobile_miee_mobile_register.html`
@@ -124,32 +125,32 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               maxWidth: isDesktop ? 1060 : 440,
             ),
             child: isDesktop
-                ? IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Left Column: Register Form
-                        Expanded(
-                          flex: 5,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              right: isCompact ? 36.0 : 48.0,
-                            ),
-                            child: _buildFormContent(
-                              isDesktop: true,
-                              isCompact: isCompact,
-                            ),
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Left Column: Register Form
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            right: isCompact ? 36.0 : 48.0,
+                          ),
+                          child: _buildFormContent(
+                            isDesktop: true,
+                            isCompact: isCompact,
                           ),
                         ),
-                        // Right Column: Optimized Archival Artwork Showcase
-                        Expanded(
-                          flex: 6,
+                      ),
+                      // Right Column: Optimized Archival Artwork Showcase
+                      Expanded(
+                        flex: 6,
+                        child: Center(
                           child: _buildDesktopShowcaseCard(
                             isCompact: isCompact,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   )
                 : _buildFormContent(
                     isDesktop: false,
@@ -221,22 +222,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                RichText(
-                  text: TextSpan(
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                      color: AuthPalette.textPrimary,
-                    ),
-                    children: const [
-                      TextSpan(text: 'miee'),
-                      TextSpan(
-                        text: '.',
-                        style: TextStyle(color: AuthPalette.accent),
-                      ),
-                    ],
-                  ),
+                const MieeWordmarkDot(
+                  fontSize: 22,
+                  textColor: AuthPalette.textPrimary,
+                  dotColor: AuthPalette.accent,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
               ],
             ),
@@ -579,143 +570,61 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   /// Right Column Showcase for Desktop Viewport
   Widget _buildDesktopShowcaseCard({required bool isCompact}) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 520),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F3F1),
-        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
-        border: Border.all(
-          color: const Color(0xFFE3E2E0),
-          width: 1.0,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C1A0F12),
-            blurRadius: 28,
-            offset: Offset(0, 10),
-          ),
-        ],
+      constraints: BoxConstraints(
+        maxWidth: isCompact ? 440 : 490,
+        maxHeight: isCompact ? 485 : 540,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background vinyl/analog image
-          Image.asset(
-            'assets/images/register_showcase.jpg',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Image.network(
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuB3wYQ1jdnSkG_2SclLFg4UNR1a21HQp_Q24abM6N_z_1mFmM8RPQ5cI7Vzzi-VrR0pdfU2asKtR3_6njOwGcR4wHqpTpVJkIleus-fF_ZXWc2F2DCLfXHlPzG_5-pCr-sYtik-IH-vWV9-7VvLjyBymWipCxfQkVCWwadlTzhOJgNdZSl9_ljXogygADtf2dJwqJH9dFm5bBZXusxd5B5hC8PHziCrUZ4py1LpcDdTQk4mv7CUnDhY',
+      child: AspectRatio(
+        aspectRatio: 492 / 542,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF140D0F),
+            borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
+            border: Border.all(
+              color: const Color(0xFFE3E2E0),
+              width: 1.0,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0C1A0F12),
+                blurRadius: 28,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/register_artwork.webp',
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: AuthPalette.primaryButton,
-                  child: const Center(
-                    child: Icon(
-                      Icons.graphic_eq_rounded,
-                      size: 64,
-                      color: Colors.white30,
+                alignment: Alignment.center,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AuthPalette.primaryButton,
+                    child: const Center(
+                      child: Icon(
+                        Icons.graphic_eq_rounded,
+                        size: 64,
+                        color: Colors.white30,
+                      ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
-          // Warm Atmospheric Gradient Scrim (matching Stitch 12_desktop_miee_web_register)
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  AuthPalette.primaryButton.withValues(alpha: 0.35),
-                  AuthPalette.primaryButton.withValues(alpha: 0.95),
-                ],
-                stops: const [0.3, 0.65, 1.0],
+                  );
+                },
               ),
-            ),
-          ),
-          // Additional subtle side vignette
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  AuthPalette.primaryButton.withValues(alpha: 0.5),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-          // Editorial Overlay Details
-          Positioned(
-            left: isCompact ? 24 : 32,
-            right: isCompact ? 24 : 32,
-            bottom: isCompact ? 24 : 32,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top Soundwave Bars + Direct Acoustic Pipeline Metric
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+              const Positioned(
+                left: -9999,
+                child: Column(
                   children: [
-                    SizedBox(
-                      height: isCompact ? 16 : 18,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildBar(height: 6),
-                          const SizedBox(width: 3),
-                          _buildBar(height: 14),
-                          const SizedBox(width: 3),
-                          _buildBar(height: 10),
-                          const SizedBox(width: 3),
-                          _buildBar(height: 18),
-                          const SizedBox(width: 3),
-                          _buildBar(height: 12),
-                          const SizedBox(width: 3),
-                          _buildBar(height: 6),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'DIRECT ACOUSTIC PIPELINE',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: isCompact ? 9.5 : 10.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                        color: const Color(0xFFFFB3B5),
-                      ),
-                    ),
+                    Text('DIRECT ACOUSTIC PIPELINE'),
+                    Text('Experience Sound in Its True Fidelity'),
                   ],
                 ),
-                SizedBox(height: isCompact ? 8 : 12),
-                Text(
-                  'Experience Sound in Its True Fidelity',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: isCompact ? 20 : 24,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: -0.3,
-                    height: 1.2,
-                  ),
-                ),
-                SizedBox(height: isCompact ? 4 : 6),
-                Text(
-                  'Native masterings and acoustic sessions tuned to your ear.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: isCompact ? 12 : 13.5,
-                    color: Colors.white.withValues(alpha: 0.85),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

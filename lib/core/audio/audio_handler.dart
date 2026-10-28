@@ -49,6 +49,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   @visibleForTesting
   bool get playInterrupted => _playInterrupted;
 
+  /// Indicates whether this device is a listener in a shared listening room.
+  /// When true, track completion NEVER autonomously advances playback
+  /// via [skipToNext]. Instead, the listener waits for the host's authoritative
+  /// room state update.
+  bool _isRoomListener = false;
+  bool get isRoomListener => _isRoomListener;
+
+  void setRoomListener(bool value) {
+    debugPrint('[AudioHandler] setRoomListener: $value');
+    _isRoomListener = value;
+  }
+
   /// Monotonically increasing token to discard stale in-flight loads
   /// when a user rapidly selects a different song.
   int _activeLoadToken = 0;
@@ -221,6 +233,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     // Handle track completion — advance to next track.
     // NOTE: PlayerController must NOT also handle completed, as that causes double-skip.
     if (playerState.processingState == ProcessingState.completed) {
+      if (_isRoomListener) {
+        debugPrint('[Queue] Room listener reached track completion; waiting for host update.');
+        return;
+      }
       debugPrint('[Queue] Track completed at index $_currentIndex, advancing queue');
       skipToNext();
     }
@@ -361,16 +377,20 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id}, token=$token)');
 
     // 1. Smoothly fade out prior audio and invalidate loaded track identity so old track transitions cleanly.
+    final wasPlaying = _player.playing || playbackState.value.playing;
     _loadedAudioTrackId = null;
     try {
       if (_player.playing) {
         await fadeOutAndPause(duration: const Duration(milliseconds: 120));
       }
-      await _player.stop();
+      // Note: Do NOT call _player.stop() here. Calling stop unloads ExoPlayer and
+      // signals the Android OS that media playback is inactive, which drops media wake locks
+      // and causes Android to suspend YouTube network resolution when the screen is turned off.
     } catch (_) {}
 
-    // 2. Push loading state for OS, lock screen, and UI
-    _pushPlaybackState(playerState: PlayerState(false, ProcessingState.loading));
+    // 2. Push buffering state for OS, lock screen, and UI.
+    // Retain playing: wasPlaying so audio_service retains Android media playback wake locks while screen is off.
+    _pushPlaybackState(playerState: PlayerState(wasPlaying, ProcessingState.buffering));
 
     try {
       if (track.isYoutube) {
@@ -650,7 +670,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     final savedPosition = _player.position;
 
     try {
-      _pushPlaybackState(playerState: PlayerState(false, ProcessingState.loading));
+      _pushPlaybackState(playerState: PlayerState(resumePlayback, ProcessingState.buffering));
       final freshUrl = await YouTubeAudioService()
           .getAudioStreamUrl(videoId, forceRefresh: true);
 

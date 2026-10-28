@@ -58,6 +58,7 @@ class RoomMember {
   final String userId;
   final String role; // 'host' or 'listener'
   final String? displayName;
+  final String? username;
   final String? avatarUrl;
   final DateTime joinedAt;
   final DateTime lastSeenAt;
@@ -68,6 +69,7 @@ class RoomMember {
     required this.userId,
     required this.role,
     this.displayName,
+    this.username,
     this.avatarUrl,
     required this.joinedAt,
     required this.lastSeenAt,
@@ -81,6 +83,7 @@ class RoomMember {
       userId: map['user_id'] as String,
       role: map['role'] as String? ?? 'listener',
       displayName: (profile?['display_name'] ?? map['display_name']) as String?,
+      username: (profile?['username'] ?? map['username']) as String?,
       avatarUrl: (profile?['avatar_url'] ?? map['avatar_url']) as String?,
       joinedAt: map['joined_at'] != null
           ? DateTime.parse(map['joined_at'] as String)
@@ -98,6 +101,7 @@ class RoomMember {
       'user_id': userId,
       'role': role,
       'display_name': displayName,
+      'username': username,
       'avatar_url': avatarUrl,
       'joined_at': joinedAt.toIso8601String(),
       'last_seen_at': lastSeenAt.toIso8601String(),
@@ -110,6 +114,7 @@ class RoomMember {
     String? userId,
     String? role,
     String? displayName,
+    String? username,
     String? avatarUrl,
     DateTime? joinedAt,
     DateTime? lastSeenAt,
@@ -120,6 +125,7 @@ class RoomMember {
       userId: userId ?? this.userId,
       role: role ?? this.role,
       displayName: displayName ?? this.displayName,
+      username: username ?? this.username,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       joinedAt: joinedAt ?? this.joinedAt,
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
@@ -138,6 +144,7 @@ class RoomPlaybackState {
   final List<Map<String, dynamic>> queue;
   final String playbackStatus; // 'playing', 'paused', 'buffering', 'stopped'
   final int positionMs;
+  final int revision;
   final DateTime updatedAt;
   final String? updatedBy;
 
@@ -152,6 +159,7 @@ class RoomPlaybackState {
     this.queue = const [],
     this.playbackStatus = 'paused',
     this.positionMs = 0,
+    this.revision = 1,
     required this.updatedAt,
     this.updatedBy,
   });
@@ -171,6 +179,7 @@ class RoomPlaybackState {
           const [],
       playbackStatus: map['playback_status'] as String? ?? 'paused',
       positionMs: (map['position_ms'] as num?)?.toInt() ?? 0,
+      revision: (map['revision'] as num?)?.toInt() ?? 1,
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : DateTime.now(),
@@ -190,6 +199,7 @@ class RoomPlaybackState {
       'queue': queue,
       'playback_status': playbackStatus,
       'position_ms': positionMs,
+      'revision': revision,
       'updated_at': updatedAt.toIso8601String(),
       'updated_by': updatedBy,
     };
@@ -205,6 +215,7 @@ class RoomPlaybackState {
     List<Map<String, dynamic>>? queue,
     String? playbackStatus,
     int? positionMs,
+    int? revision,
     DateTime? updatedAt,
     String? updatedBy,
   }) {
@@ -219,6 +230,7 @@ class RoomPlaybackState {
       queue: queue ?? this.queue,
       playbackStatus: playbackStatus ?? this.playbackStatus,
       positionMs: positionMs ?? this.positionMs,
+      revision: revision ?? this.revision,
       updatedAt: updatedAt ?? this.updatedAt,
       updatedBy: updatedBy ?? this.updatedBy,
     );

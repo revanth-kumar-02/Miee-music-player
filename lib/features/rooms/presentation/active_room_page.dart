@@ -887,24 +887,56 @@ class _ActiveRoomPageState extends ConsumerState<ActiveRoomPage> {
             itemBuilder: (context, index) {
               final member = roomState.members[index];
               final isMemberHost = member.role == 'host';
+              final displayName = member.displayName?.trim();
+              final username = member.username?.trim();
+              final hasDisplayName = displayName != null && displayName.isNotEmpty;
+              final hasUsername = username != null && username.isNotEmpty;
+
+              final primaryName = hasDisplayName
+                  ? displayName!
+                  : (hasUsername ? username! : (isMemberHost ? 'Host' : 'Listener ${index + 1}'));
+              final handleSubtitle = (hasDisplayName && hasUsername && displayName != username)
+                  ? (username.startsWith('@') ? username : '@$username')
+                  : null;
 
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: isMemberHost
                       ? AppColors.dustyRose.withOpacity(0.2)
                       : AppColors.cocoaPlum.withOpacity(0.1),
-                  child: isMemberHost
-                      ? const Icon(Icons.star_rounded, color: AppColors.dustyRose, size: 20)
-                      : const Icon(Icons.person_rounded, color: AppColors.cocoaPlum, size: 20),
+                  backgroundImage: (member.avatarUrl != null && member.avatarUrl!.isNotEmpty)
+                      ? NetworkImage(member.avatarUrl!)
+                      : null,
+                  child: (member.avatarUrl == null || member.avatarUrl!.isEmpty)
+                      ? (isMemberHost
+                          ? const Icon(Icons.star_rounded, color: AppColors.dustyRose, size: 20)
+                          : Text(
+                              primaryName.isNotEmpty ? primaryName[0].toUpperCase() : 'L',
+                              style: GoogleFonts.geist(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.cocoaPlum,
+                              ),
+                            ))
+                      : null,
                 ),
                 title: Text(
-                  member.displayName ?? (isMemberHost ? 'Room Host' : 'Listener ${index + 1}'),
+                  primaryName,
                   style: GoogleFonts.geist(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.cocoaPlum,
                   ),
                 ),
+                subtitle: handleSubtitle != null
+                    ? Text(
+                        handleSubtitle,
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          color: AppColors.cocoaPlum.withOpacity(0.55),
+                        ),
+                      )
+                    : null,
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(

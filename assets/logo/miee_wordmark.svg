@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 160" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 160" fill="none">
   <!--
     Miee Wordmark — Direction 1
-    Lowercase "miee" typographic wordmark.
+    Lowercase "miee." typographic wordmark with canonical burgundy accent dot.
     The two "e" characters carry a distinctive crosshair/grid signature
     formed by a horizontal bar bisecting the circular counter and a vertical bar
     through the centre — referencing the brand's audio/waveform identity.
-    Color: off-white #F0EDE8 on transparent (compose over dark #0D0D0D background).
+    Color: off-white #F0EDE8 and accent dot #BA0032 on transparent.
   -->
 
   <!-- m -->
@@ -48,4 +48,7 @@
     <!-- Vertical crosshair bar -->
     <line x1="40" y1="0" x2="40" y2="80" stroke="#F0EDE8" stroke-width="14" stroke-linecap="round"/>
   </g>
+
+  <!-- Canonical burgundy dot immediately after final e -->
+  <circle cx="516" cy="120" r="10" fill="#BA0032"/>
 </svg>

@@ -237,8 +237,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final height = media.size.height;
     final isDesktop = width >= 900;
+    final isCompact = height < 860;
 
     return PopScope(
       canPop: false,
@@ -248,14 +251,39 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         }
       },
       child: AuthScaffold(
-        desktopHeader: const AuthDesktopHeader(),
-        desktopFooter: const AuthDesktopFooter(),
+        desktopHeader: AuthDesktopHeader(isCompact: isCompact),
+        desktopFooter: AuthDesktopFooter(isCompact: isCompact),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 440,
+            constraints: BoxConstraints(
+              maxWidth: isDesktop ? 1060 : 440,
             ),
-            child: _buildFormContent(isDesktop: isDesktop),
+            child: isDesktop
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Left Column: Login Form
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            right: isCompact ? 36.0 : 48.0,
+                          ),
+                          child: _buildFormContent(isDesktop: true),
+                        ),
+                      ),
+                      // Right Column: Optimized Archival Artwork Showcase
+                      Expanded(
+                        flex: 6,
+                        child: Center(
+                          child: _buildDesktopShowcaseCard(
+                            isCompact: isCompact,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : _buildFormContent(isDesktop: false),
           ),
         ),
       ),
@@ -368,45 +396,51 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              InkWell(
-                onTap: () => setState(() => _rememberMe = !_rememberMe),
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: Checkbox(
-                          value: _rememberMe,
-                          onChanged: (val) {
-                            setState(() => _rememberMe = val ?? false);
-                          },
-                          activeColor: AuthPalette.primaryButton,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          side: const BorderSide(
-                            color: AuthPalette.inputBorder,
-                            width: 1.5,
+              Flexible(
+                child: InkWell(
+                  onTap: () => setState(() => _rememberMe = !_rememberMe),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: Checkbox(
+                            value: _rememberMe,
+                            onChanged: (val) {
+                              setState(() => _rememberMe = val ?? false);
+                            },
+                            activeColor: AuthPalette.primaryButton,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            side: const BorderSide(
+                              color: AuthPalette.inputBorder,
+                              width: 1.5,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Remember me',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                          color: AuthPalette.textMuted,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Remember me',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: AuthPalette.textMuted,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: _showForgotPasswordDialog,
                 child: Text(
@@ -432,8 +466,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           const SizedBox(height: 24),
 
           // Footer: Don't have an account? Create account
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 "Don't have an account?",
@@ -485,4 +520,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  Widget _buildDesktopShowcaseCard({required bool isCompact}) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: isCompact ? 440 : 490,
+        maxHeight: isCompact ? 478 : 533,
+      ),
+      child: AspectRatio(
+        aspectRatio: 500 / 544,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF140D0F),
+            borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
+            border: Border.all(
+              color: const Color(0xFFE3E2E0),
+              width: 1.0,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0C1A0F12),
+                blurRadius: 28,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/images/login_artwork.webp',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: AuthPalette.primaryButton,
+              child: const Center(
+                child: Icon(
+                  Icons.music_note_rounded,
+                  size: 64,
+                  color: Colors.white30,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+

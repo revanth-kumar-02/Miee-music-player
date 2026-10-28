@@ -654,6 +654,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
   }
 
+  /// Sets whether the current client is a listener in a listening room.
+  /// When true, autonomous completion skips in AudioHandler are suppressed.
+  void setRoomListener(bool value) {
+    _handler.setRoomListener(value);
+  }
+
   // ── Disposal ───────────────────────────────────────────────────────────────
 
   @override

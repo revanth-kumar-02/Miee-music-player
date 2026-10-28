@@ -6,6 +6,8 @@ import '../../../core/sync/supabase_config.dart';
 import '../domain/room_models.dart';
 
 class RoomRepository {
+  final Map<String, RealtimeChannel> _activeChannels = {};
+
   SupabaseClient? get _client {
     if (!SupabaseConfig.hasActiveSupabase) return null;
     try {
@@ -129,7 +131,7 @@ class RoomRepository {
       final userIds = members.map((m) => m.userId).toList();
       final profilesRes = await client
           .from('profiles')
-          .select('id, display_name, avatar_url')
+          .select('id, display_name, username, avatar_url')
           .inFilter('id', userIds);
 
       final profileMap = {
@@ -142,12 +144,14 @@ class RoomRepository {
         if (prof != null) {
           return m.copyWith(
             displayName: prof['display_name'] as String?,
+            username: prof['username'] as String?,
             avatarUrl: prof['avatar_url'] as String?,
           );
         }
         return m;
       }).toList();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[RoomRepository] getRoomMembers profiles query error: $e');
       return members;
     }
   }
@@ -178,6 +182,7 @@ class RoomRepository {
       'queue': state.queue,
       'playback_status': state.playbackStatus,
       'position_ms': state.positionMs,
+      'revision': state.revision,
       'updated_at': DateTime.now().toIso8601String(),
       'updated_by': userId,
     });
@@ -255,6 +260,7 @@ class RoomRepository {
     }
 
     String? displayName = user.userMetadata?['display_name'] as String? ??
+        user.userMetadata?['username'] as String? ??
         user.userMetadata?['name'] as String? ??
         user.email?.split('@').first;
     String? avatarUrl = user.userMetadata?['avatar_url'] as String?;
@@ -262,14 +268,22 @@ class RoomRepository {
     try {
       final profile = await client
           .from('profiles')
-          .select('display_name, avatar_url')
+          .select('display_name, username, avatar_url')
           .eq('id', user.id)
           .maybeSingle();
       if (profile != null) {
-        if (profile['display_name'] != null) displayName = profile['display_name'] as String?;
+        final profUsername = profile['username'] as String?;
+        final profDisplayName = profile['display_name'] as String?;
+        if (profUsername != null && profUsername.trim().isNotEmpty) {
+          displayName = profUsername.trim();
+        } else if (profDisplayName != null && profDisplayName.trim().isNotEmpty) {
+          displayName = profDisplayName.trim();
+        }
         if (profile['avatar_url'] != null) avatarUrl = profile['avatar_url'] as String?;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[RoomRepository] sendMessage profile query fallback: $e');
+    }
 
     final now = DateTime.now();
     final insertData = {
@@ -288,7 +302,22 @@ class RoomRepository {
     };
 
     final res = await client.from('room_messages').insert(insertData).select().single();
-    return RoomMessage.fromMap(res);
+    final message = RoomMessage.fromMap(res);
+
+    // Broadcast across realtime channel for immediate low-latency peer delivery
+    final activeChannel = _activeChannels[roomId];
+    if (activeChannel != null) {
+      try {
+        await activeChannel.sendBroadcastMessage(
+          event: 'room_chat',
+          payload: res,
+        );
+      } catch (e) {
+        debugPrint('[RoomRepository] Realtime broadcast send error: $e');
+      }
+    }
+
+    return message;
   }
 
   /// Subscribes to Supabase Realtime channel for room updates.
@@ -303,9 +332,34 @@ class RoomRepository {
     if (client == null) return null;
 
     final channelName = 'room:$roomId';
+
+    // Clean up existing channel if already tracked
+    final oldChannel = _activeChannels.remove(roomId);
+    if (oldChannel != null) {
+      try {
+        client.removeChannel(oldChannel);
+      } catch (_) {}
+    }
+
     final channel = client.channel(channelName);
 
     channel
+        .onBroadcast(
+          event: 'room_chat',
+          callback: (payload) {
+            try {
+              final payloadMap = Map<String, dynamic>.from(payload);
+              final msgMap = payloadMap['message'] is Map
+                  ? Map<String, dynamic>.from(payloadMap['message'] as Map)
+                  : payloadMap;
+              if (msgMap.isNotEmpty && msgMap['id'] != null) {
+                onMessageReceived?.call(RoomMessage.fromMap(msgMap));
+              }
+            } catch (e) {
+              debugPrint('[RoomRepository] Realtime broadcast message error: $e');
+            }
+          },
+        )
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -379,8 +433,25 @@ class RoomRepository {
             }
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          debugPrint('[RoomRepository] Realtime channel $channelName status: $status, error: $error');
+        });
 
+    _activeChannels[roomId] = channel;
     return channel;
+  }
+
+  /// Removes and unsubscribes the channel for [roomId].
+  Future<void> unsubscribeChannel(String roomId) async {
+    final client = _client;
+    final channel = _activeChannels.remove(roomId);
+    if (channel != null && client != null) {
+      try {
+        await client.removeChannel(channel);
+        debugPrint('[RoomRepository] Cleaned up realtime channel for room: $roomId');
+      } catch (e) {
+        debugPrint('[RoomRepository] removeChannel error: $e');
+      }
+    }
   }
 }

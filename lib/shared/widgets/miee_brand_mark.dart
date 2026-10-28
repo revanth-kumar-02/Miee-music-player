@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import 'miee_brand_header.dart';
 
 /// Centralized brand emblem and wordmark matching the Stitch Design System.
 ///
@@ -74,22 +75,12 @@ class MieeBrandMark extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          RichText(
-            text: TextSpan(
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: fontSize,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
-                color: textColor,
-              ),
-              children: [
-                const TextSpan(text: 'miee'),
-                TextSpan(
-                  text: '.',
-                  style: TextStyle(color: dotColor),
-                ),
-              ],
-            ),
+          MieeWordmarkDot(
+            fontSize: fontSize,
+            textColor: textColor,
+            dotColor: dotColor,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
           ),
         ],
       );
@@ -125,31 +116,12 @@ class MieeBrandMark extends StatelessWidget {
         ),
         if (showWordmark) ...[
           const SizedBox(height: 10),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                'miee',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(width: 2),
-              Container(
-                width: fontSize * 0.25,
-                height: fontSize * 0.25,
-                margin: const EdgeInsets.only(bottom: 2),
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
+          MieeWordmarkDot(
+            fontSize: fontSize,
+            textColor: textColor,
+            dotColor: dotColor,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
           ),
         ],
       ],

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../auth/presentation/widgets/auth_components.dart';
+import '../../../shared/widgets/miee_brand_header.dart';
 import '../domain/artist_model.dart';
 import '../providers/onboarding_providers.dart';
 export '../../../shared/widgets/artist_avatar.dart';
@@ -140,22 +141,12 @@ class _ArtistSelectionPageState extends ConsumerState<ArtistSelectionPage> {
             children: [
               Row(
                 children: [
-                  RichText(
-                    text: TextSpan(
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                        color: AuthPalette.textPrimary,
-                      ),
-                      children: const [
-                        TextSpan(text: 'miee'),
-                        TextSpan(
-                          text: '.',
-                          style: TextStyle(color: AuthPalette.accent),
-                        ),
-                      ],
-                    ),
+                  const MieeWordmarkDot(
+                    fontSize: 20,
+                    textColor: AuthPalette.textPrimary,
+                    dotColor: AuthPalette.accent,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
                   ),
                   const SizedBox(width: 10),
                   Container(

@@ -128,6 +128,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/bd34315ef977a62a9e28c1ab19bb8ac4/500x500-000000-80-0-0.jpg',
       fanCount: 284432,
       languages: ['Tamil', 'Hindi', 'Telugu'],
+      bio: 'Academy and Grammy Award-winning Indian composer, producer, and singer celebrated for redefining modern Indian cinema soundtracks.',
     ),
     ArtistModel(
       id: '1516162',
@@ -135,6 +136,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9da0a547b39e99bc35c6a9724aef91bf/500x500-000000-80-0-0.jpg',
       fanCount: 53583,
       languages: ['Tamil', 'Telugu', 'Hindi'],
+      bio: 'Leading Indian composer and viral music producer prominent across modern Tamil, Telugu, and Hindi blockbuster cinema.',
     ),
     ArtistModel(
       id: '101677',
@@ -142,6 +144,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/aeeca2a4b9f808c8e8f5d281b1fb48d0/500x500-000000-80-0-0.jpg',
       fanCount: 13159,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Legendary Indian maestro credited with composing over 7,000 songs, pioneering the fusion of Western classical orchestration with Indian folk traditions.',
     ),
     ArtistModel(
       id: '1216625',
@@ -149,6 +152,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/fbe3e1d17fc6958e047f011f74233f82/500x500-000000-80-0-0.jpg',
       fanCount: 18160,
       languages: ['Tamil', 'Telugu', 'Malayalam'],
+      bio: 'Celebrated Carnatic vocalist and contemporary playback singer renowned for soulful chart-topping soundtrack anthems.',
     ),
     ArtistModel(
       id: '4325950',
@@ -156,6 +160,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/74004fed94dddf9ae2d7c83084eaf1ad/500x500-000000-80-0-0.jpg',
       fanCount: 9529,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Innovative composer celebrated for blending acoustic blues, traditional folk percussion, and unconventional cinematic melodies.',
     ),
     ArtistModel(
       id: '3847661',
@@ -163,6 +168,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/1dbf7d81a2e964d9c707e53478407974/500x500-000000-80-0-0.jpg',
       fanCount: 14686,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Influential composer and producer credited with introducing modern hip-hop, trance, and electronic aesthetics to South Indian music.',
     ),
     ArtistModel(
       id: '362663',
@@ -170,6 +176,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/b10caf45eae518a2b16997874ded7143/500x500-000000-80-0-0.jpg',
       fanCount: 20723,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Acclaimed music director known for lush electronic arrangements, memorable melodic hooks, and contemporary acoustic styling.',
     ),
     ArtistModel(
       id: '6346288',
@@ -177,6 +184,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/bc28fc5d771e2702dab60c447225fcaf/500x500-000000-80-0-0.jpg',
       fanCount: 21607,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Pioneering Tamil hip-hop duo and composers who brought independent rap music into mainstream South Indian culture.',
     ),
     ArtistModel(
       id: '1528950',
@@ -184,6 +192,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/49a5afd37d3b385fb5f174cdeec46611/500x500-000000-80-0-0.jpg',
       fanCount: 6783,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Popular composer, singer, and actor renowned for breakthrough commercial melodies and energetic film soundtracks.',
     ),
     ArtistModel(
       id: '4102526',
@@ -191,6 +200,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/4305ff5feb2f773006e9ab559a22063a/500x500-000000-80-0-0.jpg',
       fanCount: 15323,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Accomplished composer, vocalist, and actor delivering diverse, critically acclaimed film soundtracks across multiple genres.',
     ),
     ArtistModel(
       id: '4513306',
@@ -198,6 +208,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/87c0266a02406bc9c500bd3620d1d52b/500x500-000000-80-0-0.jpg',
       fanCount: 1188,
       languages: ['Tamil', 'Telugu'],
+      bio: 'Soulful singer-songwriter and acoustic guitarist recognized for emotive indie folk and expressive film ballads.',
     ),
     ArtistModel(
       id: '298792',
@@ -205,6 +216,7 @@ class DeezerArtistRepository implements ArtistRepository {
       imageUrl: 'https://cdn-images.dzcdn.net/images/artist/b7f064e7e78b9bf3eb1ac62839c731cd/500x500-000000-80-0-0.jpg',
       fanCount: 12276,
       languages: ['Tamil'],
+      bio: 'National Award-winning music director recognized for authentic rural melodies and emotive orchestral compositions.',
     ),
     ArtistModel(
       id: '98323',

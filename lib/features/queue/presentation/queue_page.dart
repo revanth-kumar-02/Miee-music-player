@@ -174,10 +174,13 @@ class QueuePage extends ConsumerWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Playing Queue',
-                                    style: AppTypography.headlineLargeMobile.copyWith(
-                                      color: AppColors.onSurface,
+                                  Expanded(
+                                    child: Text(
+                                      'Playing Queue',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.headlineLargeMobile.copyWith(
+                                        color: AppColors.onSurface,
+                                      ),
                                     ),
                                   ),
                                   IconButton(

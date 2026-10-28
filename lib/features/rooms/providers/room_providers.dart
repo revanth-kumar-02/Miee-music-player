@@ -77,6 +77,8 @@ class RoomController extends StateNotifier<RoomState> {
   Timer? _seekDebounceTimer;
   DateTime _lastSeekSync = DateTime.fromMillisecondsSinceEpoch(0);
   bool _isApplyingRemoteUpdate = false;
+  int _stateRevision = 1;
+  int _lastAppliedRevision = 0;
 
   RoomController(this._repo, this._ref) : super(const RoomState()) {
     _initHostPlaybackListener();
@@ -100,9 +102,11 @@ class RoomController extends StateNotifier<RoomState> {
     final isPaused = next.status == PlaybackStatus.paused;
     final isBuffering = next.status == PlaybackStatus.buffering;
 
+    // Never broadcast 'stopped' while transitioning between tracks on host.
+    // Broadcast 'buffering' instead to keep listeners in sync while next track resolves.
     final statusStr = isPlaying
         ? 'playing'
-        : (isBuffering ? 'buffering' : (isPaused ? 'paused' : 'stopped'));
+        : (isBuffering ? 'buffering' : (isPaused ? 'paused' : 'buffering'));
 
     // Check if track changed
     final trackChanged = prev?.currentTrack?.id != currentTrack?.id;
@@ -152,6 +156,7 @@ class RoomController extends StateNotifier<RoomState> {
       'isYoutube': t.isYoutube,
     }).toList();
 
+    _stateRevision++;
     final roomPlayback = RoomPlaybackState(
       roomId: roomId,
       currentTrackId: track?.id,
@@ -163,6 +168,7 @@ class RoomController extends StateNotifier<RoomState> {
       queue: queueMaps,
       playbackStatus: status,
       positionMs: positionMs,
+      revision: _stateRevision,
       updatedAt: DateTime.now(),
     );
 
@@ -182,6 +188,10 @@ class RoomController extends StateNotifier<RoomState> {
   }) async {
     state = state.copyWith(isLoading: true, clearErrorMessage: true);
     try {
+      _stateRevision = 1;
+      _lastAppliedRevision = 0;
+      _ref.read(playerControllerProvider.notifier).setRoomListener(false);
+
       if (clearQueue) {
         final playerCtrl = _ref.read(playerControllerProvider.notifier);
         playerCtrl.clearQueue();
@@ -241,6 +251,11 @@ class RoomController extends StateNotifier<RoomState> {
       final playbackState = await _repo.getRoomState(roomId);
       final messages = await _repo.getRoomMessages(roomId);
 
+      _lastAppliedRevision = playbackState?.revision ?? 0;
+      if (!isHost) {
+        _ref.read(playerControllerProvider.notifier).setRoomListener(true);
+      }
+
       state = state.copyWith(
         activeRoom: room,
         members: members,
@@ -272,6 +287,14 @@ class RoomController extends StateNotifier<RoomState> {
     _subscription = _repo.subscribeToRoom(
       roomId: roomId,
       onStateChanged: (newState) {
+        if (newState.revision <= _lastAppliedRevision) {
+          debugPrint(
+            '[RoomController] Discarding stale state update '
+            '(incoming rev ${newState.revision} <= applied $_lastAppliedRevision)',
+          );
+          return;
+        }
+        _lastAppliedRevision = newState.revision;
         state = state.copyWith(playbackState: newState);
         if (!state.isHost) {
           _syncListenerPlayback(newState);
@@ -310,7 +333,18 @@ class RoomController extends StateNotifier<RoomState> {
     state = state.copyWith(isSyncing: true, syncStatusText: 'Syncing with host...');
 
     try {
-      // 1. Check if track needs to change
+      // 1. Sync remote queue to listener's local QueueManager
+      final remoteQueue = remoteState.queue;
+      if (remoteQueue.isNotEmpty) {
+        final queueManager = _ref.read(queueManagerProvider);
+        final tracks = remoteQueue.map((m) => _buildTrackFromQueueMap(m)).toList();
+        final currentIdx = tracks.indexWhere(
+          (t) => isSameTrackId(t.id, remoteState.currentTrackId ?? ''),
+        );
+        queueManager.setQueue(tracks, startIndex: currentIdx >= 0 ? currentIdx : 0);
+      }
+
+      // 2. Check if track needs to change
       final remoteTrackId = remoteState.currentTrackId;
       if (remoteTrackId != null &&
           (currentLocalTrack == null ||
@@ -319,7 +353,7 @@ class RoomController extends StateNotifier<RoomState> {
         await playerCtrl.playTrack(trackToPlay, playingFrom: 'Room: ${state.activeRoom?.name}');
       }
 
-      // 2. Play / Pause status synchronization
+      // 3. Play / Pause status synchronization
       final isRemotePlaying = remoteState.playbackStatus == 'playing';
       final isLocalPlaying = localState.status == PlaybackStatus.playing;
 
@@ -329,9 +363,11 @@ class RoomController extends StateNotifier<RoomState> {
         await playerCtrl.pause();
       }
 
-      // 3. Position drift correction
+      // 4. Position drift correction with clock skew protection
       final now = DateTime.now();
-      final elapsedSinceUpdate = now.difference(remoteState.updatedAt).inMilliseconds;
+      final rawElapsed = now.difference(remoteState.updatedAt).inMilliseconds;
+      // Clamp between 0 and 15 seconds to mitigate clock discrepancies across devices
+      final elapsedSinceUpdate = rawElapsed.clamp(0, 15000);
       final expectedPosMs = isRemotePlaying
           ? (remoteState.positionMs + elapsedSinceUpdate)
           : remoteState.positionMs;
@@ -339,12 +375,13 @@ class RoomController extends StateNotifier<RoomState> {
       final localPosMs = localState.position.inMilliseconds;
       final drift = (localPosMs - expectedPosMs).abs();
 
-      // Only seek if drift > 2500ms and last seek was not within 3 seconds
+      // Only seek if drift > 3500ms and last seek was not within 3 seconds
       final canSeek = now.difference(_lastSeekSync).inSeconds >= 3;
-      if (drift > 2500 && canSeek) {
+      if (drift > 3500 && canSeek) {
         _lastSeekSync = now;
+        final maxDur = remoteState.durationMs > 0 ? remoteState.durationMs : expectedPosMs;
         final targetPosition = Duration(
-          milliseconds: expectedPosMs.clamp(0, remoteState.durationMs > 0 ? remoteState.durationMs : expectedPosMs),
+          milliseconds: expectedPosMs.clamp(0, maxDur),
         );
         await playerCtrl.seek(targetPosition);
       }
@@ -384,6 +421,36 @@ class RoomController extends StateNotifier<RoomState> {
     final m = d.inMinutes;
     final s = d.inSeconds % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  MusicItem _buildTrackFromQueueMap(Map<String, dynamic> m) {
+    final id = m['id'] as String? ?? 'unknown';
+    final isYoutube = m['isYoutube'] as bool? ?? true;
+    final title = m['title'] as String? ?? 'Unknown Song';
+    final artist = m['artist'] as String? ?? 'Artist';
+    final imageUrl = m['imageUrl'] as String? ?? '';
+    final durationMs = (m['durationMs'] as num?)?.toInt() ?? 0;
+    final formattedDuration = _formatDurationString(durationMs);
+
+    if (isYoutube) {
+      final cleanId = id.startsWith('youtube_') ? id.replaceFirst('youtube_', '') : id;
+      return YouTubeVideo(
+        id: cleanId,
+        title: title,
+        channelTitle: artist,
+        thumbnailUrl: imageUrl,
+        duration: formattedDuration,
+        viewCount: '',
+      );
+    } else {
+      return Track(
+        id: id,
+        title: title,
+        artist: artist,
+        imageUrl: imageUrl,
+        duration: formattedDuration,
+      );
+    }
   }
 
   MusicItem _buildTrackFromRemote(RoomPlaybackState s) {
@@ -609,6 +676,12 @@ class RoomController extends StateNotifier<RoomState> {
     _subscription?.unsubscribe();
     _subscription = null;
     _seekDebounceTimer?.cancel();
+    final activeRoomId = state.activeRoom?.id;
+    if (activeRoomId != null) {
+      unawaited(_repo.unsubscribeChannel(activeRoomId));
+    }
+    _lastAppliedRevision = 0;
+    _ref.read(playerControllerProvider.notifier).setRoomListener(false);
   }
 
   @override

@@ -134,10 +134,14 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         uriPath == '/rooms' ||
         location.startsWith('/rooms/') ||
         uriPath.startsWith('/rooms/');
+    final isQueueRoute = location == '/queue' ||
+        uriPath == '/queue' ||
+        location.startsWith('/queue/') ||
+        uriPath.startsWith('/queue/');
 
     // Detail screens where mobile bottom nav is hidden
     final hideBottomNav = (isNowPlayingRoute ||
-        location == '/queue' ||
+        isQueueRoute ||
         location == '/' ||
         location.startsWith('/playlist/') ||
         location.startsWith('/album/') ||
@@ -149,13 +153,19 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
 
     // ── MOBILE & COMPACT TABLET LAYOUT ──
     if (!isDesktop) {
+      final hideMiniPlayer = isNowPlayingRoute ||
+          isSettingsRoute ||
+          isRoomRoute ||
+          isQueueRoute ||
+          !hasTrack;
+
       return Scaffold(
         backgroundColor: AppColors.vanillaCream,
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
-            // Floating MiniPlayer (Hidden on full Now Playing, Settings, and all Room screens)
-            if (!isNowPlayingRoute && !isSettingsRoute && !isRoomRoute && hasTrack)
+            // Floating MiniPlayer (Hidden on full Now Playing, Settings, all Room screens, and Queue)
+            if (!hideMiniPlayer)
               Positioned(
                 left: AppSpacing.sm,
                 right: AppSpacing.sm,
@@ -314,29 +324,12 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                       ),
                     ),
                   )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        'miee',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.8,
-                          color: MieeWebColors.textDark,
-                        ),
-                      ),
-                      Container(
-                        width: 7,
-                        height: 7,
-                        margin: const EdgeInsets.only(left: 3),
-                        decoration: const BoxDecoration(
-                          color: MieeWebColors.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
+                : const MieeWordmarkDot(
+                    fontSize: 24,
+                    textColor: MieeWebColors.textDark,
+                    dotColor: MieeWebColors.primaryContainer,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
                   ),
           ),
 
@@ -1578,27 +1571,14 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                   tooltip: 'Close panel',
                   onPressed: onClose,
                 ),
-                Column(
-                  children: [
-                    Text(
-                      'NOW PLAYING',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                        color: MieeWebColors.outline,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Hi-Fi Direct Stream',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: MieeWebColors.primaryContainer,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'NOW PLAYING',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    color: MieeWebColors.outline,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(

@@ -49,6 +49,8 @@ class ArtistModel {
   final List<String> genres;
   final List<String> languages;
 
+  final String? bio;
+
   const ArtistModel({
     required this.id,
     required this.name,
@@ -56,6 +58,7 @@ class ArtistModel {
     this.fanCount = 0,
     this.genres = const [],
     this.languages = const [],
+    this.bio,
   });
 
   ArtistModel copyWith({
@@ -65,6 +68,7 @@ class ArtistModel {
     int? fanCount,
     List<String>? genres,
     List<String>? languages,
+    String? bio,
   }) {
     return ArtistModel(
       id: id ?? this.id,
@@ -73,6 +77,7 @@ class ArtistModel {
       fanCount: fanCount ?? this.fanCount,
       genres: genres ?? this.genres,
       languages: languages ?? this.languages,
+      bio: bio ?? this.bio,
     );
   }
 

@@ -7,39 +7,46 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_shadows.dart';
 import '../../app/theme/app_spacing.dart';
 
-/// The canonical Stitch Miee wordmark with the signature crimson dot.
+/// The canonical Stitch Miee wordmark with the signature crimson dot (`miee.`).
 class MieeWordmarkDot extends StatelessWidget {
   final double fontSize;
   final Color textColor;
   final Color dotColor;
+  final FontWeight fontWeight;
+  final double? letterSpacing;
 
   const MieeWordmarkDot({
     super.key,
     this.fontSize = 22,
     this.textColor = const Color(0xFF1A0F12),
     this.dotColor = const Color(0xFFBA0032),
+    this.fontWeight = FontWeight.w800,
+    this.letterSpacing,
   });
 
   @override
   Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.6,
-          color: textColor,
-        ),
-        children: [
-          const TextSpan(text: 'miee'),
-          TextSpan(
-            text: '.',
-            style: TextStyle(
-              color: dotColor,
-              fontWeight: FontWeight.w900,
-            ),
+    return Semantics(
+      label: 'miee.',
+      child: RichText(
+        text: TextSpan(
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            letterSpacing: letterSpacing ?? -0.6,
+            color: textColor,
           ),
-        ],
+          children: [
+            const TextSpan(text: 'miee'),
+            TextSpan(
+              text: '.',
+              style: TextStyle(
+                color: dotColor,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
