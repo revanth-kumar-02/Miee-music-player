@@ -61,6 +61,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _isRoomListener = value;
   }
 
+  /// Optional callback invoked when playback approaches the end of the queue
+  /// to dynamically replenish upcoming tracks without interrupting playback.
+  Future<void> Function()? onQueueApproachingEnd;
+
   /// Monotonically increasing token to discard stale in-flight loads
   /// when a user rapidly selects a different song.
   int _activeLoadToken = 0;
@@ -877,6 +881,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     if (_player.playing) {
       await fadeOutAndPause(duration: const Duration(milliseconds: 140));
     }
+
+    // If approaching the end of the queue, notify queue expansion listener in background
+    if (!_isRoomListener && _currentIndex >= _queue.length - 2) {
+      unawaited(onQueueApproachingEnd?.call());
+    }
+
     if (_currentIndex < _queue.length - 1) {
       _currentIndex++;
       debugPrint('[Queue] skipToNext → index $_currentIndex');
@@ -885,6 +895,40 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         await play();
       } catch (e) {
         debugPrint('[Queue] skipToNext failed: $e');
+      }
+    } else if (!_isRoomListener && onQueueApproachingEnd != null) {
+      // At the end of queue: await dynamic expansion before giving up
+      debugPrint('[Queue] skipToNext: at last track, awaiting dynamic queue replenishment...');
+      try {
+        await onQueueApproachingEnd!();
+      } catch (e) {
+        debugPrint('[Queue] onQueueApproachingEnd failed: $e');
+      }
+      if (_currentIndex < _queue.length - 1) {
+        _currentIndex++;
+        debugPrint('[Queue] skipToNext: queue expanded successfully → advancing to index $_currentIndex');
+        try {
+          await _loadCurrentTrack();
+          await play();
+          return;
+        } catch (e) {
+          debugPrint('[Queue] skipToNext expanded track load failed: $e');
+        }
+      }
+
+      // If repeat all is on, wrap around; otherwise stop
+      if (_player.loopMode == LoopMode.all && _queue.isNotEmpty) {
+        _currentIndex = 0;
+        debugPrint('[Queue] skipToNext: LoopMode.all wrap-around → index 0');
+        try {
+          await _loadCurrentTrack();
+          await play();
+        } catch (e) {
+          debugPrint('[Queue] skipToNext wrap failed: $e');
+        }
+      } else {
+        debugPrint('[Queue] skipToNext: no further tracks available, stopping');
+        await _player.stop();
       }
     } else if (_player.loopMode == LoopMode.all && _queue.isNotEmpty) {
       _currentIndex = 0;

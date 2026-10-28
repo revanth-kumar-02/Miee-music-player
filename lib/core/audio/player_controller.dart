@@ -12,9 +12,13 @@ import 'queue_manager.dart';
 import '../../features/media/providers/media_providers.dart';
 import '../../features/media/domain/models.dart';
 import '../../features/youtube/providers/youtube_providers.dart';
+import '../../features/youtube/domain/youtube_model.dart';
+import '../../features/youtube/domain/music_result_classifier.dart';
 import '../../features/library/providers/library_providers.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/history/providers/history_providers.dart';
+import '../../features/recommendations/providers/recommendation_providers.dart';
+import '../../features/profile/providers/profile_providers.dart';
 
 import 'playback_diagnostics.dart';
 
@@ -38,6 +42,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   /// Monotonically increasing token to ignore stale async recommendation queue responses.
   int _queueGenerationToken = 0;
+
+  /// Guard to prevent concurrent in-flight queue expansion operations.
+  bool _isExpandingQueue = false;
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -81,6 +88,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
       _queueManager.setQueue([]);
       state = PlaybackState.initial();
     }
+
+    // Attach dynamic queue replenishment hook to audio handler
+    _handler.onQueueApproachingEnd = () => expandQueueIfNeeded();
 
     // ── Position stream ───────────────────────────────────────────────────────
     // Only auto-recover from error state if the player is actively playing
@@ -142,6 +152,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
           state = state.copyWith(currentTrack: queueList[index]);
           _persistQueueSnapshot();
           _recordRecentlyPlayed(queueList[index]);
+          unawaited(expandQueueIfNeeded());
         }
       }
     });
@@ -275,6 +286,67 @@ class PlayerController extends StateNotifier<PlaybackState> {
     debugLog('[Queue] Appended ${freshTracks.length} diverse upcoming tracks to Next Up');
   }
 
+  /// Automatically replenishes the playback queue when 2 or fewer tracks remain.
+  ///
+  /// For Listening Rooms:
+  /// - Suppressed for listeners; the room Host alone controls automatic queue replenishment.
+  /// - The host's expansion is broadcast to listeners via room state synchronization.
+  Future<void> expandQueueIfNeeded() async {
+    if (_handler.isRoomListener) {
+      return;
+    }
+    if (_isExpandingQueue) return;
+
+    final queue = _queueManager.queue;
+    final currentIndex = _queueManager.currentIndex;
+    if (queue.isEmpty || currentIndex < 0) return;
+
+    final remaining = queue.length - 1 - currentIndex;
+    if (remaining > 2) return;
+
+    final current = _queueManager.currentTrack;
+    if (current == null) return;
+
+    _isExpandingQueue = true;
+    debugLog('[QueueExpansion] Queue approaching exhaustion ($remaining tracks remaining). Fetching recommendations...');
+
+    try {
+      final recService = _ref.read(recommendationServiceProvider);
+      final profile = _ref.read(currentUserProfileProvider);
+      final upcoming = await recService.getUpcomingQueueRecommendations(
+        currentTrack: current,
+        currentQueue: queue,
+        profile: profile,
+        limit: 10,
+      );
+
+      if (upcoming.isNotEmpty) {
+        final currentIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
+        final currentKeys = _queueManager.queue
+            .map((t) => '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}')
+            .toSet();
+
+        final freshTracks = upcoming.where((t) {
+          final normId = _normalizeTrackId(t.id);
+          final key = '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}';
+          return !currentIds.contains(normId) && !currentKeys.contains(key);
+        }).toList();
+
+        if (freshTracks.isNotEmpty) {
+          _queueManager.addTracks(freshTracks);
+          await _handler.appendTracks(freshTracks);
+          _persistQueueSnapshot();
+          state = state.copyWith(currentTrack: _queueManager.currentTrack);
+          debugLog('[QueueExpansion] Successfully appended ${freshTracks.length} fresh tracks. Total queue size: ${_queueManager.queue.length}');
+        }
+      }
+    } catch (e) {
+      debugLog('[QueueExpansion] Dynamic queue expansion failed: $e');
+    } finally {
+      _isExpandingQueue = false;
+    }
+  }
+
   Future<void> skipToQueueItem(int index) async {
     if (index < 0 || index >= _queueManager.queue.length) return;
     _queueManager.setIndex(index);
@@ -293,6 +365,31 @@ class PlayerController extends StateNotifier<PlaybackState> {
         isSameTrackId(state.loadingTrackId, track.id)) {
       debugLog('[Playback] Tap ignored: track ${track.id} is already in-flight');
       return;
+    }
+
+    // Validate that online YouTube content represents genuine music
+    if (track.isYoutube) {
+      final rawT = (track is Track) ? (track.rawTitle ?? track.title) : track.title;
+      final rawA = (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
+      final candidate = YouTubeVideo(
+        id: track.id.replaceFirst('youtube_', ''),
+        title: track.title,
+        channelTitle: track.artist,
+        thumbnailUrl: track.imageUrl,
+        duration: track.duration,
+        viewCount: '',
+        rawTitle: rawT,
+        rawChannelTitle: rawA,
+      );
+      if (!MusicResultClassifier.isValidMusicTrack(candidate)) {
+        debugLog('[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
+        state = state.copyWith(
+          status: PlaybackStatus.error,
+          clearLoadingTrackId: true,
+          errorMessage: 'This video is not a recognized music track.',
+        );
+        return;
+      }
     }
 
     final token = ++_playRequestToken;
@@ -382,6 +479,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (token != _playRequestToken) return;
       await _handler.play();
       _recordRecentlyPlayed(resolvedTrack);
+      unawaited(expandQueueIfNeeded());
     } catch (e) {
       if (token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
@@ -436,7 +534,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     try {
       final repo = _ref.read(youtubeRepositoryProvider);
       final results = await repo.search('$title $artist');
-      if (results.isNotEmpty) return results.first;
+      for (final result in results) {
+        if (MusicResultClassifier.isValidMusicTrack(result)) {
+          return result;
+        }
+      }
     } catch (_) {}
     return null;
   }
@@ -487,6 +589,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   Future<void> next() async {
+    // If approaching the end of the queue, begin expansion in background
+    if (_queueManager.currentIndex >= _queueManager.queue.length - 2) {
+      unawaited(expandQueueIfNeeded());
+    }
+
     final nextTrack = _queueManager.next();
     if (nextTrack != null) {
       await playTrack(nextTrack);
@@ -495,6 +602,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
       _queueManager.setIndex(0);
       final firstTrack = _queueManager.currentTrack;
       if (firstTrack != null) await playTrack(firstTrack);
+    } else if (!_handler.isRoomListener) {
+      // Reached queue end in non-repeat mode: attempt replenishment before stopping
+      await expandQueueIfNeeded();
+      final expandedTrack = _queueManager.next();
+      if (expandedTrack != null) {
+        await playTrack(expandedTrack);
+      }
     }
   }
 

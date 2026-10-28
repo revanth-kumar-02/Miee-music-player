@@ -47,6 +47,7 @@ class YouTubeDataSource {
           'part': 'snippet',
           'q': cleanQuery,
           'type': 'video',
+          'videoCategoryId': '10', // Restrict YouTube Data API searches to Music category
           'maxResults': maxResults,
           'key': _apiKey,
         },

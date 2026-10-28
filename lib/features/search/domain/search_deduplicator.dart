@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import '../../youtube/domain/youtube_model.dart';
+import '../../youtube/domain/music_result_classifier.dart';
 
 /// Represents genuinely distinct recording version categories.
 enum VersionType {
@@ -26,6 +27,7 @@ enum EditType {
   audioModified,   // bass audio, bass boosted, 8D audio
   promoTeaser,     // promo, teaser, trailer, preview, promo video, glimpse
   documentaryMaking, // documentary, making of, behind the scenes, interview
+  nonMusicEntertainment, // comedy clips, podcasts, talk shows, vlogs, reactions, gaming, sketches
 }
 
 /// Configuration for view-count ranking, edit filtering, and candidate pruning.
@@ -155,12 +157,14 @@ class SearchDeduplicator {
   }) {
     if (videos.isEmpty) return const [];
 
-    // 1. Deduplicate by unique YouTube Video ID first
+    // 1. Deduplicate by unique YouTube Video ID first and filter out confirmed non-music items
     final seenIds = <String>{};
     final uniqueVideos = <YouTubeVideo>[];
     for (final video in videos) {
       if (video.id.isNotEmpty && seenIds.add(video.id)) {
-        uniqueVideos.add(video);
+        if (MusicResultClassifier.isValidMusicTrack(video, query: query)) {
+          uniqueVideos.add(video);
+        }
       }
     }
 
@@ -247,9 +251,13 @@ class SearchDeduplicator {
         }
       }
 
-      // Safe fallback: If filtering would eliminate every result (e.g. indie/regional song
-      // or only edits exist for this query), retain the candidate pool so the user isn't left empty.
-      final resultPool = canonicalList.isNotEmpty ? canonicalList : candidateList;
+      // Safe fallback: If filtering would eliminate every result because all were edits,
+      // retain candidateList ONLY if it contains valid music tracks (not non-music entertainment).
+      final validCandidates = candidateList
+          .where((v) => detectEditType(v, intent) != EditType.nonMusicEntertainment)
+          .toList();
+      final resultPool = canonicalList.isNotEmpty ? canonicalList : validCandidates;
+      if (resultPool.isEmpty) return const [];
 
       // Sort by global candidate score (relevance, official authenticity, view count)
       resultPool.sort((a, b) {
@@ -785,8 +793,16 @@ class SearchDeduplicator {
       if (durationSeconds >= 75 && durationSeconds <= 480) {
         score += 20;
       } else if (durationSeconds > 900) {
-        // More than 15 minutes is almost certainly a loop, playlist, or 10-hour compilation
-        score -= 150;
+        // Demote long duration unless it is classical, symphony, or live concert
+        final isClassicalOrConcert = rawTitle.contains('symphony') ||
+            rawTitle.contains('classical') ||
+            rawTitle.contains('concert') ||
+            rawTitle.contains('raga') ||
+            rawTitle.contains('live at') ||
+            rawTitle.contains('extended mix');
+        if (!isClassicalOrConcert) {
+          score -= 150;
+        }
       } else if (durationSeconds < 40) {
         // Less than 40 seconds is likely a ringtone, teaser, or preview
         score -= 100;
@@ -881,6 +897,11 @@ class SearchDeduplicator {
 
   /// Identifies derivative / edit upload types unless explicitly requested in query intent.
   static EditType detectEditType(YouTubeVideo video, QueryIntent intent) {
+    // 0. Non-music entertainment check (comedy, podcasts, vlogs, reactions, web series, roasts, etc.)
+    if (!MusicResultClassifier.isValidMusicTrack(video, query: intent.normalizedQuery)) {
+      return EditType.nonMusicEntertainment;
+    }
+
     final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
     final cleanTitle = video.title.toLowerCase();
     final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();

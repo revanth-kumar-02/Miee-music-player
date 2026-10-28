@@ -3,6 +3,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
 import '../domain/youtube_model.dart';
 import '../domain/youtube_metadata_cleaner.dart';
 import '../domain/youtube_failures.dart';
+import '../domain/music_result_classifier.dart';
 import '../../search/domain/search_deduplicator.dart';
 import '../../onboarding/domain/artist_model.dart';
 import 'youtube_data_source.dart';
@@ -33,7 +34,14 @@ class YouTubeRepository {
 
     if (_searchCache.containsKey(cleanQuery)) {
       debugPrint('YouTubeRepository: Cache hit for "$cleanQuery"');
-      return _searchCache[cleanQuery]!;
+      final cached = _searchCache[cleanQuery]!;
+      // Re-validate cached entries against music classification rules
+      final validCached = MusicResultClassifier.filterAndRankMusicTracks(cached, query: cleanQuery);
+      if (validCached.isNotEmpty) {
+        return validCached;
+      }
+      // If cached items fail validation (e.g. stale non-music videos), evict and re-fetch
+      _searchCache.remove(cleanQuery);
     }
 
     List<YouTubeVideo> results = [];
@@ -78,14 +86,17 @@ class YouTubeRepository {
       }
     }
 
-    if (results.isNotEmpty) {
+    // Filter out non-music entertainment and prioritize verified music releases
+    final validResults = MusicResultClassifier.filterAndRankMusicTracks(results, query: cleanQuery);
+
+    if (validResults.isNotEmpty) {
       if (_searchCache.length >= _maxCacheSize) {
         _searchCache.remove(_searchCache.keys.first);
       }
-      _searchCache[cleanQuery] = results;
+      _searchCache[cleanQuery] = validResults;
     }
 
-    return results;
+    return validResults;
   }
 
   /// Fetches diverse, high-relevance upcoming tracks seeded by [seedVideo].
@@ -118,21 +129,23 @@ class YouTubeRepository {
               rawChannel: rel.author,
             );
 
-            candidateTracks.add(
-              YouTubeVideo(
-                id: relId,
-                title: cleaned.title,
-                channelTitle: cleaned.artist,
-                thumbnailUrl: rel.thumbnails.mediumResUrl.isNotEmpty
-                    ? rel.thumbnails.mediumResUrl
-                    : 'https://i.ytimg.com/vi/$relId/hqdefault.jpg',
-                duration: durationStr,
-                viewCount: _formatViewCount(rel.engagement.viewCount),
-                rawTitle: rel.title,
-                rawChannelTitle: rel.author,
-                rawViewCount: rel.engagement.viewCount,
-              ),
+            final candidate = YouTubeVideo(
+              id: relId,
+              title: cleaned.title,
+              channelTitle: cleaned.artist,
+              thumbnailUrl: rel.thumbnails.mediumResUrl.isNotEmpty
+                  ? rel.thumbnails.mediumResUrl
+                  : 'https://i.ytimg.com/vi/$relId/hqdefault.jpg',
+              duration: durationStr,
+              viewCount: _formatViewCount(rel.engagement.viewCount),
+              rawTitle: rel.title,
+              rawChannelTitle: rel.author,
+              rawViewCount: rel.engagement.viewCount,
             );
+
+            if (MusicResultClassifier.isValidMusicTrack(candidate)) {
+              candidateTracks.add(candidate);
+            }
           }
         }
       } catch (e) {
@@ -160,6 +173,7 @@ class YouTubeRepository {
     final filtered = candidateTracks.where((track) {
       if (track.id == seedVideo.id) return false;
       if (SearchDeduplicator.isSameCanonicalSong(track, seedVideo)) return false;
+      if (!MusicResultClassifier.isValidMusicTrack(track)) return false;
       return true;
     }).toList();
 
@@ -207,19 +221,21 @@ class YouTubeRepository {
             rawChannel: channelTitle,
           );
 
-          candidateVideos.add(
-            YouTubeVideo(
-              id: videoId,
-              title: cleaned.title,
-              channelTitle: cleaned.artist,
-              thumbnailUrl: thumbnailUrl,
-              duration: durationStr,
-              viewCount: viewCountStr,
-              rawTitle: title,
-              rawChannelTitle: channelTitle,
-              rawViewCount: rawViews,
-            ),
+          final candidate = YouTubeVideo(
+            id: videoId,
+            title: cleaned.title,
+            channelTitle: cleaned.artist,
+            thumbnailUrl: thumbnailUrl,
+            duration: durationStr,
+            viewCount: viewCountStr,
+            rawTitle: title,
+            rawChannelTitle: channelTitle,
+            rawViewCount: rawViews,
           );
+
+          if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+            candidateVideos.add(candidate);
+          }
         }
       }
 
@@ -345,19 +361,21 @@ class YouTubeRepository {
         rawChannel: channelTitle,
       );
 
-      candidateVideos.add(
-        YouTubeVideo(
-          id: videoId,
-          title: cleaned.title,
-          channelTitle: cleaned.artist,
-          thumbnailUrl: thumbnailUrl,
-          duration: durationStr,
-          viewCount: viewCountStr,
-          rawTitle: title,
-          rawChannelTitle: channelTitle,
-          rawViewCount: viewsRaw,
-        ),
+      final candidate = YouTubeVideo(
+        id: videoId,
+        title: cleaned.title,
+        channelTitle: cleaned.artist,
+        thumbnailUrl: thumbnailUrl,
+        duration: durationStr,
+        viewCount: viewCountStr,
+        rawTitle: title,
+        rawChannelTitle: channelTitle,
+        rawViewCount: viewsRaw,
       );
+
+      if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+        candidateVideos.add(candidate);
+      }
     }
 
     // Heuristic scoring to prioritize official audio / releases

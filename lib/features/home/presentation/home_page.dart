@@ -951,18 +951,21 @@ class _HomePageState extends ConsumerState<HomePage> {
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
+    final trendingList = sections.trendingTracks.isNotEmpty
+        ? sections.trendingTracks
+        : sections.popularTracks;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 1. Popular Tracks ────────────────────────────────────────────────
-        if (sections.popularTracks.isNotEmpty) ...[
+        // ── 1. Trending Now (Official Top Charts) ────────────────────────────
+        if (trendingList.isNotEmpty) ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildSectionTitle('Popular Tracks'),
+              _buildSectionTitle('Trending Now'),
               Text(
-                '${sections.popularTracks.length} tracks',
+                '${trendingList.length} tracks',
                 style: GoogleFonts.geist(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -973,7 +976,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Trending individual songs by verified artists',
+            'Official top charts and popular releases',
             style: GoogleFonts.geist(
               fontSize: 13,
               color: AppColors.mutedMauve,
@@ -981,19 +984,20 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           const SizedBox(height: 14),
 
-          // Responsive grid/row of popular song cards
+          // Responsive grid/row of trending song cards
           if (isDesktop) ...[
             Wrap(
               spacing: 16,
               runSpacing: 14,
               children: [
-                for (final track in sections.popularTracks)
+                for (int i = 0; i < trendingList.length; i++)
                   _buildPopularTrackCard(
                     context,
-                    track,
-                    currentTrack?.id == track.id,
-                    sections.popularTracks,
+                    trendingList[i],
+                    currentTrack?.id == trendingList[i].id,
+                    trendingList,
                     width: (screenWidth - 56 - 32) / 3,
+                    rankIndex: i + 1,
                   ),
               ],
             ),
@@ -1003,21 +1007,55 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
-                itemCount: sections.popularTracks.length,
+                itemCount: trendingList.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  final track = sections.popularTracks[index];
+                  final track = trendingList[index];
                   return _buildPopularTrackCard(
                     context,
                     track,
                     currentTrack?.id == track.id,
-                    sections.popularTracks,
+                    trendingList,
                     width: 270,
+                    rankIndex: index + 1,
                   );
                 },
               ),
             ),
           ],
+          const SizedBox(height: 36),
+        ],
+
+        // ── 1.5 Recent Releases (Distinguished by Release Date) ──────────────
+        if (sections.recentReleases.isNotEmpty) ...[
+          _buildSectionTitle('Recent Releases'),
+          const SizedBox(height: 6),
+          Text(
+            'Freshly released singles and songs',
+            style: GoogleFonts.geist(
+              fontSize: 13,
+              color: AppColors.mutedMauve,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 200,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: sections.recentReleases.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 16),
+              itemBuilder: (context, index) {
+                final track = sections.recentReleases[index];
+                return _buildRecentReleaseCard(
+                  context,
+                  track,
+                  currentTrack?.id == track.id,
+                  sections.recentReleases,
+                );
+              },
+            ),
+          ),
           const SizedBox(height: 36),
         ],
 
@@ -1220,12 +1258,127 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Widget _buildRecentReleaseCard(
+    BuildContext context,
+    MusicItem track,
+    bool isPlaying,
+    List<MusicItem> queue,
+  ) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final isTrackLoading = ref.watch(
+          playerControllerProvider.select((s) =>
+              s.loadingTrackId != null &&
+              isSameTrackId(s.loadingTrackId, track.id)),
+        );
+
+        return GestureDetector(
+          onTap: isTrackLoading
+              ? null
+              : () {
+                  ref.read(playerControllerProvider.notifier).selectTrack(
+                        track,
+                        queue,
+                        playingFrom: 'Recent Releases',
+                      );
+                },
+          child: SizedBox(
+            width: 144,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.network(
+                        track.imageUrl,
+                        width: 144,
+                        height: 144,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 144,
+                          height: 144,
+                          color: AppColors.softClay,
+                          child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.cocoaPlum.withOpacity(0.75),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'NEW',
+                          style: GoogleFonts.geist(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                            color: AppColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (isPlaying)
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.dustyRose,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.equalizer_rounded,
+                            color: AppColors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.geist(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isPlaying ? AppColors.dustyRose : AppColors.cocoaPlum,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    color: AppColors.mutedMauve,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPopularTrackCard(
     BuildContext context,
     MusicItem track,
     bool isPlaying,
     List<MusicItem> queue, {
     required double width,
+    int? rankIndex,
   }) {
     return Consumer(
       builder: (context, ref, _) {
@@ -1242,7 +1395,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ref.read(playerControllerProvider.notifier).selectTrack(
                         track,
                         queue,
-                        playingFrom: 'Popular Tracks',
+                        playingFrom: 'Trending Now',
                       );
                 },
           borderRadius: BorderRadius.circular(14),
@@ -1268,6 +1421,23 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             child: Row(
               children: [
+                if (rankIndex != null) ...[
+                  SizedBox(
+                    width: 20,
+                    child: Text(
+                      '$rankIndex',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.geist(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: (isPlaying || isTrackLoading)
+                            ? AppColors.dustyRose
+                            : AppColors.mutedMauve.withOpacity(0.8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: Image.network(

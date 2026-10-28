@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import '../../features/youtube/domain/youtube_model.dart';
+import '../../features/youtube/domain/music_result_classifier.dart';
 import 'playback_diagnostics.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -223,12 +225,27 @@ class YouTubeAudioService {
               ? jsonDecode(res.data as String) as Map<String, dynamic>
               : Map<String, dynamic>.from(res.data as Map);
           final list = data['results'] as List<dynamic>? ?? [];
-          if (list.isNotEmpty && list.first is Map) {
-            final item = list.first as Map;
-            final id = (item['id'] ?? '').toString();
-            if (id.isNotEmpty) {
-              debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via web proxy');
-              return id;
+          for (final raw in list) {
+            if (raw is Map) {
+              final id = (raw['id'] ?? '').toString();
+              final title = (raw['title'] ?? '').toString();
+              final artist = (raw['artist'] ?? '').toString();
+              if (id.isNotEmpty) {
+                final candidate = YouTubeVideo(
+                  id: id,
+                  title: title,
+                  channelTitle: artist,
+                  thumbnailUrl: '',
+                  duration: '3:30',
+                  viewCount: '',
+                  rawTitle: title,
+                  rawChannelTitle: artist,
+                );
+                if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+                  debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via web proxy');
+                  return id;
+                }
+              }
             }
           }
         }
@@ -238,10 +255,24 @@ class YouTubeAudioService {
     } else {
       try {
         final results = await _yt.search.search(cleanQuery);
-        if (results.isNotEmpty) {
-          final id = results.first.id.value;
-          debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via YoutubeExplode');
-          return id;
+        for (final video in results) {
+          final candidate = YouTubeVideo(
+            id: video.id.value,
+            title: video.title,
+            channelTitle: video.author,
+            thumbnailUrl: video.thumbnails.highResUrl,
+            duration: video.duration != null
+                ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
+                : '3:30',
+            viewCount: '',
+            rawTitle: video.title,
+            rawChannelTitle: video.author,
+          );
+          if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+            final id = video.id.value;
+            debugPrint('[YouTubeAudioService] Resolved valid music video ID "$id" for query "$cleanQuery" via YoutubeExplode');
+            return id;
+          }
         }
       } catch (e) {
         debugPrint('[YouTubeAudioService] Native query search failed for "$cleanQuery": $e');

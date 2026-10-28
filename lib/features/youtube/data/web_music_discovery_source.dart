@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../domain/youtube_model.dart';
 import '../domain/youtube_metadata_cleaner.dart';
+import '../domain/music_result_classifier.dart';
 import '../../../core/audio/youtube_audio_service.dart';
 
 /// Supported, policy-compliant music discovery source for web and fallback environments.
@@ -146,19 +147,21 @@ class WebMusicDiscoverySource {
             rawChannel: artist,
           );
 
-          candidateVideos.add(
-            YouTubeVideo(
-              id: videoId,
-              title: cleaned.title,
-              channelTitle: cleaned.artist,
-              thumbnailUrl: thumb,
-              duration: durationStr,
-              viewCount: 'Verified Song',
-              rawTitle: title,
-              rawChannelTitle: artist,
-              audioStreamUrl: null, // Full audio stream resolved on demand
-            ),
+          final candidate = YouTubeVideo(
+            id: videoId,
+            title: cleaned.title,
+            channelTitle: cleaned.artist,
+            thumbnailUrl: thumb,
+            duration: durationStr,
+            viewCount: 'Verified Song',
+            rawTitle: title,
+            rawChannelTitle: artist,
+            audioStreamUrl: null, // Full audio stream resolved on demand
           );
+
+          if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+            candidateVideos.add(candidate);
+          }
           continue;
         }
 

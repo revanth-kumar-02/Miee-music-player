@@ -34,6 +34,12 @@ class MockYouTubeRepository implements YouTubeRepository {
 
   @override
   Future<List<ArtistModel>> searchArtists(String query) async => const [];
+
+  @override
+  Future<List<YouTubeVideo>> getRelatedTracks(
+    YouTubeVideo seedVideo, {
+    int limit = 15,
+  }) async => [];
 }
 
 class MockArtistRepository implements ArtistRepository {
