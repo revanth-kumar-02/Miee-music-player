@@ -30,6 +30,7 @@ import '../../features/rooms/presentation/room_landing_page.dart';
 import '../../features/rooms/presentation/create_room_page.dart';
 import '../../features/rooms/presentation/join_room_page.dart';
 import '../../features/rooms/presentation/active_room_page.dart';
+import '../../features/wrapped/presentation/wrapped_story_page.dart';
 import '../../shared/widgets/main_app_shell.dart';
 
 /// Listens to authentication and profile state to trigger router re-evaluation.
@@ -379,6 +380,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           },
         ),
       ),
+      GoRoute(
+        path: '/wrapped',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const WrappedStoryPage(),
+          transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(milliseconds: 250),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      ),
     ],
   );
 });
@@ -402,6 +415,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/onboarding',
       builder: (context, state) => const ArtistSelectionPage(),
+    ),
+    GoRoute(
+      path: '/wrapped',
+      builder: (context, state) => const WrappedStoryPage(),
     ),
     ShellRoute(
       builder: (context, state, child) => MainAppShell(child: child),

@@ -39,6 +39,7 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     'Artists',
     'Albums',
     'Songs',
+    '✨ Wrapped',
   ];
 
   void _showPlaylistOptions(
@@ -295,10 +296,15 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final f = _filters[index];
+                  final isWrappedPill = f.contains('Wrapped');
                   final isSelected = _selectedFilter == f;
 
                   return InkWell(
                     onTap: () {
+                      if (isWrappedPill) {
+                        context.push('/wrapped');
+                        return;
+                      }
                       setState(() => _selectedFilter = f);
                     },
                     borderRadius: BorderRadius.circular(17),
@@ -309,14 +315,14 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.dustyRose
-                            : AppColors.white,
+                        color: isWrappedPill
+                            ? AppColors.cocoaPlum
+                            : (isSelected ? AppColors.dustyRose : AppColors.white),
                         borderRadius: BorderRadius.circular(17),
                         border: Border.all(
-                          color: isSelected
+                          color: isWrappedPill
                               ? AppColors.dustyRose
-                              : AppColors.oatBeige,
+                              : (isSelected ? AppColors.dustyRose : AppColors.oatBeige),
                           width: 1.0,
                         ),
                       ),
@@ -325,8 +331,8 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                         style: GoogleFonts.geist(
                           fontSize: 13,
                           fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected
+                              (isSelected || isWrappedPill) ? FontWeight.w700 : FontWeight.w500,
+                          color: (isSelected || isWrappedPill)
                               ? AppColors.white
                               : AppColors.cocoaPlum,
                         ),
