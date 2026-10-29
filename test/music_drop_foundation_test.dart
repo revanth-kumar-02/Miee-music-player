@@ -104,6 +104,38 @@ class MockMusicDropBridge implements MusicDropNativeBridge {
     discovering = false;
   }
 
+  @override
+  Future<int?> sendMetadata({
+    required String endpointId,
+    required String metadataJson,
+  }) async => 1001;
+
+  @override
+  Future<Map<String, dynamic>?> sendAudioFile({
+    required String endpointId,
+    required String filePath,
+    required String metadataJson,
+  }) async => {
+        'metaPayloadId': 1001,
+        'filePayloadId': 2002,
+        'sha256': 'a' * 64,
+        'fileSize': 1024,
+        'fileName': 'test.mp3',
+      };
+
+  @override
+  Future<bool> cancelPayload(int payloadId) async => true;
+
+  @override
+  Future<String?> commitReceivedFile({
+    required String transferId,
+    String? destinationDir,
+    String? customName,
+  }) async => '/storage/emulated/0/Music/test.mp3';
+
+  @override
+  Future<bool> discardReceivedFile(String transferId) async => true;
+
   void dispose() {
     _controller.close();
   }
@@ -267,3 +299,4 @@ void main() {
     });
   });
 }
+

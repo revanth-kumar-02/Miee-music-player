@@ -11,7 +11,7 @@ class MusicDropNativeBridge {
 
   Stream<Map<String, dynamic>>? _eventsStream;
 
-  /// Stream of native proximity and connection lifecycle events.
+  /// Stream of native proximity, connection lifecycle, and payload transfer events.
   Stream<Map<String, dynamic>> get eventsStream {
     if (defaultTargetPlatform != TargetPlatform.android) {
       return const Stream.empty();
@@ -195,6 +195,109 @@ class MusicDropNativeBridge {
       await _methodChannel.invokeMethod<void>('stopAll');
     } on PlatformException catch (e) {
       debugPrint('[MusicDrop] stopAll error: $e');
+    }
+  }
+
+  // ==========================================
+  // Phase 2: Payload Engine Bridge Methods
+  // ==========================================
+
+  /// Sends a metadata-only bytes payload to the connected endpoint.
+  Future<int?> sendMetadata({
+    required String endpointId,
+    required String metadataJson,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return null;
+    try {
+      final payloadId = await _methodChannel.invokeMethod<int>(
+        'sendMetadata',
+        {
+          'endpointId': endpointId,
+          'metadataJson': metadataJson,
+        },
+      );
+      return payloadId;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] sendMetadata error: $e');
+      return null;
+    }
+  }
+
+  /// Initiates transfer of a local audio file and accompanying metadata to the connected endpoint.
+  Future<Map<String, dynamic>?> sendAudioFile({
+    required String endpointId,
+    required String filePath,
+    required String metadataJson,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return null;
+    try {
+      final res = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>(
+        'sendAudioFile',
+        {
+          'endpointId': endpointId,
+          'filePath': filePath,
+          'metadataJson': metadataJson,
+        },
+      );
+      if (res != null) {
+        return Map<String, dynamic>.from(res);
+      }
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] sendAudioFile error: $e');
+    }
+    return null;
+  }
+
+  /// Cancels an in-progress payload by its 64-bit payload ID.
+  Future<bool> cancelPayload(int payloadId) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final res = await _methodChannel.invokeMethod<bool>(
+        'cancelPayload',
+        {'payloadId': payloadId},
+      );
+      return res ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] cancelPayload error: $e');
+      return false;
+    }
+  }
+
+  /// Commits a verified staging file into the final destination directory with collision avoidance.
+  Future<String?> commitReceivedFile({
+    required String transferId,
+    String? destinationDir,
+    String? customName,
+  }) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return null;
+    try {
+      final path = await _methodChannel.invokeMethod<String>(
+        'commitReceivedFile',
+        {
+          'transferId': transferId,
+          'destinationDir': destinationDir,
+          'customName': customName,
+        },
+      );
+      return path;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] commitReceivedFile error: $e');
+      return null;
+    }
+  }
+
+  /// Discards and removes a received staging file without committing it.
+  Future<bool> discardReceivedFile(String transferId) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final res = await _methodChannel.invokeMethod<bool>(
+        'discardReceivedFile',
+        {'transferId': transferId},
+      );
+      return res ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] discardReceivedFile error: $e');
+      return false;
     }
   }
 }

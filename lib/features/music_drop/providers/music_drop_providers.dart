@@ -8,7 +8,7 @@ final musicDropNativeBridgeProvider = Provider<MusicDropNativeBridge>((ref) {
   return MusicDropNativeBridge();
 });
 
-/// Primary state notifier provider for Miee Music Drop proximity discovery and connections.
+/// Primary state notifier provider for Miee Music Drop proximity discovery, connections, and payload transfer.
 final musicDropControllerProvider =
     StateNotifierProvider<MusicDropController, MusicDropState>((ref) {
   final bridge = ref.watch(musicDropNativeBridgeProvider);
@@ -33,4 +33,16 @@ final musicDropIsDiscoveringProvider = Provider<bool>((ref) {
 /// Convenience provider indicating whether advertising is active.
 final musicDropIsAdvertisingProvider = Provider<bool>((ref) {
   return ref.watch(musicDropControllerProvider).isAdvertising;
+});
+
+/// Convenience provider for the map of active transfers.
+final musicDropActiveTransfersProvider =
+    Provider<Map<String, MusicDropTransfer>>((ref) {
+  return ref.watch(musicDropControllerProvider).activeTransfers;
+});
+
+/// Convenience provider for the most recently completed transfer.
+final musicDropLastCompletedTransferProvider =
+    Provider<MusicDropTransfer?>((ref) {
+  return ref.watch(musicDropControllerProvider).lastCompletedTransfer;
 });
