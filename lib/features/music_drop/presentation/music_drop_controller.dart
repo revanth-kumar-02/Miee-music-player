@@ -21,6 +21,50 @@ class MusicDropController extends StateNotifier<MusicDropState> {
   Future<void> _init() async {
     final supported = await _bridge.isSupported();
     final permStatus = await _bridge.checkPermissions();
+    final isServiceRunning = await _bridge.isBackgroundServiceRunning();
+    final notifsEnabled = await _bridge.areNotificationsEnabled();
+    final recoveredMaps = await _bridge.getRecoveredTransfers();
+
+    final recoveredTransfers = <MusicDropTransfer>[];
+    final activeTransfersMap = Map<String, MusicDropTransfer>.from(state.activeTransfers);
+
+    for (final map in recoveredMaps) {
+      final transferId = map['transferId'] as String?;
+      final title = map['title'] as String? ?? 'Received Song';
+      final artist = map['artist'] as String? ?? 'Unknown Artist';
+      final album = map['album'] as String?;
+      final sha = map['expectedSha256'] as String?;
+      final size = (map['fileSize'] as num?)?.toInt() ?? 0;
+      final stagingPath = map['stagingPath'] as String?;
+
+      if (transferId != null && stagingPath != null) {
+        final meta = MusicDropMetadata(
+          transferId: transferId,
+          payloadType: MusicDropPayloadType.audioFile,
+          title: title,
+          artist: artist,
+          album: album,
+          sourceId: 'recovered',
+          fileSize: size,
+          expectedSha256: sha,
+        );
+        final transfer = MusicDropTransfer(
+          transferId: transferId,
+          endpointId: 'recovered',
+          direction: MusicDropTransferDirection.incoming,
+          metadata: meta,
+          status: MusicDropTransferStatus.completed,
+          stagingFilePath: stagingPath,
+          isIntegrityVerified: true,
+          bytesTransferred: size,
+          totalBytes: size,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        recoveredTransfers.add(transfer);
+        activeTransfersMap[transferId] = transfer;
+      }
+    }
 
     state = state.copyWith(
       isSupported: supported,
@@ -28,6 +72,13 @@ class MusicDropController extends StateNotifier<MusicDropState> {
       missingPermissions: List<String>.from(permStatus['missing'] as List? ?? []),
       isBluetoothEnabled: permStatus['bluetoothEnabled'] as bool? ?? false,
       isLocationEnabled: permStatus['locationEnabled'] as bool? ?? false,
+      isBackgroundReceivingEnabled: isServiceRunning,
+      isNotificationsEnabled: notifsEnabled,
+      activeTransfers: activeTransfersMap,
+      recoveredTransfers: recoveredTransfers,
+      lastCompletedTransfer: recoveredTransfers.isNotEmpty
+          ? () => recoveredTransfers.last
+          : null,
     );
 
     _subscription = _bridge.eventsStream.listen(_handleNativeEvent);
@@ -190,6 +241,36 @@ class MusicDropController extends StateNotifier<MusicDropState> {
       case 'error':
         final msg = event['message'] as String? ?? 'Proximity connection error';
         state = state.copyWith(errorMessage: () => msg);
+        break;
+
+      // ==========================================
+      // Phase 4: Background Service & Notification Events
+      // ==========================================
+
+      case 'background_service_state':
+        final isRunning = event['isRunning'] as bool? ?? false;
+        state = state.copyWith(isBackgroundReceivingEnabled: isRunning);
+        break;
+
+      case 'open_drop_requested':
+        final transferId = event['transferId'] as String?;
+        if (transferId != null && state.activeTransfers.containsKey(transferId)) {
+          state = state.copyWith(
+            lastCompletedTransfer: () => state.activeTransfers[transferId],
+          );
+        }
+        break;
+
+      case 'notification_action':
+        final action = event['action'] as String?;
+        final txId = event['transferId'] as String?;
+        if (action == 'decline' && txId != null && state.activeTransfers.containsKey(txId)) {
+          final transfer = state.activeTransfers[txId]!;
+          final updated = transfer.copyWith(status: MusicDropTransferStatus.cancelled);
+          final map = Map<String, MusicDropTransfer>.from(state.activeTransfers);
+          map[txId] = updated;
+          state = state.copyWith(activeTransfers: map);
+        }
         break;
     }
   }
@@ -635,16 +716,53 @@ class MusicDropController extends StateNotifier<MusicDropState> {
     return ok;
   }
 
+  // ==========================================
+  // Phase 4: Background Receiving Controller APIs
+  // ==========================================
+
+  /// Enables Android foreground service for reliable background receiving.
+  Future<bool> enableBackgroundReceiving({String? customName}) async {
+    state = state.copyWith(errorMessage: () => null);
+    final ok = await _bridge.startBackgroundService(customName: customName);
+    if (ok) {
+      state = state.copyWith(isBackgroundReceivingEnabled: true);
+    } else {
+      state = state.copyWith(
+        errorMessage: () => 'Failed to start background receiving service',
+      );
+    }
+    return ok;
+  }
+
+  /// Disables background receiving and stops the foreground service.
+  Future<bool> disableBackgroundReceiving() async {
+    final ok = await _bridge.stopBackgroundService();
+    state = state.copyWith(isBackgroundReceivingEnabled: false);
+    return ok;
+  }
+
+  /// Toggles background receiving mode on or off.
+  Future<bool> toggleBackgroundReceiving({String? customName}) async {
+    if (state.isBackgroundReceivingEnabled) {
+      return disableBackgroundReceiving();
+    } else {
+      return enableBackgroundReceiving(customName: customName);
+    }
+  }
+
   /// Closes all sessions and resets state.
   Future<void> stopAll() async {
+    await _bridge.stopBackgroundService();
     await _bridge.stopAll();
     _payloadIdToTransferId.clear();
     state = state.copyWith(
       isAdvertising: false,
       isDiscovering: false,
+      isBackgroundReceivingEnabled: false,
       discoveredEndpoints: const [],
       activeConnection: () => null,
       activeTransfers: const {},
+      recoveredTransfers: const [],
       lastCompletedTransfer: () => null,
       errorMessage: () => null,
     );

@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -47,6 +48,22 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Miee Music Drop Background Receiving Service and Actions Receiver -->
+        <service
+            android:name=".musicdrop.MusicDropService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
+
+        <receiver
+            android:name=".musicdrop.MusicDropNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.miee.musicdrop.ACTION_ACCEPT_TRANSFER" />
+                <action android:name="com.example.miee.musicdrop.ACTION_DECLINE_TRANSFER" />
+                <action android:name="com.example.miee.musicdrop.ACTION_STOP_SERVICE" />
             </intent-filter>
         </receiver>
         <activity

@@ -300,4 +300,75 @@ class MusicDropNativeBridge {
       return false;
     }
   }
+
+  // ==========================================
+  // Phase 4: Background Service & Recovery APIs
+  // ==========================================
+
+  /// Starts the Android foreground service with connectedDevice type for background receiving.
+  Future<bool> startBackgroundService({String? customName}) async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final res = await _methodChannel.invokeMethod<bool>(
+        'startBackgroundService',
+        {'customName': customName},
+      );
+      return res ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] startBackgroundService error: $e');
+      return false;
+    }
+  }
+
+  /// Stops the background receiving service and clears persistent foreground notification.
+  Future<bool> stopBackgroundService() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final res = await _methodChannel.invokeMethod<bool>('stopBackgroundService');
+      return res ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] stopBackgroundService error: $e');
+      return false;
+    }
+  }
+
+  /// Checks if the native background service is currently active.
+  Future<bool> isBackgroundServiceRunning() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final res = await _methodChannel.invokeMethod<bool>('isBackgroundServiceRunning');
+      return res ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] isBackgroundServiceRunning error: $e');
+      return false;
+    }
+  }
+
+  /// Retrieves any verified pending staging transfers recovered after process death.
+  Future<List<Map<String, dynamic>>> getRecoveredTransfers() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return const [];
+    try {
+      final res = await _methodChannel.invokeMethod<List<dynamic>>('getRecoveredTransfers');
+      if (res != null) {
+        return res
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+      }
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] getRecoveredTransfers error: $e');
+    }
+    return const [];
+  }
+
+  /// Checks if system notifications are enabled for the app.
+  Future<bool> areNotificationsEnabled() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final res = await _methodChannel.invokeMethod<bool>('areNotificationsEnabled');
+      return res ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] areNotificationsEnabled error: $e');
+      return false;
+    }
+  }
 }

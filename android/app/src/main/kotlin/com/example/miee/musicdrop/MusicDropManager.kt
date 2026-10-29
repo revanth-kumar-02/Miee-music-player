@@ -2,11 +2,14 @@ package com.example.miee.musicdrop
 
 import android.Manifest
 import android.app.Activity
+import android.app.Application
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.core.app.ActivityCompat
@@ -30,9 +33,10 @@ import java.util.concurrent.Executors
 /**
  * Isolated native bridge for Google Nearby Connections in Miee Music Drop.
  * Handles platform compatibility, runtime permissions, discovery, advertising,
- * connection negotiation, and Phase 2 secure payload transfer & verification.
+ * connection negotiation, secure payload transfer & verification,
+ * and Phase 4 reliable background receiving with user consent and recovery.
  */
-class MusicDropManager(private val activity: Activity) :
+class MusicDropManager(context: Context) :
     MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
     companion object {
@@ -44,15 +48,34 @@ class MusicDropManager(private val activity: Activity) :
         const val MAX_METADATA_BYTES = 64 * 1024 // 64 KB
         const val MAX_AUDIO_FILE_BYTES = 150L * 1024L * 1024L // 150 MB
         val SUPPORTED_AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "opus")
+
+        @Volatile
+        private var instance: MusicDropManager? = null
+
+        fun getInstance(context: Context): MusicDropManager {
+            return instance ?: synchronized(this) {
+                instance ?: MusicDropManager(context.applicationContext).also {
+                    instance = it
+                }
+            }
+        }
     }
+
+    private val appContext: Context = context.applicationContext
+    private var currentActivity: Activity? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val executor = Executors.newCachedThreadPool()
     private var eventSink: EventChannel.EventSink? = null
-    private val connectionsClient = Nearby.getConnectionsClient(activity)
+    private val connectionsClient = Nearby.getConnectionsClient(appContext)
+
+    private val notificationHelper = MusicDropNotificationHelper.getInstance(appContext)
+    private val recoveryStore = MusicDropRecoveryStore(appContext)
 
     private var isAdvertising = false
     private var isDiscovering = false
+    private var isBackgroundServiceActive = false
+    private var isAppInForeground = true
     private var pendingPermissionResult: MethodChannel.Result? = null
 
     private var localEndpointName: String = "Miee (${Build.MODEL})"
@@ -63,7 +86,72 @@ class MusicDropManager(private val activity: Activity) :
     private val transferIdToFilePayloadId = ConcurrentHashMap<String, Long>()
     private val transferIdToExpectedSha256 = ConcurrentHashMap<String, String>()
     private val transferIdToSanitizedName = ConcurrentHashMap<String, String>()
+    private val transferIdToMetadata = ConcurrentHashMap<String, Map<String, String>>()
     private val stagingFiles = ConcurrentHashMap<String, File>() // transferId -> Staged File
+
+    // Progress throttling for background notifications
+    private val lastProgressNotificationTime = ConcurrentHashMap<String, Long>()
+
+    init {
+        val app = appContext as? Application
+        app?.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
+            private var resumedActivities = 0
+
+            override fun onActivityResumed(activity: Activity) {
+                currentActivity = activity
+                resumedActivities++
+                isAppInForeground = resumedActivities > 0
+            }
+
+            override fun onActivityPaused(activity: Activity) {
+                resumedActivities--
+                isAppInForeground = resumedActivities > 0
+                if (currentActivity == activity) {
+                    currentActivity = null
+                }
+            }
+
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                currentActivity = activity
+            }
+            override fun onActivityStarted(activity: Activity) {
+                currentActivity = activity
+            }
+            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            override fun onActivityDestroyed(activity: Activity) {
+                if (currentActivity == activity) {
+                    currentActivity = null
+                }
+            }
+        })
+
+        // Clean up orphaned staging files on initialization
+        executor.execute {
+            val stagingDir = File(appContext.cacheDir, "music_drop_staging")
+            val recovered = recoveryStore.recoverAndCleanup(stagingDir)
+            for (rec in recovered) {
+                val file = File(stagingDir, rec.stagingFileName)
+                if (file.exists()) {
+                    stagingFiles[rec.transferId] = file
+                    transferIdToSanitizedName[rec.transferId] = rec.stagingFileName
+                    transferIdToExpectedSha256[rec.transferId] = rec.expectedSha256
+                }
+            }
+        }
+    }
+
+    fun attachActivity(activity: Activity) {
+        this.currentActivity = activity
+        this.isAppInForeground = true
+    }
+
+    fun detachActivity(activity: Activity) {
+        if (this.currentActivity == activity) {
+            this.currentActivity = null
+            this.isAppInForeground = false
+        }
+    }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -157,6 +245,25 @@ class MusicDropManager(private val activity: Activity) :
                     result.error("INVALID_ARGUMENT", "transferId is required", null)
                 }
             }
+
+            // Phase 4: Background Receiving & Recovery APIs
+            "startBackgroundService" -> {
+                val customName = call.argument<String>("customName")
+                startBackgroundService(customName, result)
+            }
+            "stopBackgroundService" -> {
+                stopBackgroundService(result)
+            }
+            "isBackgroundServiceRunning" -> {
+                result.success(isBackgroundServiceActive)
+            }
+            "getRecoveredTransfers" -> {
+                handleGetRecoveredTransfers(result)
+            }
+            "areNotificationsEnabled" -> {
+                result.success(notificationHelper.areNotificationsEnabled())
+            }
+
             else -> result.notImplemented()
         }
     }
@@ -176,7 +283,7 @@ class MusicDropManager(private val activity: Activity) :
     }
 
     private fun handleIsSupported(result: MethodChannel.Result) {
-        val gmsAvailable = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(activity) == ConnectionResult.SUCCESS
+        val gmsAvailable = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(appContext) == ConnectionResult.SUCCESS
         val bluetoothAvailable = BluetoothAdapter.getDefaultAdapter() != null
         val isSupported = gmsAvailable && bluetoothAvailable
         result.success(isSupported)
@@ -189,7 +296,8 @@ class MusicDropManager(private val activity: Activity) :
                     Manifest.permission.BLUETOOTH_SCAN,
                     Manifest.permission.BLUETOOTH_ADVERTISE,
                     Manifest.permission.BLUETOOTH_CONNECT,
-                    Manifest.permission.NEARBY_WIFI_DEVICES
+                    Manifest.permission.NEARBY_WIFI_DEVICES,
+                    Manifest.permission.POST_NOTIFICATIONS
                 )
             }
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -209,13 +317,13 @@ class MusicDropManager(private val activity: Activity) :
     private fun handleCheckPermissions(result: MethodChannel.Result) {
         val required = getRequiredPermissions()
         val missing = required.filter {
-            ContextCompat.checkSelfPermission(activity, it) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(appContext, it) != PackageManager.PERMISSION_GRANTED
         }
 
         val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         val bluetoothEnabled = bluetoothAdapter?.isEnabled == true
 
-        val locationManager = activity.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+        val locationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
         val locationEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             locationManager?.isLocationEnabled == true
         } else {
@@ -227,7 +335,8 @@ class MusicDropManager(private val activity: Activity) :
                 "granted" to missing.isEmpty(),
                 "missing" to missing,
                 "bluetoothEnabled" to bluetoothEnabled,
-                "locationEnabled" to locationEnabled
+                "locationEnabled" to locationEnabled,
+                "notificationsEnabled" to notificationHelper.areNotificationsEnabled()
             )
         )
     }
@@ -235,7 +344,7 @@ class MusicDropManager(private val activity: Activity) :
     private fun handleRequestPermissions(result: MethodChannel.Result) {
         val required = getRequiredPermissions()
         val missing = required.filter {
-            ContextCompat.checkSelfPermission(activity, it) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(appContext, it) != PackageManager.PERMISSION_GRANTED
         }
 
         if (missing.isEmpty()) {
@@ -243,8 +352,14 @@ class MusicDropManager(private val activity: Activity) :
             return
         }
 
+        val act = currentActivity
+        if (act == null) {
+            result.error("NO_ACTIVITY", "Cannot request permissions without foreground Activity", null)
+            return
+        }
+
         pendingPermissionResult = result
-        ActivityCompat.requestPermissions(activity, missing.toTypedArray(), PERMISSION_REQUEST_CODE)
+        ActivityCompat.requestPermissions(act, missing.toTypedArray(), PERMISSION_REQUEST_CODE)
     }
 
     fun handlePermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -255,7 +370,7 @@ class MusicDropManager(private val activity: Activity) :
         }
     }
 
-    private fun handleStartAdvertising(customName: String?, result: MethodChannel.Result) {
+    private fun handleStartAdvertising(customName: String?, result: MethodChannel.Result?) {
         if (customName != null && customName.isNotBlank()) {
             localEndpointName = customName.trim()
         }
@@ -272,20 +387,20 @@ class MusicDropManager(private val activity: Activity) :
         ).addOnSuccessListener {
             isAdvertising = true
             sendEvent(mapOf("type" to "advertising_state", "isAdvertising" to true))
-            result.success(true)
+            result?.success(true)
         }.addOnFailureListener { e ->
             isAdvertising = false
             sendEvent(mapOf("type" to "advertising_state", "isAdvertising" to false))
             sendEvent(mapOf("type" to "error", "code" to "ADVERTISING_FAILED", "message" to e.localizedMessage))
-            result.error("ADVERTISING_FAILED", e.localizedMessage, null)
+            result?.error("ADVERTISING_FAILED", e.localizedMessage, null)
         }
     }
 
-    private fun handleStopAdvertising(result: MethodChannel.Result) {
+    private fun handleStopAdvertising(result: MethodChannel.Result?) {
         connectionsClient.stopAdvertising()
         isAdvertising = false
         sendEvent(mapOf("type" to "advertising_state", "isAdvertising" to false))
-        result.success(true)
+        result?.success(true)
     }
 
     private fun handleStartDiscovery(result: MethodChannel.Result) {
@@ -329,22 +444,22 @@ class MusicDropManager(private val activity: Activity) :
         }
     }
 
-    private fun handleAcceptConnection(endpointId: String, result: MethodChannel.Result) {
+    private fun handleAcceptConnection(endpointId: String, result: MethodChannel.Result?) {
         connectionsClient.acceptConnection(endpointId, payloadCallback)
             .addOnSuccessListener {
-                result.success(true)
+                result?.success(true)
             }.addOnFailureListener { e ->
                 sendEvent(mapOf("type" to "error", "code" to "ACCEPT_FAILED", "message" to e.localizedMessage))
-                result.error("ACCEPT_FAILED", e.localizedMessage, null)
+                result?.error("ACCEPT_FAILED", e.localizedMessage, null)
             }
     }
 
-    private fun handleRejectConnection(endpointId: String, result: MethodChannel.Result) {
+    private fun handleRejectConnection(endpointId: String, result: MethodChannel.Result?) {
         connectionsClient.rejectConnection(endpointId)
             .addOnSuccessListener {
-                result.success(true)
+                result?.success(true)
             }.addOnFailureListener { e ->
-                result.error("REJECT_FAILED", e.localizedMessage, null)
+                result?.error("REJECT_FAILED", e.localizedMessage, null)
             }
     }
 
@@ -361,12 +476,121 @@ class MusicDropManager(private val activity: Activity) :
             isDiscovering = false
             isAdvertising = false
             cleanupPendingTransfers()
+            notificationHelper.cancelAllDropNotifications()
             sendEvent(mapOf("type" to "discovery_state", "isDiscovering" to false))
             sendEvent(mapOf("type" to "advertising_state", "isAdvertising" to false))
             result.success(true)
         } catch (e: Exception) {
             result.error("STOP_ALL_FAILED", e.localizedMessage, null)
         }
+    }
+
+    // ==========================================
+    // Phase 4: Background Receiving Implementation
+    // ==========================================
+
+    fun startBackgroundService(customName: String?, result: MethodChannel.Result?) {
+        try {
+            val intent = Intent(appContext, MusicDropService::class.java).apply {
+                action = MusicDropService.ACTION_START
+                putExtra(MusicDropService.EXTRA_DEVICE_NAME, customName ?: localEndpointName)
+                putExtra(MusicDropService.EXTRA_IS_DISCOVERABLE, true)
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appContext.startForegroundService(intent)
+            } else {
+                appContext.startService(intent)
+            }
+
+            isBackgroundServiceActive = true
+            if (!isAdvertising) {
+                handleStartAdvertising(customName, null)
+            }
+
+            sendEvent(mapOf("type" to "background_service_state", "isRunning" to true))
+            result?.success(true)
+        } catch (e: Exception) {
+            isBackgroundServiceActive = false
+            sendEvent(mapOf("type" to "background_service_state", "isRunning" to false))
+            result?.error("SERVICE_START_FAILED", e.localizedMessage, null)
+        }
+    }
+
+    fun stopBackgroundService(result: MethodChannel.Result? = null) {
+        try {
+            val intent = Intent(appContext, MusicDropService::class.java).apply {
+                action = MusicDropService.ACTION_STOP
+            }
+            appContext.stopService(intent)
+            isBackgroundServiceActive = false
+
+            sendEvent(mapOf("type" to "background_service_state", "isRunning" to false))
+            notificationHelper.cancelAllDropNotifications()
+            result?.success(true)
+        } catch (e: Exception) {
+            result?.error("SERVICE_STOP_FAILED", e.localizedMessage, null)
+        }
+    }
+
+    private fun handleGetRecoveredTransfers(result: MethodChannel.Result) {
+        executor.execute {
+            val stagingDir = File(appContext.cacheDir, "music_drop_staging")
+            val records = recoveryStore.getPendingTransfers()
+            val list = records.map { it.toMap(stagingDir) }
+            mainHandler.post {
+                result.success(list)
+            }
+        }
+    }
+
+    fun acceptTransferFromNotification(transferId: String?, endpointId: String?) {
+        if (endpointId != null) {
+            handleAcceptConnection(endpointId, null)
+        }
+        notificationHelper.cancelNotification(MusicDropNotificationHelper.INCOMING_NOTIFICATION_ID)
+        sendEvent(
+            mapOf(
+                "type" to "notification_action",
+                "action" to "accept",
+                "transferId" to transferId,
+                "endpointId" to endpointId
+            )
+        )
+    }
+
+    fun declineTransferFromNotification(transferId: String?, endpointId: String?) {
+        if (endpointId != null) {
+            handleRejectConnection(endpointId, null)
+        }
+        if (transferId != null) {
+            val payloadId = transferIdToFilePayloadId[transferId]
+            if (payloadId != null) {
+                try {
+                    connectionsClient.cancelPayload(payloadId)
+                } catch (_: Exception) {}
+            }
+            handleDiscardReceivedFile(transferId, null)
+        }
+        notificationHelper.cancelNotification(MusicDropNotificationHelper.INCOMING_NOTIFICATION_ID)
+        notificationHelper.cancelNotification(MusicDropNotificationHelper.PROGRESS_NOTIFICATION_ID)
+        sendEvent(
+            mapOf(
+                "type" to "notification_action",
+                "action" to "decline",
+                "transferId" to transferId,
+                "endpointId" to endpointId
+            )
+        )
+    }
+
+    fun notifyOpenDropRequested(transferId: String?) {
+        sendEvent(
+            mapOf(
+                "type" to "open_drop_requested",
+                "transferId" to transferId
+            )
+        )
     }
 
     // ==========================================
@@ -500,8 +724,10 @@ class MusicDropManager(private val activity: Activity) :
                     if (transferId != null) {
                         transferIdToFilePayloadId.remove(transferId)
                         stagingFiles.remove(transferId)?.delete()
+                        recoveryStore.removeStagedTransfer(transferId)
                     }
                     incomingFilePayloads.remove(payloadId)
+                    notificationHelper.cancelNotification(MusicDropNotificationHelper.PROGRESS_NOTIFICATION_ID)
                     result.success(true)
                 }
                 .addOnFailureListener { e ->
@@ -531,7 +757,9 @@ class MusicDropManager(private val activity: Activity) :
                 val targetDir = if (!destinationDirStr.isNullOrBlank()) {
                     File(destinationDirStr).apply { mkdirs() }
                 } else {
-                    activity.getExternalFilesDir("Music") ?: activity.filesDir
+                    currentActivity?.getExternalFilesDir("Music")
+                        ?: appContext.getExternalFilesDir("Music")
+                        ?: appContext.filesDir
                 }
 
                 val desiredName = sanitizeFileName(
@@ -544,6 +772,9 @@ class MusicDropManager(private val activity: Activity) :
                 stagingFiles.remove(transferId)
                 transferIdToSanitizedName.remove(transferId)
                 transferIdToExpectedSha256.remove(transferId)
+                transferIdToMetadata.remove(transferId)
+                recoveryStore.removeStagedTransfer(transferId)
+                notificationHelper.cancelNotification(MusicDropNotificationHelper.COMPLETION_NOTIFICATION_ID)
 
                 mainHandler.post {
                     result.success(destFile.absolutePath)
@@ -556,19 +787,23 @@ class MusicDropManager(private val activity: Activity) :
         }
     }
 
-    private fun handleDiscardReceivedFile(transferId: String, result: MethodChannel.Result) {
+    private fun handleDiscardReceivedFile(transferId: String, result: MethodChannel.Result?) {
         val stagedFile = stagingFiles.remove(transferId)
         if (stagedFile != null && stagedFile.exists()) {
             stagedFile.delete()
         }
         transferIdToSanitizedName.remove(transferId)
         transferIdToExpectedSha256.remove(transferId)
+        transferIdToMetadata.remove(transferId)
+        recoveryStore.removeStagedTransfer(transferId)
+        notificationHelper.cancelNotification(MusicDropNotificationHelper.COMPLETION_NOTIFICATION_ID)
+
         val filePayloadId = transferIdToFilePayloadId.remove(transferId)
         if (filePayloadId != null) {
             filePayloadIdToTransferId.remove(filePayloadId)
             incomingFilePayloads.remove(filePayloadId)
         }
-        result.success(true)
+        result?.success(true)
     }
 
     private fun sanitizeFileName(fileName: String?, fallbackExt: String = "mp3"): String {
@@ -627,6 +862,7 @@ class MusicDropManager(private val activity: Activity) :
         transferIdToFilePayloadId.clear()
         transferIdToExpectedSha256.clear()
         transferIdToSanitizedName.clear()
+        transferIdToMetadata.clear()
         stagingFiles.values.forEach {
             try {
                 if (it.exists()) it.delete()
@@ -642,6 +878,7 @@ class MusicDropManager(private val activity: Activity) :
             connectionsClient.stopAdvertising()
         } catch (_: Exception) {}
         cleanupPendingTransfers()
+        notificationHelper.cancelAllDropNotifications()
         try {
             executor.shutdownNow()
         } catch (_: Exception) {}
@@ -683,6 +920,18 @@ class MusicDropManager(private val activity: Activity) :
                     "isIncoming" to info.isIncomingConnection
                 )
             )
+
+            // When in background or background service active, display heads-up notification
+            if (!isAppInForeground || isBackgroundServiceActive) {
+                val notif = notificationHelper.buildIncomingRequestNotification(
+                    transferId = "init_$endpointId",
+                    endpointId = endpointId,
+                    deviceName = info.endpointName,
+                    trackTitle = "Nearby Song",
+                    artist = "Connecting..."
+                )
+                notificationHelper.postNotification(MusicDropNotificationHelper.INCOMING_NOTIFICATION_ID, notif)
+            }
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
@@ -697,6 +946,10 @@ class MusicDropManager(private val activity: Activity) :
                     "statusMessage" to (status.statusMessage ?: "")
                 )
             )
+
+            if (!isSuccess) {
+                notificationHelper.cancelNotification(MusicDropNotificationHelper.INCOMING_NOTIFICATION_ID)
+            }
         }
 
         override fun onDisconnected(endpointId: String) {
@@ -706,6 +959,8 @@ class MusicDropManager(private val activity: Activity) :
                     "endpointId" to endpointId
                 )
             )
+            notificationHelper.cancelNotification(MusicDropNotificationHelper.INCOMING_NOTIFICATION_ID)
+            notificationHelper.cancelNotification(MusicDropNotificationHelper.PROGRESS_NOTIFICATION_ID)
         }
     }
 
@@ -725,6 +980,17 @@ class MusicDropManager(private val activity: Activity) :
                         val filePayloadId = if (metaJson.has("filePayloadId")) metaJson.getLong("filePayloadId") else null
                         val expectedSha256 = metaJson.optString("expectedSha256", null)
                         val fileName = metaJson.optString("fileName", null)
+                        val title = metaJson.optString("title", "Unknown Title")
+                        val artist = metaJson.optString("artist", "Unknown Artist")
+                        val album = if (metaJson.has("album")) metaJson.optString("album") else null
+
+                        if (transferId.isNotBlank()) {
+                            transferIdToMetadata[transferId] = mapOf(
+                                "title" to title,
+                                "artist" to artist,
+                                "album" to (album ?: "")
+                            )
+                        }
 
                         if (transferId.isNotBlank() && filePayloadId != null) {
                             filePayloadIdToTransferId[filePayloadId] = transferId
@@ -735,6 +1001,18 @@ class MusicDropManager(private val activity: Activity) :
                             if (!fileName.isNullOrBlank()) {
                                 transferIdToSanitizedName[transferId] = sanitizeFileName(fileName)
                             }
+                        }
+
+                        // If backgrounded, update incoming notification with rich track metadata
+                        if (!isAppInForeground || isBackgroundServiceActive) {
+                            val notif = notificationHelper.buildIncomingRequestNotification(
+                                transferId = transferId,
+                                endpointId = endpointId,
+                                deviceName = "Nearby Miee Peer",
+                                trackTitle = title,
+                                artist = artist
+                            )
+                            notificationHelper.postNotification(MusicDropNotificationHelper.INCOMING_NOTIFICATION_ID, notif)
                         }
                     } catch (_: Exception) {}
 
@@ -761,9 +1039,7 @@ class MusicDropManager(private val activity: Activity) :
                     )
                 }
 
-                Payload.Type.STREAM -> {
-                    // Streams not used in Miee Music Drop
-                }
+                Payload.Type.STREAM -> {}
             }
         }
 
@@ -784,6 +1060,27 @@ class MusicDropManager(private val activity: Activity) :
                             "status" to "in_progress"
                         )
                     )
+
+                    // Throttle background progress updates (at most once every 600ms)
+                    val transferId = filePayloadIdToTransferId[payloadId]
+                    if (transferId != null && (!isAppInForeground || isBackgroundServiceActive)) {
+                        val now = System.currentTimeMillis()
+                        val lastTime = lastProgressNotificationTime[transferId] ?: 0L
+                        if (now - lastTime > 600) {
+                            lastProgressNotificationTime[transferId] = now
+                            val percent = if (totalBytes > 0) ((bytesTransferred * 100) / totalBytes).toInt() else 0
+                            val meta = transferIdToMetadata[transferId]
+                            val title = meta?.get("title") ?: "Audio File"
+                            val notif = notificationHelper.buildProgressNotification(
+                                transferId = transferId,
+                                trackTitle = title,
+                                percent = percent,
+                                bytesTransferred = bytesTransferred,
+                                totalBytes = totalBytes
+                            )
+                            notificationHelper.postNotification(MusicDropNotificationHelper.PROGRESS_NOTIFICATION_ID, notif)
+                        }
+                    }
                 }
 
                 PayloadTransferUpdate.Status.SUCCESS -> {
@@ -798,6 +1095,8 @@ class MusicDropManager(private val activity: Activity) :
                         )
                     )
 
+                    notificationHelper.cancelNotification(MusicDropNotificationHelper.PROGRESS_NOTIFICATION_ID)
+
                     val filePayload = incomingFilePayloads.remove(payloadId)
                     val transferId = filePayloadIdToTransferId[payloadId]
 
@@ -811,7 +1110,9 @@ class MusicDropManager(private val activity: Activity) :
                     val transferId = filePayloadIdToTransferId.remove(payloadId)
                     if (transferId != null) {
                         stagingFiles.remove(transferId)?.delete()
+                        recoveryStore.removeStagedTransfer(transferId)
                     }
+                    notificationHelper.cancelNotification(MusicDropNotificationHelper.PROGRESS_NOTIFICATION_ID)
                     sendEvent(
                         mapOf(
                             "type" to "payload_progress",
@@ -829,7 +1130,9 @@ class MusicDropManager(private val activity: Activity) :
                     val transferId = filePayloadIdToTransferId.remove(payloadId)
                     if (transferId != null) {
                         stagingFiles.remove(transferId)?.delete()
+                        recoveryStore.removeStagedTransfer(transferId)
                     }
+                    notificationHelper.cancelNotification(MusicDropNotificationHelper.PROGRESS_NOTIFICATION_ID)
                     sendEvent(
                         mapOf(
                             "type" to "payload_progress",
@@ -880,9 +1183,10 @@ class MusicDropManager(private val activity: Activity) :
                 }
 
                 // Stage into app cache
-                val stagingDir = File(activity.cacheDir, "music_drop_staging").apply { mkdirs() }
+                val stagingDir = File(appContext.cacheDir, "music_drop_staging").apply { mkdirs() }
                 val sanitizedName = transferIdToSanitizedName[transferId] ?: "miee_audio.mp3"
-                val stagingFile = File(stagingDir, "${transferId}_$sanitizedName")
+                val stagingFileName = "${transferId}_$sanitizedName"
+                val stagingFile = File(stagingDir, stagingFileName)
 
                 val digest = MessageDigest.getInstance("SHA-256")
                 val buffer = ByteArray(16384)
@@ -896,12 +1200,8 @@ class MusicDropManager(private val activity: Activity) :
                     }
                     outputStream.flush()
                 } finally {
-                    try {
-                        inputStream.close()
-                    } catch (_: Exception) {}
-                    try {
-                        outputStream.close()
-                    } catch (_: Exception) {}
+                    try { inputStream.close() } catch (_: Exception) {}
+                    try { outputStream.close() } catch (_: Exception) {}
                     try {
                         if (javaFile != null && javaFile.exists()) {
                             javaFile.delete()
@@ -924,11 +1224,36 @@ class MusicDropManager(private val activity: Activity) :
                             "message" to "SHA-256 checksum mismatch: expected $expectedSha256, got $calculatedSha256"
                         )
                     )
+                    val meta = transferIdToMetadata[transferId]
+                    val notif = notificationHelper.buildFailureNotification(
+                        meta?.get("title") ?: "Audio Transfer",
+                        "Checksum mismatch verification failure"
+                    )
+                    notificationHelper.postNotification(MusicDropNotificationHelper.FAILURE_NOTIFICATION_ID, notif)
                     return@execute
                 }
 
-                // Verification succeeded: stage file
+                // Verification succeeded: stage file and save to recovery store
                 stagingFiles[transferId] = stagingFile
+                val meta = transferIdToMetadata[transferId]
+                val title = meta?.get("title") ?: "Received Song"
+                val artist = meta?.get("artist") ?: "Unknown Artist"
+                val album = meta?.get("album")
+
+                recoveryStore.recordPendingStagedTransfer(
+                    MusicDropRecoveryStore.StagedTransferRecord(
+                        transferId = transferId,
+                        stagingFileName = stagingFileName,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        expectedSha256 = calculatedSha256,
+                        fileSize = stagingFile.length(),
+                        timestamp = System.currentTimeMillis(),
+                        isVerified = true
+                    )
+                )
+
                 sendEvent(
                     mapOf(
                         "type" to "transfer_completed",
@@ -938,6 +1263,16 @@ class MusicDropManager(private val activity: Activity) :
                         "sha256" to calculatedSha256
                     )
                 )
+
+                // If backgrounded, display consent-required completion notification
+                if (!isAppInForeground || isBackgroundServiceActive) {
+                    val notif = notificationHelper.buildCompletionNotification(
+                        transferId = transferId,
+                        trackTitle = title,
+                        artist = artist
+                    )
+                    notificationHelper.postNotification(MusicDropNotificationHelper.COMPLETION_NOTIFICATION_ID, notif)
+                }
             } catch (e: Exception) {
                 sendEvent(
                     mapOf(

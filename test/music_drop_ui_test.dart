@@ -118,6 +118,21 @@ class MockUiBridge implements MusicDropNativeBridge {
     return true;
   }
 
+  @override
+  Future<bool> startBackgroundService({String? customName}) async => true;
+
+  @override
+  Future<bool> stopBackgroundService() async => true;
+
+  @override
+  Future<bool> isBackgroundServiceRunning() async => false;
+
+  @override
+  Future<List<Map<String, dynamic>>> getRecoveredTransfers() async => const [];
+
+  @override
+  Future<bool> areNotificationsEnabled() async => true;
+
   void dispose() {
     _controller.close();
   }

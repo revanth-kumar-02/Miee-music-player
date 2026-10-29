@@ -451,9 +451,12 @@ class MusicDropState {
   final bool isLocationEnabled;
   final bool isAdvertising;
   final bool isDiscovering;
+  final bool isBackgroundReceivingEnabled;
+  final bool isNotificationsEnabled;
   final List<MusicDropEndpoint> discoveredEndpoints;
   final MusicDropConnection? activeConnection;
   final Map<String, MusicDropTransfer> activeTransfers;
+  final List<MusicDropTransfer> recoveredTransfers;
   final MusicDropTransfer? lastCompletedTransfer;
   final String? errorMessage;
 
@@ -465,9 +468,12 @@ class MusicDropState {
     this.isLocationEnabled = true,
     this.isAdvertising = false,
     this.isDiscovering = false,
+    this.isBackgroundReceivingEnabled = false,
+    this.isNotificationsEnabled = true,
     this.discoveredEndpoints = const [],
     this.activeConnection,
     this.activeTransfers = const {},
+    this.recoveredTransfers = const [],
     this.lastCompletedTransfer,
     this.errorMessage,
   });
@@ -480,9 +486,12 @@ class MusicDropState {
     bool? isLocationEnabled,
     bool? isAdvertising,
     bool? isDiscovering,
+    bool? isBackgroundReceivingEnabled,
+    bool? isNotificationsEnabled,
     List<MusicDropEndpoint>? discoveredEndpoints,
     MusicDropConnection? Function()? activeConnection,
     Map<String, MusicDropTransfer>? activeTransfers,
+    List<MusicDropTransfer>? recoveredTransfers,
     MusicDropTransfer? Function()? lastCompletedTransfer,
     String? Function()? errorMessage,
   }) {
@@ -494,10 +503,15 @@ class MusicDropState {
       isLocationEnabled: isLocationEnabled ?? this.isLocationEnabled,
       isAdvertising: isAdvertising ?? this.isAdvertising,
       isDiscovering: isDiscovering ?? this.isDiscovering,
+      isBackgroundReceivingEnabled:
+          isBackgroundReceivingEnabled ?? this.isBackgroundReceivingEnabled,
+      isNotificationsEnabled:
+          isNotificationsEnabled ?? this.isNotificationsEnabled,
       discoveredEndpoints: discoveredEndpoints ?? this.discoveredEndpoints,
       activeConnection:
           activeConnection != null ? activeConnection() : this.activeConnection,
       activeTransfers: activeTransfers ?? this.activeTransfers,
+      recoveredTransfers: recoveredTransfers ?? this.recoveredTransfers,
       lastCompletedTransfer: lastCompletedTransfer != null
           ? lastCompletedTransfer()
           : this.lastCompletedTransfer,

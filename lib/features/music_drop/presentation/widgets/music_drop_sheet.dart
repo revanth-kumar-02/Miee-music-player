@@ -218,6 +218,10 @@ class _MusicDropSheetState extends ConsumerState<MusicDropSheet> {
                       const SizedBox(height: 16),
                     ],
 
+                    // Phase 4: Background Receiving Toggle
+                    _buildBackgroundReceivingTile(state, controller),
+                    const SizedBox(height: 16),
+
                     // 7. Nearby Devices Header & List
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -280,6 +284,78 @@ class _MusicDropSheetState extends ConsumerState<MusicDropSheet> {
   }
 
   // ── Widgets ─────────────────────────────────────────────────────────────
+
+  Widget _buildBackgroundReceivingTile(
+    MusicDropState state,
+    MusicDropController controller,
+  ) {
+    final isEnabled = state.isBackgroundReceivingEnabled;
+    const sageGreen = Color(0xFF4A7C59);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isEnabled
+            ? sageGreen.withValues(alpha: 0.08)
+            : AppColors.surfaceContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isEnabled
+              ? sageGreen.withValues(alpha: 0.3)
+              : AppColors.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isEnabled
+                  ? sageGreen.withValues(alpha: 0.15)
+                  : AppColors.surfaceContainerHigh.withValues(alpha: 0.6),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isEnabled ? Icons.sensors_rounded : Icons.sensors_off_rounded,
+              size: 18,
+              color: isEnabled ? sageGreen : AppColors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Background Receiving',
+                  style: GoogleFonts.geist(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.cocoaPlum,
+                  ),
+                ),
+                Text(
+                  isEnabled
+                      ? 'Listening for nearby drops via system notification'
+                      : 'Allow receiving songs while Miee is closed',
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: isEnabled,
+            activeTrackColor: sageGreen,
+            onChanged: (val) {
+              controller.toggleBackgroundReceiving();
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildErrorBanner(String message) {
     return Container(
