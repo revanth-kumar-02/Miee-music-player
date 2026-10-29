@@ -223,17 +223,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
       // seek to start and re-play the same track without involving the handler's
       // skip logic.
       if (status == PlaybackStatus.completed) {
-        final current = state.currentTrack;
-        if (current != null) {
-          final authUser = _ref.read(currentAuthUserProvider);
-          _ref.read(listeningHistoryRepositoryProvider).recordListeningEvent(
-                uid: authUser?.uid,
-                track: current,
-                listenedSec: state.position.inSeconds,
-                durationSec: state.duration.inSeconds,
-              );
-        }
-
         if (state.repeatMode == RepeatMode.one) {
           debugLog('[Playback] RepeatMode.one — seeking to start');
           seek(Duration.zero);

@@ -6,54 +6,79 @@ import 'package:Miee/features/wrapped/data/wrapped_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Miee Wrapped Engine 10-Slide Production Tests', () {
-    test('Slide 1 & 2: Insufficient history safely delivers 10-slide sample preview', () {
+  group('Miee Wrapped Engine Production Real-Data Tests', () {
+    test('Empty history produces honest empty state without fabricating fake data', () {
       final summary = WrappedService.computeSummary(
         customEntries: [],
         timeframe: 'year',
       );
 
-      expect(summary.isSampleData, isTrue);
+      expect(summary.isSampleData, isFalse);
       expect(summary.hasSufficientHistory, isFalse);
+      expect(summary.totalHours, equals(0.0));
+      expect(summary.totalTracks, equals(0));
+      expect(summary.totalArtists, equals(0));
+      expect(summary.totalAlbums, equals(0));
+      expect(summary.longestStreakDays, equals(0));
+      expect(summary.totalLanguages, equals(0));
 
-      // Slide 1 & 3: Totals
-      expect(summary.totalHours, equals(128.0));
-      expect(summary.totalTracks, equals(1240));
-      expect(summary.totalArtists, equals(312));
-      expect(summary.totalAlbums, equals(86));
-      expect(summary.longestStreakDays, equals(12));
-      expect(summary.totalLanguages, equals(5));
+      // Slides 4-7: No fabricated items
+      expect(summary.topTracks, isEmpty);
+      expect(summary.topArtist, isNull);
+      expect(summary.topAlbum, isNull);
+      expect(summary.timelineMilestones, isEmpty);
+      expect(summary.languages, isEmpty);
 
-      // Slide 4: Top 5 Songs
+      // Slide 2: Honest newcomer archetype
+      expect(summary.archetype.id, equals('newcomer'));
+    });
+
+    test('Demo mode with forceSample=true provides sample preview', () {
+      final summary = WrappedService.computeSummary(
+        customEntries: [],
+        forceSample: true,
+        timeframe: 'year',
+      );
+
+      expect(summary.isSampleData, isTrue);
       expect(summary.topTracks.length, equals(5));
-      expect(summary.topTracks.first.title, equals('Kaadhal Rojave'));
-      expect(summary.topTracks.first.playCount, equals(412));
-      expect(summary.topTracks.first.musicItem, isNotNull);
-
-      // Slide 5: Top Artist
       expect(summary.topArtist?.name, equals('A.R. Rahman'));
-      expect(summary.topArtist?.playCount, equals(412));
-      expect(summary.topArtist?.songsCount, equals(86));
-      expect(summary.topArtist?.totalHours, equals(28.0));
+    });
 
-      // Slide 6: Favourite Album
-      expect(summary.topAlbum?.title, equals('Bombay'));
-      expect(summary.topAlbum?.playCount, equals(128));
+    test('Partial history (1-2 tracks) returns exact tracks without inventing fake entries', () {
+      final now = DateTime.now();
+      final track = TrackHiveModel(
+        id: 'single_1',
+        title: 'Only Song',
+        artist: 'Solo Artist',
+        imageUrl: 'https://example.com/art.jpg',
+        duration: '03:30',
+        filePath: 'music/SingleAlbum/01.mp3',
+      );
 
-      // Slide 7: Music Timeline (4 milestones)
-      expect(summary.timelineMilestones.length, equals(4));
-      expect(summary.timelineMilestones[0].monthLabel, equals('Jan'));
-      expect(summary.timelineMilestones[1].monthLabel, equals('Apr'));
+      final entries = [
+        PlaybackHistoryEntry(
+          track: track,
+          startTime: DateTime(now.year, now.month, 10, 14, 0),
+          completionPercent: 1.0,
+        ),
+      ];
 
-      // Slide 8: Languages
-      expect(summary.languages.length, equals(6));
-      expect(summary.languages.first.name, equals('Tamil'));
-      expect(summary.languages.first.percentage, equals(62));
+      final summary = WrappedService.computeSummary(
+        customEntries: entries,
+        timeframe: 'year',
+      );
 
-      // Slide 9: Listening Contexts
-      expect(summary.listeningContexts.length, equals(5));
-      expect(summary.listeningContexts.first.label, equals('At Home'));
-      expect(summary.listeningContexts.first.percentage, equals(44));
+      expect(summary.isSampleData, isFalse);
+      expect(summary.hasSufficientHistory, isFalse); // < 3 tracks
+      expect(summary.totalTracks, equals(1));
+      expect(summary.totalArtists, equals(1));
+      expect(summary.topTracks.length, equals(1)); // Exactly 1 track, not 5
+      expect(summary.topTracks.first.title, equals('Only Song'));
+      expect(summary.topArtist?.name, equals('Solo Artist'));
+      expect(summary.topAlbum?.title, equals('SingleAlbum'));
+      expect(summary.timelineMilestones.length, equals(1)); // Exactly 1 active month
+      expect(summary.archetype.id, equals('newcomer'));
     });
 
     test('Slide 3-6: Real playback entries accurately compute real metrics without double counting', () {
@@ -126,14 +151,17 @@ void main() {
         duration: '03:00',
       );
 
-      // 4 plays at 19:00 (7 PM = Evening / At Home)
-      final eveningTime = DateTime(now.year, 7, 15, 19, 0);
+      // 4 distinct sessions in July at 19:00 (7 PM = Evening / At Home)
+      final d1 = DateTime(now.year, 7, 10, 19, 0);
+      final d2 = DateTime(now.year, 7, 11, 19, 0);
+      final d3 = DateTime(now.year, 7, 12, 19, 0);
+      final d4 = DateTime(now.year, 7, 13, 19, 0);
 
       final entries = [
-        PlaybackHistoryEntry(track: eveningTrack, startTime: eveningTime, completionPercent: 1.0),
-        PlaybackHistoryEntry(track: eveningTrack, startTime: eveningTime, completionPercent: 1.0),
-        PlaybackHistoryEntry(track: eveningTrack, startTime: eveningTime, completionPercent: 1.0),
-        PlaybackHistoryEntry(track: eveningTrack, startTime: eveningTime, completionPercent: 1.0),
+        PlaybackHistoryEntry(track: eveningTrack, startTime: d1, completionPercent: 1.0),
+        PlaybackHistoryEntry(track: eveningTrack, startTime: d2, completionPercent: 1.0),
+        PlaybackHistoryEntry(track: eveningTrack, startTime: d3, completionPercent: 1.0),
+        PlaybackHistoryEntry(track: eveningTrack, startTime: d4, completionPercent: 1.0),
       ];
 
       final summary = WrappedService.computeSummary(
@@ -141,13 +169,96 @@ void main() {
         timeframe: 'year',
       );
 
-      // Check context
-      final atHome = summary.listeningContexts.firstWhere((c) => c.label == 'At Home');
-      expect(atHome.percentage, greaterThanOrEqualTo(50));
+      // Only July was active, so exactly 1 milestone is produced
+      expect(summary.timelineMilestones.length, equals(1));
+      expect(summary.timelineMilestones.first.monthLabel, equals('Jul'));
+      expect(summary.timelineMilestones.first.title, equals('Sunset Beat'));
 
-      // Check timeline July (Month 7)
-      final julMilestone = summary.timelineMilestones.firstWhere((m) => m.monthLabel == 'Jul');
-      expect(julMilestone.title, equals('Sunset Beat'));
+      // Evening context should be 100% of plays
+      final atHome = summary.listeningContexts.firstWhere((c) => c.label == 'At Home');
+      expect(atHome.percentage, equals(100));
+    });
+
+    test('Monthly vs Annual date boundaries correctly exclude out-of-range entries', () {
+      final now = DateTime.now();
+
+      final oldTrack = TrackHiveModel(
+        id: 'old_1',
+        title: 'Old Song',
+        artist: 'Old Artist',
+        imageUrl: '',
+        duration: '03:00',
+      );
+
+      final recentTrack = TrackHiveModel(
+        id: 'recent_1',
+        title: 'Recent Song',
+        artist: 'Recent Artist',
+        imageUrl: '',
+        duration: '03:00',
+      );
+
+      final entries = [
+        // 60 days ago (outside past 30 days)
+        PlaybackHistoryEntry(
+          track: oldTrack,
+          startTime: now.subtract(const Duration(days: 60)),
+          completionPercent: 1.0,
+        ),
+        // 5 days ago (inside past 30 days)
+        PlaybackHistoryEntry(
+          track: recentTrack,
+          startTime: now.subtract(const Duration(days: 5)),
+          completionPercent: 1.0,
+        ),
+      ];
+
+      // Month query should only have recentTrack
+      final monthSummary = WrappedService.computeSummary(
+        customEntries: entries,
+        timeframe: 'month',
+      );
+      expect(monthSummary.totalTracks, equals(1));
+      expect(monthSummary.topTracks.first.title, equals('Recent Song'));
+
+      // All-time query should have both tracks
+      final allSummary = WrappedService.computeSummary(
+        customEntries: entries,
+        timeframe: 'all',
+      );
+      expect(allSummary.totalTracks, equals(2));
+    });
+
+    test('Language detection accurately classifies scripts and tags and sums to 100%', () {
+      final now = DateTime.now();
+
+      final tamilTrack = TrackHiveModel(
+        id: 'l1',
+        title: 'காதல் ரோஜாவே',
+        artist: 'A.R. Rahman',
+        imageUrl: '',
+        duration: '04:00',
+      );
+
+      final englishTrack = TrackHiveModel(
+        id: 'l2',
+        title: 'Blinding Lights',
+        artist: 'The Weeknd',
+        imageUrl: '',
+        duration: '03:20',
+      );
+
+      final entries = [
+        PlaybackHistoryEntry(track: tamilTrack, startTime: now, completionPercent: 1.0),
+        PlaybackHistoryEntry(track: englishTrack, startTime: now, completionPercent: 1.0),
+      ];
+
+      final langs = WrappedService.detectLanguagesFromHistory(entries);
+      expect(langs.length, equals(2));
+      expect(langs.map((l) => l.name), containsAll(['Tamil', 'English']));
+
+      final totalPct = langs.fold<int>(0, (sum, l) => sum + l.percentage);
+      expect(totalPct, equals(100));
     });
   });
 }

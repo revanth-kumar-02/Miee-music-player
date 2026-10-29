@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/audio/providers.dart';
 import '../domain/wrapped_models.dart';
@@ -20,6 +24,7 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
   static const int _totalSlides = 10;
   static const Duration _slideDuration = Duration(seconds: 7);
 
+  final GlobalKey _shareCardKey = GlobalKey();
   int _currentSlide = 0;
   late AnimationController _progressController;
   bool _isPaused = false;
@@ -110,33 +115,102 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
     }
   }
 
-  void _shareWrapped(WrappedSummary summary) {
-    final topTrack = summary.topTrack?.title ?? 'Music';
-    final topArtist = summary.topArtist?.name ?? 'Artists';
+  Future<Uint8List?> _captureShareCardPng() async {
+    try {
+      final boundary = _shareCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 2.5);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('[Wrapped] Error capturing share card: $e');
+      return null;
+    }
+  }
+
+  Future<void> _shareWrapped(WrappedSummary summary) async {
+    final topTrack = summary.topTrack?.title ?? 'My Favorite Songs';
+    final topArtist = summary.topArtist?.name ?? 'Top Artists';
 
     final text = '✨ My ${summary.year} Miee Wrapped ✨\n\n'
-        '🎧 ${summary.totalHours.round()} hours of music listened\n'
+        '🎧 ${summary.totalHours.toStringAsFixed(summary.totalHours < 1 ? 1 : 0)} hours of music listened\n'
         '🎵 ${summary.totalTracks} songs played\n'
         '👑 Top Artist: $topArtist\n'
         '🔥 Top Song: "$topTrack"\n'
         '✨ Archetype: ${summary.archetype.title}\n\n'
         'Discovered with Miee Music Player.';
 
-    SharePlus.instance.share(
-      ShareParams(
-        text: text,
-        subject: 'My ${summary.year} Miee Wrapped',
-      ),
-    );
+    try {
+      final pngBytes = await _captureShareCardPng();
+      if (pngBytes != null) {
+        final tempDir = await getTemporaryDirectory();
+        final filePath = '${tempDir.path}/miee_wrapped_${summary.year}.png';
+        final file = File(filePath);
+        await file.writeAsBytes(pngBytes);
+
+        await SharePlus.instance.share(
+          ShareParams(
+            text: text,
+            subject: 'My ${summary.year} Miee Wrapped',
+            files: [XFile(file.path, mimeType: 'image/png')],
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      debugPrint('[Wrapped] Image export failed, falling back to text: $e');
+    }
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: text,
+          subject: 'My ${summary.year} Miee Wrapped',
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sharing failed: $e'),
+            backgroundColor: const Color(0xFF8B4F48),
+          ),
+        );
+      }
+    }
   }
 
-  void _saveToGallery() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Wrapped summary card saved to your gallery!'),
-        backgroundColor: Color(0xFF3A252B),
-      ),
-    );
+  Future<void> _saveToGallery() async {
+    try {
+      final pngBytes = await _captureShareCardPng();
+      if (pngBytes == null) {
+        throw Exception('Could not capture image boundary');
+      }
+
+      final docsDir = await getApplicationDocumentsDirectory();
+      final filePath = '${docsDir.path}/miee_wrapped_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File(filePath);
+      await file.writeAsBytes(pngBytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved to: ${file.path.split("/").last}'),
+            backgroundColor: const Color(0xFF3A252B),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not save image: $e'),
+            backgroundColor: const Color(0xFF8B4F48),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -413,6 +487,26 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
                   height: 1.35,
                 ),
               ),
+              if (!summary.hasSufficientHistory) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEAF1EC),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    summary.totalTracks > 0
+                        ? 'Early listening overview • ${summary.totalTracks} songs recorded'
+                        : 'New journey • Start listening to build your story',
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF4A6B5D),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -805,103 +899,140 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
         ),
         const SizedBox(height: 14),
 
-        // List of 5 Tracks
+        // List of Tracks (honest empty or real items)
         Expanded(
-          child: ListView.separated(
-            itemCount: summary.topTracks.length,
-            physics: const NeverScrollableScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final track = summary.topTracks[index];
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFEAE2D8)),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      '${track.rank}',
-                      style: GoogleFonts.outfit(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF3A252B),
-                      ),
+          child: summary.topTracks.isEmpty
+              ? Center(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFEAE2D8)),
                     ),
-                    const SizedBox(width: 12),
-
-                    // Artwork
-                    Container(
-                      width: 44,
-                      height: 44,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.music_note_rounded, size: 48, color: Color(0xFFC87D6B)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No Songs Recorded Yet',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF2D1F23),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Start playing songs from your library or search to build your top ranked tracks.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            color: const Color(0xFF75656A),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: summary.topTracks.length,
+                  physics: const NeverScrollableScrollPhysics(),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final track = summary.topTracks[index];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE9C9B7),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFEAE2D8)),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: track.imageUrl != null && track.imageUrl!.isNotEmpty
-                            ? Image.network(
-                                track.imageUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.music_note_rounded, color: Colors.white70),
-                              )
-                            : const Icon(Icons.music_note_rounded, color: Colors.white70),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    // Title & Artist
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
                           Text(
-                            track.title,
-                            style: GoogleFonts.inter(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF2D1F23),
+                            '${track.rank}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF3A252B),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          Text(
-                            track.artist,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: const Color(0xFF75656A),
+                          const SizedBox(width: 12),
+
+                          // Artwork
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE9C9B7),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: track.imageUrl != null && track.imageUrl!.isNotEmpty
+                                  ? Image.network(
+                                      track.imageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(Icons.music_note_rounded, color: Colors.white70),
+                                    )
+                                  : const Icon(Icons.music_note_rounded, color: Colors.white70),
+                            ),
                           ),
-                          Text(
-                            '${track.playCount} plays',
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFFC87D6B),
+                          const SizedBox(width: 12),
+
+                          // Title & Artist
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  track.title,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF2D1F23),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  track.artist,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: const Color(0xFF75656A),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${track.playCount} plays',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFFC87D6B),
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+
+                          Icon(
+                            track.isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            color: track.isFavorited ? const Color(0xFFC87D6B) : const Color(0xFFB0A4A8),
+                            size: 20,
                           ),
                         ],
                       ),
-                    ),
-
-                    Icon(
-                      track.isFavorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      color: track.isFavorited ? const Color(0xFFC87D6B) : const Color(0xFFB0A4A8),
-                      size: 20,
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
 
-        // Action: "Play Top 5 Playlist"
+        // Action: "Play Top Songs"
         Padding(
           padding: const EdgeInsets.only(bottom: 12.0),
           child: Material(
@@ -909,7 +1040,13 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
             borderRadius: BorderRadius.circular(24),
             child: InkWell(
               borderRadius: BorderRadius.circular(24),
-              onTap: () => _playTop5Playlist(summary.topTracks),
+              onTap: () {
+                if (summary.topTracks.isNotEmpty) {
+                  _playTop5Playlist(summary.topTracks);
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 13),
@@ -917,10 +1054,18 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                    Icon(
+                      summary.topTracks.isNotEmpty ? Icons.play_arrow_rounded : Icons.explore_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     const SizedBox(width: 6),
                     Text(
-                      'Play Top 5 Playlist',
+                      summary.topTracks.isEmpty
+                          ? 'Explore Songs'
+                          : (summary.topTracks.length < 5
+                              ? 'Play Top ${summary.topTracks.length} Songs'
+                              : 'Play Top 5 Playlist'),
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -1001,11 +1146,16 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildArtistStatPill('${artist?.playCount ?? 412}', 'plays'),
+            _buildArtistStatPill('${artist?.playCount ?? 0}', 'plays'),
             const SizedBox(width: 12),
-            _buildArtistStatPill('${artist?.songsCount ?? 86}', 'songs'),
+            _buildArtistStatPill('${artist?.songsCount ?? 0}', 'songs'),
             const SizedBox(width: 12),
-            _buildArtistStatPill('${artist?.totalHours.round() ?? 28}', 'hours'),
+            _buildArtistStatPill(
+              artist != null
+                  ? (artist.totalHours < 1 ? artist.totalHours.toStringAsFixed(1) : '${artist.totalHours.round()}')
+                  : '0',
+              'hours',
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -1014,7 +1164,9 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            artist?.quote ?? '“ Their music was your constant companion this year. ”',
+            artist != null
+                ? artist.quote
+                : '“ Play your favorite tracks to uncover which artist accompanied you the most this year. ”',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               fontSize: 13,
@@ -1146,17 +1298,17 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  album?.title ?? 'Top Album',
+                  album?.title ?? 'Album Data Unavailable',
                   style: GoogleFonts.playfairDisplay(
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF2D1F23),
                   ),
                 ),
                 Text(
-                  album?.artist ?? 'Artist',
+                  album?.artist ?? 'Gathered from full album listening',
                   style: GoogleFonts.inter(
-                    fontSize: 13.5,
+                    fontSize: 13,
                     color: const Color(0xFF75656A),
                   ),
                 ),
@@ -1170,16 +1322,23 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
         // 2 Stat Badges: Plays & Hours
         Row(
           children: [
-            _buildArtistStatPill('${album?.playCount ?? 128}', 'plays'),
+            _buildArtistStatPill('${album?.playCount ?? 0}', 'plays'),
             const SizedBox(width: 12),
-            _buildArtistStatPill('${album?.totalHours ?? 9.4}', 'hours'),
+            _buildArtistStatPill(
+              album != null
+                  ? (album.totalHours < 1 ? album.totalHours.toStringAsFixed(1) : '${album.totalHours.round()}')
+                  : '0',
+              'hours',
+            ),
           ],
         ),
         const SizedBox(height: 18),
 
         // Quote
         Text(
-          album?.quote ?? '“ Some albums don\'t just play, they stay with you. ”',
+          album != null
+              ? album.quote
+              : '“ Play complete albums to showcase your favorite album and vinyl disc here. ”',
           style: GoogleFonts.inter(
             fontSize: 13,
             fontStyle: FontStyle.italic,
@@ -1210,88 +1369,125 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
         const SizedBox(height: 18),
 
         Expanded(
-          child: ListView.separated(
-            itemCount: summary.timelineMilestones.length,
-            physics: const NeverScrollableScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final node = summary.timelineMilestones[index];
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Month Circle Node
-                  Container(
-                    width: 38,
-                    height: 38,
+          child: summary.timelineMilestones.isEmpty
+              ? Center(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7ECE8),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFC87D6B), width: 1.5),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFEAE2D8)),
                     ),
-                    child: Center(
-                      child: Text(
-                        node.monthLabel,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFFC87D6B),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-
-                  // Artwork Thumbnail
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE9C9B7),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: node.imageUrl != null && node.imageUrl!.isNotEmpty
-                          ? Image.network(
-                              node.imageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.music_note_rounded, color: Colors.white70),
-                            )
-                          : const Icon(Icons.music_note_rounded, color: Colors.white70),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-
-                  // Title & Description
-                  Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        const Icon(Icons.timeline_rounded, size: 48, color: Color(0xFF8B4F48)),
+                        const SizedBox(height: 12),
                         Text(
-                          node.title,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                          'Your Timeline Is Waiting',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                             color: const Color(0xFF2D1F23),
                           ),
                         ),
+                        const SizedBox(height: 8),
                         Text(
-                          node.description,
+                          'Monthly milestones will automatically unfold here as you listen to music across different months of the year.',
+                          textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
-                            fontSize: 11.5,
+                            fontSize: 12.5,
                             color: const Color(0xFF75656A),
-                            height: 1.3,
+                            height: 1.4,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                ],
-              );
-            },
-          ),
+                )
+              : ListView.separated(
+                  itemCount: summary.timelineMilestones.length,
+                  physics: const NeverScrollableScrollPhysics(),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final node = summary.timelineMilestones[index];
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Month Circle Node
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7ECE8),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFC87D6B), width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              node.monthLabel,
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFC87D6B),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Artwork Thumbnail
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE9C9B7),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: node.imageUrl != null && node.imageUrl!.isNotEmpty
+                                ? Image.network(
+                                    node.imageUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(Icons.music_note_rounded, color: Colors.white70),
+                                  )
+                                : const Icon(Icons.music_note_rounded, color: Colors.white70),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Title & Description
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                node.title,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF2D1F23),
+                                ),
+                              ),
+                              Text(
+                                node.description,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11.5,
+                                  color: const Color(0xFF75656A),
+                                  height: 1.3,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -1342,7 +1538,7 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      summary.languages.firstOrNull?.name ?? 'Tamil',
+                      summary.languages.isNotEmpty ? summary.languages.first.name : 'Uncharted',
                       style: GoogleFonts.playfairDisplay(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -1350,7 +1546,7 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
                       ),
                     ),
                     Text(
-                      '${summary.languages.firstOrNull?.percentage ?? 62}%',
+                      summary.languages.isNotEmpty ? '${summary.languages.first.percentage}%' : '0%',
                       style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -1367,45 +1563,57 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
 
         // Legend list
         Expanded(
-          child: ListView.separated(
-            itemCount: summary.languages.length,
-            physics: const NeverScrollableScrollPhysics(),
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final lang = summary.languages[index];
-              return Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: lang.color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      lang.name,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF2D1F23),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${lang.percentage}%',
+          child: summary.languages.isEmpty
+              ? Center(
+                  child: Text(
+                    'Language insights will appear as you play songs from diverse cultures and artists.',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2D1F23),
+                      fontSize: 12.5,
+                      color: const Color(0xFF75656A),
+                      height: 1.4,
                     ),
                   ),
-                ],
-              );
-            },
-          ),
+                )
+              : ListView.separated(
+                  itemCount: summary.languages.length,
+                  physics: const NeverScrollableScrollPhysics(),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final lang = summary.languages[index];
+                    return Row(
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: lang.color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            lang.name,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF2D1F23),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${lang.percentage}%',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF2D1F23),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -1513,72 +1721,78 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
         ),
         const SizedBox(height: 14),
 
-        // Framed Poster Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE0D4C5)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF3A252B).withValues(alpha: 0.12),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Hero Thumbnail
-              Container(
-                height: 180,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: const Color(0xFF261D2B),
+        // Framed Poster Card wrapped in RepaintBoundary for genuine image export
+        RepaintBoundary(
+          key: _shareCardKey,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFE0D4C5)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3A252B).withValues(alpha: 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
                 ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Icon(Icons.music_note_rounded, size: 70, color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                    Positioned(
-                      bottom: 16,
-                      left: 16,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'My ${summary.year}\nin Music',
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1.1,
-                            ),
-                          ),
-                        ],
+              ],
+            ),
+            child: Column(
+              children: [
+                // Hero Thumbnail
+                Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: const Color(0xFF261D2B),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(Icons.music_note_rounded, size: 70, color: Colors.white.withValues(alpha: 0.2)),
                       ),
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'My ${summary.year}\nin Music',
+                              style: GoogleFonts.playfairDisplay(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 3 Stats row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildFinalStatItem(
+                      summary.totalHours < 1 ? summary.totalHours.toStringAsFixed(1) : '${summary.totalHours.round()}',
+                      'hours',
                     ),
+                    Container(width: 1, height: 28, color: const Color(0xFFEAE2D8)),
+                    _buildFinalStatItem('${summary.totalTracks}', 'songs'),
+                    Container(width: 1, height: 28, color: const Color(0xFFEAE2D8)),
+                    _buildFinalStatItem(summary.topArtist?.name ?? 'Top Artist', 'top artist'),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              // 3 Stats row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildFinalStatItem('${summary.totalHours.round()}', 'hours'),
-                  Container(width: 1, height: 28, color: const Color(0xFFEAE2D8)),
-                  _buildFinalStatItem('${summary.totalTracks}', 'songs'),
-                  Container(width: 1, height: 28, color: const Color(0xFFEAE2D8)),
-                  _buildFinalStatItem(summary.topArtist?.name ?? 'Artist', 'top artist'),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 24),

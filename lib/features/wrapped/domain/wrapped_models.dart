@@ -175,6 +175,15 @@ class ListeningArchetype {
       primaryColor: Color(0xFF3A252B),
       secondaryColor: Color(0xFFD78D9B),
     ),
+    ListeningArchetype(
+      id: 'newcomer',
+      title: 'The Musical Newcomer',
+      description: 'Your listening journey has just begun. As you explore more music, Miee will uncover your true musical personality.',
+      tags: ['First Notes', 'Fresh Queue', 'Curious Ear'],
+      icon: Icons.auto_awesome_rounded,
+      primaryColor: Color(0xFF7D9D8B),
+      secondaryColor: Color(0xFFC87D6B),
+    ),
   ];
 }
 

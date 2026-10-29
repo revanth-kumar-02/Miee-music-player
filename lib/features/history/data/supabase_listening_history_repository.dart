@@ -4,6 +4,7 @@ import '../../../core/storage/adapters/playback_history_entry.dart';
 import '../../../core/storage/adapters/track_hive_model.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../../../shared/models/music_item.dart';
+import '../../../shared/models/track.dart';
 import '../domain/listening_event.dart';
 import '../domain/listening_history_repository.dart';
 
@@ -18,17 +19,35 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
     required int listenedSec,
     required int durationSec,
   }) async {
-    // Only record if listened for at least 10 seconds or reached > 20%
-    if (listenedSec < 10) return;
+    // Only record genuine listening sessions of at least 5 seconds
+    if (listenedSec < 5) return;
 
     final ratio = durationSec > 0 ? (listenedSec / durationSec).clamp(0.0, 1.0) : 0.0;
     final now = DateTime.now();
+
+    // Ensure durable artwork
+    String resolvedImageUrl = track.imageUrl;
+    final normId = track.id.replaceFirst('youtube_', '');
+    if (track.isYoutube && (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http'))) {
+      if (normId.isNotEmpty) {
+        resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
+      }
+    }
+
+    final durableTrack = Track(
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      imageUrl: resolvedImageUrl,
+      duration: track.duration,
+      filePath: track.filePath,
+    );
 
     // 1. Record to local Hive box
     try {
       await _localBox.add(
         PlaybackHistoryEntry(
-          track: TrackHiveModel.fromTrack(track),
+          track: TrackHiveModel.fromTrack(durableTrack),
           startTime: now,
           completionPercent: ratio,
         ),
