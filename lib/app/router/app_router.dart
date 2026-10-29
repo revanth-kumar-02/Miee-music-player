@@ -31,6 +31,7 @@ import '../../features/rooms/presentation/create_room_page.dart';
 import '../../features/rooms/presentation/join_room_page.dart';
 import '../../features/rooms/presentation/active_room_page.dart';
 import '../../features/wrapped/presentation/wrapped_story_page.dart';
+import '../../features/wrapped/providers/wrapped_providers.dart';
 import '../../shared/widgets/main_app_shell.dart';
 
 /// Listens to authentication and profile state to trigger router re-evaluation.
@@ -382,6 +383,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/wrapped',
+        redirect: (context, state) {
+          final isEligible = ref.read(wrappedEligibilityProvider).isEligible;
+          if (!isEligible) {
+            return '/home';
+          }
+          return null;
+        },
         pageBuilder: (context, state) => CustomTransitionPage<void>(
           key: state.pageKey,
           child: const WrappedStoryPage(),

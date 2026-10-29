@@ -23,6 +23,7 @@ import '../../playlists/presentation/widgets/create_playlist_dialog.dart';
 import '../../library/providers/library_providers.dart';
 import '../../rooms/providers/room_providers.dart';
 import '../../wrapped/presentation/widgets/wrapped_home_banner.dart';
+import '../../wrapped/providers/wrapped_providers.dart';
 import 'widgets/artist_rotation_section.dart';
 
 /// Recreated Miee Home Screen matching the reference design:
@@ -105,10 +106,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             // ── 1.5 Listen Together Banner ──────────────────────────────────
             _buildListenTogetherBanner(context),
 
-            const SizedBox(height: 16),
-
-            // ── 1.8 Miee Wrapped Banner ─────────────────────────────────────
-            const WrappedHomeBanner(),
+            // ── 1.8 Miee Wrapped Banner (Hidden until user's account is >= 1 year old) ──
+            if (ref.watch(wrappedEligibilityProvider).isEligible) ...[
+              const SizedBox(height: 16),
+              const WrappedHomeBanner(),
+            ],
 
             const SizedBox(height: 32),
 
