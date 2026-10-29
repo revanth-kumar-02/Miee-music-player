@@ -1,3 +1,4 @@
+import '../../features/music_drop/presentation/widgets/incoming_drop_banner.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -164,6 +165,12 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 4,
+              left: 0,
+              right: 0,
+              child: const IncomingDropBanner(),
+            ),
             // Floating MiniPlayer (Hidden on full Now Playing, Settings, all Room screens, and Queue)
             if (!hideMiniPlayer)
               Positioned(

@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/audio/playback_state.dart';
+import '../../../core/audio/providers.dart';
+import '../../../shared/models/music_item.dart';
 import '../data/music_drop_native_bridge.dart';
 import '../domain/music_drop_models.dart';
 import '../presentation/music_drop_controller.dart';
@@ -45,4 +48,13 @@ final musicDropActiveTransfersProvider =
 final musicDropLastCompletedTransferProvider =
     Provider<MusicDropTransfer?>((ref) {
   return ref.watch(musicDropControllerProvider).lastCompletedTransfer;
+});
+
+/// Resolves the currently active playing track safely without crashing uninitialized test environments.
+final musicDropActiveTrackProvider = Provider<MusicItem?>((ref) {
+  try {
+    return ref.watch(playerControllerProvider.select((PlaybackState s) => s.currentTrack));
+  } catch (_) {
+    return null;
+  }
 });

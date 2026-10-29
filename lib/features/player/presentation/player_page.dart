@@ -25,6 +25,8 @@ import '../../onboarding/providers/onboarding_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../connect/presentation/connect_sheet.dart';
 import '../../connect/providers/connect_providers.dart';
+import '../../music_drop/presentation/widgets/music_drop_pill.dart';
+import '../../music_drop/presentation/widgets/music_drop_sheet.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B) on Mobile
@@ -453,7 +455,11 @@ class PlayerPage extends ConsumerWidget {
 
               const Spacer(flex: 1),
 
-              // ── 6. Bottom Actions: Lyrics & Queue ──
+              // ── 6. Bottom Actions: Lyrics, Queue, Devices & Music Drop ──
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child:
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -577,8 +583,11 @@ class PlayerPage extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 14),
+                  MusicDropPill(track: currentTrack),
                 ],
               ),
+            ),
 
               const SizedBox(height: 12),
             ],
@@ -971,6 +980,17 @@ class PlayerPage extends ConsumerWidget {
                                         ? () => showAddToPlaylistSheet(context, currentTrack)
                                         : null,
                                   ),
+                                   const SizedBox(width: 6),
+                                   IconButton(
+                                     icon: Icon(Icons.sensors_rounded, size: isCompactHeight ? 22 : 24),
+                                     color: MieeWebColors.onSurfaceVariant,
+                                     tooltip: 'Music Drop',
+                                     padding: const EdgeInsets.all(4),
+                                     constraints: const BoxConstraints(),
+                                     onPressed: hasTrack
+                                         ? () => MusicDropSheet.show(context, track: currentTrack)
+                                         : null,
+                                   ),
                                   const SizedBox(width: 6),
                                   IconButton(
                                     icon: Icon(Icons.lyrics_outlined, size: isCompactHeight ? 22 : 24),

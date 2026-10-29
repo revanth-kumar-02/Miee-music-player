@@ -1,3 +1,5 @@
+import 'package:google_fonts/google_fonts.dart';
+import '../../../music_drop/presentation/widgets/music_drop_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,7 +13,7 @@ import 'create_playlist_dialog.dart';
 
 /// Shows the "Add to Playlist" bottom sheet for [track].
 void showAddToPlaylistSheet(BuildContext context, MusicItem track) {
-  showModalBottomSheet(
+  showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -85,6 +87,32 @@ class _AddToPlaylistSheet extends ConsumerWidget {
                   controller: scrollController,
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
                   children: [
+                    // Music Drop Tile
+                    ListTile(
+                      leading: Container(
+                        width: 48.0,
+                        height: 48.0,
+                        decoration: BoxDecoration(
+                          color: AppColors.dustyRose.withValues(alpha: 0.15),
+                          borderRadius: AppRadius.radiusMd,
+                        ),
+                        child: const Icon(Icons.sensors_rounded, color: AppColors.dustyRose),
+                      ),
+                      title: Text(
+                        'Share with Music Drop',
+                        style: AppTypography.labelMedium.copyWith(color: AppColors.onSurface),
+                      ),
+                      subtitle: Text(
+                        track.isYoutube ? 'Share track reference nearby' : 'Transfer audio to nearby device',
+                        style: GoogleFonts.geist(fontSize: 12, color: AppColors.onSurfaceVariant),
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MusicDropSheet.show(context, track: track);
+                      },
+                    ),
+                    const Divider(height: 1, indent: 72),
+
                     // New Playlist tile
                     ListTile(
                       leading: Container(
