@@ -12,6 +12,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.nfc.NfcAdapter
+import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.common.ConnectionResult
@@ -262,6 +264,14 @@ class MusicDropManager(context: Context) :
             }
             "areNotificationsEnabled" -> {
                 result.success(notificationHelper.areNotificationsEnabled())
+            }
+
+            // Optional NFC Capability & Settings APIs
+            "checkNfcStatus" -> {
+                result.success(checkNfcStatus())
+            }
+            "openNfcSettings" -> {
+                openNfcSettings(result)
             }
 
             else -> result.notImplemented()
@@ -589,6 +599,52 @@ class MusicDropManager(context: Context) :
             mapOf(
                 "type" to "open_drop_requested",
                 "transferId" to transferId
+            )
+        )
+    }
+
+    // ==========================================
+    // Optional NFC Support & Event Handlers
+    // ==========================================
+
+    fun checkNfcStatus(): String {
+        return try {
+            val adapter = NfcAdapter.getDefaultAdapter(appContext)
+            when {
+                adapter == null -> "unsupported"
+                !adapter.isEnabled -> "disabled"
+                else -> "enabled"
+            }
+        } catch (_: Exception) {
+            "unsupported"
+        }
+    }
+
+    private fun openNfcSettings(result: MethodChannel.Result) {
+        try {
+            val intent = Intent(Settings.ACTION_NFC_SETTINGS).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            if (intent.resolveActivity(appContext.packageManager) != null) {
+                appContext.startActivity(intent)
+                result.success(true)
+            } else {
+                val wireIntent = Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                appContext.startActivity(wireIntent)
+                result.success(true)
+            }
+        } catch (e: Exception) {
+            result.error("OPEN_NFC_SETTINGS_FAILED", e.localizedMessage, null)
+        }
+    }
+
+    fun handleNfcTrigger(data: String) {
+        sendEvent(
+            mapOf(
+                "type" to "nfc_trigger",
+                "data" to data
             )
         )
     }

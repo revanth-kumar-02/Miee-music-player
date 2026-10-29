@@ -52,6 +52,13 @@ enum MusicDropTransferDirection {
   incoming,
 }
 
+/// Device NFC hardware and capability status.
+enum MusicDropNfcStatus {
+  unsupported,
+  disabled,
+  enabled,
+}
+
 /// Represents a discovered nearby Miee endpoint advertising on the local network.
 class MusicDropEndpoint {
   final String endpointId;
@@ -453,6 +460,7 @@ class MusicDropState {
   final bool isDiscovering;
   final bool isBackgroundReceivingEnabled;
   final bool isNotificationsEnabled;
+  final MusicDropNfcStatus nfcStatus;
   final List<MusicDropEndpoint> discoveredEndpoints;
   final MusicDropConnection? activeConnection;
   final Map<String, MusicDropTransfer> activeTransfers;
@@ -470,6 +478,7 @@ class MusicDropState {
     this.isDiscovering = false,
     this.isBackgroundReceivingEnabled = false,
     this.isNotificationsEnabled = true,
+    this.nfcStatus = MusicDropNfcStatus.unsupported,
     this.discoveredEndpoints = const [],
     this.activeConnection,
     this.activeTransfers = const {},
@@ -488,6 +497,7 @@ class MusicDropState {
     bool? isDiscovering,
     bool? isBackgroundReceivingEnabled,
     bool? isNotificationsEnabled,
+    MusicDropNfcStatus? nfcStatus,
     List<MusicDropEndpoint>? discoveredEndpoints,
     MusicDropConnection? Function()? activeConnection,
     Map<String, MusicDropTransfer>? activeTransfers,
@@ -507,6 +517,7 @@ class MusicDropState {
           isBackgroundReceivingEnabled ?? this.isBackgroundReceivingEnabled,
       isNotificationsEnabled:
           isNotificationsEnabled ?? this.isNotificationsEnabled,
+      nfcStatus: nfcStatus ?? this.nfcStatus,
       discoveredEndpoints: discoveredEndpoints ?? this.discoveredEndpoints,
       activeConnection:
           activeConnection != null ? activeConnection() : this.activeConnection,

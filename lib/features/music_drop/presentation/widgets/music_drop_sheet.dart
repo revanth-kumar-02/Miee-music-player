@@ -226,13 +226,19 @@ class _MusicDropSheetState extends ConsumerState<MusicDropSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Nearby Devices',
-                          style: GoogleFonts.geist(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.cocoaPlum,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              'Nearby Devices',
+                              style: GoogleFonts.geist(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildNfcStatusBadge(state.nfcStatus, controller),
+                          ],
                         ),
                         if (state.isPermissionsGranted)
                           TextButton.icon(
@@ -284,6 +290,63 @@ class _MusicDropSheetState extends ConsumerState<MusicDropSheet> {
   }
 
   // ── Widgets ─────────────────────────────────────────────────────────────
+
+  Widget _buildNfcStatusBadge(MusicDropNfcStatus status, MusicDropController controller) {
+    if (status == MusicDropNfcStatus.unsupported) {
+      return const SizedBox.shrink();
+    }
+    if (status == MusicDropNfcStatus.enabled) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4A7C59).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.nfc_rounded, size: 12, color: Color(0xFF4A7C59)),
+            const SizedBox(width: 4),
+            Text(
+              'NFC Ready',
+              style: GoogleFonts.geist(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF336340),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return InkWell(
+      onTap: () => controller.openNfcSettings(),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: AppColors.outline.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.nfc_rounded, size: 12, color: AppColors.onSurfaceVariant),
+            const SizedBox(width: 4),
+            Text(
+              'Enable NFC',
+              style: GoogleFonts.geist(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildBackgroundReceivingTile(
     MusicDropState state,

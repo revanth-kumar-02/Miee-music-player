@@ -24,6 +24,16 @@ class MusicDropController extends StateNotifier<MusicDropState> {
     final isServiceRunning = await _bridge.isBackgroundServiceRunning();
     final notifsEnabled = await _bridge.areNotificationsEnabled();
     final recoveredMaps = await _bridge.getRecoveredTransfers();
+    final nfcStr = await _bridge.checkNfcStatus();
+
+    final MusicDropNfcStatus nfcStatus;
+    if (nfcStr == 'enabled') {
+      nfcStatus = MusicDropNfcStatus.enabled;
+    } else if (nfcStr == 'disabled') {
+      nfcStatus = MusicDropNfcStatus.disabled;
+    } else {
+      nfcStatus = MusicDropNfcStatus.unsupported;
+    }
 
     final recoveredTransfers = <MusicDropTransfer>[];
     final activeTransfersMap = Map<String, MusicDropTransfer>.from(state.activeTransfers);
@@ -74,6 +84,7 @@ class MusicDropController extends StateNotifier<MusicDropState> {
       isLocationEnabled: permStatus['locationEnabled'] as bool? ?? false,
       isBackgroundReceivingEnabled: isServiceRunning,
       isNotificationsEnabled: notifsEnabled,
+      nfcStatus: nfcStatus,
       activeTransfers: activeTransfersMap,
       recoveredTransfers: recoveredTransfers,
       lastCompletedTransfer: recoveredTransfers.isNotEmpty
@@ -270,6 +281,16 @@ class MusicDropController extends StateNotifier<MusicDropState> {
           final map = Map<String, MusicDropTransfer>.from(state.activeTransfers);
           map[txId] = updated;
           state = state.copyWith(activeTransfers: map);
+        }
+        break;
+
+      // ==========================================
+      // Optional NFC Event Handling
+      // ==========================================
+
+      case 'nfc_trigger':
+        if (!state.isDiscovering) {
+          startDiscovery();
         }
         break;
     }
@@ -748,6 +769,29 @@ class MusicDropController extends StateNotifier<MusicDropState> {
     } else {
       return enableBackgroundReceiving(customName: customName);
     }
+  }
+
+  // ==========================================
+  // Optional NFC Controller APIs
+  // ==========================================
+
+  /// Refreshes the hardware and settings state of NFC.
+  Future<void> refreshNfcStatus() async {
+    final nfcStr = await _bridge.checkNfcStatus();
+    final MusicDropNfcStatus nfcStatus;
+    if (nfcStr == 'enabled') {
+      nfcStatus = MusicDropNfcStatus.enabled;
+    } else if (nfcStr == 'disabled') {
+      nfcStatus = MusicDropNfcStatus.disabled;
+    } else {
+      nfcStatus = MusicDropNfcStatus.unsupported;
+    }
+    state = state.copyWith(nfcStatus: nfcStatus);
+  }
+
+  /// Opens native Android NFC settings so user can enable NFC.
+  Future<bool> openNfcSettings() async {
+    return _bridge.openNfcSettings();
   }
 
   /// Closes all sessions and resets state.

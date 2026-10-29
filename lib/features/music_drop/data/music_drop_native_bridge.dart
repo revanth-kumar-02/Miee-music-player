@@ -371,4 +371,32 @@ class MusicDropNativeBridge {
       return false;
     }
   }
+
+  // ==========================================
+  // Optional NFC Capability & Intent APIs
+  // ==========================================
+
+  /// Checks whether NFC hardware is unsupported, disabled in settings, or enabled.
+  Future<String> checkNfcStatus() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return 'unsupported';
+    try {
+      final res = await _methodChannel.invokeMethod<String>('checkNfcStatus');
+      return res ?? 'unsupported';
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] checkNfcStatus error: $e');
+      return 'unsupported';
+    }
+  }
+
+  /// Opens the device's native NFC system settings.
+  Future<bool> openNfcSettings() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return false;
+    try {
+      final res = await _methodChannel.invokeMethod<bool>('openNfcSettings');
+      return res ?? false;
+    } on PlatformException catch (e) {
+      debugPrint('[MusicDrop] openNfcSettings error: $e');
+      return false;
+    }
+  }
 }

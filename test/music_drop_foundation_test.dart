@@ -151,6 +151,12 @@ class MockMusicDropBridge implements MusicDropNativeBridge {
   @override
   Future<bool> areNotificationsEnabled() async => true;
 
+  @override
+  Future<String> checkNfcStatus() async => 'unsupported';
+
+  @override
+  Future<bool> openNfcSettings() async => true;
+
   void dispose() {
     _controller.close();
   }
