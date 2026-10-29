@@ -7,12 +7,75 @@ import '../../../shared/models/track.dart';
 import '../domain/wrapped_models.dart';
 
 class WrappedService {
+  static const String prefAccountCreatedKey = 'account_created_at';
+
+  /// Resolves the user's authoritative account creation date.
+  /// Falls back to Profile createdDate, earliest playback history entry, or sets DateTime.now().
+  static DateTime getAccountStartDate() {
+    try {
+      if (Hive.isBoxOpen(HiveBoxes.preferences)) {
+        final box = Hive.box<dynamic>(HiveBoxes.preferences);
+        final raw = box.get(prefAccountCreatedKey);
+        if (raw != null) {
+          final parsed = DateTime.tryParse(raw.toString());
+          if (parsed != null) return parsed;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      if (Hive.isBoxOpen(HiveBoxes.profile)) {
+        final profileBox = Hive.box<dynamic>(HiveBoxes.profile);
+        final data = profileBox.get('active_profile');
+        if (data is Map && data['createdDate'] != null) {
+          final parsed = DateTime.tryParse(data['createdDate'].toString());
+          if (parsed != null) {
+            setAccountStartDate(parsed);
+            return parsed;
+          }
+        }
+      }
+    } catch (_) {}
+
+    try {
+      if (Hive.isBoxOpen(HiveBoxes.playbackHistory)) {
+        final historyBox = Hive.box<PlaybackHistoryEntry>(HiveBoxes.playbackHistory);
+        if (historyBox.isNotEmpty) {
+          DateTime earliest = historyBox.values.first.startTime;
+          for (final entry in historyBox.values) {
+            if (entry.startTime.isBefore(earliest)) {
+              earliest = entry.startTime;
+            }
+          }
+          setAccountStartDate(earliest);
+          return earliest;
+        }
+      }
+    } catch (_) {}
+
+    final now = DateTime.now();
+    setAccountStartDate(now);
+    return now;
+  }
+
+  /// Sets and persists the user's account start date.
+  static void setAccountStartDate(DateTime date) {
+    try {
+      if (Hive.isBoxOpen(HiveBoxes.preferences)) {
+        Hive.box<dynamic>(HiveBoxes.preferences).put(prefAccountCreatedKey, date.toIso8601String());
+      }
+    } catch (_) {}
+  }
+
   /// Computes the complete 10-slide Wrapped statistical breakdown from stored playback entries.
   static WrappedSummary computeSummary({
     List<PlaybackHistoryEntry>? customEntries,
     bool forceSample = false,
-    String timeframe = 'year', // 'year', 'month', 'all'
+    String timeframe = 'year', // 'year', 'month', 'anniversary', 'all'
     int? targetYear,
+    DateTime? startDate,
+    DateTime? endDate,
+    int anniversaryYear = 1,
   }) {
     List<PlaybackHistoryEntry> rawList;
     if (customEntries != null) {
@@ -38,6 +101,7 @@ class WrappedService {
         hasSufficient: true,
         timeframe: timeframe,
         year: year,
+        anniversaryYear: anniversaryYear,
       );
     }
 
@@ -47,10 +111,18 @@ class WrappedService {
         // Discard future glitch timestamps
         return false;
       }
-      if (timeframe == 'month') {
-        return e.startTime.isAfter(now.subtract(const Duration(days: 30)));
-      } else if (timeframe == 'year') {
-        return e.startTime.year == year;
+      if (startDate != null && e.startTime.isBefore(startDate)) {
+        return false;
+      }
+      if (endDate != null && e.startTime.isAfter(endDate)) {
+        return false;
+      }
+      if (startDate == null && endDate == null) {
+        if (timeframe == 'month') {
+          return e.startTime.isAfter(now.subtract(const Duration(days: 30)));
+        } else if (timeframe == 'year') {
+          return e.startTime.year == year;
+        }
       }
       return true;
     }).toList();
@@ -60,6 +132,7 @@ class WrappedService {
       return _buildEmptySummary(
         year: year,
         timeframe: timeframe,
+        anniversaryYear: anniversaryYear,
       );
     }
 
@@ -341,7 +414,9 @@ class WrappedService {
     final totalHours = double.parse((totalMin / 60.0).toStringAsFixed(1));
 
     String timeframeLabel;
-    if (timeframe == 'month') {
+    if (startDate != null && endDate != null) {
+      timeframeLabel = 'Year $anniversaryYear Milestone';
+    } else if (timeframe == 'month') {
       timeframeLabel = 'Past 30 Days';
     } else if (timeframe == 'all') {
       timeframeLabel = 'All-Time';
@@ -373,16 +448,18 @@ class WrappedService {
       topDayTrackCount: topDayCount,
       isSampleData: false,
       hasSufficientHistory: filtered.length >= 3,
+      anniversaryYear: anniversaryYear,
     );
   }
 
   static WrappedSummary _buildEmptySummary({
     required int year,
     required String timeframe,
+    int anniversaryYear = 1,
   }) {
     final timeframeLabel = timeframe == 'month'
         ? 'Past 30 Days'
-        : (timeframe == 'all' ? 'All-Time' : '$year');
+        : (timeframe == 'all' ? 'All-Time' : (timeframe == 'anniversary' ? 'Year $anniversaryYear Milestone' : '$year'));
 
     final newcomerArchetype = ListeningArchetype.allArchetypes.firstWhere(
       (a) => a.id == 'newcomer',
@@ -413,6 +490,7 @@ class WrappedService {
       topDayTrackCount: 0,
       isSampleData: false,
       hasSufficientHistory: false,
+      anniversaryYear: anniversaryYear,
     );
   }
 
@@ -755,8 +833,11 @@ class WrappedService {
     required bool hasSufficient,
     required String timeframe,
     required int year,
+    int anniversaryYear = 1,
   }) {
-    String timeframeLabel = timeframe == 'month' ? 'Past 30 Days' : (timeframe == 'all' ? 'All-Time' : '$year');
+    String timeframeLabel = timeframe == 'month'
+        ? 'Past 30 Days'
+        : (timeframe == 'all' ? 'All-Time' : (timeframe == 'anniversary' ? 'Year $anniversaryYear Milestone' : '$year'));
 
     final sampleTracks = [
       const WrappedTrackItem(
@@ -958,6 +1039,7 @@ class WrappedService {
       topDayTrackCount: 47,
       isSampleData: true,
       hasSufficientHistory: hasSufficient,
+      anniversaryYear: anniversaryYear,
     );
   }
 }

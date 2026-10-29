@@ -10,6 +10,13 @@ class WrappedHomeBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final eligibility = ref.watch(wrappedEligibilityProvider);
+
+    // Miee Wrapped only appears when the user's account is at least 1 year old (or force-enabled)
+    if (!eligibility.isEligible) {
+      return const SizedBox.shrink();
+    }
+
     final summary = ref.watch(wrappedSummaryProvider);
     final archetype = summary.archetype;
 
@@ -72,7 +79,7 @@ class WrappedHomeBanner extends ConsumerWidget {
                     Row(
                       children: [
                         Text(
-                          'MIEE WRAPPED ${summary.year}',
+                          'MIEE WRAPPED • YEAR ${eligibility.activeYear}',
                           style: GoogleFonts.geist(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,

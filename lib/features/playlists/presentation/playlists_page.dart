@@ -16,6 +16,7 @@ import '../domain/playlist_model.dart';
 import '../providers/playlist_providers.dart';
 import 'widgets/create_playlist_dialog.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../wrapped/providers/wrapped_providers.dart';
 
 /// Recreated "Your Library" screen matching the reference design:
 /// - Cocoa Plum sidebar + Vanilla Cream canvas
@@ -34,12 +35,11 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
   String _selectedFilter = 'Playlists';
   final String _sortOption = 'Recently Added';
 
-  final List<String> _filters = const [
+  static const List<String> _baseFilters = [
     'Playlists',
     'Artists',
     'Albums',
     'Songs',
-    '✨ Wrapped',
   ];
 
   void _showPlaylistOptions(
@@ -207,6 +207,11 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     final localSongs = ref.watch(songsProvider);
     final localArtists = ref.watch(artistsProvider);
     final localAlbums = ref.watch(albumsProvider);
+    final isWrappedEligible = ref.watch(wrappedEligibilityProvider).isEligible;
+    final activeFilters = [
+      ..._baseFilters,
+      if (isWrappedEligible) '✨ Wrapped',
+    ];
 
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
@@ -292,10 +297,10 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
               height: 34,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: _filters.length,
+                itemCount: activeFilters.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
-                  final f = _filters[index];
+                  final f = activeFilters[index];
                   final isWrappedPill = f.contains('Wrapped');
                   final isSelected = _selectedFilter == f;
 

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:Miee/core/storage/adapters/playback_history_entry.dart';
 import 'package:Miee/core/storage/adapters/track_hive_model.dart';
 import 'package:Miee/features/wrapped/data/wrapped_service.dart';
+import 'package:Miee/features/wrapped/domain/wrapped_models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -259,6 +260,157 @@ void main() {
 
       final totalPct = langs.fold<int>(0, (sum, l) => sum + l.percentage);
       expect(totalPct, equals(100));
+    });
+
+    test('Account younger than 1 year (< 365 days) is locked and ineligible', () {
+      final now = DateTime(2026, 10, 29, 12, 0);
+      final accountStart = DateTime(2026, 6, 1, 12, 0); // ~150 days old
+
+      final eligibility = WrappedEligibility.compute(
+        accountStartDate: accountStart,
+        currentTime: now,
+      );
+
+      expect(eligibility.isEligible, isFalse);
+      expect(eligibility.completedYears, equals(0));
+      expect(eligibility.availableYears, isEmpty);
+      expect(eligibility.milestoneTitle, contains('1st Year Milestone in Progress'));
+      expect(eligibility.daysUntilNextAnniversary, greaterThan(0));
+      expect(eligibility.nextAnniversaryDate.year, equals(2027));
+      expect(eligibility.nextAnniversaryDate.month, equals(6));
+      expect(eligibility.nextAnniversaryDate.day, equals(1));
+    });
+
+    test('Account reaching 1 year (>= 365 days) unlocks Year 1 Wrapped', () {
+      final now = DateTime(2026, 10, 29, 12, 0);
+      final accountStart = DateTime(2025, 10, 29, 12, 0); // Exactly 1 year ago
+
+      final eligibility = WrappedEligibility.compute(
+        accountStartDate: accountStart,
+        currentTime: now,
+      );
+
+      expect(eligibility.isEligible, isTrue);
+      expect(eligibility.completedYears, equals(1));
+      expect(eligibility.availableYears, equals([1]));
+      expect(eligibility.activeYear, equals(1));
+      expect(eligibility.milestoneTitle, equals('Year 1 Milestone'));
+      expect(eligibility.nextAnniversaryDate.year, equals(2027));
+      expect(eligibility.nextAnniversaryDate.month, equals(10));
+      expect(eligibility.nextAnniversaryDate.day, equals(29));
+    });
+
+    test('Multi-year account (2 years old) unlocks Year 1 and Year 2', () {
+      final now = DateTime(2026, 10, 29, 12, 0);
+      final accountStart = DateTime(2024, 10, 29, 12, 0); // 2 years ago
+
+      final eligibility = WrappedEligibility.compute(
+        accountStartDate: accountStart,
+        currentTime: now,
+      );
+
+      expect(eligibility.isEligible, isTrue);
+      expect(eligibility.completedYears, equals(2));
+      expect(eligibility.availableYears, equals([1, 2]));
+      expect(eligibility.activeYear, equals(2)); // Defaults to latest year
+      expect(eligibility.milestoneTitle, equals('Year 2 Milestone'));
+
+      // User can also select Year 1 to review
+      final year1Selection = WrappedEligibility.compute(
+        accountStartDate: accountStart,
+        currentTime: now,
+        activeYearOverride: 1,
+      );
+      expect(year1Selection.activeYear, equals(1));
+      expect(year1Selection.milestoneTitle, equals('Year 1 Milestone'));
+    });
+
+    test('Leap year account start on Feb 29 normalizes safely on non-leap anniversary', () {
+      final accountStart = DateTime(2024, 2, 29, 12, 0); // Leap year
+      final now2025 = DateTime(2025, 3, 1, 12, 0); // Non-leap year after 1 yr
+
+      final eligibility = WrappedEligibility.compute(
+        accountStartDate: accountStart,
+        currentTime: now2025,
+      );
+
+      expect(eligibility.isEligible, isTrue);
+      expect(eligibility.completedYears, equals(1));
+      // Feb 28 on non-leap year
+      expect(eligibility.nextAnniversaryDate.month, equals(2));
+      expect(eligibility.nextAnniversaryDate.day, equals(28));
+    });
+
+    test('Developer forceEligible override unlocks recap on young account', () {
+      final now = DateTime(2026, 10, 29, 12, 0);
+      final accountStart = DateTime(2026, 10, 1, 12, 0); // Only 28 days old
+
+      final locked = WrappedEligibility.compute(
+        accountStartDate: accountStart,
+        currentTime: now,
+      );
+      expect(locked.isEligible, isFalse);
+
+      final forced = WrappedEligibility.compute(
+        accountStartDate: accountStart,
+        currentTime: now,
+        forceEligible: true,
+      );
+      expect(forced.isEligible, isTrue);
+      expect(forced.completedYears, equals(1));
+    });
+
+    test('Annual recap aggregates entries strictly within the active anniversary year', () {
+      final accountStart = DateTime(2024, 1, 1);
+      final yr1Track = TrackHiveModel(
+        id: 'y1',
+        title: 'Year 1 Hit',
+        artist: 'Artist One',
+        imageUrl: '',
+        duration: '03:00',
+      );
+      final yr2Track = TrackHiveModel(
+        id: 'y2',
+        title: 'Year 2 Hit',
+        artist: 'Artist Two',
+        imageUrl: '',
+        duration: '03:00',
+      );
+
+      final entries = [
+        PlaybackHistoryEntry(
+          track: yr1Track,
+          startTime: DateTime(2024, 6, 1), // During Year 1
+          completionPercent: 1.0,
+        ),
+        PlaybackHistoryEntry(
+          track: yr2Track,
+          startTime: DateTime(2025, 6, 1), // During Year 2
+          completionPercent: 1.0,
+        ),
+      ];
+
+      // Year 1 recap
+      final summaryYr1 = WrappedService.computeSummary(
+        customEntries: entries,
+        startDate: DateTime(2024, 1, 1),
+        endDate: DateTime(2025, 1, 1),
+        anniversaryYear: 1,
+      );
+      expect(summaryYr1.totalTracks, equals(1));
+      expect(summaryYr1.topTracks.first.title, equals('Year 1 Hit'));
+      expect(summaryYr1.timeframeLabel, equals('Year 1 Milestone'));
+
+      // Year 2 recap
+      final summaryYr2 = WrappedService.computeSummary(
+        customEntries: entries,
+        startDate: DateTime(2025, 1, 1),
+        endDate: DateTime(2026, 1, 1),
+        anniversaryYear: 2,
+      );
+      expect(summaryYr2.totalTracks, equals(1));
+      expect(summaryYr2.topTracks.first.title, equals('Year 2 Hit'));
+      expect(summaryYr2.timeframeLabel, equals('Year 2 Milestone'));
     });
   });
 }

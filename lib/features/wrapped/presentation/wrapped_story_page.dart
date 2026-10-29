@@ -215,7 +215,19 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
 
   @override
   Widget build(BuildContext context) {
+    final eligibility = ref.watch(wrappedEligibilityProvider);
     final summary = ref.watch(wrappedSummaryProvider);
+
+    if (!eligibility.isEligible) {
+      if (_progressController.isAnimating) {
+        _progressController.stop();
+      }
+      return _buildMilestoneLockedScreen(context, eligibility, summary);
+    } else {
+      if (!_progressController.isAnimating && !_isPaused && _progressController.value < 1.0) {
+        _progressController.forward();
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F6F0), // Warm ivory canvas
@@ -311,25 +323,66 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            Text(
-                              'Miee Wrapped',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF3A252B),
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Miee Wrapped',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF3A252B),
+                                  ),
+                                ),
+                                Text(
+                                  'Year ${eligibility.activeYear} • ${summary.year}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: const Color(0xFF75656A),
+                                  ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              '${summary.year}',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF75656A),
+                            if (eligibility.availableYears.length > 1) ...[
+                              const SizedBox(width: 8),
+                              PopupMenuButton<int>(
+                                initialValue: eligibility.activeYear,
+                                tooltip: 'Select Milestone Year',
+                                onSelected: (int selectedYear) {
+                                  ref.read(wrappedSelectedAnniversaryYearProvider.notifier).state = selectedYear;
+                                },
+                                itemBuilder: (context) => eligibility.availableYears.map((yr) {
+                                  return PopupMenuItem<int>(
+                                    value: yr,
+                                    child: Text('Year $yr Recap', style: GoogleFonts.inter(fontSize: 13)),
+                                  );
+                                }).toList(),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3A252B).withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Yr ${eligibility.activeYear}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF3A252B),
+                                        ),
+                                      ),
+                                      const Icon(Icons.arrow_drop_down_rounded, size: 16, color: Color(0xFF3A252B)),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
 
@@ -469,7 +522,9 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'YOUR YEAR,\nIN MUSIC.',
+                summary.anniversaryYear > 1
+                    ? 'YEAR ${summary.anniversaryYear},\nIN MUSIC.'
+                    : 'YOUR YEAR,\nIN MUSIC.',
                 style: GoogleFonts.playfairDisplay(
                   fontSize: 38,
                   fontWeight: FontWeight.w800,
@@ -1882,6 +1937,317 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
           label,
           style: GoogleFonts.inter(
             fontSize: 10.5,
+            color: const Color(0xFF75656A),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMilestoneLockedScreen(
+    BuildContext context,
+    WrappedEligibility eligibility,
+    WrappedSummary summary,
+  ) {
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final annivDate = eligibility.nextAnniversaryDate;
+    final annivFormatted = '${months[annivDate.month]} ${annivDate.day}, ${annivDate.year}';
+    final progress = (eligibility.accountAgeDays / 365.0).clamp(0.0, 1.0);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F6F0),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Organic watercolor blobs
+            Positioned(
+              top: -60,
+              right: -60,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE3EDE7).withValues(alpha: 0.7),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -60,
+              left: -60,
+              child: Container(
+                width: 240,
+                height: 240,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2D8D0).withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+
+            // Top Header
+            Positioned(
+              top: 16,
+              left: 20,
+              right: 20,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Miee Wrapped',
+                    style: GoogleFonts.caveat(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF8B4F48),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 24, color: Color(0xFF3A252B)),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+
+            // Main Locked Content
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 70),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Badge Icon
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2D8D0),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFC87D6B).withValues(alpha: 0.35),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFC87D6B).withValues(alpha: 0.2),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.hourglass_top_rounded,
+                        color: Color(0xFF8B4F48),
+                        size: 38,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Status pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4A6B5D).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF4A6B5D).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Text(
+                        '1-YEAR MILESTONE IN PROGRESS',
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: const Color(0xFF4A6B5D),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Headline
+                    Text(
+                      'Your Story\nis Being Written.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        height: 1.12,
+                        color: const Color(0xFF3A252B),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Subtitle
+                    Text(
+                      'Miee Wrapped unlocks on your 1-year anniversary. Keep listening and exploring new sounds to create your recap.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.geist(
+                        fontSize: 13.5,
+                        height: 1.45,
+                        color: const Color(0xFF75656A),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Milestone Progress Card
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE8DFD5)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3A252B).withValues(alpha: 0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Day ${eligibility.accountAgeDays} of 365',
+                                style: GoogleFonts.geist(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF3A252B),
+                                ),
+                              ),
+                              Text(
+                                '${eligibility.daysUntilNextAnniversary} days left',
+                                style: GoogleFonts.geist(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF8B4F48),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 8,
+                              backgroundColor: const Color(0xFFF0EBE3),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC87D6B)),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          Text(
+                            'Unlocks on $annivFormatted',
+                            style: GoogleFonts.geist(
+                              fontSize: 11.5,
+                              color: const Color(0xFF75656A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Current Stats Card
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9F6F0),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE0D4C5)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildLockedStatTile('Songs Played', '${summary.totalTracks}'),
+                          Container(width: 1, height: 32, color: const Color(0xFFE0D4C5)),
+                          _buildLockedStatTile('Hours Logged', summary.totalHours.toStringAsFixed(1)),
+                          Container(width: 1, height: 32, color: const Color(0xFFE0D4C5)),
+                          _buildLockedStatTile('Top Artist', summary.topArtist?.name ?? 'Exploring'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Keep Listening CTA Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3A252B),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'Keep Listening',
+                          style: GoogleFonts.geist(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Demo Preview Toggle (for testing / developer mode)
+                    TextButton.icon(
+                      onPressed: () {
+                        ref.read(wrappedForceEligibleProvider.notifier).state = true;
+                        if (!_progressController.isAnimating) {
+                          _progressController.forward();
+                        }
+                      },
+                      icon: const Icon(Icons.auto_awesome_rounded, size: 16, color: Color(0xFF8B4F48)),
+                      label: Text(
+                        'Preview 1-Year Recap (Demo Mode)',
+                        style: GoogleFonts.geist(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF8B4F48),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLockedStatTile(String label, String value) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.geist(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF3A252B),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.geist(
+            fontSize: 10,
             color: const Color(0xFF75656A),
           ),
         ),

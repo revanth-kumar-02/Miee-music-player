@@ -212,6 +212,7 @@ class WrappedSummary {
   final int topDayTrackCount;
   final bool isSampleData;
   final bool hasSufficientHistory;
+  final int anniversaryYear;
 
   const WrappedSummary({
     required this.year,
@@ -237,7 +238,137 @@ class WrappedSummary {
     required this.topDayTrackCount,
     required this.isSampleData,
     required this.hasSufficientHistory,
+    this.anniversaryYear = 1,
   });
 
   WrappedTrackItem? get topTrack => topTracks.isNotEmpty ? topTracks.first : null;
+}
+
+/// Represents the user's eligibility and anniversary milestone status for Miee Wrapped.
+///
+/// Wrapped only unlocks once the user's account is at least 1 year old (>= 365 days / 1 full calendar year),
+/// and unlocks iteratively year after year (Year 1 recap, Year 2 recap, Year 3 recap, etc.).
+class WrappedEligibility {
+  /// Whether the user's account has reached at least 1 year old.
+  final bool isEligible;
+
+  /// The original registration or first launch timestamp of this account.
+  final DateTime accountStartDate;
+
+  /// Number of full days since account creation.
+  final int accountAgeDays;
+
+  /// Number of completed 1-year cycles (0 if < 1 year, 1 if 1 year, 2 if 2 years, etc.).
+  final int completedYears;
+
+  /// The exact date when the next anniversary occurs.
+  final DateTime nextAnniversaryDate;
+
+  /// Days remaining until the next anniversary milestone.
+  final int daysUntilNextAnniversary;
+
+  /// List of completed milestone years available for viewing (e.g. [1] or [1, 2] or [1, 2, 3]).
+  final List<int> availableYears;
+
+  /// Active anniversary year being viewed (e.g. 1 for first year, 2 for second year).
+  final int activeYear;
+
+  /// Human-readable title for current status (e.g. "Year 1 Milestone", "1st Anniversary").
+  final String milestoneTitle;
+
+  /// Descriptive message explaining unlock status or milestone.
+  final String statusDescription;
+
+  const WrappedEligibility({
+    required this.isEligible,
+    required this.accountStartDate,
+    required this.accountAgeDays,
+    required this.completedYears,
+    required this.nextAnniversaryDate,
+    required this.daysUntilNextAnniversary,
+    required this.availableYears,
+    required this.activeYear,
+    required this.milestoneTitle,
+    required this.statusDescription,
+  });
+
+  /// Calculates leap-year safe anniversary date for any given number of years.
+  static DateTime anniversaryForYear(DateTime start, int yearsToAdd) {
+    final targetYear = start.year + yearsToAdd;
+    var day = start.day;
+    final month = start.month;
+    if (month == 2 && day == 29) {
+      final isLeap = (targetYear % 4 == 0 && targetYear % 100 != 0) || (targetYear % 400 == 0);
+      if (!isLeap) day = 28;
+    }
+    return DateTime(
+      targetYear,
+      month,
+      day,
+      start.hour,
+      start.minute,
+      start.second,
+      start.millisecond,
+    );
+  }
+
+  /// Computes eligibility accurately given an account start date and reference time.
+  factory WrappedEligibility.compute({
+    required DateTime accountStartDate,
+    DateTime? currentTime,
+    int? activeYearOverride,
+    bool forceEligible = false,
+  }) {
+    final now = currentTime ?? DateTime.now();
+    final difference = now.difference(accountStartDate);
+    final ageDays = difference.isNegative ? 0 : difference.inDays;
+
+    int completed = 0;
+    while (true) {
+      final nextAnniv = anniversaryForYear(accountStartDate, completed + 1);
+      if (now.isAfter(nextAnniv) || now.isAtSameMomentAs(nextAnniv)) {
+        completed++;
+      } else {
+        break;
+      }
+    }
+
+    final effectiveCompleted = forceEligible ? (completed < 1 ? 1 : completed) : completed;
+    final isEligible = forceEligible || (effectiveCompleted >= 1);
+
+    final nextAnniversaryDate = anniversaryForYear(accountStartDate, effectiveCompleted + 1);
+    final daysUntilNext = nextAnniversaryDate.difference(now).inDays;
+    final daysRemaining = daysUntilNext < 0 ? 0 : daysUntilNext;
+
+    final availableYears = List<int>.generate(effectiveCompleted, (i) => i + 1);
+    final activeYear = (activeYearOverride != null && availableYears.contains(activeYearOverride))
+        ? activeYearOverride
+        : (availableYears.isNotEmpty ? availableYears.last : 1);
+
+    final String milestoneTitle;
+    final String statusDescription;
+
+    if (isEligible) {
+      milestoneTitle = 'Year $activeYear Milestone';
+      statusDescription = effectiveCompleted == 1
+          ? 'Your 1st Year Miee Wrapped is unlocked!'
+          : 'Your Year $activeYear Wrapped is unlocked! ($effectiveCompleted years with Miee)';
+    } else {
+      milestoneTitle = '1st Year Milestone in Progress';
+      statusDescription = 'Your Year 1 Miee Wrapped unlocks in $daysRemaining days.';
+    }
+
+    return WrappedEligibility(
+      isEligible: isEligible,
+      accountStartDate: accountStartDate,
+      accountAgeDays: ageDays,
+      completedYears: effectiveCompleted,
+      nextAnniversaryDate: nextAnniversaryDate,
+      daysUntilNextAnniversary: daysRemaining,
+      availableYears: availableYears,
+      activeYear: activeYear,
+      milestoneTitle: milestoneTitle,
+      statusDescription: statusDescription,
+    );
+  }
 }
