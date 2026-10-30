@@ -27,6 +27,8 @@ import '../../connect/presentation/connect_sheet.dart';
 import '../../connect/providers/connect_providers.dart';
 import '../../music_drop/presentation/widgets/music_drop_pill.dart';
 import '../../music_drop/presentation/widgets/music_drop_sheet.dart';
+import 'widgets/sleep_timer_sheet.dart';
+import '../providers/sleep_timer_provider.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B) on Mobile
@@ -585,6 +587,53 @@ class PlayerPage extends ConsumerWidget {
                   ),
                   const SizedBox(width: 14),
                   MusicDropPill(track: currentTrack),
+                  const SizedBox(width: 14),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final sleepState = ref.watch(sleepTimerProvider);
+                      return InkWell(
+                        onTap: () => SleepTimerSheet.show(context),
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: sleepState.isActive
+                                ? AppColors.primary.withValues(alpha: 0.25)
+                                : AppColors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(18),
+                            border: sleepState.isActive
+                                ? Border.all(color: AppColors.primary.withValues(alpha: 0.6))
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.bedtime_rounded,
+                                size: 16,
+                                color: sleepState.isActive
+                                    ? AppColors.primary
+                                    : AppColors.vanillaCream,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                sleepState.isActive
+                                    ? sleepState.formattedRemaining
+                                    : 'Timer',
+                                style: GoogleFonts.geist(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: sleepState.isActive
+                                      ? AppColors.primary
+                                      : AppColors.vanillaCream,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

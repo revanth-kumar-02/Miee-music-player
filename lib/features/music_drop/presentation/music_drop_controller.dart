@@ -246,6 +246,10 @@ class MusicDropController extends StateNotifier<MusicDropState> {
             activeTransfers: map,
             errorMessage: () => message,
           );
+        } else {
+          state = state.copyWith(
+            errorMessage: () => message,
+          );
         }
         break;
 

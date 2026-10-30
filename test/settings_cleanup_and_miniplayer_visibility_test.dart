@@ -275,7 +275,7 @@ void main() {
 
       expect(find.text('Home Screen Content'), findsOneWidget);
       expect(find.byType(MiniPlayer), findsOneWidget);
-      expect(find.text('Vizhi Veekura'), findsOneWidget);
+      expect(find.descendant(of: find.byType(MiniPlayer), matching: find.text('Vizhi Veekura')), findsOneWidget);
     });
 
     testWidgets('MiniPlayer is HIDDEN on /settings while audio continues playing in background', (tester) async {
@@ -322,7 +322,7 @@ void main() {
 
       // On /home: MiniPlayer is visible
       expect(find.byType(MiniPlayer), findsOneWidget);
-      expect(find.text('Vizhi Veekura'), findsOneWidget);
+      expect(find.descendant(of: find.byType(MiniPlayer), matching: find.text('Vizhi Veekura')), findsOneWidget);
 
       // Navigate to /settings
       router.go('/settings');
@@ -338,7 +338,7 @@ void main() {
 
       // On /home again: MiniPlayer is restored with track preserved
       expect(find.byType(MiniPlayer), findsOneWidget);
-      expect(find.text('Vizhi Veekura'), findsOneWidget);
+      expect(find.descendant(of: find.byType(MiniPlayer), matching: find.text('Vizhi Veekura')), findsOneWidget);
     });
   });
 }

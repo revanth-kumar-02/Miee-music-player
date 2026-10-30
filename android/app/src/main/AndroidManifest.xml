@@ -55,6 +55,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- Miee 4x1 Compact Homescreen Widget -->
+        <receiver
+            android:name=".widget.MieeCompactWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.miee.widget.UPDATE_STATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_compact_player_info" />
+        </receiver>
+
         <!-- Miee Music Drop Background Receiving Service and Actions Receiver -->
         <service
             android:name=".musicdrop.MusicDropService"

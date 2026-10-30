@@ -1,4 +1,5 @@
 import '../../features/music_drop/presentation/widgets/incoming_drop_banner.dart';
+import '../../features/player/presentation/widgets/miee_dynamic_island.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -165,6 +166,14 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
+            // Top Miee Dynamic Island (Visible when a song is loaded, outside of full Now Playing and Room screens)
+            if (hasTrack && !isNowPlayingRoute && !isRoomRoute)
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: MieeDynamicIsland(),
+              ),
             Positioned(
               top: MediaQuery.of(context).padding.top + 4,
               left: 0,

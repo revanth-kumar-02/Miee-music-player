@@ -165,6 +165,22 @@ class YouTubeAudioService {
     return future;
   }
 
+  /// Predictively preheats and caches the stream URL for [videoIdOrUrl] in the background.
+  ///
+  /// Safe to call concurrently; silently catches any errors so current playback is unaffected.
+  Future<void> prefetchStreamUrl(String videoIdOrUrl) async {
+    final videoId = _extractVideoId(videoIdOrUrl);
+    if (videoId == null || videoId.isEmpty) return;
+    if (isCached(videoId) || _inFlight.containsKey(videoId)) return;
+
+    try {
+      debugPrint('[StreamCache] Predictive prefetch started for next track: $videoId');
+      await getAudioStreamUrl(videoId);
+    } catch (e) {
+      debugPrint('[StreamCache] Predictive prefetch error for $videoId (ignored): $e');
+    }
+  }
+
   /// Returns true if [url] is non-empty, parseable, and not past its `expire` param.
   bool isUrlValid(String url) {
     if (url.isEmpty) return false;

@@ -75,6 +75,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   /// to dynamically replenish upcoming tracks without interrupting playback.
   Future<void> Function()? onQueueApproachingEnd;
 
+  /// Tracks whether the next track in the queue has already been predictively cached
+  /// for the current song cycle to avoid redundant prefetch calls.
+  String? _prefetchedNextTrackId;
+
   /// Monotonically increasing token to discard stale in-flight loads
   /// when a user rapidly selects a different song.
   int _activeLoadToken = 0;
@@ -293,6 +297,39 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       _lastValidPosition = position;
     }
     _pushPlaybackState();
+    _checkPredictivePrefetch(position);
+  }
+
+  /// Triggers background stream URL resolution for the upcoming track when
+  /// current track playback passes 75% or has less than 35 seconds remaining.
+  void _checkPredictivePrefetch(Duration position) {
+    final totalDuration = mediaItem.value?.duration;
+    if (totalDuration == null || totalDuration <= Duration.zero) return;
+    if (_queue.isEmpty || _currentIndex < 0 || _currentIndex >= _queue.length - 1) return;
+
+    final nextTrack = _queue[_currentIndex + 1];
+    if (_prefetchedNextTrackId == nextTrack.id) return;
+
+    final progress = position.inMilliseconds / totalDuration.inMilliseconds;
+    final remaining = totalDuration - position;
+
+    // Trigger preheat at 75% progress or within 35 seconds of track completion
+    if (progress >= 0.75 || remaining <= const Duration(seconds: 35)) {
+      _prefetchedNextTrackId = nextTrack.id;
+      _triggerPrefetchForTrack(nextTrack);
+    }
+  }
+
+  void _triggerPrefetchForTrack(MusicItem nextTrack) {
+    if (!nextTrack.isYoutube) return;
+    final videoId = _extractYouTubeVideoId(nextTrack.id);
+    if (videoId.isEmpty) return;
+
+    debugPrint(
+      '[PlaybackPrefetch] Pre-buffering stream metadata for next track '
+      '"${nextTrack.title}" ($videoId) in background',
+    );
+    YouTubeAudioService().prefetchStreamUrl(videoId);
   }
 
   void _onDurationChanged(Duration? duration) {
@@ -435,6 +472,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     final wasPlaying = _player.playing || playbackState.value.playing;
     _isLoadingTrack = true;
     _loadedAudioTrackId = null;
+    _prefetchedNextTrackId = null; // Reset prefetch cycle for newly active track
 
     if (initialPosition != null && initialPosition > Duration.zero) {
       _lastValidPosition = initialPosition;

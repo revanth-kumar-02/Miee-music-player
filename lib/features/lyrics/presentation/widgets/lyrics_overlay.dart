@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
@@ -205,6 +206,7 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
                         behavior: HitTestBehavior.opaque,
                         onTap: isSynced
                             ? () {
+                                HapticFeedback.lightImpact();
                                 ref.read(playerControllerProvider.notifier).seek(line.time);
                               }
                             : null,
