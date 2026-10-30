@@ -202,23 +202,6 @@ class TrendingMusicService {
         }
       }
 
-      // Extract preview stream if available
-      String audioPreviewUrl = '';
-      final links = entry['link'];
-      if (links is List) {
-        for (final l in links) {
-          if (l is Map && l['attributes'] is Map) {
-            final attrs = l['attributes'] as Map;
-            final href = attrs['href'] as String? ?? '';
-            final type = attrs['type'] as String? ?? '';
-            if (href.endsWith('.m4a') || type.contains('audio')) {
-              audioPreviewUrl = href;
-              break;
-            }
-          }
-        }
-      }
-
       return Track(
         id: 'wm_chart_$itunesId',
         title: title,
@@ -227,7 +210,7 @@ class TrendingMusicService {
             ? imageUrl
             : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop',
         duration: '3:30',
-        filePath: audioPreviewUrl,
+        filePath: null, // Full stream resolved on demand; never force 30s preview
         rawTitle: title,
         rawArtist: artist,
       );

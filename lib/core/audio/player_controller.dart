@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart' hide PlaybackState;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -414,14 +415,16 @@ class PlayerController extends StateNotifier<PlaybackState> {
     // Smoothly fade out active audio so Song A fades out cleanly (<180ms)
     // while Song B is resolving over the network, without tearing down the foreground service.
     try {
-      if (_handler.isPlaying) {
+      if (kIsWeb) {
+        await _handler.pause();
+      } else if (_handler.isPlaying) {
         await _handler.fadeOutAndPause(duration: const Duration(milliseconds: 180));
       } else {
         await _handler.pause();
       }
     } catch (_) {}
 
-    final isOnline = track.isYoutube;
+    final isOnline = track.isYoutube || kIsWeb;
     final startPosition = initialPosition ?? Duration.zero;
 
     // 1. Immediately update UI state with selected track and loading status
@@ -499,6 +502,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
     } catch (e) {
       if (token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
+      try {
+        await _handler.stop();
+      } catch (_) {}
       state = state.copyWith(
         status: PlaybackStatus.error,
         clearLoadingTrackId: true,

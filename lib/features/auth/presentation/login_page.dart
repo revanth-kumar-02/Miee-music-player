@@ -56,8 +56,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
     } catch (e) {
       if (mounted) {
+        final str = e.toString().toLowerCase();
+        String message = e.toString().replaceFirst('Exception: ', '');
+        if (str.contains('socketexception') ||
+            str.contains('failed host lookup') ||
+            str.contains('no address associated') ||
+            str.contains('network is unreachable') ||
+            str.contains('connection refused') ||
+            str.contains('clientexception')) {
+          message = 'Unable to reach the server. Please check your internet connection or Private DNS settings, or tap "Continue as Guest".';
+        }
         setState(() {
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+          _errorMessage = message;
           _isLoading = false;
         });
       }

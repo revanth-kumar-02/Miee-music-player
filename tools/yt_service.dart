@@ -136,9 +136,43 @@ void main(List<String> args) async {
         request.response.write(jsonEncode({'results': list}));
       } else if (path == '/api/yt/resolve') {
         var id = (request.uri.queryParameters['id'] ?? '').trim();
+        final qParam = (request.uri.queryParameters['q'] ??
+                request.uri.queryParameters['title'] ??
+                '')
+            .trim();
+        final artistParam = (request.uri.queryParameters['artist'] ?? '').trim();
+        final searchQuery = qParam.isNotEmpty
+            ? (artistParam.isNotEmpty ? '$qParam $artistParam' : qParam)
+            : '';
+
         if (id.startsWith('youtube_')) id = id.replaceFirst('youtube_', '');
         if (id.contains('watch?v=')) {
           id = Uri.tryParse(id)?.queryParameters['v'] ?? id;
+        }
+
+        // If ID is not a standard 11-char YouTube ID (e.g. wm_chart_... or wm_...), resolve via YouTube search
+        if (!RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id)) {
+          final queryToSearch = searchQuery.isNotEmpty ? searchQuery : id.replaceFirst(RegExp(r'^wm_(chart_)?'), '');
+          print('[YTService] Custom non-YouTube ID "$id" received. Resolving via query "$queryToSearch"...');
+          try {
+            final results = await yt.search.search(queryToSearch);
+            final firstMatch = results.firstOrNull;
+            if (firstMatch != null) {
+              id = firstMatch.id.value;
+              print('[YTService] Resolved "$queryToSearch" to YouTube video ID: $id ("${firstMatch.title}")');
+            } else {
+              request.response.statusCode = HttpStatus.notFound;
+              request.response.write(jsonEncode({'error': 'No video found for query: $queryToSearch'}));
+              await request.response.close();
+              continue;
+            }
+          } catch (e) {
+            print('[YTService] Search fallback failed for "$queryToSearch": $e');
+            request.response.statusCode = HttpStatus.internalServerError;
+            request.response.write(jsonEncode({'error': 'Search fallback error: $e'}));
+            await request.response.close();
+            continue;
+          }
         }
 
         if (id.isEmpty) {
@@ -173,7 +207,7 @@ void main(List<String> args) async {
           final manifest = await yt.videos.streamsClient.getManifest(
             id,
             ytClients: [kVisionOsClient],
-          ).timeout(const Duration(seconds: 8));
+          ).timeout(const Duration(seconds: 22));
           final audioStreams = manifest.audioOnly;
           if (audioStreams.isNotEmpty) {
             final aac = audioStreams.where((s) =>
@@ -196,7 +230,7 @@ void main(List<String> args) async {
             final manifest = await yt.videos.streamsClient.getManifest(
               id,
               ytClients: [kAndroidSdklessClient],
-            ).timeout(const Duration(seconds: 6));
+            ).timeout(const Duration(seconds: 18));
             final audioStreams = manifest.audioOnly;
             if (audioStreams.isNotEmpty) {
               final selected = audioStreams.withHighestBitrate();
@@ -211,7 +245,7 @@ void main(List<String> args) async {
         if (streamUrl == null) {
           try {
             final manifest = await yt.videos.streamsClient.getManifest(id)
-                .timeout(const Duration(seconds: 6));
+                .timeout(const Duration(seconds: 18));
             final audioStreams = manifest.audioOnly;
             if (audioStreams.isNotEmpty) {
               final selected = audioStreams.withHighestBitrate();

@@ -115,6 +115,8 @@ class YouTubeAudioService {
   Future<String?> getAudioStreamUrl(
     String videoIdOrUrl, {
     bool forceRefresh = false,
+    String? title,
+    String? artist,
   }) {
     final videoId = _extractVideoId(videoIdOrUrl);
     if (videoId == null || videoId.isEmpty) {
@@ -144,7 +146,7 @@ class YouTubeAudioService {
       return _inFlight[videoId]!;
     }
 
-    final future = _resolveStream(videoId).timeout(
+    final future = _resolveStream(videoId, title: title, artist: artist).timeout(
       const Duration(seconds: 25),
       onTimeout: () {
         debugPrint('[YouTubeAudioService] Overall stream resolution timed out for $videoId');
@@ -227,46 +229,53 @@ class YouTubeAudioService {
     if (cleanQuery.isEmpty) return null;
 
     if (kIsWeb) {
-      try {
-        final dio = Dio(BaseOptions(
-          connectTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
-        ));
-        final res = await dio.get<dynamic>(
-          '/api/yt/search',
-          queryParameters: {'q': cleanQuery, 'limit': 1},
-        );
-        if (res.statusCode == 200 && res.data != null) {
-          final data = res.data is String
-              ? jsonDecode(res.data as String) as Map<String, dynamic>
-              : Map<String, dynamic>.from(res.data as Map);
-          final list = data['results'] as List<dynamic>? ?? [];
-          for (final raw in list) {
-            if (raw is Map) {
-              final id = (raw['id'] ?? '').toString();
-              final title = (raw['title'] ?? '').toString();
-              final artist = (raw['artist'] ?? '').toString();
-              if (id.isNotEmpty) {
-                final candidate = YouTubeVideo(
-                  id: id,
-                  title: title,
-                  channelTitle: artist,
-                  thumbnailUrl: '',
-                  duration: '3:30',
-                  viewCount: '',
-                  rawTitle: title,
-                  rawChannelTitle: artist,
-                );
-                if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
-                  debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via web proxy');
-                  return id;
+      final webProxies = [
+        'http://127.0.0.1:8089',
+        if (Uri.base.host.isNotEmpty && Uri.base.host != '127.0.0.1') 'http://${Uri.base.host}:8089',
+        '',
+      ];
+      for (final baseUrl in webProxies) {
+        try {
+          final dio = Dio(BaseOptions(
+            connectTimeout: const Duration(seconds: 6),
+            receiveTimeout: const Duration(seconds: 6),
+          ));
+          final res = await dio.get<dynamic>(
+            '$baseUrl/api/yt/search',
+            queryParameters: {'q': cleanQuery, 'limit': 1},
+          );
+          if (res.statusCode == 200 && res.data != null) {
+            final data = res.data is String
+                ? jsonDecode(res.data as String) as Map<String, dynamic>
+                : Map<String, dynamic>.from(res.data as Map);
+            final list = data['results'] as List<dynamic>? ?? [];
+            for (final raw in list) {
+              if (raw is Map) {
+                final id = (raw['id'] ?? '').toString();
+                final title = (raw['title'] ?? '').toString();
+                final artist = (raw['artist'] ?? '').toString();
+                if (id.isNotEmpty) {
+                  final candidate = YouTubeVideo(
+                    id: id,
+                    title: title,
+                    channelTitle: artist,
+                    thumbnailUrl: '',
+                    duration: '3:30',
+                    viewCount: '',
+                    rawTitle: title,
+                    rawChannelTitle: artist,
+                  );
+                  if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+                    debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via web proxy ($baseUrl)');
+                    return id;
+                  }
                 }
               }
             }
           }
+        } catch (e) {
+          debugPrint('[YouTubeAudioService] Web proxy query search failed at $baseUrl for "$cleanQuery": $e');
         }
-      } catch (e) {
-        debugPrint('[YouTubeAudioService] Web proxy query search failed for "$cleanQuery": $e');
       }
     } else {
       try {
@@ -301,33 +310,48 @@ class YouTubeAudioService {
   // Core stream resolution
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<String?> _resolveStream(String videoId) async {
-    debugPrint('[YouTubeAudioService] Resolving audio stream for $videoId');
+  Future<String?> _resolveStream(
+    String videoId, {
+    String? title,
+    String? artist,
+  }) async {
+    debugPrint('[YouTubeAudioService] Resolving audio stream for $videoId (title: $title)');
 
     // Web environment: resolve via dedicated backend proxy to bypass browser CORS restrictions
     if (kIsWeb) {
-      try {
-        final dio = Dio(BaseOptions(
-          connectTimeout: const Duration(seconds: 12),
-          receiveTimeout: const Duration(seconds: 12),
-        ));
-        final res = await dio.get<dynamic>(
-          '/api/yt/resolve',
-          queryParameters: {'id': videoId},
-        );
-        if (res.statusCode == 200 && res.data != null) {
-          final data = res.data is String
-              ? jsonDecode(res.data as String) as Map<String, dynamic>
-              : Map<String, dynamic>.from(res.data as Map);
-          final streamUrl = data['streamUrl'] as String?;
-          if (streamUrl != null && streamUrl.isNotEmpty) {
-            debugPrint('[YouTubeAudioService] Resolved stream via web proxy for $videoId');
-            _cacheUrl(videoId, streamUrl);
-            return streamUrl;
+      final webProxies = [
+        'http://127.0.0.1:8089',
+        if (Uri.base.host.isNotEmpty && Uri.base.host != '127.0.0.1') 'http://${Uri.base.host}:8089',
+        '',
+      ];
+      for (final baseUrl in webProxies) {
+        try {
+          final dio = Dio(BaseOptions(
+            connectTimeout: const Duration(seconds: 12),
+            receiveTimeout: const Duration(seconds: 12),
+          ));
+          final res = await dio.get<dynamic>(
+            '$baseUrl/api/yt/resolve',
+            queryParameters: {
+              'id': videoId,
+              if (title != null && title.isNotEmpty) 'title': title,
+              if (artist != null && artist.isNotEmpty) 'artist': artist,
+            },
+          );
+          if (res.statusCode == 200 && res.data != null) {
+            final data = res.data is String
+                ? jsonDecode(res.data as String) as Map<String, dynamic>
+                : Map<String, dynamic>.from(res.data as Map);
+            final streamUrl = data['streamUrl'] as String?;
+            if (streamUrl != null && streamUrl.isNotEmpty) {
+              debugPrint('[YouTubeAudioService] Resolved stream via web proxy ($baseUrl) for $videoId');
+              _cacheUrl(videoId, streamUrl);
+              return streamUrl;
+            }
           }
+        } catch (e) {
+          debugPrint('[YouTubeAudioService] Web stream proxy resolution failed at $baseUrl for $videoId: $e');
         }
-      } catch (e) {
-        debugPrint('[YouTubeAudioService] Web stream proxy resolution failed for $videoId: $e');
       }
     }
 

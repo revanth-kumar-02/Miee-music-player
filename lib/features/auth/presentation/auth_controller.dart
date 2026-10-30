@@ -95,7 +95,7 @@ class AuthController extends StateNotifier<AuthState> {
         return true;
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: _cleanErrorMessage(e));
       return false;
     }
   }
@@ -121,9 +121,26 @@ class AuthController extends StateNotifier<AuthState> {
         return true;
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      state = state.copyWith(isLoading: false, errorMessage: _cleanErrorMessage(e));
       return false;
     }
+  }
+
+  String _cleanErrorMessage(dynamic e) {
+    final str = e.toString().toLowerCase();
+    if (str.contains('socketexception') ||
+        str.contains('failed host lookup') ||
+        str.contains('no address associated') ||
+        str.contains('network is unreachable') ||
+        str.contains('connection refused') ||
+        str.contains('connection timed out') ||
+        str.contains('clientexception')) {
+      return 'Unable to reach the server. Please check your internet connection or Private DNS settings, or tap "Continue as Guest".';
+    }
+    if (str.contains('invalid login credentials') || str.contains('invalid credentials')) {
+      return 'Incorrect email or password. Please try again.';
+    }
+    return e.toString().replaceFirst('Exception: ', '');
   }
 
   Future<void> signOut() async {

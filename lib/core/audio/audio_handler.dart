@@ -325,6 +325,20 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     final videoId = _extractYouTubeVideoId(nextTrack.id);
     if (videoId.isEmpty) return;
 
+    if (videoId.startsWith('wm_') || !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(videoId)) {
+      final query = '${nextTrack.title} ${nextTrack.artist}'.trim();
+      YouTubeAudioService().resolveVideoIdForQuery(query).then((realId) {
+        if (realId != null && realId.isNotEmpty) {
+          debugPrint(
+            '[PlaybackPrefetch] Pre-buffering stream metadata for next track '
+            '"${nextTrack.title}" ($realId) in background',
+          );
+          YouTubeAudioService().prefetchStreamUrl(realId);
+        }
+      });
+      return;
+    }
+
     debugPrint(
       '[PlaybackPrefetch] Pre-buffering stream metadata for next track '
       '"${nextTrack.title}" ($videoId) in background',
@@ -481,10 +495,13 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
 
     try {
-      if (_player.playing) {
+      if (kIsWeb) {
+        // On Web, immediately stop the previous HTML5 AudioElement to prevent background bleeding
+        await _player.stop();
+      } else if (_player.playing) {
         await fadeOutAndPause(duration: const Duration(milliseconds: 120));
       }
-      // Note: Do NOT call _player.stop() here. Calling stop unloads ExoPlayer and
+      // Note: On native Android, do NOT call _player.stop() here. Calling stop unloads ExoPlayer and
       // signals the Android OS that media playback is inactive, which drops media wake locks
       // and causes Android to suspend YouTube network resolution when the screen is turned off.
     } catch (_) {}
@@ -587,8 +604,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     debugPrint('[AudioHandler] Loading YouTube track: videoId=$videoId ("${track.title}", token=$token)');
 
     PlaybackDiagnostics().recordStreamResolutionStart(track.id);
-    String? streamUrl =
-        await YouTubeAudioService().getAudioStreamUrl(videoId);
+    String? streamUrl = await YouTubeAudioService().getAudioStreamUrl(
+      videoId,
+      title: track.title,
+      artist: track.artist,
+    );
 
     if (token != _activeLoadToken) {
       debugPrint('[AudioHandler] Discarding stale YouTube resolution for $videoId ($token vs $_activeLoadToken)');
@@ -597,8 +617,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
     if (streamUrl == null || streamUrl.isEmpty || !YouTubeAudioService().isUrlValid(streamUrl)) {
       debugPrint('[AudioHandler] Initial resolution failed for $videoId, retrying fresh (attempt 2/2)');
-      streamUrl = await YouTubeAudioService()
-          .getAudioStreamUrl(videoId, forceRefresh: true);
+      streamUrl = await YouTubeAudioService().getAudioStreamUrl(
+        videoId,
+        forceRefresh: true,
+        title: track.title,
+        artist: track.artist,
+      );
       if (token != _activeLoadToken) return;
     }
 
@@ -669,6 +693,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> _loadLocalTrack(MusicItem track, int token) async {
     PlaybackDiagnostics().recordPlayerLoadStart(track.id);
     final path = track.filePath;
+
+    // Reject 30-second preview URLs and web discovery IDs from playing local snippets
+    final isPreviewUrl = path.contains('itunes.apple.com') ||
+        path.contains('/AudioPreview') ||
+        path.contains('preview');
+    if (isPreviewUrl || track.id.startsWith('wm_')) {
+      debugPrint('[Playback] Track "${track.title}" is an online discovery track — routing to _loadYouTubeTrack for full stream');
+      await _loadYouTubeTrack(track, token);
+      return;
+    }
+
     try {
       if (!kIsWeb && path.isNotEmpty && !path.startsWith('http')) {
         debugPrint('[Playback] Loading local file: $path (token=$token)');

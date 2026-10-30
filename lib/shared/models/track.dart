@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'music_item.dart';
 
 /// Model representing a music track.
@@ -42,7 +43,13 @@ class Track implements MusicItem {
   String get filePath => localFilePath ?? '';
 
   @override
-  bool get isYoutube => id.startsWith('youtube_') || (localFilePath?.contains('youtube.com') ?? false);
+  bool get isYoutube =>
+      kIsWeb ||
+      id.startsWith('youtube_') ||
+      id.startsWith('wm_') ||
+      RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id) ||
+      (localFilePath?.contains('youtube.com') ?? false) ||
+      (localFilePath?.startsWith('http') ?? false);
 
   @override
   bool operator ==(Object other) =>

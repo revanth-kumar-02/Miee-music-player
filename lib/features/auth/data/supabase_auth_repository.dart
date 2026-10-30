@@ -63,7 +63,7 @@ class SupabaseAuthRepository implements AuthRepository {
     } on AuthException catch (e) {
       throw Exception(_mapSupabaseAuthError(e));
     } catch (e) {
-      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+      throw Exception(_mapGenericAuthError(e));
     }
   }
 
@@ -96,7 +96,7 @@ class SupabaseAuthRepository implements AuthRepository {
     } on AuthException catch (e) {
       throw Exception(_mapSupabaseAuthError(e));
     } catch (e) {
-      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+      throw Exception(_mapGenericAuthError(e));
     }
   }
 
@@ -111,6 +111,8 @@ class SupabaseAuthRepository implements AuthRepository {
       await client.auth.resetPasswordForEmail(email.trim());
     } on AuthException catch (e) {
       throw Exception(_mapSupabaseAuthError(e));
+    } catch (e) {
+      throw Exception(_mapGenericAuthError(e));
     }
   }
 
@@ -124,6 +126,26 @@ class SupabaseAuthRepository implements AuthRepository {
       debugPrint('[SupabaseAuthRepository] Error during signOut: $e');
       rethrow;
     }
+  }
+
+  String _mapGenericAuthError(dynamic e) {
+    if (e is AuthException) {
+      return _mapSupabaseAuthError(e);
+    }
+    final str = e.toString().toLowerCase();
+    if (str.contains('socketexception') ||
+        str.contains('failed host lookup') ||
+        str.contains('no address associated') ||
+        str.contains('network is unreachable') ||
+        str.contains('connection refused') ||
+        str.contains('connection timed out') ||
+        str.contains('clientexception')) {
+      return 'Unable to reach the server. Please check your internet connection or Private DNS settings, or tap "Continue as Guest".';
+    }
+    if (str.contains('timeout')) {
+      return 'Connection timed out. Please check your network and try again.';
+    }
+    return e.toString().replaceFirst('Exception: ', '');
   }
 
   String _mapSupabaseAuthError(AuthException e) {
