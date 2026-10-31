@@ -54,7 +54,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      // Notify password managers (Google Password Manager on Android & browsers on Web)
+      // that login succeeded and credentials can be saved/updated.
+      TextInput.finishAutofillContext(shouldSave: true);
     } catch (e) {
+      TextInput.finishAutofillContext(shouldSave: false);
       if (mounted) {
         final str = e.toString().toLowerCase();
         String message = e.toString().replaceFirst('Exception: ', '');
@@ -115,6 +119,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 TextField(
                   controller: resetEmailController,
                   keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  autocorrect: false,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 14,
                     color: AuthPalette.textPrimary,
@@ -301,84 +307,89 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _buildFormContent({required bool isDesktop}) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Branding & Title Header
-          AuthBrandHeader(
-            title: 'Welcome back',
-            subtitle: 'Pick up where the music left off.',
-            showEmblem: !isDesktop,
-          ),
+    return AutofillGroup(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Branding & Title Header
+            AuthBrandHeader(
+              title: 'Welcome back',
+              subtitle: 'Pick up where the music left off.',
+              showEmblem: !isDesktop,
+            ),
 
-          // Error banner
-          if (_errorMessage != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AuthPalette.errorContainer,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AuthPalette.errorRed.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    color: AuthPalette.errorRed,
-                    size: 18,
+            // Error banner
+            if (_errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AuthPalette.errorContainer,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AuthPalette.errorRed.withValues(alpha: 0.3),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _errorMessage!,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12.5,
-                        color: AuthPalette.errorRed,
-                        fontWeight: FontWeight.w500,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      color: AuthPalette.errorRed,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12.5,
+                          color: AuthPalette.errorRed,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(height: 16),
+            ],
+
+            // Email Input (52px rounded-xl)
+            AuthTextField(
+              label: 'Email address',
+              hintText: isDesktop ? 'name@example.com' : 'Enter your email',
+              controller: _emailController,
+              focusNode: _emailFocusNode,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email, AutofillHints.username],
+              autocorrect: false,
+              onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your email';
+                }
+                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
+                  return 'Please enter a valid email address';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 16),
-          ],
 
-          // Email Input (52px rounded-xl)
-          AuthTextField(
-            label: 'Email address',
-            hintText: isDesktop ? 'name@example.com' : 'Enter your email',
-            controller: _emailController,
-            focusNode: _emailFocusNode,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter your email';
-              }
-              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
-                return 'Please enter a valid email address';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Password Input (52px rounded-xl)
-          AuthTextField(
-            label: 'Password',
-            hintText: 'Enter your password',
-            controller: _passwordController,
-            focusNode: _passwordFocusNode,
-            obscureText: !_isPasswordVisible,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleLogin(),
+            // Password Input (52px rounded-xl)
+            AuthTextField(
+              label: 'Password',
+              hintText: 'Enter your password',
+              controller: _passwordController,
+              focusNode: _passwordFocusNode,
+              obscureText: !_isPasswordVisible,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
+              autocorrect: false,
+              onFieldSubmitted: (_) => _handleLogin(),
             suffixIcon: IconButton(
               icon: Icon(
                 _isPasswordVisible
@@ -527,6 +538,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
         ],
       ),
+    ),
     );
   }
 

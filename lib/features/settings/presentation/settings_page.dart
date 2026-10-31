@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,6 +16,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../profile/presentation/profile_controller.dart';
+import '../../profile/data/profile_image_service.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../legal/presentation/legal_document_page.dart';
 import '../../about/presentation/miee_dedication_page.dart';
@@ -82,6 +82,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<int> _calculateCacheSize() async {
+    if (kIsWeb) return 0;
     try {
       final tempDir = await getTemporaryDirectory();
       int total = 0;
@@ -99,6 +100,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<int> _calculateDatabaseSize() async {
+    if (kIsWeb) return 0;
     try {
       final docDir = await getApplicationDocumentsDirectory();
       int total = 0;
@@ -116,6 +118,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _clearArtworkCache() async {
+    if (kIsWeb) return;
     try {
       final tempDir = await getTemporaryDirectory();
       if (await tempDir.exists()) {
@@ -1082,65 +1085,34 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _pickSettingsProfileImage(ImageSource source) async {
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, imageQuality: 90);
-      if (picked == null) return;
+    final result = await ProfileImageService.selectAndCropProfilePicture(
+      context: context,
+      ref: ref,
+      source: source,
+    );
 
-      final appDir = await getApplicationDocumentsDirectory();
-      final savedPath = '${appDir.path}/profile_avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    if (!mounted) return;
 
-      // Enforce 1:1 square aspect ratio crop
-      final bytes = await File(picked.path).readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded != null) {
-        final side = min(decoded.width, decoded.height);
-        final offsetX = (decoded.width - side) ~/ 2;
-        final offsetY = (decoded.height - side) ~/ 2;
-        final cropped = img.copyCrop(decoded, x: offsetX, y: offsetY, width: side, height: side);
-        final encoded = img.encodeJpg(cropped, quality: 90);
-        await File(savedPath).writeAsBytes(encoded);
-      } else {
-        await File(picked.path).copy(savedPath);
-      }
-
-      final profile = ref.read(profileProvider);
-      await ref.read(profileProvider.notifier).updateProfile(
-            displayName: profile.displayName,
-            username: profile.username,
-            profilePicturePath: savedPath,
-            favoriteGenre: profile.favoriteGenre,
-            favoriteArtist: profile.favoriteArtist,
-          );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated successfully.')),
-        );
-      }
-    } catch (e) {
-      debugPrint('[SettingsPage] Error picking profile image: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update photo: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+    if (result.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated successfully.')),
+      );
+    } else if (result.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
   Future<void> _removeSettingsProfileImage() async {
-    try {
-      await ref.read(profileProvider.notifier).removeProfilePicture();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo removed.')),
-        );
-      }
-    } catch (e) {
-      debugPrint('[SettingsPage] Error removing profile photo: $e');
+    await ProfileImageService.removeProfilePicture(ref);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo removed.')),
+      );
     }
   }
 

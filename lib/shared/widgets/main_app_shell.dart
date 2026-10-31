@@ -1,5 +1,5 @@
 import '../../features/music_drop/presentation/widgets/incoming_drop_banner.dart';
-import '../../features/player/presentation/widgets/miee_dynamic_island.dart';
+import '../../features/notifications/presentation/widgets/notification_sheet.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -166,14 +166,6 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         body: Stack(
           children: [
             Positioned.fill(child: widget.child),
-            // Top Miee Dynamic Island (Visible when a song is loaded, outside of full Now Playing and Room screens)
-            if (hasTrack && !isNowPlayingRoute && !isRoomRoute)
-              const Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: MieeDynamicIsland(),
-              ),
             Positioned(
               top: MediaQuery.of(context).padding.top + 4,
               left: 0,
@@ -548,31 +540,10 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: const BoxDecoration(
-                              color: MieeWebColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: (resolvedAvatarUrl != null && resolvedAvatarUrl.isNotEmpty)
-                                ? Image.network(
-                                    resolvedAvatarUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Center(
-                                      child: Text(
-                                        effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                      ),
-                                    ),
-                                  )
-                                : Center(
-                                    child: Text(
-                                      effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                    ),
-                                  ),
+                          ProfileAvatar(
+                            imageUrl: resolvedAvatarUrl,
+                            size: 32,
+                            fallbackInitials: effectiveName,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -942,7 +913,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   color: MieeWebColors.onSurfaceVariant,
                   hoverColor: MieeWebColors.surfaceContainerHigh,
                   splashRadius: 18,
-                  onPressed: () {},
+                  onPressed: () => NotificationSheet.show(context),
                 ),
                 Positioned(
                   top: 8,
@@ -962,35 +933,11 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
           ],
 
           // Profile Avatar
-          InkWell(
+          ProfileAvatar(
+            imageUrl: resolvedAvatarUrl,
+            size: 32,
+            fallbackInitials: effectiveName,
             onTap: () => context.go('/profile'),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(
-                color: MieeWebColors.primary,
-                shape: BoxShape.circle,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: (resolvedAvatarUrl != null && resolvedAvatarUrl.isNotEmpty)
-                  ? Image.network(
-                      resolvedAvatarUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Text(
-                          effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        effectiveName.isNotEmpty ? effectiveName[0].toUpperCase() : 'M',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                    ),
-            ),
           ),
         ],
       ),

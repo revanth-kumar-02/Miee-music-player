@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../notifications/presentation/widgets/notification_sheet.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/playback_state.dart';
 import '../../../core/audio/providers.dart';
@@ -88,7 +89,12 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       backgroundColor: AppColors.vanillaCream,
-      appBar: isDesktop ? null : const MieeBrandHeader(showProfileAvatar: true),
+      appBar: isDesktop
+          ? null
+          : MieeBrandHeader(
+              showProfileAvatar: true,
+              onNotificationTap: () => NotificationSheet.show(context),
+            ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: isDesktop ? 28.0 : AppSpacing.marginMobile,

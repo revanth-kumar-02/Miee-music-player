@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_shadows.dart';
 import '../../app/theme/app_spacing.dart';
+import 'profile_avatar.dart';
 
 /// The canonical Stitch Miee wordmark with the signature crimson dot (`miee.`).
 class MieeWordmarkDot extends StatelessWidget {
@@ -202,27 +203,37 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
     List<Widget>? effectiveActions = actions;
     if (effectiveActions == null && showProfileAvatar) {
       effectiveActions = [
-        GestureDetector(
-          onTap: () {
-            try {
-              context.go('/settings');
-            } catch (_) {}
-          },
-          child: Container(
-            width: 30,
-            height: 30,
-            margin: const EdgeInsets.only(right: 16, left: 4),
-            decoration: const BoxDecoration(
-              color: Color(0xFF4B0014), // Stitch primary
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.person,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
+        IconButton(
+          icon: const Icon(
+            Icons.notifications_none_rounded,
+            color: AppColors.onSurfaceVariant,
+            size: 22,
+          ),
+          splashRadius: 20,
+          tooltip: 'Notifications',
+          onPressed: onNotificationTap ??
+              () {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                if (messenger == null) return;
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('No new notifications'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 16, left: 4),
+          child: ProfileAvatar(
+            size: 30.0,
+            onTap: () {
+              try {
+                context.go('/settings');
+              } catch (_) {}
+            },
           ),
         ),
       ];

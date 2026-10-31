@@ -25,10 +25,7 @@ import '../../onboarding/providers/onboarding_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../connect/presentation/connect_sheet.dart';
 import '../../connect/providers/connect_providers.dart';
-import '../../music_drop/presentation/widgets/music_drop_pill.dart';
-import '../../music_drop/presentation/widgets/music_drop_sheet.dart';
-import 'widgets/sleep_timer_sheet.dart';
-import '../providers/sleep_timer_provider.dart';
+import '../../notifications/presentation/widgets/notification_sheet.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B) on Mobile
@@ -195,20 +192,34 @@ class PlayerPage extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      activeRoom != null ? Icons.groups_rounded : Icons.groups_outlined,
-                      size: 26,
-                      color: activeRoom != null ? AppColors.dustyRose : AppColors.vanillaCream,
-                    ),
-                    tooltip: activeRoom != null ? 'Active Room (${activeRoom.joinCode})' : 'Listen Together',
-                    onPressed: () {
-                      if (activeRoom != null) {
-                        context.push('/rooms/active');
-                      } else {
-                        context.push('/rooms');
-                      }
-                    },
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 24,
+                          color: AppColors.vanillaCream,
+                        ),
+                        tooltip: 'Notifications & Devices',
+                        onPressed: () => NotificationSheet.show(context),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          activeRoom != null ? Icons.groups_rounded : Icons.groups_outlined,
+                          size: 26,
+                          color: activeRoom != null ? AppColors.dustyRose : AppColors.vanillaCream,
+                        ),
+                        tooltip: activeRoom != null ? 'Active Room (${activeRoom.joinCode})' : 'Listen Together',
+                        onPressed: () {
+                          if (activeRoom != null) {
+                            context.push('/rooms/active');
+                          } else {
+                            context.push('/rooms');
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -457,11 +468,7 @@ class PlayerPage extends ConsumerWidget {
 
               const Spacer(flex: 1),
 
-              // ── 6. Bottom Actions: Lyrics, Queue, Devices & Music Drop ──
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child:
+              // ── 6. Bottom Actions: Lyrics & Queue ──
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -544,99 +551,8 @@ class PlayerPage extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  InkWell(
-                    onTap: () => ConnectSheet.show(context),
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isRemoteConnectActive
-                            ? const Color(0xFF1DB954).withValues(alpha: 0.2)
-                            : AppColors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(18),
-                        border: isRemoteConnectActive
-                            ? Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.5))
-                            : null,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.devices_rounded,
-                            size: 16,
-                            color: isRemoteConnectActive
-                                ? const Color(0xFF1DB954)
-                                : AppColors.vanillaCream,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isRemoteConnectActive ? 'Connected' : 'Devices',
-                            style: GoogleFonts.geist(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: isRemoteConnectActive
-                                  ? const Color(0xFF1DB954)
-                                  : AppColors.vanillaCream,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  MusicDropPill(track: currentTrack),
-                  const SizedBox(width: 14),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final sleepState = ref.watch(sleepTimerProvider);
-                      return InkWell(
-                        onTap: () => SleepTimerSheet.show(context),
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: sleepState.isActive
-                                ? AppColors.primary.withValues(alpha: 0.25)
-                                : AppColors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(18),
-                            border: sleepState.isActive
-                                ? Border.all(color: AppColors.primary.withValues(alpha: 0.6))
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.bedtime_rounded,
-                                size: 16,
-                                color: sleepState.isActive
-                                    ? AppColors.primary
-                                    : AppColors.vanillaCream,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                sleepState.isActive
-                                    ? sleepState.formattedRemaining
-                                    : 'Timer',
-                                style: GoogleFonts.geist(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: sleepState.isActive
-                                      ? AppColors.primary
-                                      : AppColors.vanillaCream,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
                 ],
               ),
-            ),
 
               const SizedBox(height: 12),
             ],
@@ -1029,17 +945,15 @@ class PlayerPage extends ConsumerWidget {
                                         ? () => showAddToPlaylistSheet(context, currentTrack)
                                         : null,
                                   ),
-                                   const SizedBox(width: 6),
-                                   IconButton(
-                                     icon: Icon(Icons.sensors_rounded, size: isCompactHeight ? 22 : 24),
-                                     color: MieeWebColors.onSurfaceVariant,
-                                     tooltip: 'Music Drop',
-                                     padding: const EdgeInsets.all(4),
-                                     constraints: const BoxConstraints(),
-                                     onPressed: hasTrack
-                                         ? () => MusicDropSheet.show(context, track: currentTrack)
-                                         : null,
-                                   ),
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    icon: Icon(Icons.devices_rounded, size: isCompactHeight ? 22 : 24),
+                                    color: MieeWebColors.onSurfaceVariant,
+                                    tooltip: 'Devices to Connect',
+                                    padding: const EdgeInsets.all(4),
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () => NotificationSheet.show(context),
+                                  ),
                                   const SizedBox(width: 6),
                                   IconButton(
                                     icon: Icon(Icons.lyrics_outlined, size: isCompactHeight ? 22 : 24),

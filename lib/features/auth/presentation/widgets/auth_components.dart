@@ -318,6 +318,8 @@ class AuthTextField extends StatelessWidget {
   final EdgeInsetsGeometry? contentPadding;
   final double? fontSize;
   final double? labelFontSize;
+  final Iterable<String>? autofillHints;
+  final bool autocorrect;
 
   const AuthTextField({
     super.key,
@@ -336,6 +338,8 @@ class AuthTextField extends StatelessWidget {
     this.contentPadding,
     this.fontSize,
     this.labelFontSize,
+    this.autofillHints,
+    this.autocorrect = true,
   });
 
   @override
@@ -360,6 +364,8 @@ class AuthTextField extends StatelessWidget {
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           onFieldSubmitted: onFieldSubmitted,
+          autofillHints: autofillHints,
+          autocorrect: autocorrect,
           style: GoogleFonts.plusJakartaSans(
             fontSize: fontSize ?? 14,
             fontWeight: FontWeight.w500,

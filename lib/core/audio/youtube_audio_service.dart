@@ -242,19 +242,20 @@ class YouTubeAudioService {
           ));
           final res = await dio.get<dynamic>(
             '$baseUrl/api/yt/search',
-            queryParameters: {'q': cleanQuery, 'limit': 1},
+            queryParameters: {'q': cleanQuery, 'limit': 5},
           );
           if (res.statusCode == 200 && res.data != null) {
             final data = res.data is String
                 ? jsonDecode(res.data as String) as Map<String, dynamic>
                 : Map<String, dynamic>.from(res.data as Map);
             final list = data['results'] as List<dynamic>? ?? [];
+            final candidates = <YouTubeVideo>[];
             for (final raw in list) {
               if (raw is Map) {
                 final id = (raw['id'] ?? '').toString();
                 final title = (raw['title'] ?? '').toString();
                 final artist = (raw['artist'] ?? '').toString();
-                if (id.isNotEmpty) {
+                if (id.isNotEmpty && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id)) {
                   final candidate = YouTubeVideo(
                     id: id,
                     title: title,
@@ -265,12 +266,18 @@ class YouTubeAudioService {
                     rawTitle: title,
                     rawChannelTitle: artist,
                   );
+                  candidates.add(candidate);
                   if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
-                    debugPrint('[YouTubeAudioService] Resolved video ID "$id" for query "$cleanQuery" via web proxy ($baseUrl)');
+                    debugPrint('[YouTubeAudioService] Resolved valid video ID "$id" for query "$cleanQuery" via web proxy ($baseUrl)');
                     return id;
                   }
                 }
               }
+            }
+            if (candidates.isNotEmpty) {
+              final fallbackId = candidates.first.id;
+              debugPrint('[YouTubeAudioService] Using top match video ID "$fallbackId" for query "$cleanQuery" via web proxy ($baseUrl)');
+              return fallbackId;
             }
           }
         } catch (e) {
@@ -280,6 +287,7 @@ class YouTubeAudioService {
     } else {
       try {
         final results = await _yt.search.search(cleanQuery);
+        final candidates = <YouTubeVideo>[];
         for (final video in results) {
           final candidate = YouTubeVideo(
             id: video.id.value,
@@ -293,11 +301,17 @@ class YouTubeAudioService {
             rawTitle: video.title,
             rawChannelTitle: video.author,
           );
+          candidates.add(candidate);
           if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
             final id = video.id.value;
             debugPrint('[YouTubeAudioService] Resolved valid music video ID "$id" for query "$cleanQuery" via YoutubeExplode');
             return id;
           }
+        }
+        if (candidates.isNotEmpty) {
+          final fallbackId = candidates.first.id;
+          debugPrint('[YouTubeAudioService] Using top match video ID "$fallbackId" for query "$cleanQuery" via YoutubeExplode');
+          return fallbackId;
         }
       } catch (e) {
         debugPrint('[YouTubeAudioService] Native query search failed for "$cleanQuery": $e');

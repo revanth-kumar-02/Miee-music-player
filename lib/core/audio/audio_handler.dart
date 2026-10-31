@@ -596,8 +596,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (resolvedId != null && resolvedId.isNotEmpty && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(resolvedId)) {
         videoId = resolvedId;
       } else {
-        PlaybackDiagnostics().recordError(track.id, 'Unable to resolve YouTube video ID for query: $query');
-        throw Exception('Unable to resolve YouTube video for "${track.title}". Please try again.');
+        debugPrint('[AudioHandler] Pre-search returned null for "$query", forwarding to getAudioStreamUrl with metadata');
       }
     }
 

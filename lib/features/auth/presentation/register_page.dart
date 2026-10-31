@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -87,7 +88,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           favoriteArtist: localProfile.favoriteArtist,
         );
       }
+
+      // Notify password managers that registration succeeded so credentials can be saved
+      TextInput.finishAutofillContext(shouldSave: true);
     } catch (e) {
+      TextInput.finishAutofillContext(shouldSave: false);
       if (mounted) {
         final str = e.toString().toLowerCase();
         String message = e.toString().replaceFirst('Exception: ', '');
@@ -176,9 +181,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     required bool isDesktop,
     required bool isCompact,
   }) {
-    return Form(
-      key: _formKey,
-      child: Column(
+    return AutofillGroup(
+      child: Form(
+        key: _formKey,
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -333,6 +339,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             controller: _nameController,
             focusNode: _nameFocusNode,
             textInputAction: TextInputAction.next,
+            keyboardType: TextInputType.name,
+            autofillHints: const [AutofillHints.name],
             onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
             suffixIcon: const Icon(
               Icons.person_outline_rounded,
@@ -362,6 +370,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             focusNode: _emailFocusNode,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.email],
+            autocorrect: false,
             onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
             suffixIcon: const Icon(
               Icons.mail_outline_rounded,
@@ -394,6 +404,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             focusNode: _passwordFocusNode,
             obscureText: !_isPasswordVisible,
             textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.newPassword],
+            autocorrect: false,
             onFieldSubmitted: (_) => _confirmPasswordFocusNode.requestFocus(),
             suffixIcon: IconButton(
               icon: Icon(
@@ -453,6 +465,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             focusNode: _confirmPasswordFocusNode,
             obscureText: !_isConfirmPasswordVisible,
             textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.newPassword],
+            autocorrect: false,
             onFieldSubmitted: (_) => _handleRegister(),
             suffixIcon: IconButton(
               icon: Icon(
@@ -574,6 +588,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           ),
         ],
       ),
+    ),
     );
   }
 

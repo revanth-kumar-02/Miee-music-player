@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../library/providers/library_providers.dart';
@@ -17,6 +15,7 @@ import '../../auth/providers/auth_providers.dart';
 import '../domain/profile_model.dart';
 import '../providers/profile_providers.dart';
 import 'profile_controller.dart';
+import '../data/profile_image_service.dart';
 
 /// User Profile screen detailing stats, custom details, preferences, and offline-first cloud sync actions.
 class ProfilePage extends ConsumerWidget {
@@ -495,7 +494,7 @@ class ProfilePage extends ConsumerWidget {
                 title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
                 onTap: () {
                   Navigator.pop(bottomSheetCtx);
-                  _pickProfileImage(context, ref, notifier, ImageSource.camera);
+                  _pickProfileImage(context, ref, ImageSource.camera);
                 },
               ),
               ListTile(
@@ -503,7 +502,7 @@ class ProfilePage extends ConsumerWidget {
                 title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
                 onTap: () {
                   Navigator.pop(bottomSheetCtx);
-                  _pickProfileImage(context, ref, notifier, ImageSource.gallery);
+                  _pickProfileImage(context, ref, ImageSource.gallery);
                 },
               ),
               if (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
@@ -512,7 +511,7 @@ class ProfilePage extends ConsumerWidget {
                   title: const Text('Remove Photo', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.redAccent)),
                   onTap: () async {
                     Navigator.pop(bottomSheetCtx);
-                    await notifier.removeProfilePicture();
+                    await ProfileImageService.removeProfilePicture(ref);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Profile photo removed.')),
@@ -531,55 +530,27 @@ class ProfilePage extends ConsumerWidget {
   Future<void> _pickProfileImage(
     BuildContext context,
     WidgetRef ref,
-    ProfileController notifier,
     ImageSource source,
   ) async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? picked = await picker.pickImage(source: source, imageQuality: 90);
-      if (picked == null) return;
+    final result = await ProfileImageService.selectAndCropProfilePicture(
+      context: context,
+      ref: ref,
+      source: source,
+    );
 
-      final appDir = await getApplicationDocumentsDirectory();
-      final savedPath = '${appDir.path}/profile_avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      
-      // Enforce 1:1 square aspect ratio crop
-      final bytes = await File(picked.path).readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded != null) {
-        final side = min(decoded.width, decoded.height);
-        final offsetX = (decoded.width - side) ~/ 2;
-        final offsetY = (decoded.height - side) ~/ 2;
-        final cropped = img.copyCrop(decoded, x: offsetX, y: offsetY, width: side, height: side);
-        final encoded = img.encodeJpg(cropped, quality: 90);
-        await File(savedPath).writeAsBytes(encoded);
-      } else {
-        await File(picked.path).copy(savedPath);
-      }
+    if (!context.mounted) return;
 
-      final activeProfile = ref.read(profileProvider);
-      await notifier.updateProfile(
-        displayName: activeProfile.displayName,
-        username: activeProfile.username,
-        profilePicturePath: savedPath,
-        favoriteGenre: activeProfile.favoriteGenre,
-        favoriteArtist: activeProfile.favoriteArtist,
+    if (result.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated successfully.')),
       );
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated successfully.')),
-        );
-      }
-    } catch (e) {
-      debugPrint('[ProfilePage] Error picking profile image: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update photo: ${e.toString().replaceFirst('Exception: ', '')}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+    } else if (result.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -667,45 +638,57 @@ class ProfilePage extends ConsumerWidget {
         builder: (context, setState) => AlertDialog(
           title: Text(isSignUp ? 'Create Cloud Account' : 'Connect to Cloud'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isSignUp) ...[
+            child: AutofillGroup(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isSignUp) ...[
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Display Name'),
+                      autofillHints: const [AutofillHints.name],
+                    ),
+                    const SizedBox(height: 8.0),
+                  ],
                   TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Display Name'),
+                    controller: emailController,
+                    decoration: const InputDecoration(labelText: 'Email Address'),
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    autocorrect: false,
                   ),
                   const SizedBox(height: 8.0),
+                  TextField(
+                    controller: passwordController,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                    obscureText: true,
+                    autofillHints: isSignUp
+                        ? const [AutofillHints.newPassword]
+                        : const [AutofillHints.password],
+                    autocorrect: false,
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextButton(
+                    child: Text(isSignUp
+                        ? 'Already have an account? Sign In'
+                        : 'Don\'t have an account? Sign Up'),
+                    onPressed: () {
+                      setState(() {
+                        isSignUp = !isSignUp;
+                      });
+                    },
+                  ),
                 ],
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email Address'),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 8.0),
-                TextField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 16.0),
-                TextButton(
-                  child: Text(isSignUp
-                      ? 'Already have an account? Sign In'
-                      : 'Don\'t have an account? Sign Up'),
-                  onPressed: () {
-                    setState(() {
-                      isSignUp = !isSignUp;
-                    });
-                  },
-                ),
-              ],
+              ),
             ),
           ),
           actions: [
             TextButton(
               child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                TextInput.finishAutofillContext(shouldSave: false);
+                Navigator.pop(context);
+              },
             ),
             TextButton(
               child: Text(isSignUp ? 'Sign Up' : 'Sign In'),
@@ -724,6 +707,7 @@ class ProfilePage extends ConsumerWidget {
                 }
 
                 if (success) {
+                  TextInput.finishAutofillContext(shouldSave: true);
                   // Run full remote download on sign in
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Account connected successfully! Loading cloud backup...')),
@@ -733,6 +717,7 @@ class ProfilePage extends ConsumerWidget {
                     const SnackBar(content: Text('Cloud backup restored successfully!')),
                   );
                 } else {
+                  TextInput.finishAutofillContext(shouldSave: false);
                   final error = ref.read(authControllerProvider).errorMessage ?? 'Unknown error';
                   showDialog(
                     context: context,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../features/notifications/presentation/widgets/notification_sheet.dart';
 import 'miee_brand_header.dart';
 
 /// Reusable Top App Bar header for Miee screens.
@@ -50,7 +51,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       actions: actions,
       isScrolled: isScrolled,
       height: height,
-      onNotificationTap: onNotificationTap,
+      onNotificationTap: onNotificationTap ?? () => NotificationSheet.show(context),
     );
   }
 }
