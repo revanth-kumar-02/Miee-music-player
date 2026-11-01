@@ -125,6 +125,25 @@ class PlaybackDiagnostics {
     );
   }
 
+  /// Records stream recovery start and resume position.
+  void recordStreamRecoveryStart(String trackId, Duration resumePos) {
+    final sanitizedId = _sanitizeId(trackId);
+    debugPrint('[PlaybackDiagnostics] Stream recovery started for $sanitizedId at ${resumePos.inSeconds}s');
+  }
+
+  /// Records stream recovery completion.
+  void recordStreamRecoveryEnd(String trackId, {required bool success, Duration? finalPos}) {
+    final sanitizedId = _sanitizeId(trackId);
+    final status = success ? 'SUCCESS' : 'FAILURE';
+    debugPrint('[PlaybackDiagnostics] Stream recovery $status for $sanitizedId (pos: ${finalPos?.inSeconds ?? 0}s)');
+  }
+
+  /// Records buffering state transition.
+  void recordBufferingTransition(String trackId, bool isBuffering) {
+    final sanitizedId = _sanitizeId(trackId);
+    debugPrint('[PlaybackDiagnostics] Buffering transition: isBuffering=$isBuffering (id=$sanitizedId)');
+  }
+
   /// Helper to return current active timing for testing/asserting metrics.
   TrackTiming? get activeTiming => _activeTiming;
 

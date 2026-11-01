@@ -123,13 +123,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
           );
         }
       }
-      // Guard against transient zero-position emits during buffering, loading, or player recovery
-      if (pos == Duration.zero &&
-          (state.status == PlaybackStatus.loading ||
-              state.status == PlaybackStatus.error ||
-              _handler.isLoadingTrack) &&
-          state.position > Duration.zero) {
-        return;
+      // Guard against transient zero-position emits during buffering, loading, error, or player recovery
+      if (pos == Duration.zero && state.position > Duration.zero) {
+        if (state.status == PlaybackStatus.loading ||
+            state.status == PlaybackStatus.buffering ||
+            state.status == PlaybackStatus.error ||
+            _handler.isLoadingTrack) {
+          return;
+        }
       }
       state = state.copyWith(position: pos);
       _analyticsTracker.onPositionUpdated(pos, state.duration);
@@ -425,7 +426,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     } catch (_) {}
 
     final isOnline = track.isYoutube || kIsWeb;
-    final startPosition = initialPosition ?? Duration.zero;
+    final isSameTrack = state.currentTrack != null &&
+        isSameTrackId(state.currentTrack!.id, track.id);
+    final resumePos = initialPosition ??
+        (isSameTrack && state.position > Duration.zero
+            ? state.position
+            : (isSameTrack && _handler.lastValidPosition > Duration.zero
+                ? _handler.lastValidPosition
+                : Duration.zero));
 
     // 1. Immediately update UI state with selected track and loading status
     state = state.copyWith(
@@ -433,7 +441,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       currentTrack: track,
       loadingTrackId: isOnline ? track.id : null,
       clearLoadingTrackId: !isOnline,
-      position: startPosition,
+      position: resumePos,
       playingFrom: playingFrom ?? state.playingFrom,
       clearErrorMessage: true,
     );
@@ -493,7 +501,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       await _handler.loadQueue(
         queueSnapshot,
         startIndex: startIdx,
-        initialPosition: startPosition > Duration.zero ? startPosition : null,
+        initialPosition: resumePos > Duration.zero ? resumePos : null,
       );
       if (token != _playRequestToken) return;
       await _handler.play();
@@ -515,6 +523,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   /// Resolves the best source for [track] based on the user's source preference.
   Future<MusicItem> _resolveSource(MusicItem track) async {
+    // If the track is already a verified local file, immediately play it without network checks
+    if (!track.isYoutube && track.filePath.isNotEmpty && !track.filePath.startsWith('http')) {
+      return track;
+    }
+
     final mode = _ref.read(sourceSelectionProvider);
 
     if (mode == 'preferLocal' || mode == 'smart' || mode == 'alwaysLocal') {
@@ -566,9 +579,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   Future<void> play() async {
+    final resumePos = state.position > Duration.zero
+        ? state.position
+        : (_handler.lastValidPosition > Duration.zero ? _handler.lastValidPosition : null);
+
     if ((state.status == PlaybackStatus.idle || state.status == PlaybackStatus.error) &&
         state.currentTrack != null) {
-      final resumePos = state.position > Duration.zero ? state.position : null;
+      await playTrack(state.currentTrack!, initialPosition: resumePos);
+    } else if (_handler.loadedAudioTrackId == null && state.currentTrack != null) {
       await playTrack(state.currentTrack!, initialPosition: resumePos);
     } else {
       await _handler.play();

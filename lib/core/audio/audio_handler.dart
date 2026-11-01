@@ -43,6 +43,16 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   Duration _lastValidPosition = Duration.zero;
   Duration get lastValidPosition => _lastValidPosition;
 
+  /// Remembers the last track ID loaded to distinguish same-track reload from new-track selection.
+  String? _lastTrackId;
+  String? get lastTrackId => _lastTrackId;
+
+  /// Tracks whether the user explicitly initiated a pause/stop action.
+  /// When false, mid-stream pauses are treated as unexpected stalls or errors,
+  /// enabling seamless stream recovery without losing playback intent.
+  bool _userExplicitlyPaused = false;
+  bool get userExplicitlyPaused => _userExplicitlyPaused;
+
   /// Indicates whether a track source load or transition is actively underway.
   /// Prevents transient pause states from demoting the Android foreground service.
   bool _isLoadingTrack = false;
@@ -58,6 +68,30 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @visibleForTesting
   bool get playInterrupted => _playInterrupted;
+
+  @visibleForTesting
+  void setLastValidPositionForTesting(Duration pos) {
+    _lastValidPosition = pos;
+  }
+
+  @visibleForTesting
+  void setQueueForTesting(List<MusicItem> tracks, {int currentIndex = 0}) {
+    _queue.clear();
+    _queue.addAll(tracks);
+    _currentIndex = currentIndex;
+  }
+
+  @visibleForTesting
+  int get activeLoadTokenForTesting => _activeLoadToken;
+
+  @visibleForTesting
+  int incrementActiveLoadTokenForTesting() => ++_activeLoadToken;
+
+  @visibleForTesting
+  AudioPlayer get playerForTesting => _player;
+
+  @visibleForTesting
+  int get maxYouTubeRetriesForTesting => _kMaxYouTubeRetries;
 
   /// Indicates whether this device is a listener in a shared listening room.
   /// When true, track completion NEVER autonomously advances playback
@@ -239,7 +273,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             final videoId = _extractYouTubeVideoId(current.id);
             debugPrint('[StreamCache] Invalidating cache for $videoId due to stream error');
             YouTubeAudioService().invalidateCache(videoId);
-            final wasPlaying = _player.playing || playbackState.value.playing;
+            final wasPlaying = !_userExplicitlyPaused &&
+                (_player.playing ||
+                    playbackState.value.playing ||
+                    playbackState.value.processingState == AudioProcessingState.buffering);
             await _recoverYouTubePlayback(
               videoId: videoId,
               track: current,
@@ -485,12 +522,15 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     // 1. Smoothly fade out prior audio and invalidate loaded track identity so old track transitions cleanly.
     final wasPlaying = _player.playing || playbackState.value.playing;
     _isLoadingTrack = true;
+    final isSameTrack = (_loadedAudioTrackId != null && isSameTrackId(_loadedAudioTrackId, track.id)) ||
+        (_lastTrackId != null && isSameTrackId(_lastTrackId, track.id));
+    _lastTrackId = track.id;
     _loadedAudioTrackId = null;
     _prefetchedNextTrackId = null; // Reset prefetch cycle for newly active track
 
     if (initialPosition != null && initialPosition > Duration.zero) {
       _lastValidPosition = initialPosition;
-    } else {
+    } else if (!isSameTrack) {
       _lastValidPosition = Duration.zero;
     }
 
@@ -511,10 +551,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _pushPlaybackState(playerState: PlayerState(wasPlaying, ProcessingState.buffering));
 
     try {
+      final startPos = _lastValidPosition > Duration.zero ? _lastValidPosition : null;
       if (track.isYoutube) {
-        await _loadYouTubeTrack(track, token);
+        await _loadYouTubeTrack(track, token, initialPosition: startPos);
       } else {
-        await _loadLocalTrack(track, token);
+        await _loadLocalTrack(track, token, initialPosition: startPos);
       }
 
       if (token != _activeLoadToken) {
@@ -523,8 +564,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         return;
       }
 
-      // Restore position if specified
-      if (_lastValidPosition > Duration.zero) {
+      // Restore position if specified and not already prepared at startPos
+      if (_lastValidPosition > Duration.zero && (_player.position - _lastValidPosition).abs() > const Duration(seconds: 1)) {
         debugPrint('[Playback] Restoring position to ${_lastValidPosition.inSeconds}s for "${track.title}"');
         await _player.seek(_lastValidPosition);
       }
@@ -555,7 +596,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   /// Loads a YouTube track with bounded retry (up to [_kMaxYouTubeRetries] fresh resolutions).
-  Future<void> _loadYouTubeTrack(MusicItem track, int token) async {
+  Future<void> _loadYouTubeTrack(MusicItem track, int token, {Duration? initialPosition}) async {
     // 1. If track already has a direct playable full audio stream URL, load immediately.
     // Do NOT bypass full stream resolution for iTunes preview URLs or generic preview clips.
     final isPreviewUrl = track.filePath.contains('itunes.apple.com') ||
@@ -571,7 +612,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (token != _activeLoadToken) return;
       PlaybackDiagnostics().recordPlayerLoadStart(track.id);
       try {
-        await _setAudioSourceUrl(track.filePath);
+        await _setAudioSourceUrl(track.filePath, initialPosition: initialPosition);
         if (token != _activeLoadToken) {
           try {
             await _player.stop();
@@ -641,7 +682,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
     PlaybackDiagnostics().recordPlayerLoadStart(track.id);
     try {
-      await _setAudioSourceUrl(streamUrl);
+      await _setAudioSourceUrl(streamUrl, initialPosition: initialPosition);
       if (token != _activeLoadToken) {
         debugPrint('[AudioHandler] Discarding stale player load for $videoId ($token vs $_activeLoadToken)');
         try {
@@ -663,7 +704,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (token != _activeLoadToken) return;
 
       if (freshUrl != null && freshUrl.isNotEmpty && YouTubeAudioService().isUrlValid(freshUrl)) {
-        await _setAudioSourceUrl(freshUrl);
+        await _setAudioSourceUrl(freshUrl, initialPosition: initialPosition);
         if (token != _activeLoadToken) {
           try {
             await _player.stop();
@@ -689,7 +730,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   /// Loads a local or remote non-YouTube source.
-  Future<void> _loadLocalTrack(MusicItem track, int token) async {
+  Future<void> _loadLocalTrack(MusicItem track, int token, {Duration? initialPosition}) async {
     PlaybackDiagnostics().recordPlayerLoadStart(track.id);
     final path = track.filePath;
 
@@ -699,7 +740,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         path.contains('preview');
     if (isPreviewUrl || track.id.startsWith('wm_')) {
       debugPrint('[Playback] Track "${track.title}" is an online discovery track — routing to _loadYouTubeTrack for full stream');
-      await _loadYouTubeTrack(track, token);
+      await _loadYouTubeTrack(track, token, initialPosition: initialPosition);
       return;
     }
 
@@ -707,7 +748,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (!kIsWeb && path.isNotEmpty && !path.startsWith('http')) {
         debugPrint('[Playback] Loading local file: $path (token=$token)');
         if (token != _activeLoadToken) return;
-        await _player.setAudioSource(AudioSource.file(path));
+        await _player.setAudioSource(AudioSource.file(path), initialPosition: initialPosition);
         if (token != _activeLoadToken) {
           try {
             await _player.stop();
@@ -720,7 +761,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       } else if (path.isNotEmpty && path.startsWith('http')) {
         debugPrint('[Playback] Loading remote URL: $path (token=$token)');
         if (token != _activeLoadToken) return;
-        await _player.setUrl(path);
+        await _player.setUrl(path, initialPosition: initialPosition);
         if (token != _activeLoadToken) {
           try {
             await _player.stop();
@@ -749,8 +790,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _crossfadeEnabled = enabled;
   }
 
-  /// Sets the audio source from a URL with the required headers.
-  Future<void> _setAudioSourceUrl(String url) async {
+  /// Sets the audio source from a URL with the required headers and optional initial position.
+  Future<void> _setAudioSourceUrl(String url, {Duration? initialPosition}) async {
     if (_crossfadeEnabled && _player.playing) {
       for (double v = 1.0; v >= 0.1; v -= 0.3) {
         await _player.setVolume(v.clamp(0.0, 1.0));
@@ -767,6 +808,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
                 'User-Agent': kYouTubeVisionOsUserAgent,
               },
       ),
+      initialPosition: initialPosition,
     );
 
     if (_crossfadeEnabled) {
@@ -848,7 +890,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         return;
       }
 
-      await _setAudioSourceUrl(freshUrl);
+      await _setAudioSourceUrl(freshUrl, initialPosition: savedPosition);
       if (token != _activeLoadToken) {
         _isLoadingTrack = false;
         return;
@@ -858,7 +900,6 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
       if (savedPosition > Duration.zero) {
         _lastValidPosition = savedPosition;
-        await _player.seek(savedPosition);
       }
       _isLoadingTrack = false;
       debugPrint('[Playback] Recovery succeeded: audio source reloaded for $videoId at ${savedPosition.inSeconds}s');
@@ -938,6 +979,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> play() async {
     _playInterrupted = false;
+    _userExplicitlyPaused = false;
     if (_currentIndex < 0 || _currentIndex >= _queue.length) {
       debugPrint('[Playback] play() ignored: queue is empty or index invalid');
       return;
@@ -978,16 +1020,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> pause() async {
     _playInterrupted = false;
+    _userExplicitlyPaused = true;
     if (_player.position > Duration.zero) {
       _lastValidPosition = _player.position;
     }
     await _player.pause();
-    debugPrint('[Playback] pause() called');
+    debugPrint('[Playback] pause() called (userExplicitlyPaused=true, lastValidPos=${_lastValidPosition.inSeconds}s)');
   }
 
   @override
   Future<void> stop() async {
     _playInterrupted = false;
+    _userExplicitlyPaused = true;
     _loadedAudioTrackId = null;
     await _player.stop();
     _pushPlaybackState(playerState: PlayerState(false, ProcessingState.idle));

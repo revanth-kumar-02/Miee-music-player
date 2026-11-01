@@ -97,6 +97,9 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
   /// Whether to display the Stitch default actions (notifications + avatar) when actions are not provided.
   final bool showProfileAvatar;
 
+  /// Whether to display the notification bell icon in the header. Defaults to false.
+  final bool showNotificationBell;
+
   /// Background color of the header bar. Defaults to [AppColors.background] (`#FAF9F7`).
   final Color backgroundColor;
 
@@ -112,6 +115,7 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
     this.onLogoTap,
     this.onNotificationTap,
     this.showProfileAvatar = true,
+    this.showNotificationBell = false,
     this.backgroundColor = AppColors.background,
   });
 
@@ -203,37 +207,40 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
     List<Widget>? effectiveActions = actions;
     if (effectiveActions == null && showProfileAvatar) {
       effectiveActions = [
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: AppColors.onSurfaceVariant,
-            size: 22,
+        if (showNotificationBell)
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: AppColors.onSurfaceVariant,
+              size: 22,
+            ),
+            splashRadius: 20,
+            tooltip: 'Notifications',
+            onPressed: onNotificationTap ??
+                () {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  if (messenger == null) return;
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('No new notifications'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
           ),
-          splashRadius: 20,
-          tooltip: 'Notifications',
-          onPressed: onNotificationTap ??
-              () {
-                final messenger = ScaffoldMessenger.maybeOf(context);
-                if (messenger == null) return;
-                messenger.hideCurrentSnackBar();
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('No new notifications'),
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-        ),
         Padding(
-          padding: const EdgeInsets.only(right: 16, left: 4),
-          child: ProfileAvatar(
-            size: 30.0,
-            onTap: () {
-              try {
-                context.go('/settings');
-              } catch (_) {}
-            },
+          padding: const EdgeInsets.only(right: 16),
+          child: Center(
+            child: ProfileAvatar(
+              size: 30.0,
+              onTap: () {
+                try {
+                  context.go('/settings');
+                } catch (_) {}
+              },
+            ),
           ),
         ),
       ];

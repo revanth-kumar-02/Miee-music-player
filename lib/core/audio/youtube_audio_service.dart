@@ -92,6 +92,7 @@ class YouTubeAudioService {
   // ── Cache & in-flight deduplication ───────────────────────────────────────
   final Map<String, _CachedStream> _urlCache = {};
   final Map<String, Future<String?>> _inFlight = {};
+  final Map<String, String> _queryIdCache = {};
 
   // ── youtube_explode_dart client ───────────────────────────────────────────
   YoutubeExplode _yt = YoutubeExplode();
@@ -107,6 +108,9 @@ class YouTubeAudioService {
     final cached = _urlCache[videoId];
     return cached != null && !cached.isExpired && isUrlValid(cached.url);
   }
+
+  @visibleForTesting
+  void cacheUrlForTesting(String videoId, String url) => _cacheUrl(videoId, url);
 
   /// Returns an audio-only stream URL for [videoIdOrUrl].
   ///
@@ -214,6 +218,7 @@ class YouTubeAudioService {
 
   void clearCache() {
     _urlCache.clear();
+    _queryIdCache.clear();
     debugPrint('[StreamCache] Cache cleared');
   }
 
@@ -227,6 +232,11 @@ class YouTubeAudioService {
   Future<String?> resolveVideoIdForQuery(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return null;
+    final cacheKey = cleanQuery.toLowerCase();
+    if (_queryIdCache.containsKey(cacheKey)) {
+      debugPrint('[YouTubeAudioService] Query ID cache HIT for "$cleanQuery" -> ${_queryIdCache[cacheKey]}');
+      return _queryIdCache[cacheKey];
+    }
 
     if (kIsWeb) {
       final webProxies = [
@@ -269,6 +279,7 @@ class YouTubeAudioService {
                   candidates.add(candidate);
                   if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
                     debugPrint('[YouTubeAudioService] Resolved valid video ID "$id" for query "$cleanQuery" via web proxy ($baseUrl)');
+                    _queryIdCache[cacheKey] = id;
                     return id;
                   }
                 }
@@ -277,6 +288,7 @@ class YouTubeAudioService {
             if (candidates.isNotEmpty) {
               final fallbackId = candidates.first.id;
               debugPrint('[YouTubeAudioService] Using top match video ID "$fallbackId" for query "$cleanQuery" via web proxy ($baseUrl)');
+              _queryIdCache[cacheKey] = fallbackId;
               return fallbackId;
             }
           }
@@ -305,12 +317,14 @@ class YouTubeAudioService {
           if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
             final id = video.id.value;
             debugPrint('[YouTubeAudioService] Resolved valid music video ID "$id" for query "$cleanQuery" via YoutubeExplode');
+            _queryIdCache[cacheKey] = id;
             return id;
           }
         }
         if (candidates.isNotEmpty) {
           final fallbackId = candidates.first.id;
           debugPrint('[YouTubeAudioService] Using top match video ID "$fallbackId" for query "$cleanQuery" via YoutubeExplode');
+          _queryIdCache[cacheKey] = fallbackId;
           return fallbackId;
         }
       } catch (e) {

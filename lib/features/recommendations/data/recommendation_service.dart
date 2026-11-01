@@ -12,6 +12,7 @@ import '../../youtube/domain/music_result_classifier.dart';
 import '../../youtube/data/youtube_repository.dart';
 import '../../search/domain/search_deduplicator.dart';
 import 'trending_music_service.dart';
+import '../domain/music_language_service.dart';
 
 class RecommendationSections {
   final List<ArtistSummary> favoriteArtists;
@@ -194,28 +195,49 @@ class RecommendationService {
     return score;
   }
 
-  /// Fetches up to [limit] individual legitimate tracks for a specific [artist].
+  /// Fetches up to [limit] individual legitimate tracks for a specific [artist],
+  /// prioritizing songs in [preferredLanguages] if specified.
   Future<List<MusicItem>> getTracksForArtist(
     ArtistSummary artist, {
     int limit = 6,
+    List<String> preferredLanguages = const [],
   }) async {
     final tracks = <MusicItem>[];
     try {
-      final rawVideos = await _youtubeRepo.search('${artist.name} songs');
+      final rawVideos = <YouTubeVideo>[];
+      final topLang = preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
+
+      // 1. If artist is known to perform in user's preferred language, fetch language-targeted songs
+      if (topLang != null && MusicLanguageService.isArtistMultilingualInLang(artist.name, topLang)) {
+        final langVideos = await _youtubeRepo.search('${artist.name} $topLang songs');
+        rawVideos.addAll(langVideos);
+      }
+
+      // 2. Also search standard artist songs catalog for fallback, discovery, and general depth
+      final generalVideos = await _youtubeRepo.search('${artist.name} songs');
+      rawVideos.addAll(generalVideos);
+
       final deduplicated = SearchDeduplicator.deduplicateAndRank(
         rawVideos,
         query: artist.name,
       );
       final seenIds = <String>{};
+      final candidateTracks = <MusicItem>[];
 
       for (final v in deduplicated) {
         if (!isLegitimateSong(v)) continue;
         final track = v.toTrack(reliableArtist: artist.name);
         if (seenIds.add(track.id)) {
-          tracks.add(track);
-          if (tracks.length >= limit) break;
+          candidateTracks.add(track);
         }
       }
+
+      // 3. Rank candidates according to user's preferred languages
+      return MusicLanguageService.rankAndDeduplicate(
+        candidateTracks,
+        preferredLanguages,
+        limit: limit,
+      );
     } catch (e) {
       debugPrint('[RecommendationService] Fetch error for ${artist.name}: $e');
     }
@@ -238,7 +260,11 @@ class RecommendationService {
             .toList();
 
     final uid = profile?.uid;
-    final history = await _historyRepo.getRecentHistory(uid: uid, limit: 20);
+    final history = await _historyRepo.getRecentHistory(uid: uid, limit: 30);
+    final preferredLanguages = MusicLanguageService.getPreferredLanguages(
+      history: history,
+      profile: profile,
+    );
     final historyKeys = history
         .map((e) => normalizeKey(e.title, e.artist))
         .toSet();
@@ -265,7 +291,11 @@ class RecommendationService {
     // Fetch tracks for each selected artist to guarantee variety across favorites
     final artistTrackBatches = <String, List<MusicItem>>{};
     for (final artist in selectedArtistsToQuery) {
-      final tracks = await getTracksForArtist(artist, limit: 4);
+      final tracks = await getTracksForArtist(
+        artist,
+        limit: 4,
+        preferredLanguages: preferredLanguages,
+      );
       if (tracks.isNotEmpty) {
         artistTrackBatches[artist.name] = tracks;
       }
@@ -347,8 +377,16 @@ class RecommendationService {
     for (final rel in relatedArtists.take(4)) {
       if (discoverMore.length >= targetDiscoverCount) break;
       try {
-        final videos = await _youtubeRepo.search('${rel.name} song');
-        final valid = videos.where(isLegitimateSong).toList();
+        final rawRelVideos = <YouTubeVideo>[];
+        final topLang = preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
+        if (topLang != null && MusicLanguageService.isArtistMultilingualInLang(rel.name, topLang)) {
+          final langVideos = await _youtubeRepo.search('${rel.name} $topLang song');
+          rawRelVideos.addAll(langVideos);
+        }
+        final generalVideos = await _youtubeRepo.search('${rel.name} song');
+        rawRelVideos.addAll(generalVideos);
+
+        final valid = rawRelVideos.where(isLegitimateSong).toList();
         valid.sort((a, b) => rankDiscoverCandidate(b).compareTo(rankDiscoverCandidate(a)));
         for (final v in valid.take(2)) {
           addCandidate(v.toTrack(reliableArtist: rel.name));
@@ -381,6 +419,12 @@ class RecommendationService {
         fromYourArtists.firstOrNull ??
         discoverMore.firstOrNull;
 
+    final rankedDiscoverMore = MusicLanguageService.rankAndDeduplicate(
+      discoverMore,
+      preferredLanguages,
+      limit: targetDiscoverCount,
+    );
+
     return RecommendationSections(
       favoriteArtists: effectiveArtists,
       fromYourArtists: fromYourArtists,
@@ -388,7 +432,7 @@ class RecommendationService {
       popularTracks: popularTracks,
       trendingTracks: trendingTracks,
       recentReleases: recentReleases,
-      discoverMore: discoverMore,
+      discoverMore: rankedDiscoverMore,
       recentlyPlayed: history,
       featuredTrack: featuredTrack,
     );

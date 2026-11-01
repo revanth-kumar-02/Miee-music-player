@@ -9,6 +9,7 @@ class UserProfile {
   final bool onboardingCompleted;
   final List<String> selectedArtistIds;
   final List<ArtistSummary> selectedArtists;
+  final List<String> preferredLanguages;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int schemaVersion;
@@ -21,6 +22,7 @@ class UserProfile {
     this.onboardingCompleted = false,
     this.selectedArtistIds = const [],
     this.selectedArtists = const [],
+    this.preferredLanguages = const [],
     required this.createdAt,
     required this.updatedAt,
     this.schemaVersion = 1,
@@ -39,6 +41,7 @@ class UserProfile {
       onboardingCompleted: false,
       selectedArtistIds: const [],
       selectedArtists: const [],
+      preferredLanguages: const [],
       createdAt: now,
       updatedAt: now,
     );
@@ -66,6 +69,9 @@ class UserProfile {
     final rawIds = data['selectedArtistIds'] as List<dynamic>? ?? [];
     final ids = rawIds.map((e) => e.toString()).toList();
 
+    final rawLangs = data['preferredLanguages'] as List<dynamic>? ?? [];
+    final langs = rawLangs.map((e) => e.toString()).toList();
+
     return UserProfile(
       uid: uid,
       displayName: data['displayName'] as String? ?? 'Miee Listener',
@@ -74,6 +80,7 @@ class UserProfile {
       onboardingCompleted: data['onboardingCompleted'] as bool? ?? false,
       selectedArtistIds: ids,
       selectedArtists: artists,
+      preferredLanguages: langs,
       createdAt: parseDate(data['createdAt']),
       updatedAt: parseDate(data['updatedAt']),
       schemaVersion: (data['schemaVersion'] as num?)?.toInt() ?? 1,
@@ -88,6 +95,7 @@ class UserProfile {
       'onboardingCompleted': onboardingCompleted,
       'selectedArtistIds': selectedArtistIds,
       'selectedArtists': selectedArtists.map((a) => a.toMap()).toList(),
+      'preferredLanguages': preferredLanguages,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'schemaVersion': schemaVersion,
@@ -101,6 +109,7 @@ class UserProfile {
     bool? onboardingCompleted,
     List<String>? selectedArtistIds,
     List<ArtistSummary>? selectedArtists,
+    List<String>? preferredLanguages,
     DateTime? updatedAt,
   }) {
     return UserProfile(
@@ -111,6 +120,7 @@ class UserProfile {
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       selectedArtistIds: selectedArtistIds ?? this.selectedArtistIds,
       selectedArtists: selectedArtists ?? this.selectedArtists,
+      preferredLanguages: preferredLanguages ?? this.preferredLanguages,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
       schemaVersion: schemaVersion,

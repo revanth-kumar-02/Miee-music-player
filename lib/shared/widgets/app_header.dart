@@ -28,6 +28,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   /// Optional tap callback for the notification bell icon.
   final VoidCallback? onNotificationTap;
 
+  /// Whether to display the notification bell icon. Defaults to false.
+  final bool showNotificationBell;
+
   const AppHeader({
     super.key,
     required this.title,
@@ -37,6 +40,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.isScrolled = false,
     this.height = 56.0,
     this.onNotificationTap,
+    this.showNotificationBell = false,
   });
 
   @override
@@ -52,6 +56,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       isScrolled: isScrolled,
       height: height,
       onNotificationTap: onNotificationTap ?? () => NotificationSheet.show(context),
+      showNotificationBell: showNotificationBell,
     );
   }
 }
