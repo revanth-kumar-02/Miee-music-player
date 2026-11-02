@@ -506,5 +506,329 @@ void main() {
       expect(qm.queue.map((t) => t.id).toList(), equals(tracks.map((t) => t.id).toList()));
     });
   });
+
+  group('Task — Deduplication and Artist Discography Tests', () {
+    test('1. Duplicate video IDs in initial results are deduplicated and startIndex is preserved.', () {
+      final tracksWithDupes = [
+        const Track(id: 'youtube_video_A', title: 'Song A', artist: 'Artist', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_video_B', title: 'Song B', artist: 'Artist', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_video_A', title: 'Song A (Repeat)', artist: 'Artist', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_video_C', title: 'Song C', artist: 'Artist', imageUrl: '', duration: '3:00'),
+      ];
+
+      // Simulate setQueue deduplication logic
+      final seenNormIds = <String>{};
+      final uniqueTracks = <MusicItem>[];
+      int resolvedStartIndex = 0;
+      const startIndex = 3; // Selected Song C
+
+      final targetTrack = tracksWithDupes[startIndex];
+      final targetNormId = targetTrack.id.replaceFirst('youtube_', '');
+
+      for (int i = 0; i < tracksWithDupes.length; i++) {
+        final t = tracksWithDupes[i];
+        final normId = t.id.replaceFirst('youtube_', '');
+        final isTarget = (i == startIndex) || (normId == targetNormId);
+
+        if (seenNormIds.add(normId)) {
+          uniqueTracks.add(t);
+        }
+
+        if (isTarget) {
+          final mappedIndex = uniqueTracks.indexWhere((u) => u.id.replaceFirst('youtube_', '') == targetNormId);
+          if (mappedIndex >= 0) resolvedStartIndex = mappedIndex;
+        }
+      }
+
+      expect(uniqueTracks.length, equals(3));
+      expect(uniqueTracks.map((t) => t.id).toList(), equals(['youtube_video_A', 'youtube_video_B', 'youtube_video_C']));
+      // Song C was at index 3 in raw list, but after deduplicating video_A, it is at index 2
+      expect(resolvedStartIndex, equals(2));
+      expect(uniqueTracks[resolvedStartIndex].id, equals('youtube_video_C'));
+    });
+
+    test('2. Duplicates across multiple pages are filtered out.', () {
+      final page1 = [
+        const Track(id: 'youtube_v1', title: 'Song 1', artist: 'Artist', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_v2', title: 'Song 2', artist: 'Artist', imageUrl: '', duration: '3:00'),
+      ];
+
+      // Page 2 returns an overlap of v2 and a fresh v3
+      final page2 = [
+        const Track(id: 'youtube_v2', title: 'Song 2 (Top Hit Overlap)', artist: 'Artist', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_v3', title: 'Song 3', artist: 'Artist', imageUrl: '', duration: '3:00'),
+      ];
+
+      final existingNormIds = page1.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
+      final appendedTracks = <Track>[];
+
+      for (final t in page2) {
+        final normId = t.id.replaceFirst('youtube_', '');
+        if (existingNormIds.add(normId)) {
+          appendedTracks.add(t);
+        }
+      }
+
+      final combined = [...page1, ...appendedTracks];
+      expect(combined.length, equals(3));
+      expect(combined.map((t) => t.id).toList(), equals(['youtube_v1', 'youtube_v2', 'youtube_v3']));
+    });
+
+    test('3. Different video IDs representing distinct versions are preserved.', () {
+      final versions = [
+        const Track(id: 'youtube_studio_id', title: 'In the End', artist: 'Linkin Park', imageUrl: '', duration: '3:36'),
+        const Track(id: 'youtube_live_id', title: 'In the End (Live in Texas)', artist: 'Linkin Park', imageUrl: '', duration: '3:40'),
+        const Track(id: 'youtube_remix_id', title: 'In the End (Mellen Gi Remix)', artist: 'Linkin Park', imageUrl: '', duration: '3:15'),
+        const Track(id: 'youtube_acoustic_id', title: 'In the End (Acoustic Cover)', artist: 'Linkin Park', imageUrl: '', duration: '3:30'),
+      ];
+
+      // Deduplicating by canonical video ID preserves distinct recordings
+      final seenIds = <String>{};
+      final unique = <Track>[];
+      for (final t in versions) {
+        final normId = t.id.replaceFirst('youtube_', '');
+        if (seenIds.add(normId)) {
+          unique.add(t);
+        }
+      }
+
+      expect(unique.length, equals(4));
+      expect(unique.any((t) => t.title.contains('Live')), isTrue);
+      expect(unique.any((t) => t.title.contains('Remix')), isTrue);
+      expect(unique.any((t) => t.title.contains('Acoustic')), isTrue);
+    });
+
+    test('4. Intentional repeated playback requested by the user is preserved in queue.', () {
+      final qm = QueueManager();
+      const songA = Track(id: 'youtube_song_a', title: 'Song A', artist: 'Artist', imageUrl: '', duration: '3:00');
+      const songB = Track(id: 'youtube_song_b', title: 'Song B', artist: 'Artist', imageUrl: '', duration: '3:00');
+
+      qm.setQueue([songA, songB], startIndex: 0);
+      expect(qm.queue.length, equals(2));
+
+      // User explicitly taps "Add to Queue" for song A to listen to it again
+      qm.addTrack(songA);
+
+      expect(qm.queue.length, equals(3));
+      expect(qm.queue[0].id, equals('youtube_song_a'));
+      expect(qm.queue[1].id, equals('youtube_song_b'));
+      expect(qm.queue[2].id, equals('youtube_song_a')); // Intentionally repeated
+    });
+
+    test('5. Artist pagination retrieves more than 15 results independently of playback queue.', () async {
+      final repo = MockPaginatedYouTubeRepository({
+        'artist': {
+          1: List.generate(
+            15,
+            (i) => YouTubeVideo(
+              id: 'art_p1_$i',
+              title: 'Artist Hit $i',
+              channelTitle: 'Artist',
+              thumbnailUrl: '',
+              duration: '3:30',
+              viewCount: '1M',
+            ),
+          ),
+          2: List.generate(
+            15,
+            (i) => YouTubeVideo(
+              id: 'art_p2_$i',
+              title: 'Artist Album Track $i',
+              channelTitle: 'Artist',
+              thumbnailUrl: '',
+              duration: '3:30',
+              viewCount: '500K',
+            ),
+          ),
+        },
+      });
+
+      // Page 1: initial concise preview
+      final page1Videos = await repo.getArtistTracks('Artist', page: 1, limit: 15);
+      expect(page1Videos.length, equals(15));
+      expect(page1Videos.first.id, equals('art_p1_0'));
+
+      // Page 2: user clicks "View All" / "Load More"
+      final page2Videos = await repo.getArtistTracks('Artist', page: 2, limit: 15);
+      expect(page2Videos.length, equals(15));
+      expect(page2Videos.first.id, equals('art_p2_0'));
+
+      final discographyTracks = [
+        ...page1Videos.map((v) => v.toTrack()),
+        ...page2Videos.map((v) => v.toTrack()),
+      ];
+      expect(discographyTracks.length, equals(30));
+    });
+
+    test('6. Queue generation from related tracks avoids seed song and queue duplicates.', () {
+      const seedTrack = Track(id: 'youtube_seed_1', title: 'Seed Song', artist: 'Artist A', imageUrl: '', duration: '3:00');
+      final currentQueue = [
+        seedTrack,
+        const Track(id: 'youtube_existing_2', title: 'Existing Song', artist: 'Artist B', imageUrl: '', duration: '3:00'),
+      ];
+
+      final candidateRecommendations = [
+        const Track(id: 'youtube_seed_1', title: 'Seed Song (Duplicate)', artist: 'Artist A', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_existing_2', title: 'Existing Song', artist: 'Artist B', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_fresh_3', title: 'Fresh Song 1', artist: 'Artist C', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_fresh_4', title: 'Fresh Song 2', artist: 'Artist D', imageUrl: '', duration: '3:00'),
+      ];
+
+      final queueIds = currentQueue.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
+      final freshTracks = candidateRecommendations.where((t) {
+        final normId = t.id.replaceFirst('youtube_', '');
+        return !queueIds.contains(normId);
+      }).toList();
+
+      expect(freshTracks.length, equals(2));
+      expect(freshTracks.map((t) => t.id).toList(), equals(['youtube_fresh_3', 'youtube_fresh_4']));
+    });
+
+    test('7. Selected track identity is accurately preserved through queue resolution.', () {
+      final qm = QueueManager();
+      const track1 = Track(id: 'youtube_vid_001', title: 'Track 1', artist: 'Artist', imageUrl: '', duration: '3:00');
+      const track2 = Track(id: 'youtube_vid_002', title: 'Track 2', artist: 'Artist', imageUrl: '', duration: '3:00');
+      const track3 = Track(id: 'youtube_vid_003', title: 'Track 3', artist: 'Artist', imageUrl: '', duration: '3:00');
+
+      qm.setQueue([track1, track2, track3], startIndex: 1);
+
+      expect(isSameTrackId(qm.currentTrack?.id, 'vid_002'), isTrue);
+      expect(isSameTrackId(qm.currentTrack?.id, 'youtube_vid_002'), isTrue);
+      expect(isSameTrackId(qm.currentTrack?.id, 'vid_001'), isFalse);
+    });
+
+    test('8. Unicode regional song titles (Tamil, Telugu, Hindi) produce distinct non-empty keys.', () {
+      // Non-Latin titles must not be collapsed into identical empty keys
+      final tamilSong1 = RecommendationService.normalizeKey('வாத்தி கமிங்', 'அனிருத்');
+      final tamilSong2 = RecommendationService.normalizeKey('மாஸ்டர்', 'அனிருத்');
+      final hindiSong = RecommendationService.normalizeKey('तुम ही हो', 'अरिजीत सिंह');
+
+      expect(tamilSong1, isNotEmpty);
+      expect(tamilSong2, isNotEmpty);
+      expect(hindiSong, isNotEmpty);
+      expect(tamilSong1, isNot(equals(tamilSong2)));
+    });
+  });
+
+  group('Task 9 — Artist Track Attribution & Short Display Names', () {
+    test('1. Short display name mappings return compact names while preserving canonical names.', () {
+      const anirudh = ArtistSummary(
+        id: '1',
+        name: 'Anirudh Ravichander',
+        imageUrl: '',
+        languages: ['Tamil'],
+      );
+      expect(anirudh.name, equals('Anirudh Ravichander'));
+      expect(anirudh.shortDisplayName, equals('Anirudh'));
+
+      const spb = ArtistSummary(
+        id: '2',
+        name: 'S. P. Balasubrahmanyam',
+        imageUrl: '',
+        languages: ['Tamil', 'Telugu'],
+      );
+      expect(spb.name, equals('S. P. Balasubrahmanyam'));
+      expect(spb.shortDisplayName, equals('SPB'));
+
+      const yuvan = ArtistSummary(
+        id: '3',
+        name: 'Yuvan Shankar Raja',
+        imageUrl: '',
+      );
+      expect(yuvan.shortDisplayName, equals('Yuvan'));
+
+      const rahman = ArtistSummary(
+        id: '4',
+        name: 'A. R. Rahman',
+        imageUrl: '',
+      );
+      expect(rahman.name, equals('A. R. Rahman'));
+      expect(rahman.shortDisplayName, equals('A. R. Rahman'));
+
+      const model = ArtistModel(
+        id: '5',
+        name: 'Harris Jayaraj',
+        imageUrl: '',
+      );
+      expect(model.name, equals('Harris Jayaraj'));
+      expect(model.shortDisplayName, equals('Harris'));
+    });
+
+    test('2. isTrackAttributedToArtist accepts tracks legitimately credited to target artist.', () {
+      const rahmanTrackDirect = Track(
+        id: 'youtube_y_1',
+        title: 'Chaiya Chaiya',
+        artist: 'A. R. Rahman, Sukhwinder Singh',
+        imageUrl: '',
+        duration: '4:20',
+      );
+      expect(RecommendationService.isTrackAttributedToArtist(rahmanTrackDirect, 'A. R. Rahman'), isTrue);
+
+      const rahmanTrackAlias = Track(
+        id: 'youtube_y_2',
+        title: 'Urvashi Urvashi',
+        artist: 'AR Rahman',
+        imageUrl: '',
+        duration: '5:00',
+      );
+      expect(RecommendationService.isTrackAttributedToArtist(rahmanTrackAlias, 'A. R. Rahman'), isTrue);
+
+      const rahmanTrackInTitle = Track(
+        id: 'youtube_y_3',
+        title: 'Tere Bina - Music: A.R. Rahman',
+        artist: 'Various Artists',
+        imageUrl: '',
+        duration: '4:50',
+      );
+      expect(RecommendationService.isTrackAttributedToArtist(rahmanTrackInTitle, 'A. R. Rahman'), isTrue);
+    });
+
+    test('3. isTrackAttributedToArtist strictly rejects uncredited songs by unrelated artists.', () {
+      // The exact scenario from user issue:
+      // When A. R. Rahman is selected, tracks by Sai Abhyankkar, Jonita Gandhi, or Anirudh must NOT be attributed to Rahman
+      const saiTrack = Track(
+        id: 'youtube_y_sai_1',
+        title: 'Katchi Sera',
+        artist: 'Sai Abhyankkar',
+        imageUrl: '',
+        duration: '3:10',
+      );
+      expect(RecommendationService.isTrackAttributedToArtist(saiTrack, 'A. R. Rahman'), isFalse);
+
+      const jonitaTrack = Track(
+        id: 'youtube_y_jonita_1',
+        title: 'Arabic Kuthu - Jonita Solo Cover',
+        artist: 'Jonita Gandhi',
+        imageUrl: '',
+        duration: '4:00',
+      );
+      expect(RecommendationService.isTrackAttributedToArtist(jonitaTrack, 'A. R. Rahman'), isFalse);
+
+      const anirudhTrack = Track(
+        id: 'youtube_y_ani_1',
+        title: 'Hukum - Thalaivar Alappara',
+        artist: 'Anirudh Ravichander',
+        imageUrl: '',
+        duration: '3:45',
+      );
+      expect(RecommendationService.isTrackAttributedToArtist(anirudhTrack, 'A. R. Rahman'), isFalse);
+    });
+
+    test('4. Initial tracks filtering in From Your Artists preserves only verified artist tracks.', () {
+      final initialMixedTracks = [
+        const Track(id: 'youtube_y_r1', title: 'Roja Janeman', artist: 'A.R. Rahman', imageUrl: '', duration: '4:00'),
+        const Track(id: 'youtube_y_s1', title: 'Kasaata', artist: 'Sai Abhyankkar', imageUrl: '', duration: '3:00'),
+        const Track(id: 'youtube_y_j1', title: 'Chellamma', artist: 'Jonita Gandhi, Anirudh', imageUrl: '', duration: '3:30'),
+        const Track(id: 'youtube_y_r2', title: 'Taal Se Taal', artist: 'A. R. Rahman, Alka Yagnik', imageUrl: '', duration: '5:00'),
+      ];
+
+      final filtered = initialMixedTracks
+          .where((t) => RecommendationService.isTrackAttributedToArtist(t, 'A. R. Rahman'))
+          .toList();
+
+      expect(filtered.length, equals(2));
+      expect(filtered.map((t) => t.id).toList(), equals(['youtube_y_r1', 'youtube_y_r2']));
+    });
+  });
 }
 

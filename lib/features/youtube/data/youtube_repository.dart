@@ -150,16 +150,32 @@ class YouTubeRepository {
     final mainVideos = await search('$cleanArtist songs', page: page, forceFresh: page > 1);
     candidateVideos.addAll(mainVideos);
 
-    // 3. If page > 1 and candidate count is small, supplement with query variant
-    if (page > 1 && candidateVideos.length < (limit ~/ 2)) {
+    // 3. If page > 1, filter out tracks already returned in earlier pages for this artist
+    List<YouTubeVideo> filteredCandidates = candidateVideos;
+    if (page > 1) {
+      final priorIds = <String>{};
+      for (int p = 1; p < page; p++) {
+        final priorKey = '$cleanArtist songs:p$p';
+        final priorList = _searchCache[priorKey] ?? (p == 1 ? _searchCache['$cleanArtist songs'] : null);
+        if (priorList != null) {
+          priorIds.addAll(priorList.map((v) => v.id));
+        }
+      }
+      if (priorIds.isNotEmpty) {
+        filteredCandidates = candidateVideos.where((v) => !priorIds.contains(v.id)).toList();
+      }
+    }
+
+    // 4. If page > 1 and candidate count is small, supplement with query variant
+    if (page > 1 && filteredCandidates.length < (limit ~/ 2)) {
       final variantQuery = _getQueryVariantForPage(cleanArtist, page);
       final variantVideos = await search(variantQuery, page: 1);
-      candidateVideos.addAll(variantVideos);
+      filteredCandidates.addAll(variantVideos);
     }
 
     // Deduplicate and rank for this artist
     final deduplicated = SearchDeduplicator.deduplicateAndRank(
-      candidateVideos,
+      filteredCandidates,
       query: cleanArtist,
       config: const SearchRankingConfig(filterDerivativeEdits: true),
     );

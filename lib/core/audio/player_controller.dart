@@ -275,7 +275,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     // Track artist context if playing an artist session
     if (playingFrom != null && playingFrom.startsWith('Artist: ')) {
       _activeArtistContext = playingFrom.replaceFirst('Artist: ', '').trim();
-    } else if (tracks.isNotEmpty &&
+    } else if (tracks.length > 1 &&
         tracks.every((t) => t.artist.trim().toLowerCase() == tracks.first.artist.trim().toLowerCase())) {
       _activeArtistContext = tracks.first.artist.trim();
     } else {
@@ -287,7 +287,44 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _isExpandingQueue = false;
     _expandingCompleter = null;
 
-    _queueManager.setQueue(tracks, startIndex: startIndex);
+    // Deduplicate tracks by stable track identity (canonical video ID for online, ID/filePath for local),
+    // strictly preserving the first occurrence, relative queue order, and the target startIndex.
+    final targetTrack = (startIndex >= 0 && startIndex < tracks.length)
+        ? tracks[startIndex]
+        : tracks.firstOrNull;
+    final targetNormId = targetTrack != null ? _normalizeTrackId(targetTrack.id) : null;
+
+    final seenNormIds = <String>{};
+    final uniqueTracks = <MusicItem>[];
+    int resolvedStartIndex = 0;
+
+    for (int i = 0; i < tracks.length; i++) {
+      final t = tracks[i];
+      final normId = _normalizeTrackId(t.id);
+      final isTarget = (i == startIndex) || (targetNormId != null && normId == targetNormId);
+
+      if (normId.isEmpty) {
+        uniqueTracks.add(t);
+      } else if (seenNormIds.add(normId)) {
+        uniqueTracks.add(t);
+      }
+
+      if (isTarget && targetNormId != null) {
+        final mappedIndex = uniqueTracks.indexWhere(
+          (u) => _normalizeTrackId(u.id) == targetNormId,
+        );
+        if (mappedIndex >= 0) {
+          resolvedStartIndex = mappedIndex;
+        }
+      }
+    }
+
+    final finalQueue = uniqueTracks.isNotEmpty ? uniqueTracks : tracks;
+    final finalStartIndex = (resolvedStartIndex >= 0 && resolvedStartIndex < finalQueue.length)
+        ? resolvedStartIndex
+        : 0;
+
+    _queueManager.setQueue(finalQueue, startIndex: finalStartIndex);
     _persistQueueSnapshot();
     final track = _queueManager.currentTrack;
     if (track != null) {
@@ -331,9 +368,17 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
     if (tracks.isEmpty) return;
 
-    // Filter out any track already in queue
+    // Filter out any track already in queue and deduplicate within batch
     final currentIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
-    final freshTracks = tracks.where((t) => !currentIds.contains(_normalizeTrackId(t.id))).toList();
+    final batchSeenIds = <String>{};
+    final freshTracks = <MusicItem>[];
+    for (final t in tracks) {
+      final normId = _normalizeTrackId(t.id);
+      if (currentIds.contains(normId)) continue;
+      if (batchSeenIds.add(normId)) {
+        freshTracks.add(t);
+      }
+    }
     if (freshTracks.isEmpty) return;
 
     _queueManager.addTracks(freshTracks);

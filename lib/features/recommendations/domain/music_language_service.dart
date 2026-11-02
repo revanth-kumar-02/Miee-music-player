@@ -186,12 +186,14 @@ class MusicLanguageService {
   /// Normalizes track key for deduplication.
   static String normalizeTrackKey(String title, String artist) {
     // Strip common tags: (From "..."), [Tamil], - Official, (Lyric Video), etc.
-    final cleanTitle = title
+    var cleanTitle = title
         .toLowerCase()
         .replaceAll(RegExp(r'\[.*?\]|\(.*?\)|\|.*$|\-.*$'), '')
-        .replaceAll(RegExp(r'[^a-z0-9]'), '')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '')
         .trim();
-    final cleanArtist = artist.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
+    if (cleanTitle.isEmpty) cleanTitle = title.toLowerCase().trim();
+    var cleanArtist = artist.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '').trim();
+    if (cleanArtist.isEmpty) cleanArtist = artist.toLowerCase().trim();
     return '$cleanTitle|$cleanArtist';
   }
 

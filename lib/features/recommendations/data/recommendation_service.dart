@@ -53,10 +53,154 @@ class RecommendationService {
         _historyRepo = historyRepo ?? SupabaseListeningHistoryRepository(),
         _trendingService = trendingService ?? TrendingMusicService();
 
+  static String _normalizeTrackId(String id) {
+    return id.startsWith('youtube_') ? id.replaceFirst('youtube_', '') : id;
+  }
+
   static String normalizeKey(String title, String artist) {
-    final cleanT = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-    final cleanA = artist.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    var cleanT = title.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+    var cleanA = artist.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+    if (cleanT.isEmpty) cleanT = title.toLowerCase().trim();
+    if (cleanA.isEmpty) cleanA = artist.toLowerCase().trim();
     return '$cleanT|$cleanA';
+  }
+
+  /// Checks whether [track] is legitimately attributed to [targetArtist], either as
+  /// the primary artist, a collaborating co-artist, or verified composer/creator.
+  ///
+  /// Prevents unrelated tracks from appearing in artist-specific spotlights
+  /// while preserving legitimate collaborations.
+  static bool isTrackAttributedToArtist(MusicItem track, String targetArtist) {
+    if (targetArtist.trim().isEmpty) return false;
+    final cleanTarget = targetArtist.trim().toLowerCase();
+
+    // 1. Direct or alias match
+    final aliases = getArtistAliases(cleanTarget);
+
+    // 2. Check track.artist tokens
+    final trackArtist = track.artist.toLowerCase().trim();
+    if (trackArtist.isNotEmpty) {
+      if (aliases.any((alias) => trackArtist == alias)) return true;
+      final creditedArtists = trackArtist
+          .split(RegExp(r'\s*(&|,|\bfeat\.?|\bft\.?|\bwith\b|\band\b|\bx\b|\bvs\.?|\/)\s*', caseSensitive: false))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      for (final credited in creditedArtists) {
+        if (aliases.any((alias) => isArtistNameMatch(credited, alias))) {
+          return true;
+        }
+      }
+    }
+
+    // 3. Check raw artist/channel if available
+    final rawArtist = (track is Track ? (track.rawArtist ?? '') : '').toLowerCase().trim();
+    if (rawArtist.isNotEmpty) {
+      if (aliases.any((alias) => isArtistNameMatch(rawArtist, alias))) return true;
+    }
+
+    // 4. Check raw title or title for structured credit clauses:
+    // e.g. "Song | Movie | A.R. Rahman | Singer...", "Music: A. R. Rahman", "Composed by Anirudh"
+    final rawTitle = (track is Track ? (track.rawTitle ?? track.title) : track.title).toLowerCase();
+    for (final alias in aliases) {
+      if (_hasStructuredArtistCredit(rawTitle, alias)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Returns known aliases and spelling variations for [artistName].
+  static List<String> getArtistAliases(String artistName) {
+    final clean = artistName.trim().toLowerCase();
+    final normalized = clean.replaceAll(RegExp(r'[\.\,\-]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    final aliases = <String>{clean, normalized};
+
+    // Specific well-known aliases and variations
+    if (clean.contains('rahman') || clean == 'a. r. rahman' || clean == 'ar rahman') {
+      aliases.addAll(['a. r. rahman', 'a.r. rahman', 'ar rahman', 'a r rahman', 'rahman', 'arrahman', 'a r rehman', 'ar rehman']);
+    } else if (clean.contains('anirudh')) {
+      aliases.addAll(['anirudh ravichander', 'anirudh', 'anirudhravichander']);
+    } else if (clean.contains('yuvan')) {
+      aliases.addAll(['yuvan shankar raja', 'yuvan', 'ysr', 'yuvanshankar']);
+    } else if (clean.contains('harris')) {
+      aliases.addAll(['harris jayaraj', 'harris']);
+    } else if (clean.contains('ilaiyaraaja') || clean.contains('ilayaraja')) {
+      aliases.addAll(['ilaiyaraaja', 'ilaiyaraja', 'ilayaraja', 'raaja']);
+    } else if (clean.contains('balasubrahmanyam') || clean == 'spb') {
+      aliases.addAll(['s. p. balasubrahmanyam', 'sp balasubrahmanyam', 'spb', 's p balasubrahmanyam', 'balasubrahmanyam']);
+    } else if (clean.contains('chithra')) {
+      aliases.addAll(['k. s. chithra', 'ks chithra', 'chithra']);
+    } else if (clean.contains('arijit')) {
+      aliases.addAll(['arijit singh', 'arijit']);
+    } else if (clean.contains('shreya')) {
+      aliases.addAll(['shreya ghoshal', 'shreya']);
+    } else if (clean.contains('sid sriram')) {
+      aliases.addAll(['sid sriram']);
+    } else if (clean.contains('santhosh narayanan')) {
+      aliases.addAll(['santhosh narayanan', 'sana']);
+    } else if (clean.contains('sai abhyankkar')) {
+      aliases.addAll(['sai abhyankkar', 'sai abhyankar']);
+    } else if (clean.contains('jonita')) {
+      aliases.addAll(['jonita gandhi', 'jonita']);
+    }
+
+    return aliases.toList();
+  }
+
+  static bool isArtistNameMatch(String credited, String alias) {
+    final cleanCredited = credited.trim().toLowerCase();
+    final cleanAlias = alias.trim().toLowerCase();
+    if (cleanCredited == cleanAlias) return true;
+
+    final normCredited = cleanCredited.replaceAll(RegExp(r'[\.\,\-]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normAlias = cleanAlias.replaceAll(RegExp(r'[\.\,\-]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normCredited == normAlias) return true;
+
+    if (cleanAlias.length >= 4) {
+      final pattern = RegExp(r'\b' + RegExp.escape(cleanAlias) + r'\b');
+      if (pattern.hasMatch(cleanCredited)) return true;
+    }
+
+    return false;
+  }
+
+  static bool _hasStructuredArtistCredit(String title, String alias) {
+    if (alias.length < 3) return false;
+    final lowerTitle = title.toLowerCase();
+
+    final prefixes = ['music:', 'music by', 'composed by', 'composer:', 'singer:', 'singers:', 'ft.', 'feat.', 'featuring'];
+    for (final prefix in prefixes) {
+      final idx = lowerTitle.indexOf(prefix);
+      if (idx != -1) {
+        final after = lowerTitle.substring(idx + prefix.length).trim();
+        if (after.startsWith(alias) || isArtistNameMatch(after.split(RegExp(r'[\|\,\-\•]')).first.trim(), alias)) {
+          return true;
+        }
+      }
+    }
+
+    final clauses = lowerTitle.split(RegExp(r'\s*(\||•|\/\/)\s*'));
+    for (final clause in clauses) {
+      final cleanClause = clause.trim();
+      if (isArtistNameMatch(cleanClause, alias)) {
+        return true;
+      }
+    }
+
+    final dashes = lowerTitle.split(RegExp(r'\s*[\-\–\—]\s*'));
+    if (dashes.length >= 2) {
+      for (final part in dashes) {
+        if (isArtistNameMatch(part.trim(), alias)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   /// Filters out playlists, multi-song compilations, jukeboxes, full movies, podcasts, and comedy sketches
@@ -217,6 +361,10 @@ class RecommendationService {
       for (final v in rawVideos) {
         if (!isLegitimateSong(v)) continue;
         final track = v.toTrack(reliableArtist: artist.name);
+        if (!isTrackAttributedToArtist(track, artist.name)) {
+          debugPrint('[RecommendationService] Track "${track.title}" by "${track.artist}" excluded: not attributed to "${artist.name}"');
+          continue;
+        }
         if (seenIds.add(track.id)) {
           candidateTracks.add(track);
         }
@@ -291,24 +439,17 @@ class RecommendationService {
       }
     }
 
-    // Interleave tracks across selected artists (e.g. Artist 1 Track 1, Artist 2 Track 1...)
-    bool moreTracks = true;
-    int trackIndex = 0;
-    while (moreTracks && fromYourArtists.length < 16) {
-      moreTracks = false;
-      for (final artist in selectedArtistsToQuery) {
-        final batch = artistTrackBatches[artist.name] ?? [];
-        if (trackIndex < batch.length) {
-          final t = batch[trackIndex];
-          final key = normalizeKey(t.title, t.artist);
-          if (seenTrackIds.add(t.id) && !seenTrackKeys.contains(key)) {
-            fromYourArtists.add(t);
-            seenTrackKeys.add(key);
-          }
-          moreTracks = true;
+    // Populate fromYourArtists strictly with the verified tracks for the initial spotlighted artist
+    if (effectiveArtists.isNotEmpty) {
+      final initialArtist = effectiveArtists.first;
+      final initialBatch = artistTrackBatches[initialArtist.name] ?? const [];
+      for (final t in initialBatch) {
+        final key = normalizeKey(t.title, t.artist);
+        if (seenTrackIds.add(t.id) && !seenTrackKeys.contains(key)) {
+          fromYourArtists.add(t);
+          seenTrackKeys.add(key);
         }
       }
-      trackIndex++;
     }
 
     // ── 3. Discover New Artists (Outside User's Selected Artists) ────────────
@@ -447,11 +588,11 @@ class RecommendationService {
     final queueKeys = currentQueue
         .map((t) => normalizeKey(t.title, t.artist))
         .toSet();
-    final queueIds = currentQueue.map((t) => t.id).toSet();
+    final queueIds = currentQueue.map((t) => _normalizeTrackId(t.id)).toSet();
 
     // Also include currentTrack key and ID
     queueKeys.add(normalizeKey(currentTrack.title, currentTrack.artist));
-    queueIds.add(currentTrack.id);
+    queueIds.add(_normalizeTrackId(currentTrack.id));
 
     // Track how many songs per artist are in the upcoming batch to guarantee variety
     final artistCount = <String, int>{};
@@ -482,9 +623,10 @@ class RecommendationService {
         if (!isLegitimateSong(v)) return;
       }
 
-      if (!queueKeys.contains(key) && !queueIds.contains(track.id)) {
+      final normId = _normalizeTrackId(track.id);
+      if (!queueKeys.contains(key) && !queueIds.contains(normId)) {
         queueKeys.add(key);
-        queueIds.add(track.id);
+        queueIds.add(normId);
         artistCount[artistKey] = count + 1;
         upcoming.add(track);
       }

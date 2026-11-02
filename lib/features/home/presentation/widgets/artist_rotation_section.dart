@@ -11,6 +11,7 @@ import '../../../../shared/models/music_item.dart';
 import '../../../../shared/widgets/song_tile.dart';
 import '../../../onboarding/data/artist_discovery_repository.dart';
 import '../../../onboarding/domain/artist_model.dart';
+import '../../../recommendations/data/recommendation_service.dart';
 import '../../../recommendations/providers/recommendation_providers.dart';
 
 /// A cross-platform section for the Home screen that rotates spotlighted artists
@@ -93,8 +94,16 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
       final initialArtist = _effectiveArtists.first;
       if (widget.initialTracks.isNotEmpty &&
           !_tracksByArtistId.containsKey(initialArtist.id)) {
-        _tracksByArtistId[initialArtist.id] =
-            widget.initialTracks.take(6).toList();
+        final verifiedInitial = widget.initialTracks
+            .where((t) => RecommendationService.isTrackAttributedToArtist(
+                  t,
+                  initialArtist.name,
+                ))
+            .take(6)
+            .toList();
+        if (verifiedInitial.isNotEmpty) {
+          _tracksByArtistId[initialArtist.id] = verifiedInitial;
+        }
       }
 
       // Proactively prefetch initial artist tracks if not yet cached
@@ -270,8 +279,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
 
     final isDesktop = MediaQuery.of(context).size.width >= 960;
     final currentArtist = _effectiveArtists[_currentIndex];
-    final currentTracks = _tracksByArtistId[currentArtist.id] ??
-        widget.initialTracks.take(6).toList();
+    final currentTracks = _tracksByArtistId[currentArtist.id] ?? const [];
 
     final hasMultiple = _effectiveArtists.length > 1;
 
@@ -301,11 +309,13 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
                       ),
                       const SizedBox(width: 10),
                       // Active Artist Badge Pill with synchronized fade
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: _buildArtistPill(currentArtist, isDesktop),
+                      Flexible(
+                        child: FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: _buildArtistPill(currentArtist, isDesktop),
+                          ),
                         ),
                       ),
                     ],
@@ -411,7 +421,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 120),
             child: Text(
-              artist.name,
+              artist.shortDisplayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.plusJakartaSans(

@@ -15,7 +15,6 @@ import '../providers/search_providers.dart';
 import '../domain/search_state.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
-import '../../youtube/providers/youtube_providers.dart';
 import '../../recommendations/providers/recommendation_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
 import '../../library/providers/library_providers.dart';
@@ -106,23 +105,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     final targetTrack = video.toTrack();
     final playerNotifier = ref.read(playerControllerProvider.notifier);
-    final token = playerNotifier.startNewQueue(
+    final trackList = results.map((v) => v.toTrack()).toList();
+
+    playerNotifier.selectTrack(
       targetTrack,
+      trackList,
       playingFrom: 'YouTube Search',
     );
-
-    // Asynchronously fetch diverse, deduplicated recommendations seeded by this track
-    ref.read(youtubeRepositoryProvider).getRelatedTracks(video).then((relatedVideos) {
-      if (!mounted) return;
-      final upcomingTracks = relatedVideos.map((v) => v.toTrack()).toList();
-      playerNotifier.appendUpcomingTracks(
-        upcomingTracks,
-        token: token,
-        forTrackId: targetTrack.id,
-      );
-    }).catchError((Object e) {
-      debugPrint('[SearchPage] Error fetching diverse recommendations: $e');
-    });
   }
 
   @override

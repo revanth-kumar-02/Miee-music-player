@@ -12,6 +12,32 @@ class ArtistSummary {
     this.languages = const [],
   });
 
+  /// Returns a familiar, compact display name suitable for tight UI elements like headers and selector pills.
+  /// For example, "Anirudh Ravichander" -> "Anirudh", while keeping canonical name unchanged.
+  String get shortDisplayName => getShortDisplayName(name);
+
+  static String getShortDisplayName(String canonicalName) {
+    final clean = canonicalName.trim();
+    const knownShortNames = {
+      'Anirudh Ravichander': 'Anirudh',
+      'S. P. Balasubrahmanyam': 'SPB',
+      'Yuvan Shankar Raja': 'Yuvan',
+      'Harris Jayaraj': 'Harris',
+      'G. V. Prakash Kumar': 'GV Prakash',
+      'Hiphop Tamizha': 'Hiphop Tamizha',
+      'A. R. Rahman': 'A. R. Rahman',
+    };
+    if (knownShortNames.containsKey(clean)) {
+      return knownShortNames[clean]!;
+    }
+    for (final entry in knownShortNames.entries) {
+      if (entry.key.toLowerCase() == clean.toLowerCase()) {
+        return entry.value;
+      }
+    }
+    return clean;
+  }
+
   factory ArtistSummary.fromMap(Map<String, dynamic> map) {
     final rawLangs = map['languages'] as List<dynamic>? ?? [];
     return ArtistSummary(
@@ -80,6 +106,8 @@ class ArtistModel {
       bio: bio ?? this.bio,
     );
   }
+
+  String get shortDisplayName => ArtistSummary.getShortDisplayName(name);
 
   bool matchesLanguage(String language) {
     if (language.toLowerCase() == 'all') return true;

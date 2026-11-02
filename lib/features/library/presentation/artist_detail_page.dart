@@ -16,6 +16,7 @@ import '../../media/providers/media_providers.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/providers/onboarding_providers.dart';
+import '../../profile/providers/profile_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
 import '../../youtube/data/youtube_repository.dart';
 
@@ -27,6 +28,9 @@ class ArtistProfileData {
   final bool isLocal;
   final bool isLoading;
   final String? errorMessage;
+  final bool hasMoreTracks;
+  final int currentPage;
+  final bool isLoadingMore;
 
   const ArtistProfileData({
     required this.artist,
@@ -35,6 +39,9 @@ class ArtistProfileData {
     this.isLocal = false,
     this.isLoading = false,
     this.errorMessage,
+    this.hasMoreTracks = false,
+    this.currentPage = 1,
+    this.isLoadingMore = false,
   });
 
   ArtistProfileData copyWith({
@@ -44,6 +51,9 @@ class ArtistProfileData {
     bool? isLocal,
     bool? isLoading,
     String? errorMessage,
+    bool? hasMoreTracks,
+    int? currentPage,
+    bool? isLoadingMore,
   }) {
     return ArtistProfileData(
       artist: artist ?? this.artist,
@@ -52,6 +62,9 @@ class ArtistProfileData {
       isLocal: isLocal ?? this.isLocal,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
+      hasMoreTracks: hasMoreTracks ?? this.hasMoreTracks,
+      currentPage: currentPage ?? this.currentPage,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 }
@@ -180,9 +193,11 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       }
 
       // Online tracks via YouTube search with deduplication & podcast/movie filtering
+      bool hasMoreOnlineTracks = false;
       try {
         final ytRepo = YouTubeRepository();
         final rawVideos = await ytRepo.getArtistTracks(artist.name, page: 1, limit: 15);
+        hasMoreOnlineTracks = rawVideos.length >= 8 && !isLocal;
 
         final seenIds = tracks.map((t) => t.id).toSet();
         final seenNormIds = tracks.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
@@ -233,6 +248,9 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
             albums: albums,
             isLocal: isLocal,
             isLoading: false,
+            hasMoreTracks: hasMoreOnlineTracks,
+            currentPage: 1,
+            isLoadingMore: false,
           );
           _isLoading = false;
         });
@@ -242,6 +260,62 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
         setState(() {
           _isLoading = false;
           _error = 'Could not load artist profile. Please try again.';
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMoreTracks() async {
+    final current = _data;
+    if (current == null || current.isLoadingMore || !current.hasMoreTracks || current.isLocal) {
+      return;
+    }
+
+    setState(() {
+      _data = current.copyWith(isLoadingMore: true);
+    });
+
+    try {
+      final nextPage = current.currentPage + 1;
+      final ytRepo = YouTubeRepository();
+      final profile = ref.read(currentUserProfileProvider);
+      final preferredLanguages = profile?.preferredLanguages ?? const [];
+
+      final moreVideos = await ytRepo.getArtistTracks(
+        current.artist.name,
+        page: nextPage,
+        limit: 15,
+        preferredLanguages: preferredLanguages,
+      );
+
+      final existingNormIds = current.tracks.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
+      final newTracks = <Track>[];
+
+      for (final v in moreVideos) {
+        if (!RecommendationService.isLegitimateSong(v)) continue;
+        final normId = v.id.replaceFirst('youtube_', '');
+        if (existingNormIds.add(normId)) {
+          newTracks.add(v.toTrack(reliableArtist: current.artist.name));
+        }
+      }
+
+      final hasMore = moreVideos.length >= 8 && newTracks.isNotEmpty;
+
+      if (mounted) {
+        setState(() {
+          _data = current.copyWith(
+            tracks: [...current.tracks, ...newTracks],
+            currentPage: nextPage,
+            hasMoreTracks: hasMore,
+            isLoadingMore: false,
+          );
+        });
+      }
+    } catch (e) {
+      debugPrint('[ArtistDetailPage] Error loading more tracks: $e');
+      if (mounted) {
+        setState(() {
+          _data = current.copyWith(isLoadingMore: false);
         });
       }
     }
@@ -547,15 +621,16 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
           ],
 
           // 4. Popular / Best Available Tracks Section
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SectionHeader(
                     title: 'Popular Tracks',
-                    actionLabel: 'Best Available',
+                    actionLabel: (data.hasMoreTracks && !data.isLoadingMore) ? 'View All' : null,
+                    onActionTap: _loadMoreTracks,
                   ),
                   AppSpacing.heightMd,
                 ],
@@ -614,6 +689,53 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                     );
                   },
                   childCount: tracks.length,
+                ),
+              ),
+            ),
+
+          if (data.hasMoreTracks || data.isLoadingMore)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.marginMobile,
+                  vertical: AppSpacing.md,
+                ),
+                child: Center(
+                  child: data.isLoadingMore
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : OutlinedButton.icon(
+                          icon: const Icon(Icons.expand_more, size: 18),
+                          label: const Text('Load More Songs'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.onSurface,
+                            side: const BorderSide(color: AppColors.outlineVariant),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: AppRadius.radiusMd,
+                            ),
+                          ),
+                          onPressed: _loadMoreTracks,
+                        ),
+                ),
+              ),
+            )
+          else if (tracks.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: Center(
+                  child: Text(
+                    'Showing all available tracks (${tracks.length})',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
             ),
