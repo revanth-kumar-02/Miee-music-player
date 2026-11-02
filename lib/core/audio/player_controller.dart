@@ -21,6 +21,7 @@ import '../../features/history/providers/history_providers.dart';
 import '../../features/recommendations/providers/recommendation_providers.dart';
 import '../../features/profile/providers/profile_providers.dart';
 import '../../features/wrapped/data/playback_analytics_tracker.dart';
+import '../../features/onboarding/domain/artist_model.dart';
 
 import 'playback_diagnostics.dart';
 
@@ -45,9 +46,39 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   /// Monotonically increasing token to ignore stale async recommendation queue responses.
   int _queueGenerationToken = 0;
+  int get queueGenerationToken => _queueGenerationToken;
 
   /// Guard to prevent concurrent in-flight queue expansion operations.
   bool _isExpandingQueue = false;
+  Completer<void>? _expandingCompleter;
+
+  /// Active artist name if the current queue represents an artist's songs.
+  String? _activeArtistContext;
+  String? get activeArtistContext => _activeArtistContext;
+
+  /// Current pagination page for the active artist listening session.
+  int _artistContinuationPage = 1;
+  int get artistContinuationPage => _artistContinuationPage;
+
+  /// Whether the provider still has more tracks for the active artist session.
+  bool _hasMoreArtistTracks = true;
+  bool get hasMoreArtistTracks => _hasMoreArtistTracks;
+
+  @visibleForTesting
+  bool get isExpandingQueueForTesting => _isExpandingQueue;
+
+  @visibleForTesting
+  int get artistContinuationPageForTesting => _artistContinuationPage;
+
+  @visibleForTesting
+  bool get hasMoreArtistTracksForTesting => _hasMoreArtistTracks;
+
+  @visibleForTesting
+  void setArtistContextForTesting(String? artist, {int page = 1, bool hasMore = true}) {
+    _activeArtistContext = artist;
+    _artistContinuationPage = page;
+    _hasMoreArtistTracks = hasMore;
+  }
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -239,6 +270,23 @@ class PlayerController extends StateNotifier<PlaybackState> {
   // ── Queue management ─────────────────────────────────────────────────────
 
   void setQueue(List<MusicItem> tracks, {int startIndex = 0, String? playingFrom}) {
+    _queueGenerationToken++;
+
+    // Track artist context if playing an artist session
+    if (playingFrom != null && playingFrom.startsWith('Artist: ')) {
+      _activeArtistContext = playingFrom.replaceFirst('Artist: ', '').trim();
+    } else if (tracks.isNotEmpty &&
+        tracks.every((t) => t.artist.trim().toLowerCase() == tracks.first.artist.trim().toLowerCase())) {
+      _activeArtistContext = tracks.first.artist.trim();
+    } else {
+      _activeArtistContext = null;
+    }
+
+    _artistContinuationPage = 1;
+    _hasMoreArtistTracks = true;
+    _isExpandingQueue = false;
+    _expandingCompleter = null;
+
     _queueManager.setQueue(tracks, startIndex: startIndex);
     _persistQueueSnapshot();
     final track = _queueManager.currentTrack;
@@ -295,7 +343,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     debugLog('[Queue] Appended ${freshTracks.length} diverse upcoming tracks to Next Up');
   }
 
-  /// Automatically replenishes the playback queue when 2 or fewer tracks remain.
+  /// Automatically replenishes the playback queue when 3 or fewer tracks remain.
   ///
   /// For Listening Rooms:
   /// - Suppressed for listeners; the room Host alone controls automatic queue replenishment.
@@ -304,42 +352,106 @@ class PlayerController extends StateNotifier<PlaybackState> {
     if (_handler.isRoomListener) {
       return;
     }
-    if (_isExpandingQueue) return;
+    // If an expansion is already in flight, await it to prevent duplicate network calls
+    // and ensure end-of-queue advance waits for the appended tracks.
+    if (_expandingCompleter != null) {
+      await _expandingCompleter!.future;
+      return;
+    }
 
     final queue = _queueManager.queue;
     final currentIndex = _queueManager.currentIndex;
     if (queue.isEmpty || currentIndex < 0) return;
 
+    // Prefetching threshold: begin background fetch when 3 or fewer tracks remain
     final remaining = queue.length - 1 - currentIndex;
-    if (remaining > 2) return;
+    if (remaining > 3) return;
 
     final current = _queueManager.currentTrack;
     if (current == null) return;
 
+    final completer = Completer<void>();
+    _expandingCompleter = completer;
     _isExpandingQueue = true;
-    debugLog('[QueueExpansion] Queue approaching exhaustion ($remaining tracks remaining). Fetching recommendations...');
+    final token = _queueGenerationToken;
+
+    debugLog('[QueueExpansion] Queue low ($remaining tracks remaining). Expanding queue...');
 
     try {
       final recService = _ref.read(recommendationServiceProvider);
       final profile = _ref.read(currentUserProfileProvider);
-      final upcoming = await recService.getUpcomingQueueRecommendations(
-        currentTrack: current,
-        currentQueue: queue,
-        profile: profile,
-        limit: 10,
-      );
+      final preferredLanguages = profile?.preferredLanguages ?? const [];
+
+      List<MusicItem> upcoming = [];
+
+      // 1. If playing in an artist session and catalog not yet exhausted:
+      if (_activeArtistContext != null && _activeArtistContext!.isNotEmpty && _hasMoreArtistTracks) {
+        final nextPage = _artistContinuationPage + 1;
+        debugLog('[QueueExpansion] Fetching page $nextPage for artist "$_activeArtistContext"');
+
+        final artistTracks = await recService.getTracksForArtist(
+          ArtistSummary(id: '', name: _activeArtistContext!, imageUrl: ''),
+          page: nextPage,
+          limit: 15,
+          preferredLanguages: preferredLanguages,
+        );
+
+        if (token != _queueGenerationToken) {
+          debugLog('[QueueExpansion] Discarding artist expansion: queue replaced during fetch');
+          return;
+        }
+
+        if (artistTracks.isNotEmpty) {
+          upcoming = artistTracks;
+          _artistContinuationPage = nextPage;
+        } else {
+          debugLog('[QueueExpansion] Artist "$_activeArtistContext" has no more catalog results.');
+          _hasMoreArtistTracks = false;
+        }
+      }
+
+      // 2. Fall back to general queue recommendations if not artist session or artist catalog ended:
+      if (upcoming.isEmpty && (!_hasMoreArtistTracks || _activeArtistContext == null)) {
+        upcoming = await recService.getUpcomingQueueRecommendations(
+          currentTrack: current,
+          currentQueue: queue,
+          profile: profile,
+          limit: 10,
+        );
+      }
+
+      if (token != _queueGenerationToken) {
+        debugLog('[QueueExpansion] Discarding recommendations: queue replaced during fetch');
+        return;
+      }
 
       if (upcoming.isNotEmpty) {
-        final currentIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
+        final currentNormIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
         final currentKeys = _queueManager.queue
             .map((t) => '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}')
             .toSet();
 
-        final freshTracks = upcoming.where((t) {
+        final freshTracks = <MusicItem>[];
+        for (final t in upcoming) {
           final normId = _normalizeTrackId(t.id);
           final key = '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}';
-          return !currentIds.contains(normId) && !currentKeys.contains(key);
-        }).toList();
+
+          if (currentNormIds.contains(normId)) continue;
+
+          // Preserve legitimate distinct versions (live, remix, acoustic, instrumental, cover)
+          final titleLower = t.title.toLowerCase();
+          final isLegitVariant = titleLower.contains('live') ||
+              titleLower.contains('remix') ||
+              titleLower.contains('acoustic') ||
+              titleLower.contains('cover') ||
+              titleLower.contains('instrumental');
+
+          if (!isLegitVariant && currentKeys.contains(key)) continue;
+
+          currentNormIds.add(normId);
+          currentKeys.add(key);
+          freshTracks.add(t);
+        }
 
         if (freshTracks.isNotEmpty) {
           _queueManager.addTracks(freshTracks);
@@ -347,12 +459,18 @@ class PlayerController extends StateNotifier<PlaybackState> {
           _persistQueueSnapshot();
           state = state.copyWith(currentTrack: _queueManager.currentTrack);
           debugLog('[QueueExpansion] Successfully appended ${freshTracks.length} fresh tracks. Total queue size: ${_queueManager.queue.length}');
+        } else {
+          debugLog('[QueueExpansion] All candidates were already in queue.');
         }
       }
     } catch (e) {
       debugLog('[QueueExpansion] Dynamic queue expansion failed: $e');
     } finally {
       _isExpandingQueue = false;
+      _expandingCompleter = null;
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
     }
   }
 
@@ -631,7 +749,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   Future<void> next() async {
     // If approaching the end of the queue, begin expansion in background
-    if (_queueManager.currentIndex >= _queueManager.queue.length - 2) {
+    if (_queueManager.currentIndex >= _queueManager.queue.length - 3) {
       unawaited(expandQueueIfNeeded());
     }
 

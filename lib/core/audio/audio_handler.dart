@@ -1099,7 +1099,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
 
     // If approaching the end of the queue, notify queue expansion listener in background
-    if (!_isRoomListener && _currentIndex >= _queue.length - 2) {
+    if (!_isRoomListener && _currentIndex >= _queue.length - 3) {
       unawaited(onQueueApproachingEnd?.call());
     }
 

@@ -10,7 +10,6 @@ import '../../profile/domain/user_profile.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
 import '../../youtube/data/youtube_repository.dart';
-import '../../search/domain/search_deduplicator.dart';
 import 'trending_music_service.dart';
 import '../domain/music_language_service.dart';
 
@@ -196,35 +195,26 @@ class RecommendationService {
   }
 
   /// Fetches up to [limit] individual legitimate tracks for a specific [artist],
-  /// prioritizing songs in [preferredLanguages] if specified.
+  /// prioritizing songs in [preferredLanguages] if specified, with support for progressive [page] pagination.
   Future<List<MusicItem>> getTracksForArtist(
     ArtistSummary artist, {
-    int limit = 6,
+    int limit = 15,
+    int page = 1,
     List<String> preferredLanguages = const [],
   }) async {
     final tracks = <MusicItem>[];
     try {
-      final rawVideos = <YouTubeVideo>[];
-      final topLang = preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
-
-      // 1. If artist is known to perform in user's preferred language, fetch language-targeted songs
-      if (topLang != null && MusicLanguageService.isArtistMultilingualInLang(artist.name, topLang)) {
-        final langVideos = await _youtubeRepo.search('${artist.name} $topLang songs');
-        rawVideos.addAll(langVideos);
-      }
-
-      // 2. Also search standard artist songs catalog for fallback, discovery, and general depth
-      final generalVideos = await _youtubeRepo.search('${artist.name} songs');
-      rawVideos.addAll(generalVideos);
-
-      final deduplicated = SearchDeduplicator.deduplicateAndRank(
-        rawVideos,
-        query: artist.name,
+      final rawVideos = await _youtubeRepo.getArtistTracks(
+        artist.name,
+        page: page,
+        limit: limit,
+        preferredLanguages: preferredLanguages,
       );
+
       final seenIds = <String>{};
       final candidateTracks = <MusicItem>[];
 
-      for (final v in deduplicated) {
+      for (final v in rawVideos) {
         if (!isLegitimateSong(v)) continue;
         final track = v.toTrack(reliableArtist: artist.name);
         if (seenIds.add(track.id)) {
@@ -232,14 +222,14 @@ class RecommendationService {
         }
       }
 
-      // 3. Rank candidates according to user's preferred languages
+      // Rank candidates according to user's preferred languages
       return MusicLanguageService.rankAndDeduplicate(
         candidateTracks,
         preferredLanguages,
         limit: limit,
       );
     } catch (e) {
-      debugPrint('[RecommendationService] Fetch error for ${artist.name}: $e');
+      debugPrint('[RecommendationService] Fetch error for ${artist.name} (page $page): $e');
     }
     return tracks;
   }
@@ -471,8 +461,10 @@ class RecommendationService {
       final artistKey = track.artist.toLowerCase().trim();
       final count = artistCount[artistKey] ?? 0;
 
-      // Max 2 songs per artist in an expansion batch to guarantee diversity
-      if (count >= 2) return;
+      final currentArtistKey = currentTrack.artist.toLowerCase().trim();
+      final isDominantArtist = currentArtistKey.isNotEmpty && currentArtistKey == artistKey;
+      final maxAllowed = isDominantArtist ? 6 : 2;
+      if (count >= maxAllowed) return;
 
       if (track.isYoutube) {
         final rawT = (track is Track) ? (track.rawTitle ?? track.title) : track.title;
@@ -520,9 +512,14 @@ class RecommendationService {
         }
       }
 
-      // If related videos didn't fill the quota, search for similar tracks
+      // If related videos didn't fill the quota, fetch more tracks for this artist
       if (upcoming.length < limit) {
-        final searchRelated = await _youtubeRepo.search('${currentTrack.artist} song');
+        final searchRelated = await _youtubeRepo.getArtistTracks(
+          currentTrack.artist,
+          page: 2,
+          limit: limit,
+          preferredLanguages: profile?.preferredLanguages ?? const [],
+        );
         for (final v in searchRelated) {
           if (isLegitimateSong(v)) {
             addQueueTrack(v.toTrack(reliableArtist: currentTrack.artist));

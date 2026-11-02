@@ -7,6 +7,7 @@ import 'package:Miee/features/profile/domain/user_profile.dart';
 import 'package:Miee/features/recommendations/data/recommendation_service.dart';
 import 'package:Miee/features/recommendations/data/trending_music_service.dart';
 import 'package:Miee/features/recommendations/domain/music_language_service.dart';
+import 'package:Miee/features/search/domain/search_deduplicator.dart';
 import 'package:Miee/features/youtube/data/youtube_repository.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/shared/models/music_item.dart';
@@ -18,7 +19,7 @@ class MockYouTubeRepo implements YouTubeRepository {
   MockYouTubeRepo(this.responses);
 
   @override
-  Future<List<YouTubeVideo>> search(String query) async {
+  Future<List<YouTubeVideo>> search(String query, {int page = 1, bool forceFresh = false}) async {
     final lower = query.toLowerCase();
     for (final entry in responses.entries) {
       if (lower.contains(entry.key.toLowerCase())) {
@@ -26,6 +27,28 @@ class MockYouTubeRepo implements YouTubeRepository {
       }
     }
     return [];
+  }
+
+  @override
+  Future<List<YouTubeVideo>> getArtistTracks(
+    String artistName, {
+    int page = 1,
+    int limit = 15,
+    List<String> preferredLanguages = const [],
+  }) async {
+    final candidateVideos = <YouTubeVideo>[];
+    final topLang = preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
+    if (page == 1 && topLang != null && MusicLanguageService.isArtistMultilingualInLang(artistName, topLang)) {
+      final langVideos = await search('$artistName $topLang songs', page: 1);
+      candidateVideos.addAll(langVideos);
+    }
+    final mainVideos = await search('$artistName songs', page: page);
+    candidateVideos.addAll(mainVideos);
+    final deduplicated = SearchDeduplicator.deduplicateAndRank(
+      candidateVideos,
+      query: artistName,
+    );
+    return deduplicated.take(limit).toList();
   }
 
   @override

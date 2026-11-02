@@ -17,13 +17,23 @@ class MockYouTubeRepository implements YouTubeRepository {
   MockYouTubeRepository(this.queryResponses);
 
   @override
-  Future<List<YouTubeVideo>> search(String query) async {
+  Future<List<YouTubeVideo>> search(String query, {int page = 1, bool forceFresh = false}) async {
     for (final entry in queryResponses.entries) {
       if (query.toLowerCase().contains(entry.key.toLowerCase())) {
         return entry.value;
       }
     }
     return [];
+  }
+
+  @override
+  Future<List<YouTubeVideo>> getArtistTracks(
+    String artistName, {
+    int page = 1,
+    int limit = 15,
+    List<String> preferredLanguages = const [],
+  }) async {
+    return search(artistName, page: page);
   }
 
   @override

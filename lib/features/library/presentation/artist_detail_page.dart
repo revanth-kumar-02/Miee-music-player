@@ -17,7 +17,6 @@ import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/providers/onboarding_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
-import '../../search/domain/search_deduplicator.dart';
 import '../../youtube/data/youtube_repository.dart';
 
 /// Combined state for the shared Artist Profile page.
@@ -183,14 +182,17 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       // Online tracks via YouTube search with deduplication & podcast/movie filtering
       try {
         final ytRepo = YouTubeRepository();
-        final rawVideos = await ytRepo.search('${artist.name} songs');
-        final deduplicated = SearchDeduplicator.deduplicateAndRank(rawVideos, query: artist.name);
+        final rawVideos = await ytRepo.getArtistTracks(artist.name, page: 1, limit: 15);
 
-        final seenIds = tracks.map((t) => t.title.toLowerCase()).toSet();
-        for (final v in deduplicated) {
+        final seenIds = tracks.map((t) => t.id).toSet();
+        final seenNormIds = tracks.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
+        for (final v in rawVideos) {
           if (!RecommendationService.isLegitimateSong(v)) continue;
           final track = v.toTrack(reliableArtist: artist.name);
-          if (seenIds.add(track.title.toLowerCase())) {
+          final normId = track.id.replaceFirst('youtube_', '');
+          if (!seenIds.contains(track.id) && !seenNormIds.contains(normId)) {
+            seenIds.add(track.id);
+            seenNormIds.add(normId);
             tracks.add(track);
           }
         }
@@ -410,7 +412,11 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                           onPressed: tracks.isEmpty
                               ? null
                               : () {
-                                  playerController.setQueue(tracks, startIndex: 0);
+                                  playerController.setQueue(
+                                    tracks,
+                                    startIndex: 0,
+                                    playingFrom: 'Artist: ${artist.name}',
+                                  );
                                   context.push('/player');
                                 },
                           style: FilledButton.styleFrom(
@@ -433,7 +439,11 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                               ? null
                               : () {
                                   final list = List<Track>.from(tracks)..shuffle();
-                                  playerController.setQueue(list, startIndex: 0);
+                                  playerController.setQueue(
+                                    list,
+                                    startIndex: 0,
+                                    playingFrom: 'Artist: ${artist.name}',
+                                  );
                                   context.push('/player');
                                 },
                           style: OutlinedButton.styleFrom(
@@ -592,7 +602,11 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                             onTap: isTrackLoading
                                 ? null
                                 : () {
-                                    playerController.selectTrack(track, tracks);
+                                    playerController.selectTrack(
+                                      track,
+                                      tracks,
+                                      playingFrom: 'Artist: ${artist.name}',
+                                    );
                                   },
                           );
                         },

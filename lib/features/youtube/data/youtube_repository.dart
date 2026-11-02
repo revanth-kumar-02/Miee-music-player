@@ -6,6 +6,7 @@ import '../domain/youtube_failures.dart';
 import '../domain/music_result_classifier.dart';
 import '../../search/domain/search_deduplicator.dart';
 import '../../onboarding/domain/artist_model.dart';
+import '../../recommendations/domain/music_language_service.dart';
 import 'youtube_data_source.dart';
 import 'web_music_discovery_source.dart';
 
@@ -21,6 +22,11 @@ class YouTubeRepository {
   final Map<String, List<ArtistModel>> _artistSearchCache = {};
   static const int _maxCacheSize = 50;
 
+  /// Active search lists to support continuous pagination across batches
+  final Map<String, yte.VideoSearchList> _activeSearchLists = {};
+  yte.YoutubeExplode? _sharedYt;
+  yte.YoutubeExplode get _yt => _sharedYt ??= yte.YoutubeExplode();
+
   YouTubeRepository({
     YouTubeDataSource? dataSource,
     WebMusicDiscoverySource? webDiscoverySource,
@@ -28,11 +34,21 @@ class YouTubeRepository {
         _webDiscoverySource = webDiscoverySource ?? WebMusicDiscoverySource();
 
   /// Searches for music tracks matching [query].
-  Future<List<YouTubeVideo>> search(String query) async {
+  ///
+  /// Supports progressive pagination via [page]:
+  /// - page 1 checks in-memory cache or performs initial search.
+  /// - page > 1 advances pagination via [SearchList.nextPage] or query continuation variants,
+  ///   bypassing the initial page-1 cache.
+  Future<List<YouTubeVideo>> search(
+    String query, {
+    int page = 1,
+    bool forceFresh = false,
+  }) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
-    if (_searchCache.containsKey(cleanQuery)) {
+    final cacheKey = '$cleanQuery:p$page';
+    if (!forceFresh && page == 1 && _searchCache.containsKey(cleanQuery)) {
       debugPrint('YouTubeRepository: Cache hit for "$cleanQuery"');
       final cached = _searchCache[cleanQuery]!;
       // Re-validate cached entries against music classification rules
@@ -40,8 +56,15 @@ class YouTubeRepository {
       if (validCached.isNotEmpty) {
         return validCached;
       }
-      // If cached items fail validation (e.g. stale non-music videos), evict and re-fetch
       _searchCache.remove(cleanQuery);
+    }
+
+    if (!forceFresh && page > 1 && _searchCache.containsKey(cacheKey)) {
+      final cached = _searchCache[cacheKey]!;
+      if (cached.isNotEmpty) {
+        return cached;
+      }
+      _searchCache.remove(cacheKey);
     }
 
     List<YouTubeVideo> results = [];
@@ -49,7 +72,7 @@ class YouTubeRepository {
     // 1. Primary: YouTube Data API v3 if configured
     if (_dataSource.isConfigured) {
       try {
-        debugPrint('YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery"');
+        debugPrint('YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery" (p$page)');
         results = await _searchWithDataApi(cleanQuery);
       } catch (e) {
         debugPrint('YouTubeRepository: Data API search failed ($e), falling back to alternative discovery');
@@ -70,8 +93,8 @@ class YouTubeRepository {
         }
       } else {
         try {
-          debugPrint('YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery"');
-          results = await _searchWithExplode(cleanQuery);
+          debugPrint('YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery" (p$page)');
+          results = await _searchWithExplode(cleanQuery, page: page);
         } catch (e, stack) {
           debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
           if (kDebugMode) debugPrintStack(stackTrace: stack);
@@ -93,10 +116,55 @@ class YouTubeRepository {
       if (_searchCache.length >= _maxCacheSize) {
         _searchCache.remove(_searchCache.keys.first);
       }
-      _searchCache[cleanQuery] = validResults;
+      final keyToStore = page == 1 ? cleanQuery : cacheKey;
+      _searchCache[keyToStore] = validResults;
     }
 
     return validResults;
+  }
+
+  /// Fetches an un-exhausted batch of verified music tracks for [artistName].
+  ///
+  /// Supports progressive pagination via [page]. Each subsequent page
+  /// retrieves fresh tracks via provider continuation or curated artist discovery
+  /// without repeating the initial 15 songs.
+  Future<List<YouTubeVideo>> getArtistTracks(
+    String artistName, {
+    int page = 1,
+    int limit = 15,
+    List<String> preferredLanguages = const [],
+  }) async {
+    final cleanArtist = artistName.trim();
+    if (cleanArtist.isEmpty) return const [];
+
+    final candidateVideos = <YouTubeVideo>[];
+    final topLang = preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
+
+    // 1. Language-targeted query on page 1 if artist is known to perform in preferred language
+    if (page == 1 && topLang != null && MusicLanguageService.isArtistMultilingualInLang(cleanArtist, topLang)) {
+      final langVideos = await search('$cleanArtist $topLang songs', page: 1);
+      candidateVideos.addAll(langVideos);
+    }
+
+    // 2. Fetch page of artist songs
+    final mainVideos = await search('$cleanArtist songs', page: page, forceFresh: page > 1);
+    candidateVideos.addAll(mainVideos);
+
+    // 3. If page > 1 and candidate count is small, supplement with query variant
+    if (page > 1 && candidateVideos.length < (limit ~/ 2)) {
+      final variantQuery = _getQueryVariantForPage(cleanArtist, page);
+      final variantVideos = await search(variantQuery, page: 1);
+      candidateVideos.addAll(variantVideos);
+    }
+
+    // Deduplicate and rank for this artist
+    final deduplicated = SearchDeduplicator.deduplicateAndRank(
+      candidateVideos,
+      query: cleanArtist,
+      config: const SearchRankingConfig(filterDerivativeEdits: true),
+    );
+
+    return deduplicated.take(limit).toList();
   }
 
   /// Fetches diverse, high-relevance upcoming tracks seeded by [seedVideo].
@@ -187,73 +255,136 @@ class YouTubeRepository {
     return deduplicated.take(limit).toList();
   }
 
-  Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery) async {
-    final yt = yte.YoutubeExplode();
+  Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery, {int page = 1}) async {
+    final candidateVideos = <YouTubeVideo>[];
+
     try {
-      final searchList = await yt.search.search(cleanQuery);
-      final candidateVideos = <YouTubeVideo>[];
+      if (page <= 1) {
+        final searchList = await _yt.search.search(cleanQuery);
+        _activeSearchLists[cleanQuery] = searchList;
 
-      void processBatch(Iterable<yte.Video> batch) {
-        for (final video in batch) {
-          final videoId = video.id.value;
-          if (videoId.isEmpty) continue;
-
-          final title = video.title;
-          final channelTitle = video.author;
-
-          final durationStr = video.duration != null
-              ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
-              : '3:30';
-
-          final rawViews = video.engagement.viewCount;
-          final viewCountStr = _formatViewCount(rawViews);
-
-          String thumbnailUrl = video.thumbnails.highResUrl;
-          if (thumbnailUrl.isEmpty) {
-            thumbnailUrl = video.thumbnails.mediumResUrl;
-          }
-          if (thumbnailUrl.isEmpty) {
-            thumbnailUrl = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
-          }
-
-          final cleaned = YouTubeMetadataCleaner.clean(
-            rawTitle: title,
-            rawChannel: channelTitle,
-          );
-
-          final candidate = YouTubeVideo(
-            id: videoId,
-            title: cleaned.title,
-            channelTitle: cleaned.artist,
-            thumbnailUrl: thumbnailUrl,
-            duration: durationStr,
-            viewCount: viewCountStr,
-            rawTitle: title,
-            rawChannelTitle: channelTitle,
-            rawViewCount: rawViews,
-          );
-
+        for (final video in searchList) {
+          if (video.id.value.isEmpty) continue;
+          final candidate = _processVideo(video, cleanQuery);
           if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
             candidateVideos.add(candidate);
           }
         }
-      }
 
-      processBatch(searchList);
-
-      // Fetch additional candidates if early results contain mostly edits or fewer than 20 candidates
-      if (candidateVideos.length < 20 || SearchDeduplicator.hasHighEditRatio(candidateVideos, cleanQuery)) {
-        try {
-          final nextPage = await searchList.nextPage();
-          if (nextPage != null && nextPage.isNotEmpty) {
-            processBatch(nextPage);
+        // Fetch additional candidates if early results contain mostly edits or fewer than 20 candidates
+        if (candidateVideos.length < 20 || SearchDeduplicator.hasHighEditRatio(candidateVideos, cleanQuery)) {
+          try {
+            final nextPage = await searchList.nextPage();
+            if (nextPage != null && nextPage.isNotEmpty) {
+              _activeSearchLists[cleanQuery] = nextPage;
+              for (final video in nextPage) {
+                if (video.id.value.isEmpty) continue;
+                final candidate = _processVideo(video, cleanQuery);
+                if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+                  candidateVideos.add(candidate);
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      } else {
+        // Page > 1 continuation:
+        if (_activeSearchLists.containsKey(cleanQuery)) {
+          try {
+            final nextList = await _activeSearchLists[cleanQuery]!.nextPage();
+            if (nextList != null && nextList.isNotEmpty) {
+              _activeSearchLists[cleanQuery] = nextList;
+              for (final video in nextList) {
+                if (video.id.value.isEmpty) continue;
+                final candidate = _processVideo(video, cleanQuery);
+                if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+                  candidateVideos.add(candidate);
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('[YouTubeRepository] Pagination nextPage() error: $e');
           }
-        } catch (_) {}
-      }
+        }
 
-      return candidateVideos;
-    } finally {
-      yt.close();
+        // If pagination list was empty or exhausted, use query variant
+        if (candidateVideos.isEmpty) {
+          final variantQuery = _getQueryVariantForPage(cleanQuery, page);
+          debugPrint('[YouTubeRepository] Using continuation query variant: "$variantQuery"');
+          final variantList = await _yt.search.search(variantQuery);
+          for (final video in variantList) {
+            if (video.id.value.isEmpty) continue;
+            final candidate = _processVideo(video, variantQuery);
+            if (MusicResultClassifier.isValidMusicTrack(candidate, query: variantQuery)) {
+              candidateVideos.add(candidate);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[YouTubeRepository] _searchWithExplode error: $e');
+    }
+
+    return candidateVideos;
+  }
+
+  YouTubeVideo _processVideo(yte.Video video, String cleanQuery) {
+    final videoId = video.id.value;
+    final title = video.title;
+    final channelTitle = video.author;
+
+    final durationStr = video.duration != null
+        ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
+        : '3:30';
+
+    final rawViews = video.engagement.viewCount;
+    final viewCountStr = _formatViewCount(rawViews);
+
+    String thumbnailUrl = video.thumbnails.highResUrl;
+    if (thumbnailUrl.isEmpty) {
+      thumbnailUrl = video.thumbnails.mediumResUrl;
+    }
+    if (thumbnailUrl.isEmpty) {
+      thumbnailUrl = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+    }
+
+    final cleaned = YouTubeMetadataCleaner.clean(
+      rawTitle: title,
+      rawChannel: channelTitle,
+    );
+
+    return YouTubeVideo(
+      id: videoId,
+      title: cleaned.title,
+      channelTitle: cleaned.artist,
+      thumbnailUrl: thumbnailUrl,
+      duration: durationStr,
+      viewCount: viewCountStr,
+      rawTitle: title,
+      rawChannelTitle: channelTitle,
+      rawViewCount: rawViews,
+    );
+  }
+
+  String _getQueryVariantForPage(String query, int page) {
+    final clean = query
+        .replaceAll(' songs', '')
+        .replaceAll(' song', '')
+        .replaceAll(' tracks', '')
+        .trim();
+    switch (page) {
+      case 2:
+        return '$clean top hits';
+      case 3:
+        return '$clean popular songs';
+      case 4:
+        return '$clean albums songs';
+      case 5:
+        return '$clean discography';
+      case 6:
+        return '$clean official audio';
+      default:
+        return '$clean hit tracks';
     }
   }
 
@@ -615,5 +746,6 @@ class YouTubeRepository {
   void clearCache() {
     _searchCache.clear();
     _artistSearchCache.clear();
+    _activeSearchLists.clear();
   }
 }

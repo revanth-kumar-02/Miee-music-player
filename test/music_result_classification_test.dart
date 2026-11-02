@@ -23,7 +23,7 @@ class MockYouTubeRepository extends YouTubeRepository {
   });
 
   @override
-  Future<List<YouTubeVideo>> search(String query) async {
+  Future<List<YouTubeVideo>> search(String query, {int page = 1, bool forceFresh = false}) async {
     final clean = query.trim();
     if (mockedSearchResults.containsKey(clean)) {
       return MusicResultClassifier.filterAndRankMusicTracks(mockedSearchResults[clean]!, query: clean);
