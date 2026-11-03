@@ -47,6 +47,9 @@ class MockSearchNotifier extends StateNotifier<SearchState> implements SearchNot
 
   @override
   Future<void> clearHistory() async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {

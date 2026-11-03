@@ -1035,16 +1035,33 @@ class SearchDeduplicator {
           rawTitle.contains('continuous mix') ||
           rawTitle.contains('audio jukebox') ||
           rawTitle.contains('video jukebox') ||
+          rawTitle.contains('all songs') ||
+          rawTitle.contains('all song') ||
+          rawTitle.contains('song collection') ||
+          rawTitle.contains('songs collection') ||
+          rawTitle.contains('hits collection') ||
+          rawTitle.contains('best songs of') ||
+          rawTitle.contains('best of songs') ||
+          rawTitle.contains('top 10 songs') ||
+          rawTitle.contains('top 20 songs') ||
+          rawTitle.contains('top 50 songs') ||
+          rawTitle.contains('back to back songs') ||
+          rawTitle.contains('b2b songs') ||
           rawTitle.contains('all songs compilation') ||
-          rawTitle.contains('full album compilation')) {
+          rawTitle.contains('full album compilation') ||
+          rawTitle.contains('full album songs') ||
+          rawTitle.contains('full album jukebox') ||
+          rawTitle.contains('full songs jukebox')) {
         return EditType.compilationMix;
       }
       final durSec = _parseDurationSeconds(video.duration);
-      if (durSec > 900 &&
+      if (durSec > 600 &&
           !rawTitle.contains('symphony') &&
           !rawTitle.contains('raga') &&
           !rawTitle.contains('recital') &&
-          !rawTitle.contains('classical')) {
+          !rawTitle.contains('classical') &&
+          !rawTitle.contains('concerto') &&
+          !rawTitle.contains('concert')) {
         return EditType.compilationMix;
       }
     }

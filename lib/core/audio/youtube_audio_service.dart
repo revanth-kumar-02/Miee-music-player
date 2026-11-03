@@ -277,7 +277,7 @@ class YouTubeAudioService {
                     rawChannelTitle: artist,
                   );
                   candidates.add(candidate);
-                  if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+                  if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
                     debugPrint('[YouTubeAudioService] Resolved valid video ID "$id" for query "$cleanQuery" via web proxy ($baseUrl)');
                     _queryIdCache[cacheKey] = id;
                     return id;
@@ -285,12 +285,7 @@ class YouTubeAudioService {
                 }
               }
             }
-            if (candidates.isNotEmpty) {
-              final fallbackId = candidates.first.id;
-              debugPrint('[YouTubeAudioService] Using top match video ID "$fallbackId" for query "$cleanQuery" via web proxy ($baseUrl)');
-              _queryIdCache[cacheKey] = fallbackId;
-              return fallbackId;
-            }
+            debugPrint('[YouTubeAudioService] No valid music tracks found for query "$cleanQuery" among ${candidates.length} web proxy candidates');
           }
         } catch (e) {
           debugPrint('[YouTubeAudioService] Web proxy query search failed at $baseUrl for "$cleanQuery": $e');
@@ -314,19 +309,14 @@ class YouTubeAudioService {
             rawChannelTitle: video.author,
           );
           candidates.add(candidate);
-          if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+          if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
             final id = video.id.value;
             debugPrint('[YouTubeAudioService] Resolved valid music video ID "$id" for query "$cleanQuery" via YoutubeExplode');
             _queryIdCache[cacheKey] = id;
             return id;
           }
         }
-        if (candidates.isNotEmpty) {
-          final fallbackId = candidates.first.id;
-          debugPrint('[YouTubeAudioService] Using top match video ID "$fallbackId" for query "$cleanQuery" via YoutubeExplode');
-          _queryIdCache[cacheKey] = fallbackId;
-          return fallbackId;
-        }
+        debugPrint('[YouTubeAudioService] No valid music tracks found for query "$cleanQuery" among ${candidates.length} candidates');
       } catch (e) {
         debugPrint('[YouTubeAudioService] Native query search failed for "$cleanQuery": $e');
       }

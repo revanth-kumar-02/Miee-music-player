@@ -482,6 +482,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
           final key = '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}';
 
           if (currentNormIds.contains(normId)) continue;
+          if (!_isPlayableMusicItem(t)) {
+            debugLog('[QueueExpansion] Discarding non-music candidate: "${t.title}"');
+            continue;
+          }
 
           // Preserve legitimate distinct versions (live, remix, acoustic, instrumental, cover)
           final titleLower = t.title.toLowerCase();
@@ -557,7 +561,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
         rawTitle: rawT,
         rawChannelTitle: rawA,
       );
-      if (!MusicResultClassifier.isValidMusicTrack(candidate)) {
+      if (!MusicResultClassifier.isValidIndividualSong(candidate)) {
         debugLog('[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
         state = state.copyWith(
           status: PlaybackStatus.error,
@@ -790,6 +794,21 @@ class PlayerController extends StateNotifier<PlaybackState> {
     state = state.copyWith(volume: volume.clamp(0.0, 1.0));
   }
 
+  bool _isPlayableMusicItem(MusicItem track) {
+    if (!track.isYoutube) return true;
+    final candidate = YouTubeVideo(
+      id: track.id.replaceFirst('youtube_', ''),
+      title: track.title,
+      channelTitle: track.artist,
+      thumbnailUrl: track.imageUrl,
+      duration: track.duration,
+      viewCount: '',
+      rawTitle: (track is Track) ? (track.rawTitle ?? track.title) : track.title,
+      rawChannelTitle: (track is Track) ? (track.rawArtist ?? track.artist) : track.artist,
+    );
+    return MusicResultClassifier.isValidIndividualSong(candidate);
+  }
+
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   Future<void> next() async {
@@ -798,7 +817,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
       unawaited(expandQueueIfNeeded());
     }
 
-    final nextTrack = _queueManager.next();
+    MusicItem? nextTrack = _queueManager.next();
+    // Validate that candidate in queue is a legitimate music track.
+    // If an invalid non-music item was somehow in queue, skip it cleanly.
+    while (nextTrack != null && !_isPlayableMusicItem(nextTrack)) {
+      debugLog('[Playback] Skipping non-music upload in queue on Next: "${nextTrack.title}"');
+      nextTrack = _queueManager.next();
+    }
+
     if (nextTrack != null) {
       await playTrack(nextTrack);
     } else if (state.repeatMode == RepeatMode.all &&
@@ -809,7 +835,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     } else if (!_handler.isRoomListener) {
       // Reached queue end in non-repeat mode: attempt replenishment before stopping
       await expandQueueIfNeeded();
-      final expandedTrack = _queueManager.next();
+      MusicItem? expandedTrack = _queueManager.next();
+      while (expandedTrack != null && !_isPlayableMusicItem(expandedTrack)) {
+        debugLog('[Playback] Skipping non-music upload in expanded queue: "${expandedTrack.title}"');
+        expandedTrack = _queueManager.next();
+      }
       if (expandedTrack != null) {
         await playTrack(expandedTrack);
       }
@@ -822,7 +852,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
       return;
     }
 
-    final prevTrack = _queueManager.previous();
+    MusicItem? prevTrack = _queueManager.previous();
+    while (prevTrack != null && !_isPlayableMusicItem(prevTrack)) {
+      debugLog('[Playback] Skipping non-music upload in queue on Previous: "${prevTrack.title}"');
+      prevTrack = _queueManager.previous();
+    }
+
     if (prevTrack != null) {
       await playTrack(prevTrack);
     } else if (state.repeatMode == RepeatMode.all &&

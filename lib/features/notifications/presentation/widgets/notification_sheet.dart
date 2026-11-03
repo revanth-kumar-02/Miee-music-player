@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../core/audio/providers.dart';
+import '../../../../shared/models/music_item.dart';
 import '../../../../core/sync/supabase_config.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../connect/data/audio_output_bridge.dart';
@@ -658,7 +659,7 @@ class _NotificationSheetState extends ConsumerState<NotificationSheet> {
   }
 
   Widget _buildUpnpWifiDevicesSection() {
-    dynamic curTrack;
+    MusicItem? curTrack;
     try {
       curTrack = ref.read(playerControllerProvider).currentTrack;
     } catch (_) {}
@@ -773,7 +774,7 @@ class _NotificationSheetState extends ConsumerState<NotificationSheet> {
                       TextButton(
                         onPressed: curTrack != null && dev.controlUrl != null
                             ? () async {
-                                final mediaUrl = curTrack.filePath ?? '';
+                                final mediaUrl = curTrack?.filePath ?? '';
                                 if (mediaUrl.isNotEmpty) {
                                   final ok = await UpnpDiscoveryService().playMediaOnDevice(dev, mediaUrl);
                                   if (context.mounted) {

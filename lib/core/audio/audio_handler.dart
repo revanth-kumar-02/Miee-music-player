@@ -637,7 +637,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (resolvedId != null && resolvedId.isNotEmpty && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(resolvedId)) {
         videoId = resolvedId;
       } else {
-        debugPrint('[AudioHandler] Pre-search returned null for "$query", forwarding to getAudioStreamUrl with metadata');
+        debugPrint('[AudioHandler] Pre-search failed to find verified music video for "$query"');
+        throw Exception('No verified music stream available for "$query"');
       }
     }
 

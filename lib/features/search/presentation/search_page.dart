@@ -14,6 +14,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../providers/search_providers.dart';
 import '../domain/search_state.dart';
 import '../../youtube/domain/youtube_model.dart';
+import '../../youtube/domain/music_result_classifier.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
 import '../../recommendations/providers/recommendation_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
@@ -105,7 +106,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     final targetTrack = video.toTrack();
     final playerNotifier = ref.read(playerControllerProvider.notifier);
-    final trackList = results.map((v) => v.toTrack()).toList();
+
+    // Filter queue to ensure only verified individual songs enter playback
+    final validVideos = results
+        .where((v) => MusicResultClassifier.isValidIndividualSong(v, query: _searchQuery))
+        .toList();
+    final queueVideos = validVideos.isNotEmpty ? validVideos : [video];
+    final trackList = queueVideos.map((v) => v.toTrack()).toList();
 
     playerNotifier.selectTrack(
       targetTrack,

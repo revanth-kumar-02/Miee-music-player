@@ -52,7 +52,7 @@ class YouTubeRepository {
       debugPrint('YouTubeRepository: Cache hit for "$cleanQuery"');
       final cached = _searchCache[cleanQuery]!;
       // Re-validate cached entries against music classification rules
-      final validCached = MusicResultClassifier.filterAndRankMusicTracks(cached, query: cleanQuery);
+      final validCached = MusicResultClassifier.filterAndRankMusicTracks(cached, query: cleanQuery, individualOnly: true);
       if (validCached.isNotEmpty) {
         return validCached;
       }
@@ -110,7 +110,7 @@ class YouTubeRepository {
     }
 
     // Filter out non-music entertainment and prioritize verified music releases
-    final validResults = MusicResultClassifier.filterAndRankMusicTracks(results, query: cleanQuery);
+    final validResults = MusicResultClassifier.filterAndRankMusicTracks(results, query: cleanQuery, individualOnly: true);
 
     if (validResults.isNotEmpty) {
       if (_searchCache.length >= _maxCacheSize) {
@@ -227,7 +227,7 @@ class YouTubeRepository {
               rawViewCount: rel.engagement.viewCount,
             );
 
-            if (MusicResultClassifier.isValidMusicTrack(candidate)) {
+            if (MusicResultClassifier.isValidIndividualSong(candidate)) {
               candidateTracks.add(candidate);
             }
           }

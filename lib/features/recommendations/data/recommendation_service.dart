@@ -206,7 +206,7 @@ class RecommendationService {
   /// Filters out playlists, multi-song compilations, jukeboxes, full movies, podcasts, and comedy sketches
   /// while strictly preserving genuine individual songs.
   static bool isLegitimateSong(YouTubeVideo video) {
-    if (!MusicResultClassifier.isValidMusicTrack(video)) {
+    if (!MusicResultClassifier.isValidIndividualSong(video)) {
       return false;
     }
     final raw = video.rawTitle ?? video.title;
