@@ -197,11 +197,11 @@ class PlayerPage extends ConsumerWidget {
                     children: [
                       IconButton(
                         icon: const Icon(
-                          Icons.notifications_none_rounded,
+                          Icons.speaker_rounded,
                           size: 24,
                           color: AppColors.vanillaCream,
                         ),
-                        tooltip: 'Notifications & Devices',
+                        tooltip: 'Audio Output & Device',
                         onPressed: () => NotificationSheet.show(context),
                       ),
                       IconButton(
@@ -947,9 +947,9 @@ class PlayerPage extends ConsumerWidget {
                                   ),
                                   const SizedBox(width: 6),
                                   IconButton(
-                                    icon: Icon(Icons.devices_rounded, size: isCompactHeight ? 22 : 24),
+                                    icon: Icon(Icons.speaker_rounded, size: isCompactHeight ? 22 : 24),
                                     color: MieeWebColors.onSurfaceVariant,
-                                    tooltip: 'Devices to Connect',
+                                    tooltip: 'Audio Output & Device',
                                     padding: const EdgeInsets.all(4),
                                     constraints: const BoxConstraints(),
                                     onPressed: () => NotificationSheet.show(context),

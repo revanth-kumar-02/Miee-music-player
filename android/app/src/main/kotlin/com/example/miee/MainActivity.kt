@@ -5,6 +5,7 @@ import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.nfc.tech.Ndef
 import android.os.Bundle
+import com.example.miee.audio.AudioOutputManager
 import com.example.miee.musicdrop.MusicDropManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -13,6 +14,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : AudioServiceActivity() {
     private var musicDropManager: MusicDropManager? = null
+    private var audioOutputManager: AudioOutputManager? = null
     private var nfcAdapter: NfcAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,6 +23,11 @@ class MainActivity : AudioServiceActivity() {
         val manager = MusicDropManager.getInstance(this)
         manager.attachActivity(this)
         musicDropManager = manager
+
+        val audioManager = AudioOutputManager(this)
+        audioManager.attachActivity(this)
+        audioOutputManager = audioManager
+
         handleIntent(intent)
     }
 
@@ -40,6 +47,15 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             MusicDropManager.CHANNEL_EVENTS
         ).setStreamHandler(manager)
+
+        val audioManager = AudioOutputManager(this)
+        audioManager.attachActivity(this)
+        audioOutputManager = audioManager
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AudioOutputManager.CHANNEL_NAME
+        ).setMethodCallHandler(audioManager)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -79,6 +95,7 @@ class MainActivity : AudioServiceActivity() {
     override fun onResume() {
         super.onResume()
         musicDropManager?.attachActivity(this)
+        audioOutputManager?.attachActivity(this)
         enableNfcReaderMode()
     }
 
@@ -136,6 +153,7 @@ class MainActivity : AudioServiceActivity() {
 
     override fun onDestroy() {
         musicDropManager?.detachActivity(this)
+        audioOutputManager?.detachActivity()
         super.onDestroy()
     }
 }

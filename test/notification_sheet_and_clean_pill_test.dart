@@ -16,24 +16,16 @@ void main() {
     lastSeen: DateTime.now(),
   );
 
-  final testSpeakerDevice = ConnectDevice(
-    id: 'remote_speaker_2',
-    name: 'Living Room Speaker',
-    type: DeviceType.speaker,
-    protocol: DeviceProtocol.googleCast,
+  final testRemotePeerDevice = ConnectDevice(
+    id: 'remote_peer_2',
+    name: 'Living Room PC (Miee)',
+    type: DeviceType.desktop,
+    protocol: DeviceProtocol.mieeConnect,
     lastSeen: DateTime.now(),
   );
 
-  final testTvDevice = ConnectDevice(
-    id: 'remote_tv_3',
-    name: 'Samsung OLED TV',
-    type: DeviceType.tv,
-    protocol: DeviceProtocol.dlna,
-    lastSeen: DateTime.now(),
-  );
-
-  group('NotificationSheet & Devices View Tests', () {
-    testWidgets('1. NotificationSheet displays header, devices count, and lists available devices', (tester) async {
+  group('Playback Output & Device View Tests', () {
+    testWidgets('1. NotificationSheet displays honest header, active device, volume slider, and verified status', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -41,7 +33,7 @@ void main() {
               ConnectState(
                 currentDevice: testCurrentDevice,
                 activeDevice: testCurrentDevice,
-                availableDevices: [testCurrentDevice, testSpeakerDevice, testTvDevice],
+                availableDevices: [testCurrentDevice, testRemotePeerDevice],
               ),
             )),
           ],
@@ -56,43 +48,46 @@ void main() {
       await tester.pumpAndSettle();
 
       // Top title and subtitle
-      expect(find.text('Notifications'), findsOneWidget);
-      expect(find.text('Connected devices & activity'), findsOneWidget);
+      expect(find.text('Playback Output & Device'), findsOneWidget);
+      expect(find.text('Active audio destination & system status'), findsOneWidget);
 
-      // Devices section header
-      expect(find.text('Devices'), findsOneWidget);
-      expect(find.text('3 devices to connect with'), findsOneWidget);
-      expect(find.text('3 Available'), findsOneWidget);
+      // Playback Destination section header
+      expect(find.text('Playback Destination'), findsOneWidget);
+      expect(find.text('Outputting locally on this device'), findsOneWidget);
 
-      // Verify each individual device is displayed
+      // Active device details
       expect(find.text('Android Phone (Miee)'), findsOneWidget);
-      expect(find.text('Living Room Speaker'), findsOneWidget);
-      expect(find.text('Samsung OLED TV'), findsOneWidget);
+      expect(find.text('Active Output'), findsOneWidget);
 
-      // Current active device shows Active badge
-      expect(find.text('Active'), findsOneWidget);
+      // Volume slider
+      expect(find.text('Playback Volume'), findsOneWidget);
 
-      // Non-active devices show Connect action
-      expect(find.text('Connect'), findsNWidgets(2));
+      // Verified peer Miee sessions
+      expect(find.text('OTHER MIEE SESSIONS'), findsOneWidget);
+      expect(find.text('Living Room PC (Miee)'), findsOneWidget);
+      expect(find.text('Transfer'), findsOneWidget);
 
-      // Device & Volume Controls action
-      expect(find.text('Volume & Device Controls'), findsOneWidget);
+      // Scroll to reveal System & Audio Status section
+      await tester.scrollUntilVisible(find.text('System & Audio Status'), 200);
+      expect(find.text('System & Audio Status'), findsOneWidget);
+      expect(find.text('Audio Engine'), findsOneWidget);
+      expect(find.text('just_audio (ExoPlayer) • Standard 16-bit PCM output'), findsOneWidget);
 
-      // Scroll to reveal System Activity section
-      await tester.scrollUntilVisible(find.text('System Activity'), 200);
-      expect(find.text('System Activity'), findsOneWidget);
-      expect(find.text('Miee Connect Active'), findsOneWidget);
-      expect(find.text('Direct Master Audio'), findsOneWidget);
+      // Verified: Fake marketing claims are NOT present
+      expect(find.text('Direct Master Audio'), findsNothing);
+      expect(find.text('Pure 32-bit floating-point audio engine operational'), findsNothing);
+      expect(find.text('Google Nest Audio'), findsNothing);
+      expect(find.text('Samsung Smart TV'), findsNothing);
     });
 
-    testWidgets('2. Tapping a non-active device in NotificationSheet invokes selectDevice', (tester) async {
+    testWidgets('2. Tapping a non-active peer device invokes selectDevice transfer', (tester) async {
       ConnectDevice? selectedDevice;
 
       final controller = FakeConnectController(
         ConnectState(
           currentDevice: testCurrentDevice,
           activeDevice: testCurrentDevice,
-          availableDevices: [testCurrentDevice, testSpeakerDevice],
+          availableDevices: [testCurrentDevice, testRemotePeerDevice],
         ),
         onSelectDevice: (device) {
           selectedDevice = device;
@@ -114,26 +109,33 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Tap on the Living Room Speaker
-      await tester.tap(find.text('Living Room Speaker'));
+      // Tap on Transfer for the Living Room PC
+      await tester.tap(find.text('Transfer'));
       await tester.pumpAndSettle();
 
       expect(selectedDevice, isNotNull);
-      expect(selectedDevice!.id, equals('remote_speaker_2'));
-      expect(selectedDevice!.name, equals('Living Room Speaker'));
+      expect(selectedDevice!.id, equals('remote_peer_2'));
+      expect(selectedDevice!.name, equals('Living Room PC (Miee)'));
     });
 
-    testWidgets('3. NotificationSheet updates status when connected to a remote speaker', (tester) async {
+    testWidgets('3. NotificationSheet displays remote streaming destination and return button when active on peer', (tester) async {
+      bool disconnected = false;
+
+      final controller = FakeConnectController(
+        ConnectState(
+          currentDevice: testCurrentDevice,
+          activeDevice: testRemotePeerDevice,
+          availableDevices: [testCurrentDevice, testRemotePeerDevice],
+        ),
+        onDisconnectToThisDevice: () {
+          disconnected = true;
+        },
+      );
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            connectControllerProvider.overrideWith((ref) => FakeConnectController(
-              ConnectState(
-                currentDevice: testCurrentDevice,
-                activeDevice: testSpeakerDevice,
-                availableDevices: [testCurrentDevice, testSpeakerDevice],
-              ),
-            )),
+            connectControllerProvider.overrideWith((ref) => controller),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -145,9 +147,17 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Reflects playing on the remote speaker
-      expect(find.text('Playing on Living Room Speaker'), findsOneWidget);
-      expect(find.text('Streaming to Living Room Speaker'), findsOneWidget);
+      // Reflects playing on the remote peer device
+      expect(find.text('Playing through Living Room PC (Miee)'), findsOneWidget);
+      expect(find.text('Living Room PC (Miee)'), findsOneWidget);
+      expect(find.text('Switch Back to This Device'), findsOneWidget);
+
+      // Ensure button is visible and tap
+      await tester.ensureVisible(find.text('Switch Back to This Device'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Switch Back to This Device'));
+      await tester.pumpAndSettle();
+      expect(disconnected, isTrue);
     });
   });
 }
@@ -155,16 +165,22 @@ void main() {
 class FakeConnectController extends StateNotifier<ConnectState>
     implements ConnectNotifier {
   final void Function(ConnectDevice)? onSelectDevice;
+  final void Function()? onDisconnectToThisDevice;
 
   FakeConnectController(
     super.state, {
     this.onSelectDevice,
+    this.onDisconnectToThisDevice,
   });
 
   @override
   Future<void> selectDevice(ConnectDevice device) async {
     onSelectDevice?.call(device);
-    state = state.copyWith(activeDevice: device);
+  }
+
+  @override
+  Future<void> disconnectToThisDevice() async {
+    onDisconnectToThisDevice?.call();
   }
 
   @override

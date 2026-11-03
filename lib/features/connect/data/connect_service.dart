@@ -62,7 +62,6 @@ class ConnectService {
     }
 
     _initSupabaseRealtime();
-    _startLocalNetworkScan();
 
     // Start periodic heartbeat broadcast (every 10s)
     _heartbeatTimer?.cancel();
@@ -167,42 +166,10 @@ class ConnectService {
     }
   }
 
-  /// Discovers local network casting speakers (Google Cast / Smart TVs / DLNA)
-  void _startLocalNetworkScan() {
-    // Populate standard discoverable local speaker targets (e.g. Living Room Smart TV / Google Cast)
-    // to provide immediate local Wi-Fi casting discovery in the Connect ecosystem
-    final now = DateTime.now();
-
-    final googleCastSpeaker = ConnectDevice(
-      id: 'cast_google_nest_1',
-      name: 'Google Nest Audio (Living Room)',
-      type: DeviceType.speaker,
-      protocol: DeviceProtocol.googleCast,
-      isCurrent: false,
-      lastSeen: now,
-    );
-
-    final smartTv = ConnectDevice(
-      id: 'dlna_smart_tv_1',
-      name: 'Samsung Smart TV (AirPlay / DLNA)',
-      type: DeviceType.tv,
-      protocol: DeviceProtocol.dlna,
-      isCurrent: false,
-      lastSeen: now,
-    );
-
-    _discoveredDevices[googleCastSpeaker.id] = googleCastSpeaker;
-    _discoveredDevices[smartTv.id] = smartTv;
-    _emitDevices();
-  }
-
   void _pruneStaleDevices() {
     final now = DateTime.now();
     _discoveredDevices.removeWhere((id, dev) {
       if (dev.protocol == DeviceProtocol.thisDevice) return false;
-      if (dev.protocol == DeviceProtocol.googleCast || dev.protocol == DeviceProtocol.dlna) {
-        return false; // Keep local Wi-Fi casting renderers visible
-      }
       return now.difference(dev.lastSeen).inSeconds > 35;
     });
     _emitDevices();
