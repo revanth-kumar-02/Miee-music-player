@@ -155,8 +155,23 @@ class MusicResultClassifier {
       'red\'n owl',
       'it is prashanth',
       'valai pechu',
+      // Sports Entertainment / Wrestling / Combat channels
+      'wwe',
+      'world wrestling entertainment',
+      'wrestling',
+      'smackdown',
+      'wrestlemania',
+      'royal rumble',
+      'all elite wrestling',
+      'aew',
+      'ufc',
+      'mma',
+      'bellator',
       // Instagram Meme / Skit / Reel / Comedy page channels
       'kaathadi club',
+      'editz',
+      'amv',
+      'vfx',
       'kaathadi',
       'guyskills',
       'guy skills',
@@ -336,6 +351,20 @@ class MusicResultClassifier {
       }
     }
 
+    // Wrestling / Combat Sports Entertainment Promos & Shows (e.g. WWE: Voices, Smackdown highlights)
+    if (RegExp(r'\b(wwe:|wwe\s|smackdown|raw highlights|wrestlemania|royal rumble|aew dynamite|ufc \d+|mma fight)\b', caseSensitive: false).hasMatch(titleLower)) {
+      if (!_isExplicitQueryMatch('wwe', queryLower) &&
+          !_isExplicitQueryMatch('wrestling', queryLower) &&
+          !_isExplicitQueryMatch('ufc', queryLower)) {
+        return makeVerdict(
+          MusicTrackConfidence.rejected,
+          false,
+          'Wrestling / combat sports entertainment content',
+          0,
+        );
+      }
+    }
+
     // B. Podcasts, talk shows, interviews, Q&A, and episodic content
     final podcastPatterns = [
       'podcast',
@@ -416,7 +445,7 @@ class MusicResultClassifier {
       'unboxing',
       'tutorial',
       'how to',
-      'diy',
+      // 'diy' moved to word boundary
       'live stream',
       'livestream',
       'stream archive',
@@ -699,6 +728,11 @@ class MusicResultClassifier {
         titleLower.contains('audio song') ||
         titleLower.contains('lyrical song') ||
         titleLower.contains('theme track') ||
+        titleLower.contains('theme song') ||
+        titleLower.contains('original score') ||
+        titleLower.contains('original soundtrack') ||
+        titleLower.contains('soundtrack') ||
+        RegExp(r'\b(theme|ost|bgm|score|instrumental)\b', caseSensitive: false).hasMatch(titleLower) ||
         titleLower.contains('original soundtrack') ||
         titleLower.contains('visualizer')) {
       score += 40;
@@ -734,7 +768,7 @@ class MusicResultClassifier {
     }
 
     // Signal: Typical song duration (2:00 to 6:30) (+15 points)
-    if (durationSec >= 120 && durationSec <= 390) {
+    if ((durationSec >= 120 && durationSec <= 390) || (durationSec >= 45 && durationSec <= 390 && (hasMusicIndicator || isMusicLabelChannel || hasMusicKeywordInTitle))) {
       score += 15;
     }
 
@@ -961,6 +995,9 @@ class MusicResultClassifier {
       'kannadiga',
       'malayali',
       // Instagram & Meme page archetypes
+      'editz',
+      'amv',
+      'vfx',
       'kaathadi',
       'guyskills',
       'skills',
@@ -1223,6 +1260,11 @@ class MusicResultClassifier {
       }
     }
 
+        // Character mashups / AMV edit titles (e.g. "BATMAN ft:- One Sun One Moon", "Spiderman x Song")
+    if (RegExp(r'\b(batman|spiderman|superman|iron\s*man|anime|amv|goku|naruto|luffy)\b.*\b(ft\.?|x|vs\.?)\b', caseSensitive: false).hasMatch(rawTitle)) {
+      return true;
+    }
+
     // Trailing / multiple question mark clickbait (e.g. "Emotional Moment ???!", "What Happened ???")
     if (RegExp(r'(\?{2,}|(\?!|\!\?){1,})').hasMatch(rawTitle)) {
       return true;
@@ -1233,6 +1275,30 @@ class MusicResultClassifier {
 
   /// Identifies whether channel is a known music label, distributor, or official artist channel.
   static bool _isOfficialMusicLabel(String channelLower) {
+    // Exclude wrestling and sports entertainment channels even if name includes 'music' (e.g. WWE Music)
+    if (channelLower.contains('wwe') ||
+        channelLower.contains('wrestling') ||
+        channelLower.contains('ufc') ||
+        channelLower.contains('mma')) {
+      return false;
+    }
+
+    if (channelLower.contains('divo music') ||
+        channelLower.contains('divomovies') ||
+        channelLower.contains('lyca productions') ||
+        channelLower.contains('raaj kamal') ||
+        channelLower.contains('mythri movie makers') ||
+        channelLower.contains('hombale films') ||
+        channelLower.contains('dvv entertainment') ||
+        channelLower.contains('geetha arts') ||
+        channelLower.contains('sithara entertainments') ||
+        channelLower.contains('dream warrior pictures') ||
+        channelLower.contains('studio green') ||
+        channelLower.contains('ags entertainment') ||
+        channelLower.contains('red giant movies') ||
+        channelLower.contains('yash raj films')) {
+      return true;
+    }
     if (channelLower.endsWith(' - topic') ||
         channelLower.contains('- topic') ||
         channelLower.contains('vevo') ||
@@ -1266,7 +1332,17 @@ class MusicResultClassifier {
         channelLower.contains('spinnin') ||
         channelLower.contains('monstercat') ||
         channelLower.contains('anjunabeats') ||
-        channelLower.contains('ultra records')) {
+        channelLower.contains('ultra records') ||
+        channelLower.contains('sun tv') ||
+        channelLower.contains('sun pictures') ||
+        channelLower.contains('sun gemini') ||
+        channelLower.contains('sun nxt') ||
+        channelLower.contains('kalaignar') ||
+        channelLower.contains('vijay television') ||
+        channelLower.contains('star vijay') ||
+        channelLower.contains('star maa') ||
+        channelLower.contains('zee tamil') ||
+        channelLower.contains('zee telugu')) {
       return true;
     }
     return false;
@@ -1357,7 +1433,12 @@ class MusicResultClassifier {
         titleLower.contains('piano version') ||
         titleLower.contains('guitar version') ||
         titleLower.contains('sped up') ||
-        titleLower.contains('slowed');
+        titleLower.contains('slowed') ||
+        titleLower.contains('theme') ||
+        titleLower.contains('soundtrack') ||
+        titleLower.contains('score') ||
+        titleLower.contains('ost') ||
+        titleLower.contains('bgm');
   }
 
   /// Identifies legitimate multi-part musical suites (e.g. Pink Floyd's "Parts I-IX", "Pt. 1").

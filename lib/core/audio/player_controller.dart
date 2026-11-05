@@ -15,6 +15,7 @@ import '../../features/media/domain/models.dart';
 import '../../features/youtube/providers/youtube_providers.dart';
 import '../../features/youtube/domain/youtube_model.dart';
 import '../../features/youtube/domain/music_result_classifier.dart';
+import '../../features/search/domain/search_deduplicator.dart';
 import '../../features/library/providers/library_providers.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/history/providers/history_providers.dart';
@@ -293,30 +294,43 @@ class PlayerController extends StateNotifier<PlaybackState> {
         ? tracks[startIndex]
         : tracks.firstOrNull;
     final targetNormId = targetTrack != null ? _normalizeTrackId(targetTrack.id) : null;
+    final targetRecKey = targetTrack != null ? SearchDeduplicator.computeRecordingKey(targetTrack) : null;
 
     final seenNormIds = <String>{};
+    final seenRecKeys = <String>{};
     final uniqueTracks = <MusicItem>[];
     int resolvedStartIndex = 0;
+
+    // Reserve target track identity first to ensure priority
+    if (targetNormId != null && targetNormId.isNotEmpty) {
+      seenNormIds.add(targetNormId);
+    }
+    if (targetRecKey != null && targetRecKey.isNotEmpty) {
+      seenRecKeys.add(targetRecKey);
+    }
 
     for (int i = 0; i < tracks.length; i++) {
       final t = tracks[i];
       final normId = _normalizeTrackId(t.id);
+      final recKey = SearchDeduplicator.computeRecordingKey(t);
       final isTarget = (i == startIndex) || (targetNormId != null && normId == targetNormId);
 
-      if (normId.isEmpty) {
+      if (isTarget) {
         uniqueTracks.add(t);
-      } else if (seenNormIds.add(normId)) {
-        uniqueTracks.add(t);
+        resolvedStartIndex = uniqueTracks.length - 1;
+        continue;
       }
 
-      if (isTarget && targetNormId != null) {
-        final mappedIndex = uniqueTracks.indexWhere(
-          (u) => _normalizeTrackId(u.id) == targetNormId,
-        );
-        if (mappedIndex >= 0) {
-          resolvedStartIndex = mappedIndex;
-        }
+      if (normId.isNotEmpty && seenNormIds.contains(normId)) {
+        continue;
       }
+      if (recKey.isNotEmpty && seenRecKeys.contains(recKey)) {
+        continue;
+      }
+
+      if (normId.isNotEmpty) seenNormIds.add(normId);
+      if (recKey.isNotEmpty) seenRecKeys.add(recKey);
+      uniqueTracks.add(t);
     }
 
     final finalQueue = uniqueTracks.isNotEmpty ? uniqueTracks : tracks;
@@ -370,12 +384,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     // Filter out any track already in queue and deduplicate within batch
     final currentIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
+    final currentKeys = _queueManager.queue.map((t) => SearchDeduplicator.computeRecordingKey(t)).toSet();
     final batchSeenIds = <String>{};
+    final batchSeenKeys = <String>{};
     final freshTracks = <MusicItem>[];
     for (final t in tracks) {
       final normId = _normalizeTrackId(t.id);
-      if (currentIds.contains(normId)) continue;
-      if (batchSeenIds.add(normId)) {
+      final recKey = SearchDeduplicator.computeRecordingKey(t);
+      if (currentIds.contains(normId) || currentKeys.contains(recKey)) continue;
+      if (batchSeenIds.add(normId) && batchSeenKeys.add(recKey)) {
         freshTracks.add(t);
       }
     }
@@ -473,13 +490,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (upcoming.isNotEmpty) {
         final currentNormIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
         final currentKeys = _queueManager.queue
-            .map((t) => '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}')
+            .map((t) => SearchDeduplicator.computeRecordingKey(t))
             .toSet();
 
         final freshTracks = <MusicItem>[];
         for (final t in upcoming) {
           final normId = _normalizeTrackId(t.id);
-          final key = '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}';
+          final recKey = SearchDeduplicator.computeRecordingKey(t);
 
           if (currentNormIds.contains(normId)) continue;
           if (!_isPlayableMusicItem(t)) {
@@ -487,18 +504,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
             continue;
           }
 
-          // Preserve legitimate distinct versions (live, remix, acoustic, instrumental, cover)
-          final titleLower = t.title.toLowerCase();
-          final isLegitVariant = titleLower.contains('live') ||
-              titleLower.contains('remix') ||
-              titleLower.contains('acoustic') ||
-              titleLower.contains('cover') ||
-              titleLower.contains('instrumental');
-
-          if (!isLegitVariant && currentKeys.contains(key)) continue;
+          if (currentKeys.contains(recKey)) continue;
 
           currentNormIds.add(normId);
-          currentKeys.add(key);
+          currentKeys.add(recKey);
           freshTracks.add(t);
         }
 

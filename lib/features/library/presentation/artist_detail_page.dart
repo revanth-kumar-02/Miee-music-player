@@ -629,8 +629,11 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                 children: [
                   SectionHeader(
                     title: 'Popular Tracks',
-                    actionLabel: (data.hasMoreTracks && !data.isLoadingMore) ? 'View All' : null,
-                    onActionTap: _loadMoreTracks,
+                    actionLabel: data.isLoadingMore
+                        ? 'Loading...'
+                        : (data.hasMoreTracks ? 'View All' : null),
+                    onActionTap: data.isLoadingMore ? null : _loadMoreTracks,
+                    actionColor: AppColors.primary,
                   ),
                   AppSpacing.heightMd,
                 ],

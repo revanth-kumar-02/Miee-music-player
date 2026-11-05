@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Miee/features/search/domain/search_deduplicator.dart';
+import 'package:Miee/features/youtube/domain/music_result_classifier.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/core/audio/queue_manager.dart';
 import 'package:Miee/shared/models/track.dart';
@@ -58,6 +59,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(
         videos,
         query: 'Kaadhalai Solla Mudiyatha',
@@ -96,6 +101,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(
         videos,
         query: 'Enna Sona',
@@ -126,6 +135,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(videos);
       expect(results.length, 1);
       expect(results.first.id, 'same_video_id');
@@ -156,6 +169,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(videos, query: 'Hello');
       expect(results.length, 2);
       expect(results.map((v) => v.id), containsAll(['adele_hello', 'lionel_hello']));
@@ -196,6 +213,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(videos, query: 'Kaadhalai Solla Mudiyatha');
       expect(results.length, 3);
       expect(results.map((v) => v.id), containsAll(['v_original', 'v_remix', 'v_cover']));
@@ -226,6 +247,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(videos);
       expect(results.length, 2);
       expect(results.map((v) => v.id), containsAll(['v_tamil', 'v_telugu']));
@@ -258,6 +283,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(
         videos,
         query: 'Kaadhalai Solla Mudiyatha',
@@ -288,6 +317,10 @@ void main() {
         ),
       ];
 
+      for (final v in videos) {
+        final c = MusicResultClassifier.classify(v, query: 'Kaadhalai Solla Mudiyatha', enableLogging: true);
+        print('DEBUG: ${v.id} -> $c');
+      }
       final results = SearchDeduplicator.deduplicateAndRank(videos);
       expect(results.length, 2);
     });

@@ -17,6 +17,9 @@ class SectionHeader extends StatelessWidget {
   /// Callback when the text button is tapped.
   final VoidCallback? onActionTap;
 
+  /// Optional custom color for the text action button (defaults to AppColors.primary).
+  final Color? actionColor;
+
   /// Optional icon for the right-aligned icon button.
   final IconData? actionIcon;
 
@@ -29,6 +32,7 @@ class SectionHeader extends StatelessWidget {
     this.isUppercase = false,
     this.actionLabel,
     this.onActionTap,
+    this.actionColor,
     this.actionIcon,
     this.onIconTap,
   });
@@ -60,15 +64,16 @@ class SectionHeader extends StatelessWidget {
           TextButton(
             onPressed: onActionTap,
             style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              minimumSize: const Size(48.0, 36.0),
+              tapTargetSize: MaterialTapTargetSize.padded,
             ),
             child: Text(
               actionLabel!.toUpperCase(),
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.outline,
-                fontWeight: FontWeight.bold,
+              style: AppTypography.labelMedium.copyWith(
+                color: actionColor ?? AppColors.primary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
               ),
             ),
           )

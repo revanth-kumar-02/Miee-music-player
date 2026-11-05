@@ -674,9 +674,27 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (token != _activeLoadToken) return;
     }
 
+    // Fallback: If direct stream resolution for this videoId failed (e.g. video deleted, cipher error, or geo-restricted),
+    // attempt verified search fallback using track title and artist to locate an authentic alternate recording.
+    if ((streamUrl == null || streamUrl.isEmpty || !YouTubeAudioService().isUrlValid(streamUrl)) && track.title.isNotEmpty) {
+      final query = '${track.title} ${track.artist}'.trim();
+      debugPrint('[AudioHandler] Direct resolution for $videoId failed. Attempting verified search fallback for "$query"');
+      final fallbackId = await YouTubeAudioService().resolveVideoIdForQuery(query);
+      if (fallbackId != null && fallbackId.isNotEmpty && fallbackId != videoId) {
+        debugPrint('[AudioHandler] Resolved alternate verified video ID $fallbackId for "${track.title}"');
+        videoId = fallbackId;
+        streamUrl = await YouTubeAudioService().getAudioStreamUrl(
+          fallbackId,
+          forceRefresh: true,
+          title: track.title,
+          artist: track.artist,
+        );
+      }
+      if (token != _activeLoadToken) return;
+    }
     if (streamUrl == null || streamUrl.isEmpty || !YouTubeAudioService().isUrlValid(streamUrl)) {
       PlaybackDiagnostics().recordError(track.id, 'Unable to resolve audio stream');
-      throw Exception('Unable to resolve full audio stream for "${track.title}". Please try again.');
+      throw Exception('Unable to resolve audio stream for "${track.title}". Please try again.');
     }
 
     if (token != _activeLoadToken) return;

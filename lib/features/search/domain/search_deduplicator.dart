@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
+import '../../../shared/models/music_item.dart';
 
 /// Represents genuinely distinct recording version categories.
 enum VersionType {
@@ -320,6 +321,45 @@ class SearchDeduplicator {
   }
 
   /// Checks whether two YouTube videos represent the same underlying canonical song.
+  /// Computes a canonical recording key for any [MusicItem] (Track, Song, etc.).
+  /// Used across Queue, PlayerController, Recommendations and Search to eliminate duplicate uploads.
+  static String computeRecordingKey(MusicItem track) {
+    final rawTitle = track.title;
+    final rawArtist = track.artist;
+    final versionInfo = _extractVersion(rawTitle, rawTitle);
+    final baseTitle = _normalizeBaseTitle(rawTitle, rawTitle, rawArtist);
+    final isGeneric = _isGenericUploader(rawArtist);
+    if (isGeneric) {
+      return '$baseTitle|${versionInfo.tag}';
+    }
+    final normArtist = _normalizeArtist(rawArtist);
+    return '$baseTitle|$normArtist|${versionInfo.tag}';
+  }
+
+  /// Checks whether two [MusicItem]s represent the same underlying canonical recording.
+  static bool isSameCanonicalRecording(MusicItem a, MusicItem b) {
+    if (a.id.isNotEmpty && b.id.isNotEmpty && a.id == b.id) return true;
+    final keyA = computeRecordingKey(a);
+    final keyB = computeRecordingKey(b);
+    if (keyA == keyB) return true;
+
+    final vA = _extractVersion(a.title, a.title);
+    final vB = _extractVersion(b.title, b.title);
+    if (vA.tag != vB.tag) return false;
+
+    final baseA = _normalizeBaseTitle(a.title, a.title, a.artist);
+    final baseB = _normalizeBaseTitle(b.title, b.title, b.artist);
+    if (_titlesMatchSubstantially(baseA, baseB)) {
+      final genA = _isGenericUploader(a.artist);
+      final genB = _isGenericUploader(b.artist);
+      if (genA || genB) return true;
+      final artA = _normalizeArtist(a.artist);
+      final artB = _normalizeArtist(b.artist);
+      if (artA == artB) return true;
+    }
+    return false;
+  }
+
   static bool isSameCanonicalSong(YouTubeVideo a, YouTubeVideo b) {
     final sigA = _computeCanonicalSignature(a);
     final sigB = _computeCanonicalSignature(b);
@@ -477,12 +517,29 @@ class SearchDeduplicator {
         lower.contains('tseries') ||
         lower.contains('sony') ||
         lower.contains('zee') ||
+        lower.contains('sun') ||
+        lower.contains('gemini') ||
+        lower.contains('kalaignar') ||
+        lower.contains('vijay') ||
+        lower.contains('tv') ||
+        lower.contains('television') ||
+        lower.contains('network') ||
+        lower.contains('lyric') ||
+        lower.contains('lyrics') ||
+        lower.contains('lyrical') ||
+        lower.contains('lyricist') ||
+        lower.contains('songs') ||
+        lower.contains('melody') ||
         lower.contains('beatz') ||
         lower.contains('beats') ||
         lower.contains('fx') ||
         lower.contains('status') ||
+        lower.contains('editz') ||
         lower.contains('edits') ||
         lower.contains('edit') ||
+        lower.contains('amv') ||
+        lower.contains('vfx') ||
+        lower.contains('toono1') ||
         lower.contains('bgm') ||
         lower.contains('looper') ||
         lower.contains('vibes') ||
@@ -720,7 +777,17 @@ class SearchDeduplicator {
         lower.contains('atlantic records') ||
         lower.contains('columbia records') ||
         lower.contains('def jam') ||
-        lower.contains('interscope');
+        lower.contains('interscope') ||
+        lower.contains('sun tv') ||
+        lower.contains('sun pictures') ||
+        lower.contains('sun gemini') ||
+        lower.contains('sun nxt') ||
+        lower.contains('kalaignar') ||
+        lower.contains('vijay television') ||
+        lower.contains('star vijay') ||
+        lower.contains('star maa') ||
+        lower.contains('zee tamil') ||
+        lower.contains('zee telugu');
   }
 
   /// Calculates a heuristic quality score for a YouTube video candidate.
@@ -737,10 +804,8 @@ class SearchDeduplicator {
     // 1. High-confidence official channel signals
     if (rawChannel.contains('- topic') || rawChannel.endsWith('topic')) {
       score += 130; // Official YouTube Music track delivery
-    } else if (rawChannel.contains('vevo')) {
-      score += 110; // Official VEVO channel
-    } else if (_isOfficialMusicLabel(rawChannel)) {
-      score += 120; // Official major music label (Think Music, Sony, T-Series, Saregama, etc.)
+    } else if (rawChannel.contains('vevo') || _isOfficialMusicLabel(rawChannel)) {
+      score += 130; // Official major music label or VEVO channel
     } else if (rawChannel.contains('official')) {
       score += 40;
     }
@@ -753,9 +818,10 @@ class SearchDeduplicator {
         rawTitle.contains('(music video)') ||
         rawTitle.contains('[music video]') ||
         rawTitle.contains('music video') ||
-        rawTitle.contains('video song') ||
-        rawTitle.contains('full video')) {
+        rawTitle.contains('video song')) {
       score += 85;
+    } else if (rawTitle.contains('full video')) {
+      score += 20; // Video releases often contain extended non-musical intros/dialogue
     } else if (rawTitle.contains('official visualizer') || rawTitle.contains('visualizer')) {
       score += 50;
     } else if (rawTitle.contains('audio')) {
@@ -926,6 +992,12 @@ class SearchDeduplicator {
           rawTitle.contains('edit audio') ||
           rawTitle.contains('audio edit') ||
           rawTitle.contains('amv edit') ||
+          rawTitle.contains('amv') ||
+          rawTitle.contains('editz') ||
+          channelLower.contains('editz') ||
+          channelLower.contains('amv') ||
+          channelLower.contains('vfx') ||
+          (channelLower.contains('edit') && !_isOfficialMusicLabel(channelLower)) ||
           rawTitle.contains('fanmade edit') ||
           rawTitle.contains('anime edit') ||
           rawTitle.contains('trending') ||
@@ -934,8 +1006,8 @@ class SearchDeduplicator {
           rawTitle.contains('trend song') ||
           collapsedTitle.contains('fanedit') ||
           collapsedTitle.contains('audioedit') ||
-          RegExp(r'[\(\[\{\|\-]\s*(edit|edits|fan\s*edit|audio\s*edit|trending)\b', caseSensitive: false).hasMatch(rawTitle) ||
-          RegExp(r'\b(edit|edits)\b', caseSensitive: false).hasMatch(rawTitle)) {
+          RegExp(r'[\(\[\{\|\-]\s*(edit|edits|editz|fan\s*edit|audio\s*edit|trending)\b', caseSensitive: false).hasMatch(rawTitle) ||
+          RegExp(r'\b(edit|edits|editz)\b', caseSensitive: false).hasMatch(rawTitle)) {
         if (!rawTitle.contains('radio edit') && !rawTitle.contains('edition')) {
           return EditType.fanEdit;
         }
@@ -1067,7 +1139,10 @@ class SearchDeduplicator {
     }
 
     // 7. Mashups / Crossovers / Remakes / Multimixes
-    if (!intent.wantsMashup) {
+        if (!intent.wantsMashup) {
+      if (RegExp(r'\b(batman|spiderman|superman|iron\s*man|anime|amv|goku|naruto|luffy)\b.*\b(ft\.?|x|vs\.?)\b', caseSensitive: false).hasMatch(rawTitle)) {
+        return EditType.mashupRemake;
+      }
       if (rawTitle.contains('mashup') ||
           rawTitle.contains('mash up') ||
           rawTitle.contains('crossover') ||

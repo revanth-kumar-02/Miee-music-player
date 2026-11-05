@@ -9,6 +9,7 @@ import '../../onboarding/domain/artist_model.dart';
 import '../../profile/domain/user_profile.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
+import '../../search/domain/search_deduplicator.dart';
 import '../../youtube/data/youtube_repository.dart';
 import 'trending_music_service.dart';
 import '../domain/music_language_service.dart';
@@ -586,19 +587,19 @@ class RecommendationService {
   }) async {
     final upcoming = <MusicItem>[];
     final queueKeys = currentQueue
-        .map((t) => normalizeKey(t.title, t.artist))
+        .map((t) => SearchDeduplicator.computeRecordingKey(t))
         .toSet();
     final queueIds = currentQueue.map((t) => _normalizeTrackId(t.id)).toSet();
 
     // Also include currentTrack key and ID
-    queueKeys.add(normalizeKey(currentTrack.title, currentTrack.artist));
+    queueKeys.add(SearchDeduplicator.computeRecordingKey(currentTrack));
     queueIds.add(_normalizeTrackId(currentTrack.id));
 
     // Track how many songs per artist are in the upcoming batch to guarantee variety
     final artistCount = <String, int>{};
     void addQueueTrack(MusicItem track) {
       if (upcoming.length >= limit) return;
-      final key = normalizeKey(track.title, track.artist);
+      final key = SearchDeduplicator.computeRecordingKey(track);
       final artistKey = track.artist.toLowerCase().trim();
       final count = artistCount[artistKey] ?? 0;
 

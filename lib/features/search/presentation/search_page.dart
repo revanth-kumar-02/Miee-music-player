@@ -13,6 +13,7 @@ import '../../media/providers/media_providers.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../providers/search_providers.dart';
 import '../domain/search_state.dart';
+import '../domain/search_deduplicator.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
 import '../../youtube/presentation/widgets/youtube_result_tile.dart';
@@ -107,16 +108,46 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final targetTrack = video.toTrack();
     final playerNotifier = ref.read(playerControllerProvider.notifier);
 
-    // Filter queue to ensure only verified individual songs enter playback
-    final validVideos = results
-        .where((v) => MusicResultClassifier.isValidIndividualSong(v, query: _searchQuery))
-        .toList();
-    final queueVideos = validVideos.isNotEmpty ? validVideos : [video];
-    final trackList = queueVideos.map((v) => v.toTrack()).toList();
+    // 1. Filter queue to ensure only verified individual songs enter playback
+    // and reject any derivative edits/mashups/fan-edits
+    final intent = QueryIntent.fromQuery(_searchQuery);
+    final validVideos = results.where((v) {
+      if (!MusicResultClassifier.isValidIndividualSong(v, query: _searchQuery)) {
+        return false;
+      }
+      final editType = SearchDeduplicator.detectEditType(v, intent);
+      if (editType == EditType.fanEdit ||
+          editType == EditType.fourKEdit ||
+          editType == EditType.statusVideo ||
+          editType == EditType.compilationMix ||
+          editType == EditType.mashupRemake ||
+          editType == EditType.nonMusicEntertainment) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    // 2. Queue deduplication:
+    // Retain target track at index 0, and remove any other video that is the same
+    // canonical recording as the target track (alternate uploads, lyric videos, cuts).
+    // Also deduplicate remaining candidates against each other while strictly preserving distinct songs.
+    final queueTracks = <MusicItem>[targetTrack];
+    final seenKeys = <String>{SearchDeduplicator.computeRecordingKey(targetTrack)};
+    final seenIds = <String>{video.id};
+
+    for (final v in validVideos) {
+      if (v.id == video.id || seenIds.contains(v.id)) continue;
+      final track = v.toTrack();
+      final recKey = SearchDeduplicator.computeRecordingKey(track);
+      if (seenKeys.add(recKey)) {
+        seenIds.add(v.id);
+        queueTracks.add(track);
+      }
+    }
 
     playerNotifier.selectTrack(
       targetTrack,
-      trackList,
+      queueTracks,
       playingFrom: 'YouTube Search',
     );
   }
