@@ -58,6 +58,19 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   bool _isLoadingTrack = false;
   bool get isLoadingTrack => _isLoadingTrack;
 
+  /// Tracks whether an automatic stream recovery is actively in progress.
+  /// Prevents redundant, overlapping recovery attempts across error and watchdog triggers.
+  bool _isRecovering = false;
+  bool get isRecovering => _isRecovering;
+
+  /// Watchdog timer to detect silent stalls where ExoPlayer buffers indefinitely
+  /// without throwing a fatal exception (e.g. half-open TCP connections, cellular handover).
+  Timer? _bufferingWatchdogTimer;
+  Duration? _bufferingStartPosition;
+  String? _bufferingTrackId;
+  int? _bufferingStartToken;
+  static const Duration _kBufferingWatchdogTimeout = Duration(seconds: 12);
+
   /// Tracks whether playback was interrupted mid-stream by a transient system
   /// interruption (e.g. phone call). If the user explicitly pauses/stops the
   /// song, or if the song was already paused when an interruption occurred,
@@ -86,6 +99,32 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @visibleForTesting
   int incrementActiveLoadTokenForTesting() => ++_activeLoadToken;
+
+  @visibleForTesting
+  bool get isRecoveringForTesting => _isRecovering;
+
+  @visibleForTesting
+  Timer? get bufferingWatchdogTimerForTesting => _bufferingWatchdogTimer;
+
+  @visibleForTesting
+  void startBufferingWatchdogForTesting() => _startBufferingWatchdog();
+
+  @visibleForTesting
+  void cancelBufferingWatchdogForTesting() => _cancelBufferingWatchdog();
+
+  @visibleForTesting
+  Future<void> triggerBufferingWatchdogForTesting() => _onBufferingWatchdogFired();
+
+  @visibleForTesting
+  void setBufferingWatchdogDetailsForTesting({
+    String? trackId,
+    int? token,
+    Duration? startPosition,
+  }) {
+    _bufferingTrackId = trackId;
+    _bufferingStartToken = token;
+    _bufferingStartPosition = startPosition;
+  }
 
   @visibleForTesting
   AudioPlayer get playerForTesting => _player;
@@ -273,10 +312,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             final videoId = _extractYouTubeVideoId(current.id);
             debugPrint('[StreamCache] Invalidating cache for $videoId due to stream error');
             YouTubeAudioService().invalidateCache(videoId);
-            final wasPlaying = !_userExplicitlyPaused &&
-                (_player.playing ||
-                    playbackState.value.playing ||
-                    playbackState.value.processingState == AudioProcessingState.buffering);
+            // Authoritative user intent: if the user did not explicitly tap pause,
+            // the player was intended to be playing and must resume after recovery.
+            final wasPlaying = !_userExplicitlyPaused;
             await _recoverYouTubePlayback(
               videoId: videoId,
               track: current,
@@ -317,9 +355,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     }
 
+    // Buffering watchdog management:
+    // If player starts buffering while not explicitly paused and not recovering, schedule 12s stall watchdog.
+    // If buffering resolves or transitions to another state, cancel watchdog immediately.
+    if (playerState.processingState == ProcessingState.buffering) {
+      if (!_userExplicitlyPaused && !_isLoadingTrack && !_isRecovering) {
+        _startBufferingWatchdog();
+      }
+    } else {
+      _cancelBufferingWatchdog();
+    }
+
     // Handle track completion — advance to next track.
     // NOTE: PlayerController must NOT also handle completed, as that causes double-skip.
     if (playerState.processingState == ProcessingState.completed) {
+      _cancelBufferingWatchdog();
       if (_isRoomListener) {
         debugPrint('[Queue] Room listener reached track completion; waiting for host update.');
         return;
@@ -513,6 +563,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadCurrentTrack({Duration? initialPosition}) async {
+    _cancelBufferingWatchdog();
     if (_queue.isEmpty || _currentIndex < 0) return;
 
     final token = ++_activeLoadToken;
@@ -841,20 +892,50 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  /// Recovery path called when a playback event stream error occurs mid-playback.
-  /// This is separate from the initial load retry path.
+  /// Recovery path called when a playback event stream error occurs mid-playback
+  /// or when the 12-second buffering watchdog detects a silent connection stall.
   Future<void> _recoverYouTubePlayback({
     required String videoId,
     required MusicItem track,
     required int retryCount,
     required bool resumePlayback,
   }) async {
+    if (retryCount == 0) {
+      if (_isRecovering) {
+        debugPrint('[Playback] Recovery already in progress for $videoId — ignoring duplicate request');
+        return;
+      }
+      _isRecovering = true;
+    }
+
+    try {
+      await _executeYouTubeRecovery(
+        videoId: videoId,
+        track: track,
+        retryCount: retryCount,
+        resumePlayback: resumePlayback,
+      );
+    } finally {
+      if (retryCount == 0) {
+        _isRecovering = false;
+      }
+    }
+  }
+
+  Future<void> _executeYouTubeRecovery({
+    required String videoId,
+    required MusicItem track,
+    required int retryCount,
+    required bool resumePlayback,
+  }) async {
+    _cancelBufferingWatchdog();
     final token = _activeLoadToken;
     if (retryCount >= _kMaxYouTubeRetries) {
       debugPrint(
         '[Playback] Recovery failed after $retryCount retries for $videoId — non-recoverable',
       );
       _loadedAudioTrackId = null;
+      _isLoadingTrack = false;
       _errorController.add(
         'Playback failed for "${track.title}" after $_kMaxYouTubeRetries retries.',
       );
@@ -864,14 +945,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       return;
     }
 
-    if (_currentIndex < 0 || _currentIndex >= _queue.length) return;
+    if (_currentIndex < 0 || _currentIndex >= _queue.length) {
+      _isLoadingTrack = false;
+      return;
+    }
     if (_extractYouTubeVideoId(_queue[_currentIndex].id) != videoId) {
+      _isLoadingTrack = false;
       debugPrint('[Playback] Aborting recovery: track changed ($videoId vs ${_queue[_currentIndex].id})');
       return;
     }
 
     debugPrint(
-      '[Playback] Recovery attempt ${retryCount + 1}/$_kMaxYouTubeRetries for $videoId',
+      '[Playback] Recovery attempt ${retryCount + 1}/$_kMaxYouTubeRetries for $videoId (resume=$resumePlayback)',
     );
 
     final savedPosition = _player.position > Duration.zero
@@ -900,7 +985,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (freshUrl == null || freshUrl.isEmpty) {
         _isLoadingTrack = false;
         debugPrint('[YouTubeResolver] Fresh URL still null on retry ${retryCount + 1}');
-        await _recoverYouTubePlayback(
+        await _executeYouTubeRecovery(
           videoId: videoId,
           track: track,
           retryCount: retryCount + 1,
@@ -923,7 +1008,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       _isLoadingTrack = false;
       debugPrint('[Playback] Recovery succeeded: audio source reloaded for $videoId at ${savedPosition.inSeconds}s');
 
-      if (resumePlayback) {
+      if (resumePlayback && !_userExplicitlyPaused) {
         await play();
         debugPrint('[Playback] Playback resumed after recovery for $videoId');
       }
@@ -931,11 +1016,103 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       _isLoadingTrack = false;
       if (token != _activeLoadToken) return;
       debugPrint('[Playback] Recovery error (attempt ${retryCount + 1}) for $videoId: $e');
-      await _recoverYouTubePlayback(
+      await _executeYouTubeRecovery(
         videoId: videoId,
         track: track,
         retryCount: retryCount + 1,
         resumePlayback: resumePlayback,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Buffering Watchdog (Stall Detection & Recovery)
+  // ---------------------------------------------------------------------------
+
+  void _startBufferingWatchdog() {
+    if (_bufferingWatchdogTimer != null && _bufferingWatchdogTimer!.isActive) {
+      return;
+    }
+    _cancelBufferingWatchdog();
+    if (_userExplicitlyPaused || _isLoadingTrack || _isRecovering) return;
+    if (_currentIndex < 0 || _currentIndex >= _queue.length) return;
+
+    final currentTrack = _queue[_currentIndex];
+    if (!currentTrack.isYoutube) return;
+
+    _bufferingTrackId = currentTrack.id;
+    _bufferingStartToken = _activeLoadToken;
+    _bufferingStartPosition = _player.position > Duration.zero
+        ? _player.position
+        : (_lastValidPosition > Duration.zero ? _lastValidPosition : Duration.zero);
+
+    debugPrint(
+      '[PlaybackWatchdog] Buffering stall watchdog scheduled for "${currentTrack.title}" '
+      '(timeout: ${_kBufferingWatchdogTimeout.inSeconds}s, at ${_bufferingStartPosition?.inSeconds}s)',
+    );
+
+    _bufferingWatchdogTimer = Timer(_kBufferingWatchdogTimeout, () async {
+      await _onBufferingWatchdogFired();
+    });
+  }
+
+  void _cancelBufferingWatchdog() {
+    if (_bufferingWatchdogTimer != null) {
+      _bufferingWatchdogTimer?.cancel();
+      _bufferingWatchdogTimer = null;
+      debugPrint('[PlaybackWatchdog] Buffering watchdog cancelled');
+    }
+    _bufferingStartPosition = null;
+    _bufferingTrackId = null;
+    _bufferingStartToken = null;
+  }
+
+  Future<void> _onBufferingWatchdogFired() async {
+    _bufferingWatchdogTimer = null;
+
+    if (_userExplicitlyPaused) {
+      debugPrint('[PlaybackWatchdog] Stalled buffering ignored: user explicitly paused');
+      return;
+    }
+
+    if (_isRecovering || _isLoadingTrack) {
+      debugPrint('[PlaybackWatchdog] Stalled buffering ignored: recovery or track load already in progress');
+      return;
+    }
+
+    if (_currentIndex < 0 || _currentIndex >= _queue.length) return;
+    final currentTrack = _queue[_currentIndex];
+    if (_bufferingTrackId != currentTrack.id || _bufferingStartToken != _activeLoadToken) {
+      debugPrint('[PlaybackWatchdog] Stalled buffering ignored: track changed since buffering started');
+      return;
+    }
+
+    final isStillBuffering = _player.processingState == ProcessingState.buffering ||
+        playbackState.value.processingState == AudioProcessingState.buffering;
+    if (!isStillBuffering) {
+      debugPrint('[PlaybackWatchdog] Stalled buffering ignored: player is no longer buffering');
+      return;
+    }
+
+    final currentPos = _player.position;
+    if (_bufferingStartPosition != null &&
+        (currentPos - _bufferingStartPosition!).abs() > const Duration(seconds: 1)) {
+      debugPrint('[PlaybackWatchdog] Stalled buffering ignored: position progressed while buffering');
+      return;
+    }
+
+    if (currentTrack.isYoutube) {
+      final videoId = _extractYouTubeVideoId(currentTrack.id);
+      debugPrint(
+        '[PlaybackWatchdog] Buffering stall detected (>12s) on "$videoId" at '
+        '${_bufferingStartPosition?.inSeconds}s — initiating automatic stream recovery',
+      );
+      YouTubeAudioService().invalidateCache(videoId);
+      await _recoverYouTubePlayback(
+        videoId: videoId,
+        track: currentTrack,
+        retryCount: 0,
+        resumePlayback: true,
       );
     }
   }
@@ -1038,6 +1215,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> pause() async {
+    _cancelBufferingWatchdog();
     _playInterrupted = false;
     _userExplicitlyPaused = true;
     if (_player.position > Duration.zero) {
@@ -1049,6 +1227,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> stop() async {
+    _cancelBufferingWatchdog();
     _playInterrupted = false;
     _userExplicitlyPaused = true;
     _loadedAudioTrackId = null;
@@ -1059,6 +1238,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> seek(Duration position) async {
+    _cancelBufferingWatchdog();
     _lastValidPosition = position;
     await _player.seek(position);
     debugPrint('[Playback] seek(${position.inSeconds}s)');
@@ -1298,6 +1478,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> onTaskRemoved() async => stop();
 
   Future<void> disposeHandler() async {
+    _cancelBufferingWatchdog();
     await _playerStateSub?.cancel();
     await _positionSub?.cancel();
     await _durationSub?.cancel();

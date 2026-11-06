@@ -1733,6 +1733,8 @@ class PlayerPage extends ConsumerWidget {
       return Image.network(
         cleanUrl,
         fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
         errorBuilder: (context, error, stackTrace) => _buildFallbackArtwork(),
       );
     }
@@ -1747,6 +1749,8 @@ class PlayerPage extends ConsumerWidget {
       return Image.file(
         file,
         fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
         errorBuilder: (context, error, stackTrace) => _buildFallbackArtwork(),
       );
     } catch (_) {
