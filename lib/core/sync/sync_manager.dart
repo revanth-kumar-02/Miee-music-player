@@ -5,9 +5,6 @@ import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/auth_controller.dart';
-import '../../features/library/data/favorites_repository.dart';
-import '../../features/library/data/playlists_repository.dart';
-import '../../features/library/data/playback_history_repository.dart';
 import '../../features/profile/domain/profile_model.dart';
 import '../../features/profile/presentation/profile_controller.dart';
 import '../../core/storage/hive_boxes.dart';
@@ -32,6 +29,11 @@ class SyncManager {
   final NetworkMonitor _networkMonitor;
   late final StreamSubscription<bool> _networkSubscription;
 
+  Future<void>? _inFlightSync;
+  bool _followUpNeeded = false;
+  DateTime? _lastSyncTime;
+  static const Duration minSyncInterval = Duration(seconds: 15);
+
   SyncManager(this._ref)
       : _operationQueue = OfflineOperationQueue(Hive.box(HiveBoxes.offlineQueue)),
         _networkMonitor = _ref.read(networkMonitorProvider) {
@@ -49,11 +51,14 @@ class SyncManager {
 
   OfflineOperationQueue get queue => _operationQueue;
 
+  bool get isSyncing => _inFlightSync != null;
+  DateTime? get lastSyncTime => _lastSyncTime;
+
   /// Queues an operation locally if offline, otherwise replays instantly.
   Future<void> queueOperation(OfflineOperation op) async {
     await _operationQueue.addOperation(op);
     // Trigger background sync in the background
-    triggerSync();
+    unawaited(triggerSync());
   }
 
   /// Replays all queued offline operations to Supabase.
@@ -198,11 +203,11 @@ class SyncManager {
             break;
 
           case 'search_add':
-            await client.from('search_history').insert({
+            await client.from('search_history').upsert({
               'user_id': userId,
               'query': payload['query'],
               'timestamp': payload['timestamp'],
-            });
+            }, onConflict: 'user_id,query');
             break;
 
           case 'search_remove':
@@ -225,13 +230,44 @@ class SyncManager {
   }
 
   /// Triggers background offline-first synchronization flow.
-  Future<void> triggerSync() async {
+  ///
+  /// Protects against duplicate concurrent sync requests via an in-flight Future mutex.
+  /// Reuses in-flight synchronization tasks and queues a pending pass if requests arrive during execution.
+  /// Enforces a minimum interval ([minSyncInterval]) between automatic background syncs unless [force] is true.
+  Future<void> triggerSync({bool force = false}) {
+    // 1. In-flight synchronization protection: Reuse active Future directly
+    if (_inFlightSync != null) {
+      _followUpNeeded = true;
+      return _inFlightSync!;
+    }
+
+    // 2. Cooldown / debouncing: Skip non-forced runs within minSyncInterval if queue is empty
+    if (!force && _lastSyncTime != null && DateTime.now().difference(_lastSyncTime!) < minSyncInterval) {
+      if (_operationQueue.getOperations().isEmpty) {
+        return Future.value();
+      }
+    }
+
+    final future = _performSync(force: force);
+    _inFlightSync = future.then((didRun) {
+      if (didRun && _followUpNeeded && _operationQueue.getOperations().isNotEmpty) {
+        _followUpNeeded = false;
+        unawaited(triggerSync());
+      }
+    }).whenComplete(() {
+      _inFlightSync = null;
+    });
+    return _inFlightSync!;
+  }
+
+  Future<bool> _performSync({bool force = false}) async {
     final syncNotifier = _ref.read(syncStateProvider.notifier);
     final authState = _ref.read(authControllerProvider);
     final isOnline = await _networkMonitor.isConnected;
 
     if (!isOnline || !SupabaseConfig.hasActiveSupabase || authState.user == null) {
-      return;
+      _lastSyncTime = DateTime.now();
+      return false;
     }
 
     syncNotifier.setSyncing();
@@ -239,6 +275,17 @@ class SyncManager {
     try {
       final client = Supabase.instance.client;
       final userId = authState.user!.id;
+
+      // Read last sync timestamp for incremental delta sync
+      DateTime? lastSync;
+      Box<dynamic>? prefBox;
+      if (Hive.isBoxOpen(HiveBoxes.preferences)) {
+        prefBox = Hive.box<dynamic>(HiveBoxes.preferences);
+        final lastSyncStr = prefBox.get(PreferenceKeys.lastSyncTimestamp) as String?;
+        if (lastSyncStr != null && !force) {
+          lastSync = DateTime.tryParse(lastSyncStr);
+        }
+      }
 
       // 1. Replay local changes to Cloud
       await replayOfflineQueue();
@@ -280,7 +327,7 @@ class SyncManager {
         );
 
         // Update local profile box synchronously
-        final profileBox = Hive.box(HiveBoxes.profile);
+        final profileBox = Hive.box<dynamic>(HiveBoxes.profile);
         await profileBox.put('active_profile', {
           'displayName': resolved.displayName,
           'username': resolved.username,
@@ -303,13 +350,13 @@ class SyncManager {
         });
 
         // Update profile controller state
-        _ref.read(profileProvider.notifier).updateProfile(
+        unawaited(_ref.read(profileProvider.notifier).updateProfile(
               displayName: resolved.displayName,
               username: resolved.username,
               profilePicturePath: resolved.profilePicturePath,
               favoriteGenre: resolved.favoriteGenre,
               favoriteArtist: resolved.favoriteArtist,
-            );
+            ));
       } else {
         // Upload local profile to Cloud if none exists
         final local = _ref.read(profileProvider);
@@ -337,32 +384,60 @@ class SyncManager {
       }
 
       // B. Favorites Table (liked_songs)
-      final favsRes = await client.from('liked_songs').select().eq('user_id', userId);
-      final List<Track> remoteFavs = (favsRes as List).map((f) {
-        return Track(
-          id: f['track_id'] as String,
-          title: f['title'] as String,
-          artist: f['artist'] as String,
-          imageUrl: f['image_url'] as String? ?? '',
-          duration: '3:00',
-          filePath: f['file_path'] as String?,
-        );
-      }).toList();
-
       final favsBox = Hive.box<TrackHiveModel>(HiveBoxes.favorites);
-      final localFavs = favsBox.values.map((t) => t.toTrack()).toList();
+      if (lastSync != null) {
+        // Delta sync: fetch only newly added/modified records since lastSync
+        final deltaRes = await client
+            .from('liked_songs')
+            .select()
+            .eq('user_id', userId)
+            .gt('liked_at', lastSync.toIso8601String());
 
-      final mergedFavs = ConflictResolver.mergeLists<Track, String>(
-        local: localFavs,
-        remote: remoteFavs,
-        idSelector: (t) => t.id,
-        mergeFn: (l, r) => l, // Keep either
-      );
+        final List<Track> deltaFavs = (deltaRes as List).map((f) {
+          return Track(
+            id: f['track_id'] as String,
+            title: f['title'] as String,
+            artist: f['artist'] as String,
+            imageUrl: f['image_url'] as String? ?? '',
+            duration: '3:00',
+            filePath: f['file_path'] as String?,
+          );
+        }).toList();
 
-      // Save resolved favorites to Hive
-      await favsBox.clear();
-      for (final track in mergedFavs) {
-        await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
+        for (final track in deltaFavs) {
+          await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
+        }
+      } else {
+        // Full sync: download entire catalog and reconcile
+        final favsRes = await client.from('liked_songs').select().eq('user_id', userId);
+        final List<Track> remoteFavs = (favsRes as List).map((f) {
+          return Track(
+            id: f['track_id'] as String,
+            title: f['title'] as String,
+            artist: f['artist'] as String,
+            imageUrl: f['image_url'] as String? ?? '',
+            duration: '3:00',
+            filePath: f['file_path'] as String?,
+          );
+        }).toList();
+
+        final localFavs = favsBox.values.map((t) => t.toTrack()).toList();
+
+        final mergedFavs = ConflictResolver.mergeLists<Track, String>(
+          local: localFavs,
+          remote: remoteFavs,
+          idSelector: (t) => t.id,
+          mergeFn: (l, r) => l, // Keep either
+        );
+
+        // Check auth state before persisting to local Hive to prevent cross-account leaks on sign-out
+        if (_ref.read(authControllerProvider).user?.id != userId) return false;
+
+        // Save resolved favorites to Hive
+        await favsBox.clear();
+        for (final track in mergedFavs) {
+          await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
+        }
       }
 
       // C. Playlists & Playlist Tracks
@@ -427,6 +502,9 @@ class SyncManager {
           );
         },
       );
+
+      // Check auth state before persisting to local Hive to prevent cross-account leaks on sign-out
+      if (_ref.read(authControllerProvider).user?.id != userId) return false;
 
       // Save resolved Playlists to Hive
       await playlistsBox.clear();
@@ -507,7 +585,12 @@ class SyncManager {
       await searchBox.addAll(mergedSearchSet.take(20));
 
       // 3. Mark success
-      syncNotifier.setSuccess(DateTime.now());
+      final now = DateTime.now();
+      _lastSyncTime = now;
+      if (prefBox != null) {
+        await prefBox.put(PreferenceKeys.lastSyncTimestamp, now.toIso8601String());
+      }
+      syncNotifier.setSuccess(now);
 
       // Invalidate UI state providers so list screens redraw instantly
       _ref.invalidate(songsProvider);
@@ -515,10 +598,12 @@ class SyncManager {
       _ref.invalidate(favoritesProvider);
       _ref.invalidate(recentlyPlayedProvider);
       _ref.invalidate(searchHistoryProvider);
+      return true;
 
     } catch (e, st) {
       debugPrint('[SyncManager] Sync failed: $e\n$st');
       syncNotifier.setError(e.toString());
+      return false;
     }
   }
 
@@ -537,7 +622,7 @@ class SyncManager {
     // A. Profile
     final profileRes = await client.from('profiles').select().eq('id', userId).maybeSingle();
     if (profileRes != null) {
-      final profileBox = Hive.box(HiveBoxes.profile);
+      final profileBox = Hive.box<dynamic>(HiveBoxes.profile);
       await profileBox.put('active_profile', {
         'displayName': profileRes['display_name'] as String? ?? 'Miee User',
         'username': profileRes['username'] as String?,
@@ -647,6 +732,13 @@ class SyncManager {
     }
 
     // Invalidate state providers
+    final now = DateTime.now();
+    _lastSyncTime = now;
+    if (Hive.isBoxOpen(HiveBoxes.preferences)) {
+      await Hive.box<dynamic>(HiveBoxes.preferences).put(PreferenceKeys.lastSyncTimestamp, now.toIso8601String());
+    }
+    _ref.read(syncStateProvider.notifier).setSuccess(now);
+
     _ref.invalidate(songsProvider);
     _ref.invalidate(playlistsProvider);
     _ref.invalidate(favoritesProvider);

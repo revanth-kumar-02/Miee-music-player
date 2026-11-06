@@ -199,7 +199,7 @@ class ProfilePage extends ConsumerWidget {
                             ElevatedButton.icon(
                               icon: const Icon(Icons.sync, size: 16),
                               label: const Text('Sync Now'),
-                              onPressed: syncState.status == SyncStatus.syncing ? null : () => syncManager.triggerSync(),
+                              onPressed: syncState.status == SyncStatus.syncing ? null : () => syncManager.triggerSync(force: true),
                             ),
                           ],
                         ),

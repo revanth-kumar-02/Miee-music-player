@@ -54,4 +54,5 @@ abstract class PreferenceKeys {
   static const String mediaNotificationEnabled = 'media_notification_enabled';
   static const String backgroundPlaybackEnabled = 'background_playback_enabled';
   static const String lockScreenControlsEnabled = 'lock_screen_controls_enabled';
+  static const String lastSyncTimestamp = 'last_sync_timestamp';
 }
