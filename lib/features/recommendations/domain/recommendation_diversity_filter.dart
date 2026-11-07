@@ -125,19 +125,17 @@ class RecommendationDiversityFilter {
       }
     }
 
-    // 4. Fallback safe: If diversity constraints excluded too many candidates and selected < limit,
-    // backfill from remaining candidates to prevent empty or underfilled shelves, relaxing
-    // soundtrack grouping first, then artist caps if strictly necessary.
+    // 4. Safe Backfill: If interleave did not yield enough tracks due to pool imbalance,
+    // backfill from remaining candidates while strictly respecting artist and soundtrack caps.
+    // If no remaining candidate satisfies diversity limits, return the diverse subset (fewer tracks)
+    // rather than silently exceeding artist or soundtrack caps.
     if (selected.length < limit) {
       final selectedIds = selected.map((s) => s.track.id).toSet();
       for (final cs in sorted) {
         if (selected.length >= limit) break;
         if (selectedIds.contains(cs.track.id)) continue;
 
-        final normArtist = ArtistNormalizer.normalize(cs.track.artist).toLowerCase().trim();
-        final currentArtistCount = artistCount[normArtist] ?? 0;
-        // Allow up to maxTracksPerArtist + 1 in emergency backfill
-        if (currentArtistCount <= config.maxTracksPerArtist) {
+        if (canAdd(cs)) {
           addCandidate(cs);
           selectedIds.add(cs.track.id);
         }

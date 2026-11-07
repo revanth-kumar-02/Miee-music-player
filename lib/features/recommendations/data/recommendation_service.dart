@@ -509,6 +509,11 @@ class RecommendationService {
     final discoverMore = <MusicItem>[];
     const targetDiscoverCount = 18;
 
+    // REC-01 FIX: Capture exclusions from prior shelves BEFORE collecting discoverMore candidates.
+    // Candidates intended for discoverMore must not exclude themselves from ranking.
+    final priorShelfTrackIds = Set<String>.from(seenTrackIds);
+    final priorShelfTrackKeys = Set<String>.from(seenTrackKeys);
+
     // Helper to evaluate and add candidates with deterministic quality scoring
     void addCandidate(MusicItem track) {
       if (discoverMore.length >= targetDiscoverCount) return;
@@ -582,8 +587,8 @@ class RecommendationService {
       chartRanks: chartRanks,
       recentHistory: history,
       limit: targetDiscoverCount,
-      excludedTrackIds: seenTrackIds,
-      excludedRecordingKeys: seenTrackKeys,
+      excludedTrackIds: priorShelfTrackIds,
+      excludedRecordingKeys: priorShelfTrackKeys,
     );
 
     // Fall back gracefully to original candidates if filtered set is empty

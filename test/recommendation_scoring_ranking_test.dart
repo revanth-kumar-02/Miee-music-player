@@ -632,5 +632,83 @@ void main() {
       expect(ranked.length, equals(1));
       expect(ranked.first.id, equals('t1'));
     });
+
+    test('REC-01 Regression: Discover candidates are not self-excluded by prior shelf exclusion sets', () {
+      final emptyProfile = UserTasteProfile.empty('u1');
+      const priorShelfTrackIds = {'prior_1', 'prior_2'};
+      const priorShelfTrackKeys = {'old song|artist a', 'legacy tune|artist b'};
+
+      const candidates = [
+        Track(id: 'cand_1', title: 'Fresh Song 1', artist: 'Artist X', duration: '3:00', imageUrl: ''),
+        Track(id: 'cand_2', title: 'Fresh Song 2', artist: 'Artist Y', duration: '3:00', imageUrl: ''),
+        Track(id: 'prior_1', title: 'Old Song', artist: 'Artist A', duration: '3:00', imageUrl: ''),
+      ];
+
+      final ranked = ranker.rankCandidates(
+        candidates: candidates,
+        tasteProfile: emptyProfile,
+        preferredLanguages: const [],
+        chartRanks: const {},
+        recentHistory: const [],
+        limit: 5,
+        excludedTrackIds: priorShelfTrackIds,
+        excludedRecordingKeys: priorShelfTrackKeys,
+      );
+
+      // cand_1 and cand_2 must be preserved and ranked; prior_1 must be excluded
+      expect(ranked.length, equals(2));
+      expect(ranked.map((t) => t.id).toSet(), equals({'cand_1', 'cand_2'}));
+    });
+
+    test('Strict Diversity Backfill: Strictly enforces maxTracksPerArtist as hard limit (no +1 leak)', () {
+      final emptyProfile = UserTasteProfile.empty('u1');
+      // 5 songs by Monopolizing Singer, 1 song by Indie Singer
+      const candidates = [
+        Track(id: 'm1', title: 'Track 1', artist: 'Monopolizing Singer', duration: '3:00', imageUrl: ''),
+        Track(id: 'm2', title: 'Track 2', artist: 'Monopolizing Singer', duration: '3:00', imageUrl: ''),
+        Track(id: 'm3', title: 'Track 3', artist: 'Monopolizing Singer', duration: '3:00', imageUrl: ''),
+        Track(id: 'm4', title: 'Track 4', artist: 'Monopolizing Singer', duration: '3:00', imageUrl: ''),
+        Track(id: 'm5', title: 'Track 5', artist: 'Monopolizing Singer', duration: '3:00', imageUrl: ''),
+        Track(id: 'i1', title: 'Track 6', artist: 'Indie Singer', duration: '3:00', imageUrl: ''),
+      ];
+
+      final ranked = ranker.rankCandidates(
+        candidates: candidates,
+        tasteProfile: emptyProfile,
+        preferredLanguages: const [],
+        chartRanks: const {},
+        recentHistory: const [],
+        limit: 5, // Request 5 tracks
+      );
+
+      // Max 2 from Monopolizing Singer + 1 from Indie Singer = 3 total.
+      // Must NOT leak 3 tracks from Monopolizing Singer (maxTracksPerArtist + 1)
+      final monoCount = ranked.where((t) => t.artist == 'Monopolizing Singer').length;
+      expect(monoCount, equals(2));
+      expect(ranked.length, equals(3));
+    });
+
+    test('Strict Diversity Backfill: Soundtrack cap is strictly respected during backfill', () {
+      final emptyProfile = UserTasteProfile.empty('u1');
+      // Multiple songs from same soundtrack by different singers
+      const candidates = [
+        Track(id: 's1', title: 'Song One (From Pushpa)', artist: 'Singer A', duration: '3:00', imageUrl: ''),
+        Track(id: 's2', title: 'Song Two (From Pushpa)', artist: 'Singer B', duration: '3:00', imageUrl: ''),
+        Track(id: 's3', title: 'Song Three (From Pushpa)', artist: 'Singer C', duration: '3:00', imageUrl: ''),
+        Track(id: 'o1', title: 'Other Movie Song (From RRR)', artist: 'Singer D', duration: '3:00', imageUrl: ''),
+      ];
+
+      final ranked = ranker.rankCandidates(
+        candidates: candidates,
+        tasteProfile: emptyProfile,
+        preferredLanguages: const [],
+        chartRanks: const {},
+        recentHistory: const [],
+        limit: 4,
+      );
+
+      final pushpaCount = ranked.where((t) => t.title.toLowerCase().contains('pushpa')).length;
+      expect(pushpaCount, equals(1));
+    });
   });
 }

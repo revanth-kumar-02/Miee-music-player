@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:uuid/uuid.dart';
 
 import '../../features/auth/presentation/auth_controller.dart';
@@ -37,6 +37,11 @@ class SyncManager with WidgetsBindingObserver {
   DateTime? _lastSyncTime;
   static const Duration minSyncInterval = Duration(seconds: 15);
 
+  /// Monotonically increasing sync generation counter. Bumping this generation
+  /// immediately invalidates any active in-flight sync task or queue replay.
+  int _syncGeneration = 0;
+  late final ProviderSubscription<AuthState> _authSubscription;
+
   bool _wasOffline = false;
   Timer? _debounceTimer;
   final Duration reconnectDebounceDuration;
@@ -49,6 +54,19 @@ class SyncManager with WidgetsBindingObserver {
     try {
       WidgetsBinding.instance.addObserver(this);
     } catch (_) {}
+
+    // Track authentication changes to immediately abort in-flight sync passes on sign-out/account switch
+    _authSubscription = _ref.listen<AuthState>(
+      authControllerProvider,
+      (previous, next) {
+        if (previous?.user?.id != next.user?.id) {
+          _syncGeneration++;
+          _followUpNeeded = false;
+          _debounceTimer?.cancel();
+          debugPrint('[SyncManager] Auth changed (${previous?.user?.id} -> ${next.user?.id}). Sync generation bumped to $_syncGeneration');
+        }
+      },
+    );
 
     // Seed initial connectivity state asynchronously
     _networkMonitor.isConnected.then((connected) {
@@ -107,6 +125,18 @@ class SyncManager with WidgetsBindingObserver {
     } catch (_) {}
     _debounceTimer?.cancel();
     _networkSubscription.cancel();
+    _authSubscription.close();
+  }
+
+  /// Current synchronization generation token. Incremented whenever the active user changes.
+  int get syncGeneration => _syncGeneration;
+
+  /// Explicitly cancels any active in-flight sync by invalidating the current sync generation.
+  void cancelInFlightSyncOnAuthChange() {
+    _syncGeneration++;
+    _followUpNeeded = false;
+    _debounceTimer?.cancel();
+    debugPrint('[SyncManager] In-flight sync cancelled for auth change. Generation bumped to $_syncGeneration');
   }
 
   OfflineOperationQueue get queue => _operationQueue;
@@ -213,6 +243,7 @@ class SyncManager with WidgetsBindingObserver {
 
   /// Internal queue replay implementation executed under the synchronization mutex.
   Future<void> _replayQueueInternal() async {
+    final syncGen = _syncGeneration;
     final authState = _ref.read(authControllerProvider);
     final isOnline = await _networkMonitor.isConnected;
 
@@ -228,6 +259,13 @@ class SyncManager with WidgetsBindingObserver {
     final Set<String> failedPlaylistCreations = {};
 
     for (final op in operations) {
+      // In-flight account-switch & generation check: abort immediately if identity changed
+      final currentAuth = _ref.read(authControllerProvider);
+      if (_syncGeneration != syncGen || currentAuth.user == null || currentAuth.user!.id != currentUserId) {
+        debugPrint('[SyncManager] Aborting in-flight queue replay: user changed or signed out ($currentUserId -> ${currentAuth.user?.id})');
+        return;
+      }
+
       // 1. Account Isolation Validation
       if (op.userId != null && op.userId != currentUserId) {
         debugPrint('[SyncManager] Skipping operation ${op.id} belonging to user ${op.userId} while authenticated as $currentUserId');
@@ -459,6 +497,13 @@ class SyncManager with WidgetsBindingObserver {
             break;
         }
 
+        // Verify session validity before committing removal of replayed operation
+        final commitAuth = _ref.read(authControllerProvider);
+        if (_syncGeneration != syncGen || commitAuth.user == null || commitAuth.user!.id != currentUserId) {
+          debugPrint('[SyncManager] In-flight replay aborted before commit: session invalidated.');
+          return;
+        }
+
         // Remove successfully replayed operation
         await _operationQueue.removeOperation(op.id);
       } catch (e) {
@@ -537,6 +582,7 @@ class SyncManager with WidgetsBindingObserver {
   }
 
   Future<bool> _performSync({bool force = false}) async {
+    final syncGen = _syncGeneration;
     final syncNotifier = _ref.read(syncStateProvider.notifier);
     final authState = _ref.read(authControllerProvider);
     final isOnline = await _networkMonitor.isConnected;
@@ -546,11 +592,17 @@ class SyncManager with WidgetsBindingObserver {
       return false;
     }
 
+    final userId = authState.user!.id;
+
+    bool isSessionValid() {
+      final currentAuth = _ref.read(authControllerProvider);
+      return _syncGeneration == syncGen && currentAuth.user != null && currentAuth.user!.id == userId;
+    }
+
     syncNotifier.setSyncing();
 
     try {
       final client = Supabase.instance.client;
-      final userId = authState.user!.id;
 
       // Read last sync timestamp for incremental delta sync
       DateTime? lastSync;
@@ -564,7 +616,9 @@ class SyncManager with WidgetsBindingObserver {
       }
 
       // 1. Replay local changes to Cloud
+      if (!isSessionValid()) return false;
       await _replayQueueInternal();
+      if (!isSessionValid()) return false;
 
       // Collect pending and dead-letter local deletions to prevent remote resurrection.
       // Strict account isolation: only deletions explicitly owned by the current authenticated
@@ -623,6 +677,7 @@ class SyncManager with WidgetsBindingObserver {
         );
 
         // Update local profile box synchronously
+        if (!isSessionValid()) return false;
         final profileBox = Hive.box<dynamic>(HiveBoxes.profile);
         await profileBox.put('active_profile', {
           'displayName': resolved.displayName,
@@ -700,7 +755,9 @@ class SyncManager with WidgetsBindingObserver {
           );
         }).where((t) => !pendingDeletedFavIds.contains(t.id)).toList();
 
+        if (!isSessionValid()) return false;
         for (final track in deltaFavs) {
+          if (!isSessionValid()) return false;
           await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
         }
       } else {
@@ -727,11 +784,12 @@ class SyncManager with WidgetsBindingObserver {
         );
 
         // Check auth state before persisting to local Hive to prevent cross-account leaks on sign-out
-        if (_ref.read(authControllerProvider).user?.id != userId) return false;
+        if (!isSessionValid()) return false;
 
         // Save resolved favorites to Hive
         await favsBox.clear();
         for (final track in mergedFavs) {
+          if (!isSessionValid()) return false;
           await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
         }
       }
@@ -802,11 +860,12 @@ class SyncManager with WidgetsBindingObserver {
       );
 
       // Check auth state before persisting to local Hive to prevent cross-account leaks on sign-out
-      if (_ref.read(authControllerProvider).user?.id != userId) return false;
+      if (!isSessionValid()) return false;
 
       // Save resolved Playlists to Hive
       await playlistsBox.clear();
       for (final p in mergedPlaylists) {
+        if (!isSessionValid()) return false;
         await playlistsBox.put(p.id, p);
       }
 
@@ -837,10 +896,12 @@ class SyncManager with WidgetsBindingObserver {
       )..sort((a, b) => b.playedAt.compareTo(a.playedAt));
 
       // Save resolved history
+      if (!isSessionValid()) return false;
       await historyBox.clear();
       // Keep up to 100 entries to optimize list sizes
       final truncatedHistory = mergedHistory.take(100).toList();
       for (int i = 0; i < truncatedHistory.length; i++) {
+        if (!isSessionValid()) return false;
         await historyBox.put(i, truncatedHistory[i]);
       }
 
@@ -867,8 +928,10 @@ class SyncManager with WidgetsBindingObserver {
         }
       });
 
+      if (!isSessionValid()) return false;
       await mostPlayedBox.clear();
       for (final entry in resolvedMostPlayed.entries) {
+        if (!isSessionValid()) return false;
         await mostPlayedBox.put(entry.key, entry.value);
       }
 
@@ -879,10 +942,12 @@ class SyncManager with WidgetsBindingObserver {
       final List<String> remoteSearch = (searchRes as List).map((s) => s['query'] as String).toList();
 
       final Set<String> mergedSearchSet = {...localSearch, ...remoteSearch};
+      if (!isSessionValid()) return false;
       await searchBox.clear();
       await searchBox.addAll(mergedSearchSet.take(20));
 
       // 3. Mark success
+      if (!isSessionValid()) return false;
       final now = DateTime.now();
       _lastSyncTime = now;
       if (prefBox != null) {
@@ -914,6 +979,7 @@ class SyncManager with WidgetsBindingObserver {
   }
 
   Future<void> _performDownloadAllRemoteData() async {
+    final syncGen = _syncGeneration;
     final authState = _ref.read(authControllerProvider);
     final isOnline = await _networkMonitor.isConnected;
 
@@ -923,6 +989,11 @@ class SyncManager with WidgetsBindingObserver {
 
     final client = Supabase.instance.client;
     final userId = authState.user!.id;
+
+    bool isSessionValid() {
+      final currentAuth = _ref.read(authControllerProvider);
+      return _syncGeneration == syncGen && currentAuth.user != null && currentAuth.user!.id == userId;
+    }
 
     // Collect pending and dead-letter local deletions so restoring remote data
     // does not resurrect items deleted locally.
@@ -946,6 +1017,7 @@ class SyncManager with WidgetsBindingObserver {
     // A. Profile
     final profileRes = await client.from('profiles').select().eq('id', userId).maybeSingle();
     if (profileRes != null) {
+      if (!isSessionValid()) return;
       final profileBox = Hive.box<dynamic>(HiveBoxes.profile);
       await profileBox.put('active_profile', {
         'displayName': profileRes['display_name'] as String? ?? 'Miee User',
@@ -972,9 +1044,11 @@ class SyncManager with WidgetsBindingObserver {
 
     // B. Favorites (liked_songs)
     final favsRes = await client.from('liked_songs').select().eq('user_id', userId);
+    if (!isSessionValid()) return;
     final favsBox = Hive.box<TrackHiveModel>(HiveBoxes.favorites);
     await favsBox.clear();
     for (final f in favsRes as List) {
+      if (!isSessionValid()) return;
       final trackId = f['track_id'] as String;
       if (pendingDeletedFavIds.contains(trackId)) continue;
       final track = Track(
@@ -995,9 +1069,11 @@ class SyncManager with WidgetsBindingObserver {
         .select()
         .eq('user_id', userId)
         .order('position', ascending: true);
+    if (!isSessionValid()) return;
     final playlistsBox = Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
     await playlistsBox.clear();
     for (final p in playlistsRes as List) {
+      if (!isSessionValid()) return;
       final pId = p['id'] as String;
       if (pendingDeletedPlaylistIds.contains(pId)) continue;
       final songs = (playlistTracksRes as List)
@@ -1024,9 +1100,11 @@ class SyncManager with WidgetsBindingObserver {
 
     // D. History
     final historyRes = await client.from('history').select().eq('user_id', userId).order('played_at', ascending: false).limit(100);
+    if (!isSessionValid()) return;
     final historyBox = Hive.box<HistoryEntry>(HiveBoxes.recentlyPlayed);
     await historyBox.clear();
     for (int i = 0; i < (historyRes as List).length; i++) {
+      if (!isSessionValid()) return;
       final h = historyRes[i];
       final entry = HistoryEntry(
         track: TrackHiveModel(
@@ -1044,21 +1122,26 @@ class SyncManager with WidgetsBindingObserver {
 
     // E. Most Played
     final mostPlayedRes = await client.from('most_played').select().eq('user_id', userId);
+    if (!isSessionValid()) return;
     final mostPlayedBox = Hive.box<int>(HiveBoxes.mostPlayed);
     await mostPlayedBox.clear();
     for (final m in mostPlayedRes as List) {
+      if (!isSessionValid()) return;
       await mostPlayedBox.put(m['track_id'] as String, m['count'] as int);
     }
 
     // F. Search History
     final searchRes = await client.from('search_history').select().eq('user_id', userId).order('timestamp', ascending: false).limit(20);
+    if (!isSessionValid()) return;
     final searchBox = Hive.box<String>(HiveBoxes.searchHistory);
     await searchBox.clear();
     for (final s in searchRes as List) {
+      if (!isSessionValid()) return;
       await searchBox.add(s['query'] as String);
     }
 
     // Invalidate state providers
+    if (!isSessionValid()) return;
     final now = DateTime.now();
     _lastSyncTime = now;
     if (Hive.isBoxOpen(HiveBoxes.preferences)) {

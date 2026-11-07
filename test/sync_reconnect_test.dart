@@ -519,5 +519,64 @@ void main() {
       expect(pendingDeletedPlaylistIds.contains('pl_user_b'), isFalse);
       expect(pendingDeletedPlaylistIds.contains('pl_legacy'), isFalse);
     });
+
+    test('Scenario 12: In-flight sign-out or account switch bumps sync generation and invalidates in-flight execution', () async {
+      final monitor = TestNetworkMonitor(initialConnected: true);
+      addTearDown(monitor.dispose);
+
+      late TestAuthController testAuth;
+      final container = ProviderContainer(
+        overrides: [
+          networkMonitorProvider.overrideWithValue(monitor),
+          authControllerProvider.overrideWith((ref) {
+            testAuth = TestAuthController(ref, initialState: AuthState(user: createTestUser('user_alpha')));
+            return testAuth;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final syncManager = container.read(spySyncManagerProvider(null));
+      final initialGen = syncManager.syncGeneration;
+
+      // Switch user to User Beta
+      testAuth.setUser(createTestUser('user_beta'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(syncManager.syncGeneration, greaterThan(initialGen));
+
+      // Sign out
+      final nextGen = syncManager.syncGeneration;
+      testAuth.signOutManually();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(syncManager.syncGeneration, greaterThan(nextGen));
+    });
+
+    test('Scenario 13: Unassigned legacy operations are never reassigned to User B and remain quarantined', () async {
+      final queue = OfflineOperationQueue(Hive.box<dynamic>(HiveBoxes.offlineQueue));
+
+      // Add unassigned legacy operation
+      await queue.addOperation(OfflineOperation(
+        id: 'legacy_op_99',
+        type: 'favorite_add',
+        payload: {'id': 'legacy_song'},
+        timestamp: DateTime.now(),
+        userId: null,
+      ));
+
+      expect(queue.getOperations().length, 1);
+      expect(queue.getOperations().first.userId, isNull);
+
+      // Quarantine legacy operation as SyncManager does
+      await queue.quarantineOperation('legacy_op_99', reason: 'Unassigned/legacy operation without user ownership');
+
+      // Verify it is in dead-letter, NOT active operations
+      expect(queue.getOperations(), isEmpty);
+      final deadLetter = queue.getDeadLetterOperations();
+      expect(deadLetter.length, 1);
+      expect(deadLetter.first.id, 'legacy_op_99');
+      expect(deadLetter.first.userId, isNull);
+    });
   });
 }
