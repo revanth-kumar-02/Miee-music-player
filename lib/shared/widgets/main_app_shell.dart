@@ -1,7 +1,5 @@
 import '../../features/music_drop/presentation/widgets/incoming_drop_banner.dart';
 import '../../features/notifications/presentation/widgets/notification_sheet.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,7 +19,9 @@ import '../../features/profile/presentation/profile_controller.dart';
 import '../../features/profile/providers/profile_providers.dart';
 import '../../features/library/providers/library_providers.dart';
 import '../../features/search/providers/search_providers.dart';
+import '../../features/artwork/presentation/miee_artwork_image.dart';
 import '../../shared/models/track.dart';
+import '../../shared/models/music_item.dart';
 import '../../shared/widgets/widgets.dart';
 import '../providers/web_navigation_provider.dart';
 
@@ -142,8 +142,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         uriPath.startsWith('/queue/');
 
     // Detail screens where mobile bottom nav is hidden
-    final hideBottomNav = (isNowPlayingRoute ||
-        isQueueRoute ||
+    final hideBottomNav = (isQueueRoute ||
         location == '/' ||
         location.startsWith('/playlist/') ||
         location.startsWith('/album/') ||
@@ -189,6 +188,16 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                 bottom: 0,
                 child: BottomNavigation(
                   currentIndex: _getNavIndex(location),
+                  isPlaying: ref.watch(playerControllerProvider
+                      .select((s) => s.status == pb.PlaybackStatus.playing)),
+                  onCenterPlayTap: () {
+                    final playbackState = ref.read(playerControllerProvider);
+                    if (playbackState.currentTrack == null) {
+                      context.go('/player');
+                    } else {
+                      ref.read(playerControllerProvider.notifier).togglePlayPause();
+                    }
+                  },
                   onTap: (index) => _handleNavigation(context, index),
                 ),
               ),
@@ -1374,8 +1383,8 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
   int _getNavIndex(String location) {
     if (location == '/home') return 0;
     if (location == '/search') return 1;
-    if (location == '/playlists' || location.startsWith('/playlist/')) return 2;
-    if (location == '/settings') return 3;
+    if (location == '/playlists' || location.startsWith('/playlist/')) return 3;
+    if (location == '/player') return 4;
     return 0;
   }
 
@@ -1388,10 +1397,19 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         context.go('/search');
         break;
       case 2:
-        context.go('/playlists');
+        // Center button fallback
+        final playbackState = ref.read(playerControllerProvider);
+        if (playbackState.currentTrack == null) {
+          context.go('/player');
+        } else {
+          ref.read(playerControllerProvider.notifier).togglePlayPause();
+        }
         break;
       case 3:
-        context.go('/settings');
+        context.go('/playlists');
+        break;
+      case 4:
+        context.go('/player');
         break;
     }
   }
@@ -1459,36 +1477,13 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
     );
   }
 
-  Widget _buildArtwork(String rawUrl) {
-    if (rawUrl.isEmpty) {
-      return _buildArtworkPlaceholder();
-    }
-    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-      return Image.network(
-        rawUrl,
-        fit: BoxFit.cover,
-        cacheWidth: 400,
-        cacheHeight: 400,
-        errorBuilder: (_, __, ___) => _buildArtworkPlaceholder(),
-      );
-    }
-    if (kIsWeb) {
-      return _buildArtworkPlaceholder();
-    }
-    try {
-      final normalizedPath = rawUrl.startsWith('file://')
-          ? Uri.parse(rawUrl).toFilePath()
-          : rawUrl;
-      return Image.file(
-        File(normalizedPath),
-        fit: BoxFit.cover,
-        cacheWidth: 400,
-        cacheHeight: 400,
-        errorBuilder: (_, __, ___) => _buildArtworkPlaceholder(),
-      );
-    } catch (_) {
-      return _buildArtworkPlaceholder();
-    }
+  Widget _buildArtwork(String rawUrl, [MusicItem? item]) {
+    return MieeArtworkImage(
+      musicItem: item,
+      explicitUrl: rawUrl,
+      fit: BoxFit.cover,
+      errorWidget: _buildArtworkPlaceholder(),
+    );
   }
 
   @override
@@ -1582,7 +1577,7 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: _buildArtwork(track.imageUrl),
+                          child: _buildArtwork(track.imageUrl, track),
                         ),
                       ),
                       Positioned(
@@ -1876,7 +1871,7 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                               width: 36,
                               height: 36,
                               color: MieeWebColors.surfaceContainerHigh,
-                              child: _buildArtwork(qItem.imageUrl),
+                              child: _buildArtwork(qItem.imageUrl, qItem),
                             ),
                           ),
                           const SizedBox(width: 10),

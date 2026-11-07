@@ -26,6 +26,7 @@ import '../../media/providers/media_providers.dart';
 import '../../connect/presentation/connect_sheet.dart';
 import '../../connect/providers/connect_providers.dart';
 import '../../notifications/presentation/widgets/notification_sheet.dart';
+import '../../artwork/presentation/miee_artwork_image.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B) on Mobile
@@ -143,81 +144,50 @@ class PlayerPage extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.cocoaPlum,
+      backgroundColor: AppColors.chalkWhite,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
+            constraints: const BoxConstraints(maxWidth: 440),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-              // ── 1. Top Header Bar ──
+              // ── 1. Top Header Bar (Reference Screen 4) ──
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
                     icon: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 28,
-                      color: AppColors.vanillaCream,
+                      Icons.chevron_left_rounded,
+                      size: 32,
+                      color: AppColors.denseObsidian,
                     ),
                     onPressed: () => context.pop(),
-                  ),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'PLAYING FROM',
-                          style: GoogleFonts.geist(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            color: AppColors.softClay.withValues(alpha: 0.7),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          playingFrom ?? 'Now Playing',
-                          style: GoogleFonts.geist(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.vanillaCream,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
                   ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: const Icon(
-                          Icons.speaker_rounded,
-                          size: 24,
-                          color: AppColors.vanillaCream,
+                          Icons.cast_rounded,
+                          size: 22,
+                          color: AppColors.denseObsidian,
                         ),
-                        tooltip: 'Audio Output & Device',
+                        tooltip: 'Cast Audio',
                         onPressed: () => NotificationSheet.show(context),
                       ),
                       IconButton(
-                        icon: Icon(
-                          activeRoom != null ? Icons.groups_rounded : Icons.groups_outlined,
-                          size: 26,
-                          color: activeRoom != null ? AppColors.dustyRose : AppColors.vanillaCream,
+                        icon: const Icon(
+                          Icons.more_vert_rounded,
+                          size: 22,
+                          color: AppColors.denseObsidian,
                         ),
-                        tooltip: activeRoom != null ? 'Active Room (${activeRoom.joinCode})' : 'Listen Together',
-                        onPressed: () {
-                          if (activeRoom != null) {
-                            context.push('/rooms/active');
-                          } else {
-                            context.push('/rooms');
-                          }
-                        },
+                        tooltip: 'More Options',
+                        onPressed: hasTrack
+                            ? () => showAddToPlaylistSheet(context, currentTrack)
+                            : null,
                       ),
                     ],
                   ),
@@ -226,7 +196,7 @@ class PlayerPage extends ConsumerWidget {
 
               const Spacer(flex: 1),
 
-              // ── 2. Prominent Square Album Artwork ──
+              // ── 2. Prominent Square Album Artwork (Reference Screen 4) ──
               Center(
                 child: ConstrainedBox(
                   constraints:
@@ -235,19 +205,19 @@ class PlayerPage extends ConsumerWidget {
                     aspectRatio: 1.0,
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
+                            color: AppColors.denseObsidian.withValues(alpha: 0.12),
+                            blurRadius: 28,
+                            offset: const Offset(0, 10),
                           ),
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(28),
                         child: hasTrack
-                            ? _buildArtworkImage(currentTrack.imageUrl)
+                            ? _buildArtworkImage(currentTrack.imageUrl, currentTrack)
                             : _buildFallbackArtwork(),
                       ),
                     ),
@@ -257,20 +227,51 @@ class PlayerPage extends ConsumerWidget {
 
               const Spacer(flex: 1),
 
-              // ── 3. Title & Artist + Like and Overflow Buttons ──
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: IconButton(
+              // ── 3. Title & Artist Left, Heart Action Right (Reference Screen 4) ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            hasTrack ? currentTrack.title : 'Blue Hour',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.geist(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.denseObsidian,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasTrack
+                                ? currentTrack.artist
+                                : 'Lauv',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.geist(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.industrialSteel,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
                       icon: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        size: 24,
+                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        size: 26,
                         color: isLiked
-                            ? AppColors.dustyRose
-                            : AppColors.vanillaCream,
+                            ? AppColors.electricCobalt
+                            : AppColors.denseObsidian,
                       ),
                       onPressed: hasTrack
                           ? () {
@@ -280,71 +281,24 @@ class PlayerPage extends ConsumerWidget {
                                 favNotifier.removeFavorite(currentTrack.id);
                               } else {
                                 favNotifier.addFavorite(
-                                Track(
-                                  id: currentTrack.id,
-                                  title: currentTrack.title,
-                                  artist: currentTrack.artist,
-                                  imageUrl: currentTrack.imageUrl,
-                                  duration: currentTrack.duration,
-                                  filePath: currentTrack.filePath,
-                                ),
-                              );
+                                  Track(
+                                    id: currentTrack.id,
+                                    title: currentTrack.title,
+                                    artist: currentTrack.artist,
+                                    imageUrl: currentTrack.imageUrl,
+                                    duration: currentTrack.duration,
+                                    filePath: currentTrack.filePath,
+                                  ),
+                                );
                               }
                             }
                           : null,
                     ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            hasTrack ? currentTrack.title : 'No track selected',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.vanillaCream,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hasTrack
-                                ? currentTrack.artist
-                                : 'Select a song to play',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.geist(
-                              fontSize: 14,
-                              color: AppColors.softClay.withValues(alpha: 0.85),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.more_horiz,
-                        size: 24,
-                        color: AppColors.vanillaCream,
-                      ),
-                      onPressed: hasTrack
-                          ? () => showAddToPlaylistSheet(context, currentTrack)
-                          : null,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+
+              const SizedBox(height: 14),
 
               if (isRemoteConnectActive) ...[
                 GestureDetector(
@@ -352,16 +306,16 @@ class PlayerPage extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1DB954).withValues(alpha: 0.15),
+                      color: AppColors.electricCobalt.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.4)),
+                      border: Border.all(color: AppColors.electricCobalt.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
                           Icons.speaker_group_rounded,
-                          color: Color(0xFF1DB954),
+                          color: AppColors.electricCobalt,
                           size: 14,
                         ),
                         const SizedBox(width: 8),
@@ -370,7 +324,7 @@ class PlayerPage extends ConsumerWidget {
                           style: GoogleFonts.geist(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF1DB954),
+                            color: AppColors.electricCobalt,
                           ),
                         ),
                       ],
@@ -389,172 +343,89 @@ class PlayerPage extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // ── 5. Playback Controls Row ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.shuffle_rounded),
-                    iconSize: 22,
-                    color: isShuffleEnabled
-                        ? AppColors.dustyRose
-                        : AppColors.vanillaCream.withValues(alpha: 0.6),
-                    onPressed: () => controller.toggleShuffle(),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous_rounded),
-                    iconSize: 32,
-                    color: AppColors.vanillaCream,
-                    onPressed: () => controller.previous(),
-                  ),
+              // ── 5. Playback Controls Row (Reference Screen 4) ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shuffle_rounded),
+                      iconSize: 22,
+                      color: isShuffleEnabled
+                          ? AppColors.electricCobalt
+                          : AppColors.industrialSteel,
+                      onPressed: () => controller.toggleShuffle(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.skip_previous_rounded),
+                      iconSize: 34,
+                      color: AppColors.denseObsidian,
+                      onPressed: () => controller.previous(),
+                    ),
 
-                  // Large Circular Dusty Rose Play Button
-                  Material(
-                    color: AppColors.dustyRose,
-                    shape: const CircleBorder(),
-                    elevation: 4,
-                    shadowColor: AppColors.dustyRose.withValues(alpha: 0.5),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: isLoading
-                          ? null
-                          : () {
-                              if (isPlaying) {
-                                controller.pause();
-                              } else {
-                                controller.play();
-                              }
-                            },
-                      child: Container(
-                        width: 58,
-                        height: 58,
-                        alignment: Alignment.center,
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.6,
-                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                    // Large Circular Electric Cobalt Play Button
+                    Material(
+                      color: AppColors.electricCobalt,
+                      shape: const CircleBorder(),
+                      elevation: 4,
+                      shadowColor: AppColors.electricCobalt.withValues(alpha: 0.38),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: isLoading
+                            ? null
+                            : () {
+                                if (isPlaying) {
+                                  controller.pause();
+                                } else {
+                                  controller.play();
+                                }
+                              },
+                        child: Container(
+                          width: 64,
+                          height: 64,
+                          alignment: Alignment.center,
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.6,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Icon(
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  size: 36,
+                                  color: Colors.white,
                                 ),
-                              )
-                            : Icon(
-                                isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                size: 34,
-                                color: AppColors.white,
-                              ),
+                        ),
                       ),
                     ),
-                  ),
 
-                  IconButton(
-                    icon: const Icon(Icons.skip_next_rounded),
-                    iconSize: 32,
-                    color: AppColors.vanillaCream,
-                    onPressed: () => controller.next(),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.repeat_rounded),
-                    iconSize: 22,
-                    color: repeatMode != RepeatMode.off
-                        ? AppColors.dustyRose
-                        : AppColors.vanillaCream.withValues(alpha: 0.6),
-                    onPressed: () => controller.toggleRepeatMode(),
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.skip_next_rounded),
+                      iconSize: 34,
+                      color: AppColors.denseObsidian,
+                      onPressed: () => controller.next(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.repeat_rounded),
+                      iconSize: 22,
+                      color: repeatMode != RepeatMode.off
+                          ? AppColors.electricCobalt
+                          : AppColors.industrialSteel,
+                      onPressed: () => controller.toggleRepeatMode(),
+                    ),
+                  ],
+                ),
               ),
 
               const Spacer(flex: 1),
-
-              // ── 6. Bottom Actions: Lyrics & Queue ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  InkWell(
-                    onTap: hasTrack
-                        ? () {
-                            showModalBottomSheet<void>(
-                              context: context,
-                              isScrollControlled: true,
-                              useRootNavigator: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (ctx) => FractionallySizedBox(
-                                heightFactor: 0.92,
-                                child: LyricsOverlay(
-                                  track: currentTrack,
-                                  onClose: () => Navigator.of(ctx).pop(),
-                                ),
-                              ),
-                            );
-                          }
-                        : null,
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.lyrics_outlined,
-                            size: 16,
-                            color: AppColors.vanillaCream,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Lyrics',
-                            style: GoogleFonts.geist(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.vanillaCream,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  InkWell(
-                    onTap: () => context.push('/queue'),
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.queue_music_rounded,
-                            size: 16,
-                            color: AppColors.vanillaCream,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Queue',
-                            style: GoogleFonts.geist(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.vanillaCream,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
+              const SizedBox(height: 72),
             ],
           ),
         ),
@@ -799,7 +670,7 @@ class PlayerPage extends ConsumerWidget {
                                     borderRadius: BorderRadius.circular(isCompactHeight ? 16 : 20),
                                     child: SizedBox.expand(
                                       child: hasTrack
-                                          ? _buildArtworkImage(currentTrack.imageUrl)
+                                          ? _buildArtworkImage(currentTrack.imageUrl, currentTrack)
                                           : _buildFallbackArtwork(),
                                     ),
                                   ),
@@ -1332,7 +1203,7 @@ class PlayerPage extends ConsumerWidget {
                           child: SizedBox(
                             width: isCompact ? 36 : 40,
                             height: isCompact ? 36 : 40,
-                            child: _buildArtworkImage(track.imageUrl),
+                            child: _buildArtworkImage(track.imageUrl, track),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1724,38 +1595,14 @@ class PlayerPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildArtworkImage(String? rawUrl) {
-    if (rawUrl == null || rawUrl.trim().isEmpty) {
-      return _buildFallbackArtwork();
-    }
-    final cleanUrl = rawUrl.trim();
-    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-      return Image.network(
-        cleanUrl,
-        fit: BoxFit.cover,
-        cacheWidth: 300,
-        cacheHeight: 300,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackArtwork(),
-      );
-    }
-    if (kIsWeb) {
-      return _buildFallbackArtwork();
-    }
-    try {
-      final normalizedPath = cleanUrl.startsWith('file://')
-          ? Uri.parse(cleanUrl).toFilePath()
-          : cleanUrl;
-      final file = File(normalizedPath);
-      return Image.file(
-        file,
-        fit: BoxFit.cover,
-        cacheWidth: 300,
-        cacheHeight: 300,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackArtwork(),
-      );
-    } catch (_) {
-      return _buildFallbackArtwork();
-    }
+  Widget _buildArtworkImage(String? rawUrl, [MusicItem? item]) {
+    return MieeArtworkImage(
+      musicItem: item,
+      explicitUrl: rawUrl,
+      fit: BoxFit.cover,
+      borderRadius: BorderRadius.circular(28),
+      errorWidget: _buildFallbackArtwork(),
+    );
   }
 }
 
@@ -1796,10 +1643,12 @@ class _WaveformProgressSection extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             WaveformWidget(
+              height: 32.0,
+              barCount: 32,
               isPlaying: isPlaying,
               activeProgress: progress,
-              activeColor: AppColors.dustyRose,
-              inactiveColor: AppColors.white.withValues(alpha: 0.2),
+              activeColor: AppColors.electricCobalt,
+              inactiveColor: AppColors.paleConcrete,
               onScrub: (val) {
                 if (hasTrack && duration.inMilliseconds > 0) {
                   final seekPos = Duration(
@@ -1814,21 +1663,21 @@ class _WaveformProgressSection extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  hasTrack ? _formatDuration(position) : '0:00',
+                  hasTrack ? _formatDuration(position) : '1:24',
                   style: GoogleFonts.geist(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.vanillaCream.withValues(alpha: 0.65),
+                    color: AppColors.industrialSteel,
                   ),
                 ),
                 Text(
                   hasTrack && duration.inMilliseconds > 0
                       ? _formatDuration(duration)
-                      : '--:--',
+                      : '3:56',
                   style: GoogleFonts.geist(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.vanillaCream.withValues(alpha: 0.65),
+                    color: AppColors.industrialSteel,
                   ),
                 ),
               ],

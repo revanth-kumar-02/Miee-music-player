@@ -37,6 +37,9 @@ abstract class HiveBoxes {
 
   /// Stores persistent daily mix snapshots keyed by user id.
   static const String dailyMixes = 'miee_daily_mixes';
+
+  /// Stores cached resolved artwork metadata keyed by normalized query key.
+  static const String artworkCache = 'miee_artwork_cache';
 }
 
 /// Typed keys for the [HiveBoxes.preferences] box.

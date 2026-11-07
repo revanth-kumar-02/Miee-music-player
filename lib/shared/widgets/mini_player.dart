@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_radius.dart';
 import '../../app/theme/app_shadows.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
+import '../../features/artwork/presentation/miee_artwork_image.dart';
 import '../models/music_item.dart';
 
 /// Reusable persistent floating Mini Player bar.
@@ -129,58 +129,13 @@ class MiniPlayer extends StatelessWidget {
               child: Row(
                 children: [
                   // Cover Artwork Thumbnail
-                  ClipRRect(
+                  MieeArtworkImage(
+                    musicItem: musicItem,
+                    explicitUrl: imageUrl,
+                    width: 48.0,
+                    height: 48.0,
                     borderRadius: BorderRadius.circular(8.0),
-                    child: imageUrl.startsWith('http')
-                        ? Image.network(
-                            imageUrl,
-                            width: 48.0,
-                            height: 48.0,
-                            fit: BoxFit.cover,
-                            cacheWidth: 120,
-                            cacheHeight: 120,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              width: 48.0,
-                              height: 48.0,
-                              color: AppColors.surfaceContainerHigh,
-                              child: const Icon(
-                                Icons.music_note,
-                                color: AppColors.onSurfaceVariant,
-                                size: 20.0,
-                              ),
-                            ),
-                          )
-                        : imageUrl.isNotEmpty
-                            ? Image.file(
-                                File(imageUrl.startsWith('file://')
-                                    ? Uri.parse(imageUrl).toFilePath()
-                                    : imageUrl),
-                                width: 48.0,
-                                height: 48.0,
-                                fit: BoxFit.cover,
-                                cacheWidth: 120,
-                                cacheHeight: 120,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  width: 48.0,
-                                  height: 48.0,
-                                  color: AppColors.surfaceContainerHigh,
-                                  child: const Icon(
-                                    Icons.music_note,
-                                    color: AppColors.onSurfaceVariant,
-                                    size: 20.0,
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                width: 48.0,
-                                height: 48.0,
-                                color: AppColors.surfaceContainerHigh,
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: AppColors.onSurfaceVariant,
-                                  size: 20.0,
-                                ),
-                              ),
+                    fit: BoxFit.cover,
                   ),
                   AppSpacing.widthMd,
                   // Track Metadata Stack

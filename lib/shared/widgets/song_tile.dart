@@ -1,9 +1,11 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_typography.dart';
+import '../../features/artwork/domain/artwork_query.dart';
+import '../../features/artwork/presentation/miee_artwork_image.dart';
+import '../models/music_item.dart';
 
 /// Reusable Song/Track Tile widget.
 /// Renders as a list tile with options for numbering, artwork, options menus,
@@ -11,6 +13,9 @@ import '../../app/theme/app_typography.dart';
 class SongTile extends StatelessWidget {
   /// Optional image URL for cover thumbnail.
   final String? imageUrl;
+
+  /// Optional original [MusicItem] model for artwork resolution.
+  final MusicItem? musicItem;
 
   /// Title of the track.
   final String title;
@@ -59,6 +64,7 @@ class SongTile extends StatelessWidget {
     required this.artist,
     required this.duration,
     this.imageUrl,
+    this.musicItem,
     this.index,
     this.isPlaying = false,
     this.isActive,
@@ -74,61 +80,31 @@ class SongTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveImageUrl = imageUrl;
-    final isLocalFile = effectiveImageUrl != null &&
-        effectiveImageUrl.isNotEmpty &&
-        !effectiveImageUrl.startsWith('http://') &&
-        !effectiveImageUrl.startsWith('https://');
-
-    final normalizedPath = isLocalFile && effectiveImageUrl.startsWith('file://')
-        ? effectiveImageUrl.substring(7)
-        : effectiveImageUrl;
-
     final isCurrent = isActive ?? isPlaying;
 
     Widget leadingWidget;
-    if (normalizedPath != null && normalizedPath.isNotEmpty) {
+    if ((effectiveImageUrl != null && effectiveImageUrl.isNotEmpty) || musicItem != null) {
+      final artworkQuery = ArtworkQuery(
+        id: '${artist}_$title',
+        title: title,
+        artist: artist,
+        fallbackThumbnailUrl: effectiveImageUrl,
+      );
+
       leadingWidget = ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            !isLocalFile && effectiveImageUrl != null
-                ? Image.network(
-                    effectiveImageUrl,
-                    width: 48.0,
-                    height: 48.0,
-                    fit: BoxFit.cover,
-                    cacheWidth: 120,
-                    cacheHeight: 120,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 48.0,
-                      height: 48.0,
-                      color: AppColors.surfaceContainerHigh,
-                      child: const Icon(
-                        Icons.music_note,
-                        color: AppColors.onSurfaceVariant,
-                        size: 20.0,
-                      ),
-                    ),
-                  )
-                : Image.file(
-                    File(normalizedPath),
-                    width: 48.0,
-                    height: 48.0,
-                    fit: BoxFit.cover,
-                    cacheWidth: 120,
-                    cacheHeight: 120,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 48.0,
-                      height: 48.0,
-                      color: AppColors.surfaceContainerHigh,
-                      child: const Icon(
-                        Icons.music_note,
-                        color: AppColors.onSurfaceVariant,
-                        size: 20.0,
-                      ),
-                    ),
-                  ),
+            MieeArtworkImage(
+              musicItem: musicItem,
+              query: artworkQuery,
+              explicitUrl: effectiveImageUrl,
+              width: 48.0,
+              height: 48.0,
+              borderRadius: BorderRadius.circular(8.0),
+              fit: BoxFit.cover,
+            ),
             if (isLoading)
               Container(
                 width: 48.0,

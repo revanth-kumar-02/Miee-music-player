@@ -1,75 +1,144 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
-import '../../app/theme/app_radius.dart';
-import '../../app/theme/app_shadows.dart';
-import '../../app/theme/app_spacing.dart';
-import '../../app/theme/app_typography.dart';
 
-/// Reusable Bottom Navigation Bar.
-/// Features a custom glass-like blur backing, top corner rounding, and active dot indicators.
+/// Recreated Nordic Cobalt Floating Bottom Navigation Dock.
+///
+/// Exactly reproduces the reference design across all 4 screens:
+/// 1. Home
+/// 2. Search
+/// 3. Central elevated circular Electric Cobalt Play/Pause button
+/// 4. Library (/playlists)
+/// 5. Now Playing / Equalizer (/player)
 class BottomNavigation extends StatelessWidget {
-  /// The index of the currently selected tab.
+  /// The index of the currently selected tab:
+  /// 0 = Home, 1 = Search, 3 = Library, 4 = Now Playing
   final int currentIndex;
 
   /// Callback when a tab is tapped.
   final ValueChanged<int> onTap;
 
+  /// Callback when the central elevated play button is tapped.
+  final VoidCallback? onCenterPlayTap;
+
+  /// Whether audio is actively playing (controls play vs pause icon on the center button).
+  final bool isPlaying;
+
   const BottomNavigation({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.onCenterPlayTap,
+    this.isPlaying = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    
-    return ClipRRect(
-      borderRadius: AppRadius.radiusNavTop,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
-        child: Container(
-          height: 80.0 + bottomPadding,
-          padding: EdgeInsets.only(
-            left: AppSpacing.md,
-            right: AppSpacing.md,
-            bottom: bottomPadding,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.background.withOpacity(0.9),
-            borderRadius: AppRadius.radiusNavTop,
-            boxShadow: AppShadows.shadowLow,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                index: 0,
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home,
-                label: 'Home',
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20.0,
+        right: 20.0,
+        bottom: bottomPadding > 0 ? bottomPadding : 14.0,
+      ),
+      child: SizedBox(
+        height: 64.0,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            // ── Floating Dock Container ──────────────────────────────────
+            Container(
+              height: 56.0,
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(28.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.denseObsidian.withValues(alpha: 0.08),
+                    blurRadius: 20.0,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+                border: Border.all(
+                  color: AppColors.paleConcrete.withValues(alpha: 0.8),
+                  width: 1.0,
+                ),
               ),
-              _buildNavItem(
-                index: 1,
-                icon: Icons.search_outlined,
-                activeIcon: Icons.search,
-                label: 'Search',
+              child: Row(
+                children: [
+                  // Tab 0: Home
+                  Expanded(
+                    child: _buildNavItem(
+                      index: 0,
+                      icon: Icons.home_rounded,
+                      isActive: currentIndex == 0,
+                    ),
+                  ),
+
+                  // Tab 1: Search
+                  Expanded(
+                    child: _buildNavItem(
+                      index: 1,
+                      icon: Icons.search_rounded,
+                      isActive: currentIndex == 1,
+                    ),
+                  ),
+
+                  // Spacer for center elevated button
+                  const SizedBox(width: 58.0),
+
+                  // Tab 3: Library
+                  Expanded(
+                    child: _buildNavItem(
+                      index: 3,
+                      icon: Icons.queue_music_rounded,
+                      isActive: currentIndex == 3,
+                    ),
+                  ),
+
+                  // Tab 4: Now Playing / Equalizer
+                  Expanded(
+                    child: _buildNavItem(
+                      index: 4,
+                      icon: Icons.equalizer_rounded,
+                      isActive: currentIndex == 4,
+                    ),
+                  ),
+                ],
               ),
-              _buildNavItem(
-                index: 2,
-                icon: Icons.queue_music_outlined,
-                activeIcon: Icons.queue_music,
-                label: 'Playlists',
+            ),
+
+            // ── Center Elevated Circular Cobalt Play/Pause Button ─────────
+            Positioned(
+              top: -6.0,
+              child: GestureDetector(
+                onTap: onCenterPlayTap ?? () => onTap(2),
+                child: Container(
+                  width: 52.0,
+                  height: 52.0,
+                  decoration: BoxDecoration(
+                    color: AppColors.electricCobalt,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.electricCobalt.withValues(alpha: 0.35),
+                        blurRadius: 12.0,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      color: AppColors.white,
+                      size: 28.0,
+                    ),
+                  ),
+                ),
               ),
-              _buildNavItem(
-                index: 3,
-                icon: Icons.settings_outlined,
-                activeIcon: Icons.settings,
-                label: 'Settings',
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -78,55 +147,16 @@ class BottomNavigation extends StatelessWidget {
   Widget _buildNavItem({
     required int index,
     required IconData icon,
-    required IconData activeIcon,
-    required String label,
+    required bool isActive,
   }) {
-    final isActive = currentIndex == index;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTap(index),
-        behavior: HitTestBehavior.opaque,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Active Indicator Dot (aligned at the top of the nav item)
-            if (isActive)
-              Positioned(
-                top: AppSpacing.xs,
-                child: Container(
-                  width: 6.0,
-                  height: 6.0,
-                  decoration: const BoxDecoration(
-                    color: AppColors.onSurface,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            // Nav Item Content
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isActive ? activeIcon : icon,
-                    color: isActive ? AppColors.primary : AppColors.onSurfaceVariant,
-                    size: 24.0,
-                  ),
-                  AppSpacing.heightXs,
-                  Text(
-                    label,
-                    style: AppTypography.labelSmall.copyWith(
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                      color: isActive ? AppColors.primary : AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    return GestureDetector(
+      onTap: () => onTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: Icon(
+          icon,
+          size: 24.0,
+          color: isActive ? AppColors.electricCobalt : AppColors.industrialSteel,
         ),
       ),
     );

@@ -17,6 +17,7 @@ import '../providers/playlist_providers.dart';
 import 'widgets/create_playlist_dialog.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../wrapped/providers/wrapped_providers.dart';
+import '../../artwork/presentation/miee_artwork_image.dart';
 
 /// Recreated "Your Library" screen matching the reference design:
 /// - Cocoa Plum sidebar + Vanilla Cream canvas
@@ -221,17 +222,27 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
       appBar: isDesktop
           ? null
           : MieeBrandHeader(
-              title: 'Playlists',
+              title: 'Library',
               actions: [
                 IconButton(
                   icon: const Icon(
-                    Icons.search_rounded,
-                    color: AppColors.cocoaPlum,
+                    Icons.add_rounded,
+                    color: AppColors.denseObsidian,
+                    size: 26,
+                  ),
+                  splashRadius: 20,
+                  tooltip: 'Create Playlist',
+                  onPressed: () => showCreatePlaylistDialog(context),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.settings_outlined,
+                    color: AppColors.denseObsidian,
                     size: 22,
                   ),
                   splashRadius: 20,
-                  tooltip: 'Search',
-                  onPressed: () => context.go('/search'),
+                  tooltip: 'Settings',
+                  onPressed: () => context.push('/settings'),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -245,6 +256,97 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (!isDesktop) ...[
+              // ── MOBILE: REFERENCE SCREEN 3 CATEGORIES LIST ──
+              _buildCategoryTile(
+                icon: Icons.favorite_border_rounded,
+                title: 'Liked Songs',
+                subtitle: '${favorites.length} songs',
+                onTap: () => context.push('/liked-songs'),
+              ),
+              const SizedBox(height: 10),
+              _buildCategoryTile(
+                icon: Icons.file_download_outlined,
+                title: 'Downloads',
+                subtitle: '${localSongs.length} songs',
+                onTap: () => context.push('/local-songs'),
+              ),
+              const SizedBox(height: 10),
+              _buildCategoryTile(
+                icon: Icons.queue_music_rounded,
+                title: 'Playlists',
+                subtitle: '${playlists.length} playlists',
+                onTap: () {
+                  setState(() => _selectedFilter = 'Playlists');
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildCategoryTile(
+                icon: Icons.album_outlined,
+                title: 'Albums',
+                subtitle: '${localAlbums.length} albums',
+                onTap: () {
+                  setState(() => _selectedFilter = 'Albums');
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildCategoryTile(
+                icon: Icons.person_outline_rounded,
+                title: 'Artists',
+                subtitle: '${localArtists.length} artists',
+                onTap: () {
+                  setState(() => _selectedFilter = 'Artists');
+                },
+              ),
+
+              const SizedBox(height: 28),
+
+              // ── RECENTLY ADDED SECTION ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Recently Added',
+                    style: GoogleFonts.geist(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.denseObsidian,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedFilter = 'Playlists');
+                    },
+                    child: Row(
+                      children: [
+                        Text(
+                          'See All',
+                          style: GoogleFonts.geist(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.industrialSteel,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: AppColors.industrialSteel,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Horizontal row of recently added square artwork cards
+              _buildRecentlyAddedRow(context, playlists, localAlbums),
+
+              const SizedBox(height: 32),
+            ],
+
             // ── Top Controls Row ──
             if (isDesktop)
               Row(
@@ -367,6 +469,217 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
             const SizedBox(height: 100),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.paleConcrete,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.electricCobalt,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.geist(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.denseObsidian,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.geist(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.industrialSteel,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: AppColors.industrialSteel,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentlyAddedRow(
+    BuildContext context,
+    List<PlaylistModel> playlists,
+    List<MediaAlbum> localAlbums,
+  ) {
+    final items = <({String title, String? image, VoidCallback onTap})>[];
+
+    for (final p in playlists.take(4)) {
+      items.add((
+        title: p.name,
+        image: p.customCoverPath,
+        onTap: () => context.push('/playlist/${p.id}'),
+      ));
+    }
+
+    if (items.length < 4) {
+      for (final a in localAlbums.take(4 - items.length)) {
+        items.add((
+          title: a.title,
+          image: a.artworkPath,
+          onTap: () => context.push('/album/${a.id}', extra: a),
+        ));
+      }
+    }
+
+    // Fallback items if library is empty
+    if (items.isEmpty) {
+      items.addAll([
+        (
+          title: 'Deep House',
+          image: 'assets/images/banner_discover.png',
+          onTap: () => context.push('/liked-songs'),
+        ),
+        (
+          title: 'Nordic Echoes',
+          image: 'assets/images/banner_your_music.png',
+          onTap: () => context.push('/liked-songs'),
+        ),
+        (
+          title: 'Blue Horizon',
+          image: 'assets/images/banner_listen_together.png',
+          onTap: () => context.push('/liked-songs'),
+        ),
+      ]);
+    }
+
+    return SizedBox(
+      height: 104,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return GestureDetector(
+            onTap: item.onTap,
+            child: Container(
+              width: 104,
+              height: 104,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: AppColors.paleConcrete,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.denseObsidian.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (item.image != null && item.image!.isNotEmpty)
+                      (item.image!.startsWith('http')
+                          ? Image.network(
+                              item.image!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(Icons.album_rounded,
+                                    color: AppColors.industrialSteel),
+                              ),
+                            )
+                          : (item.image!.startsWith('assets/')
+                              ? Image.asset(
+                                  item.image!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Center(
+                                    child: Icon(Icons.album_rounded,
+                                        color: AppColors.industrialSteel),
+                                  ),
+                                )
+                              : Image.file(
+                                  File(item.image!.startsWith('file://')
+                                      ? Uri.parse(item.image!).toFilePath()
+                                      : item.image!),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Center(
+                                    child: Icon(Icons.album_rounded,
+                                        color: AppColors.industrialSteel),
+                                  ),
+                                )))
+                    else
+                      const Center(
+                        child: Icon(Icons.album_rounded,
+                            color: AppColors.industrialSteel, size: 32),
+                      ),
+                    // Gradient overlay with title
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.5),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      right: 8,
+                      child: Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -527,26 +840,14 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (hasImage)
-              imageUrl.startsWith('http')
-                  ? Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      cacheWidth: 300,
-                      cacheHeight: 300,
-                      errorBuilder: (_, __, ___) => _buildFallbackCover(),
-                    )
-                  : Image.file(
-                      File(imageUrl.startsWith('file://')
-                          ? Uri.parse(imageUrl).toFilePath()
-                          : imageUrl),
-                      fit: BoxFit.cover,
-                      cacheWidth: 300,
-                      cacheHeight: 300,
-                      errorBuilder: (_, __, ___) => _buildFallbackCover(),
-                    )
-            else
-              _buildFallbackCover(),
+            MieeArtworkImage(
+              explicitUrl: imageUrl,
+              fit: BoxFit.cover,
+              width: 146,
+              height: 180,
+              borderRadius: BorderRadius.circular(16),
+              errorWidget: _buildFallbackCover(),
+            ),
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),

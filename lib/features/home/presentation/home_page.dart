@@ -16,6 +16,7 @@ import '../../media/providers/media_providers.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../shared/widgets/waveform_widget.dart';
 import '../../recommendations/providers/recommendation_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
 import '../../playlists/domain/playlist_model.dart';
@@ -27,6 +28,7 @@ import '../../wrapped/presentation/widgets/wrapped_home_banner.dart';
 import '../../wrapped/providers/wrapped_providers.dart';
 import 'widgets/artist_rotation_section.dart';
 import 'widgets/daily_mixes_section.dart';
+import '../../artwork/presentation/miee_artwork_image.dart';
 
 /// Recreated Miee Home Screen matching the reference design:
 /// - Vanilla Cream primary canvas
@@ -110,10 +112,32 @@ class _HomePageState extends ConsumerState<HomePage> {
 
             const SizedBox(height: 24),
 
-            // ── 1.5 Listen Together Banner ──────────────────────────────────
+            // ── 2. Continue Listening Shelf (Reference Screen 1) ───────────
+            _buildContinueListeningShelf(
+              context: context,
+              continueTrack: continueTrack,
+              continueQueue: continueQueue,
+              recentlyPlayedTracks: recentlyPlayedTracks,
+              recsAsync: recsAsync,
+              localSongs: localSongs,
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── 3. Daily Mixes Section (Vinyl Record Motif) ─────────────────
+            const DailyMixesSection(),
+
+            const SizedBox(height: 32),
+
+            // ── 4. "Made for you" Section ───────────────────────────────────
+            _buildMadeForYouSection(context, playlists, favorites, recsAsync.valueOrNull),
+
+            const SizedBox(height: 28),
+
+            // ── 4.5 Listen Together Banner ──────────────────────────────────
             _buildListenTogetherBanner(context),
 
-            // ── 1.8 Miee Wrapped Banner (Hidden until user's account is >= 1 year old) ──
+            // ── 4.8 Miee Wrapped Banner (Hidden until user's account is >= 1 year old) ──
             if (ref.watch(wrappedEligibilityProvider).isEligible) ...[
               const SizedBox(height: 16),
               const WrappedHomeBanner(),
@@ -121,17 +145,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
             const SizedBox(height: 32),
 
-            // ── 2. "Made for you" Section ───────────────────────────────────
-            _buildMadeForYouSection(context, playlists, favorites, recsAsync.valueOrNull),
-
-            const SizedBox(height: 36),
-
-            // ── 2.5 Daily Mixes Section ─────────────────────────────────────
-            const DailyMixesSection(),
-
-            const SizedBox(height: 36),
-
-            // ── 3. Personalized Cloud Recommendations ───────────────────────
+            // ── 5. Personalized Cloud Recommendations ───────────────────────
             recsAsync.when(
               data: (sections) => _buildPersonalizedShelves(
                 context,
@@ -173,17 +187,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
 
-            // ── 4. Continue Listening (Recent History / Local Fallback) ───────
-            if (continueTrack != null) ...[
-              _buildSectionTitle('Continue Listening'),
-              const SizedBox(height: 14),
-              _buildContinueListeningCard(
-                context: context,
-                recentSong: continueTrack,
-                resolvedQueue: continueQueue,
-              ),
-              const SizedBox(height: 32),
-            ],
 
             // ── 5. Local Music Spotlight (if present) ───────────────────────
             if (localSongs.isNotEmpty) ...[
@@ -398,320 +401,483 @@ class _HomePageState extends ConsumerState<HomePage> {
     AsyncValue<RecommendationSections> recsAsync,
     List<MediaSong> localSongs,
   ) {
-    const slideTitles = [
-      'Music for\na calmer you.',
-      'Discover sound\nwithout noise.',
-      'Your sanctuary\nof rhythm.',
-    ];
-    const slideSubtitles = [
-      'A little more feeling in every note.',
-      'Handcrafted discovery tailored to your artists.',
-      'Every playlist, track, and moment in harmony.',
-    ];
-
-    final currentTitle = slideTitles[_heroSlideIndex % slideTitles.length];
-    final currentSubtitle =
-        slideSubtitles[_heroSlideIndex % slideSubtitles.length];
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
-        final height = constraints.maxWidth > 800
-            ? 250.0
-            : (isNarrow ? 230.0 : 220.0);
 
-        return GestureDetector(
-          onTap: () => _handleBannerTap(_heroSlideIndex),
-          onHorizontalDragEnd: (details) {
-            if (details.primaryVelocity != null) {
-              if (details.primaryVelocity! < -100) {
-                // Swiped left -> next slide
-                setState(() {
-                  _heroSlideIndex = (_heroSlideIndex + 1) % 3;
-                });
-              } else if (details.primaryVelocity! > 100) {
-                // Swiped right -> prev slide
-                setState(() {
-                  _heroSlideIndex = (_heroSlideIndex - 1 + 3) % 3;
-                });
-              }
-            }
-          },
-          child: Container(
-            width: double.infinity,
-            height: height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: const Color(0xFFEADFD2),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.cocoaPlum.withOpacity(0.06),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFF7EFE6),
-                  Color(0xFFEDE0D2),
-                  Color(0xFFDFCBC0),
-                ],
-              ),
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: isNarrow ? 20 : 28,
+            vertical: isNarrow ? 22 : 26,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.paleConcrete.withValues(alpha: 0.7),
+              width: 1.0,
             ),
-            child: Stack(
-              children: [
-                // Right-Side Artwork Area (Clean illustration blended into banner background)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: isNarrow
-                      ? constraints.maxWidth * 0.44
-                      : (constraints.maxWidth > 800 ? 340.0 : 250.0),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(20),
-                    ),
-                    child: ShaderMask(
-                      shaderCallback: (bounds) {
-                        return const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            Colors.transparent,
-                            Colors.white,
-                          ],
-                          stops: [0.0, 0.22],
-                        ).createShader(bounds);
-                      },
-                      blendMode: BlendMode.dstIn,
-                      child: _buildBannerArtwork(_heroSlideIndex, isNarrow),
-                    ),
-                  ),
-                ),
-
-                // Subtle gradient overlay from left preserving headline readability
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          const Color(0xFFF8F1E8).withOpacity(0.94),
-                          const Color(0xFFF8F1E8).withOpacity(0.70),
-                          Colors.transparent,
-                        ],
-                        stops: isNarrow
-                            ? const [0.0, 0.55, 0.88]
-                            : const [0.0, 0.45, 0.78],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Content on Left (Text and Play Now button unchanged)
-                Positioned(
-                  left: isNarrow ? 20 : 28,
-                  top: isNarrow ? 18 : 24,
-                  bottom: isNarrow ? 18 : 24,
-                  right: isNarrow
-                      ? constraints.maxWidth * 0.38
-                      : (constraints.maxWidth > 800 ? 330.0 : 240.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.denseObsidian.withValues(alpha: 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Left: Asymmetrical Headline with "focus." in Electric Cobalt
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RichText(
+                      text: TextSpan(
                         children: [
-                          Text(
-                            greeting,
+                          TextSpan(
+                            text: 'Music for\n',
                             style: GoogleFonts.geist(
-                              fontSize: isNarrow ? 10 : 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 2.0,
-                              color: AppColors.cocoaPlum.withOpacity(0.75),
+                              fontSize: isNarrow ? 26 : 30,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.6,
+                              height: 1.15,
+                              color: AppColors.denseObsidian,
                             ),
                           ),
-                          SizedBox(height: isNarrow ? 4 : 6),
-                          Text(
-                            currentTitle,
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: height > 230 && !isNarrow
-                                  ? 34
-                                  : (isNarrow ? 24 : 28),
-                              fontWeight: FontWeight.bold,
-                              height: 1.12,
-                              color: AppColors.cocoaPlum,
+                          TextSpan(
+                            text: 'your ',
+                            style: GoogleFonts.geist(
+                              fontSize: isNarrow ? 26 : 30,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.6,
+                              height: 1.15,
+                              color: AppColors.denseObsidian,
                             ),
                           ),
-                          if (!isNarrow) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              currentSubtitle,
-                              style: GoogleFonts.geist(
-                                fontSize: 13,
-                                color: AppColors.mutedMauve,
-                              ),
+                          TextSpan(
+                            text: 'focus.',
+                            style: GoogleFonts.geist(
+                              fontSize: isNarrow ? 26 : 30,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.6,
+                              height: 1.15,
+                              color: AppColors.electricCobalt,
                             ),
-                          ],
+                          ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
 
-                      // "Play now" Button
-                      Material(
-                        color: AppColors.dustyRose,
-                        borderRadius: BorderRadius.circular(20),
-                        elevation: 1,
-                        child: InkWell(
-                          onTap: () {
-                            recsAsync.whenData((sections) {
-                              final targetTrack = sections.featuredTrack ??
-                                  sections.popularTracks.firstOrNull ??
-                                  sections.fromYourArtists.firstOrNull ??
-                                  sections.discoverMore.firstOrNull;
-                              final queue = sections.popularTracks.isNotEmpty
-                                  ? sections.popularTracks
-                                  : (sections.fromYourArtists.isNotEmpty
-                                      ? sections.fromYourArtists
-                                      : sections.discoverMore);
+              const SizedBox(width: 16),
 
-                              if (targetTrack != null) {
-                                ref
-                                    .read(playerControllerProvider.notifier)
-                                    .selectTrack(
-                                      targetTrack,
-                                      queue,
-                                      playingFrom: 'Featured Music',
-                                    );
-                              } else if (localSongs.isNotEmpty) {
-                                ref
-                                    .read(playerControllerProvider.notifier)
-                                    .selectTrack(
-                                      localSongs.first,
-                                      localSongs,
-                                      playingFrom: 'Local Music',
-                                    );
-                              } else {
-                                context.go('/search');
-                              }
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.play_arrow_rounded,
-                                  size: 18,
-                                  color: AppColors.white,
+              // Right: Rounded artwork tile with overlapping circular Electric Cobalt play button
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: isNarrow ? 110 : 124,
+                    height: isNarrow ? 110 : 124,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF2563EB),
+                          Color(0xFF1D4ED8),
+                          Color(0xFF0F172A),
+                        ],
+                      ),
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: Image.asset(
+                              'assets/images/banner_discover.png',
+                              fit: BoxFit.cover,
+                              alignment: Alignment.center,
+                              errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(
+                                  Icons.headphones_rounded,
+                                  size: 52,
+                                  color: Colors.white70,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Play now',
-                                  style: GoogleFonts.geist(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Carousel Controls on Bottom Right
-                Positioned(
-                  right: isNarrow ? 16 : 24,
-                  bottom: isNarrow ? 16 : 20,
-                  child: Row(
-                    children: [
-                      // Dot indicators
-                      Row(
-                        children: List.generate(3, (index) {
-                          final isActive = index == _heroSlideIndex;
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _heroSlideIndex = index;
-                              });
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              width: isActive ? 18 : 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? AppColors.white
-                                    : AppColors.white.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(3),
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(22),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.35),
+                                ],
                               ),
                             ),
-                          );
-                        }),
-                      ),
-                      SizedBox(width: isNarrow ? 8 : 14),
-
-                      // Previous (<)
-                      _buildCircleArrowButton(
-                        icon: Icons.chevron_left_rounded,
-                        onTap: () {
-                          setState(() {
-                            _heroSlideIndex = (_heroSlideIndex - 1 + 3) % 3;
-                          });
-                        },
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Next (>)
-                      _buildCircleArrowButton(
-                        icon: Icons.chevron_right_rounded,
-                        onTap: () {
-                          setState(() {
-                            _heroSlideIndex = (_heroSlideIndex + 1) % 3;
-                          });
-                        },
-                      ),
-                    ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+
+                  // Floating circular Electric Cobalt play button overlapping bottom-left
+                  Positioned(
+                    left: -12,
+                    bottom: -12,
+                    child: Material(
+                      color: AppColors.electricCobalt,
+                      shape: const CircleBorder(),
+                      elevation: 4,
+                      shadowColor: AppColors.electricCobalt.withValues(alpha: 0.4),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () {
+                          recsAsync.whenData((sections) {
+                            final targetTrack = sections.featuredTrack ??
+                                sections.popularTracks.firstOrNull ??
+                                sections.fromYourArtists.firstOrNull ??
+                                sections.discoverMore.firstOrNull;
+                            final queue = sections.popularTracks.isNotEmpty
+                                ? sections.popularTracks
+                                : (sections.fromYourArtists.isNotEmpty
+                                    ? sections.fromYourArtists
+                                    : sections.discoverMore);
+
+                            if (targetTrack != null) {
+                              ref
+                                  .read(playerControllerProvider.notifier)
+                                  .selectTrack(
+                                    targetTrack,
+                                    queue,
+                                    playingFrom: 'Featured Music',
+                                  );
+                            } else if (localSongs.isNotEmpty) {
+                              ref
+                                  .read(playerControllerProvider.notifier)
+                                  .selectTrack(
+                                    localSongs.first,
+                                    localSongs,
+                                    playingFrom: 'Local Music',
+                                  );
+                            } else {
+                              context.go('/search');
+                            }
+                          });
+                        },
+                        child: const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            size: 26,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildCircleArrowButton({
-    required IconData icon,
-    required VoidCallback onTap,
+  // ── CONTINUE LISTENING SHELF (Reference Screen 1) ─────────────────────────
+
+  Widget _buildContinueListeningShelf({
+    required BuildContext context,
+    required MusicItem? continueTrack,
+    required List<MusicItem> continueQueue,
+    required List<Track> recentlyPlayedTracks,
+    required AsyncValue<RecommendationSections> recsAsync,
+    required List<MediaSong> localSongs,
   }) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.white.withOpacity(0.85),
-      ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 20, color: AppColors.cocoaPlum),
-        onPressed: onTap,
-      ),
+    final currentPlayingTrack =
+        ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final isPlaying = ref.watch(playerControllerProvider
+        .select((s) => s.status == PlaybackStatus.playing));
+    final position =
+        ref.watch(playerControllerProvider.select((s) => s.position));
+    final duration =
+        ref.watch(playerControllerProvider.select((s) => s.duration));
+
+    // Resolve featured active song for the Cobalt Card
+    final featuredSong = continueTrack ??
+        (recentlyPlayedTracks.isNotEmpty ? recentlyPlayedTracks.first : null) ??
+        (localSongs.isNotEmpty ? localSongs.first : null) ??
+        recsAsync.valueOrNull?.popularTracks.firstOrNull ??
+        recsAsync.valueOrNull?.featuredTrack;
+
+    final isThisTrackPlaying = isPlaying &&
+        currentPlayingTrack != null &&
+        featuredSong != null &&
+        isSameTrackId(currentPlayingTrack.id, featuredSong.id);
+
+    final activeProgress = (duration.inMilliseconds > 0 && isThisTrackPlaying)
+        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        : (featuredSong != null ? 0.35 : 0.0);
+
+    // Candidates for adjacent cards
+    final adjacentCandidates = <MusicItem>[];
+    for (final t in recentlyPlayedTracks) {
+      if (featuredSong != null && isSameTrackId(t.id, featuredSong.id)) continue;
+      adjacentCandidates.add(t);
+    }
+    if (adjacentCandidates.length < 3 && recsAsync.valueOrNull != null) {
+      for (final t in recsAsync.valueOrNull!.popularTracks) {
+        if (adjacentCandidates.length >= 4) break;
+        if (featuredSong != null && isSameTrackId(t.id, featuredSong.id)) continue;
+        if (!adjacentCandidates.any((c) => isSameTrackId(c.id, t.id))) {
+          adjacentCandidates.add(t);
+        }
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              'Continue Listening',
+              style: GoogleFonts.geist(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.denseObsidian,
+                letterSpacing: -0.3,
+              ),
+            ),
+            GestureDetector(
+              onTap: () => context.go('/search'),
+              child: Row(
+                children: [
+                  Text(
+                    'See All',
+                    style: GoogleFonts.geist(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.industrialSteel,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: AppColors.industrialSteel,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Horizontal Shelf
+        SizedBox(
+          height: 88,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            children: [
+              // 1. Featured Active Electric Cobalt Card with Live Mini Waveform
+              if (featuredSong != null)
+                GestureDetector(
+                  onTap: () {
+                    if (isThisTrackPlaying) {
+                      ref.read(playerControllerProvider.notifier).pause();
+                    } else if (currentPlayingTrack != null &&
+                        isSameTrackId(currentPlayingTrack.id, featuredSong.id)) {
+                      ref.read(playerControllerProvider.notifier).play();
+                    } else {
+                      ref.read(playerControllerProvider.notifier).selectTrack(
+                            featuredSong,
+                            continueQueue.isNotEmpty
+                                ? continueQueue
+                                : [featuredSong, ...adjacentCandidates],
+                            playingFrom: 'Continue Listening',
+                          );
+                    }
+                  },
+                  child: Container(
+                    width: 178,
+                    height: 88,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.electricCobalt,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.electricCobalt.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Row with Play button & Song/Artist
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isThisTrackPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                color: AppColors.electricCobalt,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    featuredSong.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.geist(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    featuredSong.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.geist(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Live Mini Waveform
+                        WaveformWidget(
+                          height: 16,
+                          barCount: 22,
+                          isPlaying: isThisTrackPlaying,
+                          activeProgress: activeProgress,
+                          activeColor: Colors.white,
+                          inactiveColor: Colors.white.withValues(alpha: 0.35),
+                          onScrub: (val) {
+                            if (duration.inMilliseconds > 0 && isThisTrackPlaying) {
+                              ref.read(playerControllerProvider.notifier).seek(
+                                Duration(milliseconds: (val * duration.inMilliseconds).round()),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // 2. Adjacent Track Tiles
+              for (final track in adjacentCandidates) ...[
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    ref.read(playerControllerProvider.notifier).selectTrack(
+                          track,
+                          [track, ...adjacentCandidates],
+                          playingFrom: 'Continue Listening',
+                        );
+                  },
+                  child: Container(
+                    width: 84,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: AppColors.paleConcrete,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          MieeArtworkImage(
+                            musicItem: track,
+                            explicitUrl: track.imageUrl,
+                            width: 84,
+                            height: 88,
+                            borderRadius: BorderRadius.circular(16),
+                            fit: BoxFit.cover,
+                          ),
+                          // Subtle gradient sheen
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.45),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 6,
+                            left: 6,
+                            right: 6,
+                            child: Text(
+                              track.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.geist(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 

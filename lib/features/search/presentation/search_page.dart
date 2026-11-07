@@ -23,6 +23,7 @@ import '../../library/providers/library_providers.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
 import '../../onboarding/domain/artist_model.dart';
+import '../../artwork/presentation/miee_artwork_image.dart';
 
 /// Recreated Miee Search Screen matching the reference design:
 /// - Cocoa Plum sidebar + Vanilla Cream canvas
@@ -392,35 +393,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       color: AppColors.softClay,
                     ),
                     child: (imageUrl != null && imageUrl.isNotEmpty)
-                        ? (imageUrl.startsWith('http')
-                            ? Image.network(
-                                imageUrl,
-                                fit: BoxFit.cover,
-                                cacheWidth: 150,
-                                cacheHeight: 150,
-                                errorBuilder: (_, __, ___) => Center(
-                                  child: Icon(
-                                    isSong ? Icons.music_note_rounded : Icons.person_rounded,
-                                    color: AppColors.cocoaPlum,
-                                    size: 32,
-                                  ),
-                                ),
-                              )
-                            : Image.file(
-                                File(imageUrl.startsWith('file://')
-                                    ? Uri.parse(imageUrl).toFilePath()
-                                    : imageUrl),
-                                fit: BoxFit.cover,
-                                cacheWidth: 150,
-                                cacheHeight: 150,
-                                errorBuilder: (_, __, ___) => Center(
-                                  child: Icon(
-                                    isSong ? Icons.music_note_rounded : Icons.person_rounded,
-                                    color: AppColors.cocoaPlum,
-                                    size: 32,
-                                  ),
-                                ),
-                              ))
+                        ? MieeArtworkImage(
+                            explicitUrl: imageUrl,
+                            width: 72,
+                            height: 72,
+                            borderRadius: BorderRadius.circular(isSong ? 12 : 36),
+                            fit: BoxFit.cover,
+                            errorWidget: Center(
+                              child: Icon(
+                                isSong ? Icons.music_note_rounded : Icons.person_rounded,
+                                color: AppColors.cocoaPlum,
+                                size: 32,
+                              ),
+                            ),
+                          )
                         : Center(
                             child: Text(
                               name.isNotEmpty ? name[0].toUpperCase() : 'M',
@@ -492,7 +478,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  // ── DEFAULT EXPLORE VIEW (Matches Reference Composition) ───────────────────
+  // ── DEFAULT EXPLORE VIEW (Matches Reference Screen 2) ─────────────────────
 
   Widget _buildDefaultExploreView(
     List<MediaArtist> localArtists,
@@ -501,235 +487,261 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     List<Track> favorites,
     RecommendationSections? recs,
   ) {
-    final activeTrackId = ref.watch(playerControllerProvider.select((s) =>
-        s.status == PlaybackStatus.playing ? s.currentTrack?.id : null));
-
-    // Determine songs to display
-    final List<dynamic> songsToDisplay = localSongs.isNotEmpty
-        ? localSongs.take(5).toList()
-        : (recs != null && recs.fromYourArtists.isNotEmpty
-            ? recs.fromYourArtists.take(5).toList()
-            : favorites.take(5).toList());
+    const popularSearches = [
+      (
+        title: 'Lo-fi Beats',
+        asset: 'assets/images/banner_discover.png',
+        query: 'Lo-fi Beats chill study'
+      ),
+      (
+        title: 'Focus Mix',
+        asset: 'assets/images/banner_your_music.png',
+        query: 'Deep focus ambient instrumental'
+      ),
+      (
+        title: 'Anime OST',
+        asset: 'assets/images/banner_listen_together.png',
+        query: 'Anime soundtrack orchestral'
+      ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Discovery Landing Banner
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.cocoaPlum,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: AppColors.dustyRose,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.explore_rounded,
-                  color: AppColors.white,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Discover Music',
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.vanillaCream,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Type in the search bar above to stream songs or search artists.',
-                      style: GoogleFonts.geist(
-                        fontSize: 12.5,
-                        color: AppColors.softClay,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        // ── 1. Browse 2x2 Grid ──
+        Text(
+          'Browse',
+          style: GoogleFonts.geist(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.denseObsidian,
+            letterSpacing: -0.3,
           ),
         ),
+        const SizedBox(height: 12),
+
+        // 2x2 Grid
+        Row(
+          children: [
+            // Charts (Electric Cobalt)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _applyHistoryQuery('Top Global Charts'),
+                child: Container(
+                  height: 76,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.electricCobalt,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.electricCobalt.withValues(alpha: 0.28),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Charts',
+                        style: GoogleFonts.geist(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.bar_chart_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // New Releases (Pale Concrete)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _applyHistoryQuery('New Releases 2026'),
+                child: Container(
+                  height: 76,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.paleConcrete,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'New\nReleases',
+                        style: GoogleFonts.geist(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                          color: AppColors.denseObsidian,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.history_toggle_off_rounded,
+                        color: AppColors.electricCobalt,
+                        size: 24,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        Row(
+          children: [
+            // Genres (Pale Concrete)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _applyHistoryQuery('Acoustic Pop Indie'),
+                child: Container(
+                  height: 76,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.paleConcrete,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Genres',
+                        style: GoogleFonts.geist(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.denseObsidian,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.local_offer_outlined,
+                        color: AppColors.electricCobalt,
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Moods (Pale Concrete)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _applyHistoryQuery('Chill Relaxing Calm'),
+                child: Container(
+                  height: 76,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.paleConcrete,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Moods',
+                        style: GoogleFonts.geist(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.denseObsidian,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.sentiment_satisfied_alt_rounded,
+                        color: AppColors.electricCobalt,
+                        size: 24,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
         const SizedBox(height: 28),
 
-        // 2. Songs Section
-        if (songsToDisplay.isNotEmpty) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Songs',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.cocoaPlum,
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  ref.read(searchNotifierProvider.notifier).setFilter('Songs');
-                },
+        // ── 2. Popular Searches Section ──
+        Text(
+          'Popular Searches',
+          style: GoogleFonts.geist(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.denseObsidian,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: popularSearches.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final item = popularSearches[index];
+            return InkWell(
+              onTap: () => _applyHistoryQuery(item.query),
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
                 child: Row(
                   children: [
-                    Text(
-                      'See all',
-                      style: GoogleFonts.geist(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.mutedMauve,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        color: AppColors.paleConcrete,
+                        child: Image.asset(
+                          item.asset,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.music_note_rounded,
+                            color: AppColors.industrialSteel,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: GoogleFonts.geist(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.denseObsidian,
+                        ),
+                      ),
+                    ),
                     const Icon(
                       Icons.chevron_right_rounded,
-                      size: 16,
-                      color: AppColors.mutedMauve,
+                      size: 20,
+                      color: AppColors.industrialSteel,
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          ...songsToDisplay.map((item) {
-            final itemId = item is MediaSong
-                ? item.id
-                : (item is Track ? item.id : (item as MusicItem).id);
-            final isItemPlaying = activeTrackId == itemId;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final isItemLoading = ref.watch(
-                    playerControllerProvider.select((s) =>
-                        s.loadingTrackId != null &&
-                        isSameTrackId(s.loadingTrackId, itemId)),
-                  );
-                  return SongTile(
-                    title: item is MediaSong
-                        ? item.title
-                        : (item is Track ? item.title : (item as MusicItem).title),
-                    artist: item is MediaSong
-                        ? item.artist
-                        : (item is Track
-                            ? item.artist
-                            : (item as MusicItem).artist),
-                    duration: item is MediaSong
-                        ? item.duration
-                        : (item is Track
-                            ? item.duration
-                            : (item as MusicItem).duration),
-                    imageUrl: item is MediaSong
-                        ? item.artworkPath
-                        : (item is Track
-                            ? item.imageUrl
-                            : (item as MusicItem).imageUrl),
-                    isPlaying: isItemPlaying,
-                    isLoading: isItemLoading,
-                    onTap: isItemLoading
-                        ? null
-                        : () {
-                            if (item is MediaSong) {
-                              ref.read(playerControllerProvider.notifier).selectTrack(
-                                    item,
-                                    localSongs,
-                                    playingFrom: 'Local Music',
-                                  );
-                            } else if (item is Track) {
-                              ref.read(playerControllerProvider.notifier).selectTrack(
-                                    item,
-                                    favorites,
-                                    playingFrom: 'Liked Songs',
-                                  );
-                            } else if (item is MusicItem && recs != null) {
-                              ref.read(playerControllerProvider.notifier).selectTrack(
-                                    item,
-                                    recs.fromYourArtists,
-                                    playingFrom: 'For You',
-                                  );
-                            }
-                          },
-                  );
-                },
               ),
             );
-          }),
-          const SizedBox(height: 28),
-        ],
-
-        // 3. Albums Section (only real local albums if any exist)
-        if (localAlbums.isNotEmpty) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Albums',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.cocoaPlum,
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  ref.read(searchNotifierProvider.notifier).setFilter('Albums');
-                },
-                child: Row(
-                  children: [
-                    Text(
-                      'See all',
-                      style: GoogleFonts.geist(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.mutedMauve,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 16,
-                      color: AppColors.mutedMauve,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          SizedBox(
-            height: 180,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: localAlbums.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
-              itemBuilder: (context, index) {
-                final album = localAlbums[index];
-                return _buildAlbumCard(
-                  album.title,
-                  '${album.trackCount} songs',
-                  album.artworkPath,
-                );
-              },
-            ),
-          ),
-        ],
+          },
+        ),
       ],
     );
   }
@@ -746,39 +758,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: (imageUrl != null && imageUrl.isNotEmpty)
-                  ? (imageUrl.startsWith('http')
-                      ? Image.network(
-                          imageUrl,
-                          width: 130,
-                          height: 130,
-                          fit: BoxFit.cover,
-                          cacheWidth: 260,
-                          cacheHeight: 260,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 130,
-                            height: 130,
-                            color: AppColors.softClay,
-                            child: const Icon(Icons.album_rounded,
-                                color: AppColors.cocoaPlum),
-                          ),
-                        )
-                      : Image.file(
-                          File(imageUrl.startsWith('file://')
-                              ? Uri.parse(imageUrl).toFilePath()
-                              : imageUrl),
-                          width: 130,
-                          height: 130,
-                          fit: BoxFit.cover,
-                          cacheWidth: 260,
-                          cacheHeight: 260,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 130,
-                            height: 130,
-                            color: AppColors.softClay,
-                            child: const Icon(Icons.album_rounded,
-                                color: AppColors.cocoaPlum),
-                          ),
-                        ))
+                  ? MieeArtworkImage(
+                      explicitUrl: imageUrl,
+                      width: 130,
+                      height: 130,
+                      borderRadius: BorderRadius.circular(12),
+                      fit: BoxFit.cover,
+                      errorWidget: Container(
+                        width: 130,
+                        height: 130,
+                        color: AppColors.softClay,
+                        child: const Icon(Icons.album_rounded,
+                            color: AppColors.cocoaPlum),
+                      ),
+                    )
                   : Container(
                       width: 130,
                       height: 130,

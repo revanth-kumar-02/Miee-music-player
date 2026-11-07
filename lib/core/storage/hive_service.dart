@@ -44,6 +44,7 @@ class HiveService {
       Hive.openBox<dynamic>(HiveBoxes.profile).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.profile}'); return box; }),
       Hive.openBox<dynamic>(HiveBoxes.offlineQueue).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.offlineQueue}'); return box; }),
       Hive.openBox<dynamic>(HiveBoxes.dailyMixes).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.dailyMixes}'); return box; }),
+      Hive.openBox<dynamic>(HiveBoxes.artworkCache).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.artworkCache}'); return box; }),
     ]);
     debugPrint('STARTUP: Hive opening all boxes eagerly done');
   }

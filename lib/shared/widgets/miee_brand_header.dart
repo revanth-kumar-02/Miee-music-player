@@ -19,8 +19,8 @@ class MieeWordmarkDot extends StatelessWidget {
   const MieeWordmarkDot({
     super.key,
     this.fontSize = 22,
-    this.textColor = const Color(0xFF1A0F12),
-    this.dotColor = const Color(0xFFBA0032),
+    this.textColor = AppColors.denseObsidian,
+    this.dotColor = AppColors.electricCobalt,
     this.fontWeight = FontWeight.w800,
     this.letterSpacing,
   });
@@ -159,7 +159,7 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
               child: const MieeWordmarkDot(
                 fontSize: 21,
                 textColor: AppColors.onSurface,
-                dotColor: Color(0xFFBA0032),
+                dotColor: AppColors.electricCobalt,
               ),
             ),
             Padding(
@@ -198,7 +198,7 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
           child: const MieeWordmarkDot(
             fontSize: 24,
             textColor: AppColors.onSurface,
-            dotColor: Color(0xFFBA0032),
+            dotColor: AppColors.electricCobalt,
           ),
         );
       }

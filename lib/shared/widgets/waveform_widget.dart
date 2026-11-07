@@ -2,28 +2,35 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 
-/// Reusable Waveform Widget.
-/// Renders a series of vertical bars representing track amplitude.
-/// Oscillates smoothly when playing and pauses in place when playback pauses.
-/// Supports interactive scrubbing and updates colored states based on progress.
+/// Reusable Nordic Cobalt Waveform Widget.
+///
+/// Renders vertical amplitude bars representing audio playback.
+/// Supports smooth playback progress coloring, interactive tap/drag scrubbing,
+/// and subtle live oscillation when audio is playing.
 class WaveformWidget extends StatefulWidget {
-  /// Whether the player is currently playing audio.
+  /// Whether audio is actively playing.
   final bool isPlaying;
 
   /// Playback progress fraction from 0.0 to 1.0.
   final double activeProgress;
 
-  /// Callback when the user taps or drags to scrub playback.
+  /// Callback when user taps or drags across the waveform to seek.
   final ValueChanged<double>? onScrub;
 
-  /// Custom active track color. Defaults to [AppColors.primary].
+  /// Active track / played region color. Defaults to [AppColors.electricCobalt].
   final Color? activeColor;
 
-  /// Custom inactive track color. Defaults to [AppColors.oatBeige].
+  /// Inactive track / unplayed region color. Defaults to [AppColors.paleConcrete].
   final Color? inactiveColor;
 
-  /// Total height of the waveform. Defaults to 32.0.
+  /// Total height of the waveform. Defaults to 40.0.
   final double height;
+
+  /// Number of vertical amplitude bars to render. Defaults to 46.
+  final int barCount;
+
+  /// Custom bar heights sequence if provided.
+  final List<double>? customHeights;
 
   const WaveformWidget({
     super.key,
@@ -32,7 +39,9 @@ class WaveformWidget extends StatefulWidget {
     this.onScrub,
     this.activeColor,
     this.inactiveColor,
-    this.height = 32.0,
+    this.height = 40.0,
+    this.barCount = 46,
+    this.customHeights,
   });
 
   @override
@@ -46,12 +55,14 @@ class _WaveformWidgetState extends State<WaveformWidget>
   @visibleForTesting
   AnimationController get animationController => _animationController;
 
-  // 32 signature amplitude heights matching Miee's original visualizer layout
-  static const List<double> _baseHeights = [
-    8.0, 12.0, 20.0, 16.0, 24.0, 32.0, 20.0, 36.0,
-    40.0, 28.0, 16.0, 44.0, 32.0, 24.0, 48.0, 36.0,
-    20.0, 28.0, 40.0, 24.0, 16.0, 32.0, 20.0, 12.0,
-    24.0, 16.0, 28.0, 8.0, 20.0, 12.0, 16.0, 8.0,
+  // Curated deterministic 48-bar amplitude curve matching the Nordic Cobalt Now Playing reference
+  static const List<double> _defaultHeights = [
+    10.0, 14.0, 18.0, 12.0, 24.0, 32.0, 28.0, 40.0,
+    48.0, 36.0, 22.0, 38.0, 52.0, 60.0, 44.0, 30.0,
+    50.0, 64.0, 42.0, 26.0, 38.0, 48.0, 56.0, 34.0,
+    22.0, 42.0, 58.0, 68.0, 52.0, 38.0, 24.0, 36.0,
+    44.0, 30.0, 18.0, 28.0, 36.0, 24.0, 16.0, 22.0,
+    18.0, 14.0, 20.0, 16.0, 12.0, 10.0, 8.0, 6.0,
   ];
 
   @override
@@ -59,7 +70,7 @@ class _WaveformWidgetState extends State<WaveformWidget>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 2200),
     );
 
     if (widget.isPlaying) {
@@ -89,8 +100,9 @@ class _WaveformWidgetState extends State<WaveformWidget>
 
   @override
   Widget build(BuildContext context) {
-    final colorActive = widget.activeColor ?? AppColors.dustyRose;
-    final colorInactive = widget.inactiveColor ?? AppColors.oatBeige;
+    final colorActive = widget.activeColor ?? AppColors.electricCobalt;
+    final colorInactive = widget.inactiveColor ?? AppColors.paleConcrete;
+    final heights = widget.customHeights ?? _defaultHeights;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -101,13 +113,14 @@ class _WaveformWidgetState extends State<WaveformWidget>
           onTapDown: (details) => _handleScrub(width, details.localPosition.dx),
           child: RepaintBoundary(
             child: CustomPaint(
-              size: Size(double.infinity, widget.height),
+              size: Size(width, widget.height),
               painter: _WaveformPainter(
                 animation: _animationController,
-                activeProgress: widget.activeProgress,
-                baseHeights: _baseHeights,
+                activeProgress: widget.activeProgress.clamp(0.0, 1.0),
+                baseHeights: heights,
                 activeColor: colorActive,
                 inactiveColor: colorInactive,
+                targetBarCount: widget.barCount,
               ),
             ),
           ),
@@ -129,6 +142,7 @@ class _WaveformPainter extends CustomPainter {
   final List<double> baseHeights;
   final Color activeColor;
   final Color inactiveColor;
+  final int targetBarCount;
 
   _WaveformPainter({
     required this.animation,
@@ -136,37 +150,22 @@ class _WaveformPainter extends CustomPainter {
     required this.baseHeights,
     required this.activeColor,
     required this.inactiveColor,
+    required this.targetBarCount,
   }) : super(repaint: animation);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final barCount = baseHeights.length;
-    if (barCount == 0 || size.width <= 0) return;
+    final int count = targetBarCount.clamp(12, 64);
+    if (count <= 0 || size.width <= 0) return;
 
     final double effectiveWidth = size.width;
-    const double startX = 0.0;
-
-    if (barCount == 1) {
-      final height = baseHeights[0];
-      final paint = Paint()
-        ..style = PaintingStyle.fill
-        ..color = activeProgress > 0 ? activeColor : inactiveColor;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH((effectiveWidth - 4.0) / 2.0, (size.height - height) / 2.0, 4.0, height),
-          const Radius.circular(2.0),
-        ),
-        paint,
-      );
-      return;
-    }
-
-    // Proportionally size bar width and gaps to cleanly fill effectiveWidth
-    final double slotWidth = effectiveWidth / barCount;
-    final double barWidth = (slotWidth * 0.52).clamp(2.5, 7.0);
-    final double gap = (effectiveWidth - (barCount * barWidth)) / (barCount - 1);
+    final double slotWidth = effectiveWidth / count;
+    final double barWidth = (slotWidth * 0.50).clamp(2.0, 5.0);
+    final double gap = (effectiveWidth - (count * barWidth)) / math.max(1, count - 1);
     final Radius cornerRadius = Radius.circular(barWidth / 2.0);
-    final double scale = (size.height / 48.0).clamp(0.2, 1.5);
+
+    // Max reference height in list is ~68
+    final double scale = (size.height / 68.0).clamp(0.2, 1.2);
 
     final Paint activePaint = Paint()
       ..style = PaintingStyle.fill
@@ -178,18 +177,21 @@ class _WaveformPainter extends CustomPainter {
     final animationValue = animation.value;
     final double animPhaseBase = animationValue * 2.0 * math.pi;
 
-    for (int i = 0; i < barCount; i++) {
-      final barProgress = i / (barCount - 1);
-      final isBarActive = activeProgress > 0.0 && barProgress <= activeProgress;
+    for (int i = 0; i < count; i++) {
+      final double barProgress = count > 1 ? i / (count - 1) : 0.0;
+      final bool isBarActive = activeProgress > 0.0 && barProgress <= activeProgress;
       final paint = isBarActive ? activePaint : inactivePaint;
 
-      // Smooth oscillation offset per bar
-      final phase = (i * 0.42) + animPhaseBase;
-      final osc = 0.45 + 0.55 * math.sin(phase).abs();
-      final height = (baseHeights[i] * osc * scale).clamp(2.5, size.height);
+      // Select base height from list with wrap
+      final double rawBase = baseHeights[i % baseHeights.length];
 
-      final left = startX + i * (barWidth + gap);
-      final top = (size.height - height) / 2.0;
+      // Subtle dynamic oscillation when playing (small breathing movement)
+      final double phase = (i * 0.35) + animPhaseBase;
+      final double osc = 0.85 + 0.15 * math.sin(phase).abs();
+      final double height = (rawBase * osc * scale).clamp(3.0, size.height);
+
+      final double left = i * (barWidth + gap);
+      final double top = (size.height - height) / 2.0;
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
@@ -205,6 +207,7 @@ class _WaveformPainter extends CustomPainter {
   bool shouldRepaint(_WaveformPainter oldDelegate) {
     return oldDelegate.activeProgress != activeProgress ||
         oldDelegate.activeColor != activeColor ||
-        oldDelegate.inactiveColor != inactiveColor;
+        oldDelegate.inactiveColor != inactiveColor ||
+        oldDelegate.targetBarCount != targetBarCount;
   }
 }

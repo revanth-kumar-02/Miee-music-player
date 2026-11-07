@@ -10,8 +10,10 @@ import '../../../recommendations/providers/daily_mix_providers.dart';
 
 /// Home screen section displaying deterministic personalized Daily Mixes.
 ///
-/// Follows Miee's Stitch design system with warm ivory surfaces, cocoa plum typography,
-/// and tactile dusty rose playback affordances.
+/// Designed to match Nordic Cobalt Reference Screen 1:
+/// - "Daily Mixes" bold header with "See All >" link
+/// - Compact square vinyl-record motif cards (Mix 1: Obsidian, Mix 2: Cobalt, Mix 3: Steel)
+/// - Clean typography labels underneath
 class DailyMixesSection extends ConsumerWidget {
   const DailyMixesSection({super.key});
 
@@ -30,45 +32,51 @@ class DailyMixesSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Section Header ──────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Daily Mixes',
-                        style: GoogleFonts.playfairDisplay(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.cocoaPlum,
-                        ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daily Mixes',
+                      style: GoogleFonts.geist(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.denseObsidian,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Tuned to your taste and listening habits',
-                        style: GoogleFonts.geist(
-                          fontSize: 12,
-                          color: AppColors.mutedMauve,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tuned to your taste and listening habits',
+                      style: GoogleFonts.geist(
+                        fontSize: 12,
+                        color: AppColors.industrialSteel,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                Text(
+                  'See All >',
+                  style: GoogleFonts.geist(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.industrialSteel,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // ── Horizontal Mix Cards Shelf ──────────────────────────────
             SizedBox(
-              height: 240,
+              height: 204,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 itemCount: mixes.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
                   final mix = mixes[index];
                   return _DailyMixCard(
@@ -92,7 +100,7 @@ class DailyMixesSection extends ConsumerWidget {
   }
 }
 
-/// Individual Daily Mix card widget.
+/// Individual Daily Mix card widget matching the vinyl artwork motif.
 class _DailyMixCard extends StatelessWidget {
   final DailyMix mix;
   final int index;
@@ -109,110 +117,70 @@ class _DailyMixCard extends StatelessWidget {
     return Semantics(
       label: '${mix.title}, ${mix.subtitle}, ${mix.trackCount} tracks',
       button: true,
-      child: InkWell(
+      child: GestureDetector(
         onTap: onPlay,
-        borderRadius: BorderRadius.circular(16),
         child: SizedBox(
-          width: 156,
+          width: 120,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // ── Artwork with Floating Play Button ─────────────────────
-              SizedBox(
-                width: 156,
-                height: 156,
-                child: Stack(
-                  children: [
-                    // Base Artwork
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: _buildArtwork(context),
-                    ),
-
-                    // Subtle Bottom Vignette for depth
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 52,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(14),
-                          ),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              AppColors.cocoaPlum.withValues(alpha: 0.35),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Floating Play Button Affordance
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: Material(
-                        color: AppColors.dustyRose,
-                        shape: const CircleBorder(),
-                        elevation: 3,
-                        shadowColor: AppColors.cocoaPlum.withValues(alpha: 0.3),
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: onPlay,
-                          child: const SizedBox(
-                            width: 38,
-                            height: 38,
-                            child: Icon(
-                              Icons.play_arrow_rounded,
-                              size: 24,
-                              color: AppColors.white,
-                            ),
-                          ),
-                        ),
-                      ),
+              // ── Vinyl Record Artwork Container ────────────────────────
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.denseObsidian.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: _buildVinylArtwork(),
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // ── Mix Title ─────────────────────────────────────────────
               Text(
                 mix.title,
                 maxLines: 1,
+                textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.geist(
-                  fontSize: 14,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.cocoaPlum,
+                  color: AppColors.denseObsidian,
                 ),
               ),
               const SizedBox(height: 2),
 
-              // ── Mix Subtitle ──────────────────────────────────────────
+              // ── Subtitle ──────────────────────────────────────────────
               Text(
                 mix.subtitle,
                 maxLines: 1,
+                textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.geist(
-                  fontSize: 12,
-                  color: AppColors.mutedMauve,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.industrialSteel,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
 
-              // ── Track Count Badge ─────────────────────────────────────
+              // ── Track Count ───────────────────────────────────────────
               Text(
                 '${mix.trackCount} tracks',
+                textAlign: TextAlign.center,
                 style: GoogleFonts.geist(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.mutedMauve.withValues(alpha: 0.85),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.industrialSteel,
                 ),
               ),
             ],
@@ -222,109 +190,89 @@ class _DailyMixCard extends StatelessWidget {
     );
   }
 
-  Widget _buildArtwork(BuildContext context) {
-    if (mix.coverImageUrl != null && mix.coverImageUrl!.isNotEmpty) {
-      return Image.network(
-        mix.coverImageUrl!,
-        width: 156,
-        height: 156,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildFallbackGradientArtwork(),
-      );
-    }
-    return _buildFallbackGradientArtwork();
-  }
-
-  Widget _buildFallbackGradientArtwork() {
-    // Curated Stitch-aligned gradients for each mix slot
-    final List<List<Color>> mixGradients = [
-      // Mix 1: Dusty Rose & Deep Cocoa Plum (Favorites)
-      [
-        const Color(0xFFD78D9B),
-        const Color(0xFFC77987),
-        const Color(0xFF4A3036),
-      ],
-      // Mix 2: Soft Olive Sage & Oat Beige (Rotation)
-      [
-        const Color(0xFF7D8C71),
-        const Color(0xFF9EA37E),
-        const Color(0xFF384534),
-      ],
-      // Mix 3: Terracotta & Warm Soft Clay (Discovery)
-      [
-        const Color(0xFFD9826C),
-        const Color(0xFFE9C9B7),
-        const Color(0xFF5A3930),
-      ],
+  Widget _buildVinylArtwork() {
+    // Curated Nordic Cobalt colors for the 3 mix slots:
+    // Mix 1: Obsidian Charcoal
+    // Mix 2: Electric Cobalt Blue
+    // Mix 3: Steel Slate Grey
+    final List<Color> bgColors = [
+      const Color(0xFF1B242C), // Obsidian Dark Teal-Charcoal
+      AppColors.electricCobalt, // Electric Cobalt
+      const Color(0xFF334155), // Slate Steel
     ];
 
-    final gradientColors = mixGradients[index % mixGradients.length];
+    final bgColor = bgColors[index % bgColors.length];
 
     return Container(
-      width: 156,
-      height: 156,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: gradientColors,
-        ),
-      ),
+      color: bgColor,
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Subtle decorative circle
-          Positioned(
-            top: -20,
-            right: -20,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.12),
+          // Vinyl outer groove ring
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1.0,
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'MIX ${index + 1}',
-                        style: GoogleFonts.geist(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                          color: AppColors.white.withValues(alpha: 0.95),
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      index == 0
-                          ? Icons.favorite_rounded
-                          : (index == 1 ? Icons.autorenew_rounded : Icons.explore_rounded),
-                      size: 16,
-                      color: AppColors.white.withValues(alpha: 0.85),
-                    ),
-                  ],
+          // Vinyl middle groove ring
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.2),
+                width: 1.0,
+              ),
+            ),
+          ),
+          // Vinyl Center White Label
+          Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+            child: Center(
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: bgColor,
                 ),
-                Icon(
-                  Icons.music_note_rounded,
-                  size: 32,
-                  color: AppColors.white.withValues(alpha: 0.9),
+              ),
+            ),
+          ),
+          // Floating Circular Play Button
+          Positioned(
+            right: 6,
+            bottom: 6,
+            child: Material(
+              color: AppColors.electricCobalt,
+              shape: const CircleBorder(),
+              elevation: 2,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onPlay,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -342,62 +290,40 @@ class _DailyMixesSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Skeleton Header
         Container(
-          width: 130,
-          height: 20,
+          width: 110,
+          height: 18,
           decoration: BoxDecoration(
-            color: AppColors.oatBeige.withValues(alpha: 0.6),
+            color: AppColors.paleConcrete,
             borderRadius: BorderRadius.circular(4),
           ),
         ),
-        const SizedBox(height: 6),
-        Container(
-          width: 220,
-          height: 12,
-          decoration: BoxDecoration(
-            color: AppColors.oatBeige.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Skeleton Cards
+        const SizedBox(height: 12),
         SizedBox(
-          height: 240,
+          height: 155,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: 3,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemBuilder: (_, __) => SizedBox(
-              width: 156,
+              width: 110,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 156,
-                    height: 156,
-                    decoration: BoxDecoration(
-                      color: AppColors.oatBeige.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
                     width: 110,
-                    height: 14,
+                    height: 110,
                     decoration: BoxDecoration(
-                      color: AppColors.oatBeige.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(4),
+                      color: AppColors.paleConcrete,
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Container(
-                    width: 140,
+                    width: 70,
                     height: 12,
                     decoration: BoxDecoration(
-                      color: AppColors.oatBeige.withValues(alpha: 0.4),
+                      color: AppColors.paleConcrete,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -411,7 +337,7 @@ class _DailyMixesSkeleton extends StatelessWidget {
   }
 }
 
-/// Contained error view with a subtle retry action.
+/// Contained error view with retry action.
 class _DailyMixesError extends StatelessWidget {
   final VoidCallback onRetry;
 
@@ -420,57 +346,37 @@ class _DailyMixesError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: AppColors.oatBeige.withValues(alpha: 0.7),
+          color: AppColors.paleConcrete,
           width: 1.0,
         ),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.softClay.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.refresh_rounded,
-              size: 20,
-              color: AppColors.cocoaPlum,
-            ),
+          const Icon(
+            Icons.refresh_rounded,
+            size: 20,
+            color: AppColors.denseObsidian,
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Daily Mixes temporarily unavailable',
-                  style: GoogleFonts.geist(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.cocoaPlum,
-                  ),
-                ),
-                Text(
-                  'Tap to try refreshing your mixes',
-                  style: GoogleFonts.geist(
-                    fontSize: 11,
-                    color: AppColors.mutedMauve,
-                  ),
-                ),
-              ],
+            child: Text(
+              'Daily Mixes temporarily unavailable',
+              style: GoogleFonts.geist(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.denseObsidian,
+              ),
             ),
           ),
           TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.dustyRose,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              foregroundColor: AppColors.electricCobalt,
             ),
             child: Text(
               'Retry',

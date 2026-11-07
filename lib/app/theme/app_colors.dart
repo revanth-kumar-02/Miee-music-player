@@ -1,36 +1,62 @@
 import 'package:flutter/material.dart';
 
-/// Design system color constants for Miee.
-/// Colors are defined using static constants matching the Stitch tokens.
+/// Design system color constants for Miee — Nordic Cobalt Identity.
+/// 
+/// Strictly reproduces the locked Nordic Cobalt reference design:
+/// - Chalk White: `#F6F6F4`
+/// - Electric Cobalt: `#1D4ED8`
+/// - Cobalt Blue: `#2563EB`
+/// - Dense Obsidian: `#131416`
+/// - Pale Concrete: `#E8E8E2`
+/// - Industrial Steel: `#64748B`
 abstract class AppColors {
-  // ── Exact Reference Design Palette ─────────────────────────────────────────
-  /// Vanilla Cream canvas background: `#F8F1E8`
-  static const Color vanillaCream = Color(0xFFF8F1E8);
+  // ── Locked Nordic Cobalt Palette Tokens ────────────────────────────────────
+  /// Chalk White canvas background: `#F6F6F4`
+  static const Color chalkWhite = Color(0xFFF6F6F4);
 
-  /// Cocoa Plum dark sidebar, player surface, dark accents: `#3A252B`
-  static const Color cocoaPlum = Color(0xFF3A252B);
+  /// Electric Cobalt primary brand accent: `#1D4ED8`
+  static const Color electricCobalt = Color(0xFF1D4ED8);
 
-  /// Dusty Rose selected states, playback controls, brand accents: `#D78D9B`
-  static const Color dustyRose = Color(0xFFD78D9B);
+  /// Cobalt Blue alternate primary / hover / highlight: `#2563EB`
+  static const Color cobaltBlue = Color(0xFF2563EB);
 
-  /// Soft Clay featured content, secondary accents: `#E9C9B7`
-  static const Color softClay = Color(0xFFE9C9B7);
+  /// Dense Obsidian deep typography, dark cards, icons: `#131416`
+  static const Color denseObsidian = Color(0xFF131416);
 
-  /// Oat Beige dividers, subtle borders, card outlines: `#E7DED5`
-  static const Color oatBeige = Color(0xFFE7DED5);
+  /// Pale Concrete secondary cards, unselected pills, search field: `#E8E8E2`
+  static const Color paleConcrete = Color(0xFFE8E8E2);
 
-  /// Pure White surfaces and high-contrast text: `#FFFFFF`
+  /// Industrial Steel secondary text, unselected icons, metadata: `#64748B`
+  static const Color industrialSteel = Color(0xFF64748B);
+
+  /// Pure White for elevated card surfaces, dock backing: `#FFFFFF`
   static const Color white = Color(0xFFFFFFFF);
 
-  /// Muted Mauve secondary text and subtle iconography: `#75656A`
-  static const Color mutedMauve = Color(0xFF75656A);
+  // ── Backward-Compatible Semantic Mappings ──────────────────────────────────
+  /// Legacy mapping for vanillaCream -> Chalk White
+  static const Color vanillaCream = chalkWhite;
+
+  /// Legacy mapping for cocoaPlum -> Dense Obsidian
+  static const Color cocoaPlum = denseObsidian;
+
+  /// Legacy mapping for dustyRose -> Electric Cobalt
+  static const Color dustyRose = electricCobalt;
+
+  /// Legacy mapping for softClay -> Pale Concrete
+  static const Color softClay = paleConcrete;
+
+  /// Legacy mapping for oatBeige -> Pale Concrete / divider
+  static const Color oatBeige = Color(0xFFE2E2DC);
+
+  /// Legacy mapping for mutedMauve -> Industrial Steel
+  static const Color mutedMauve = industrialSteel;
 
   // ── Semantic Token Mappings ────────────────────────────────────────────────
-  /// Base canvas background: Vanilla Cream
-  static const Color background = vanillaCream;
+  /// Base canvas background: Chalk White
+  static const Color background = chalkWhite;
 
   /// Surface dim / border tint
-  static const Color surfaceDim = oatBeige;
+  static const Color surfaceDim = Color(0xFFDFDFD8);
 
   /// Pure white / bright surface
   static const Color surfaceBright = white;
@@ -38,49 +64,49 @@ abstract class AppColors {
   /// Elevated surface lowest
   static const Color surfaceContainerLowest = white;
 
-  /// Surface container low (warm ivory tint)
-  static const Color surfaceContainerLow = Color(0xFFFDFBF7);
+  /// Surface container low (Chalk White tint)
+  static const Color surfaceContainerLow = Color(0xFFF9F9F8);
 
-  /// Standard surface container
-  static const Color surfaceContainer = Color(0xFFF3EBE1);
+  /// Standard surface container: Pale Concrete
+  static const Color surfaceContainer = paleConcrete;
 
   /// Surface container high
-  static const Color surfaceContainerHigh = oatBeige;
+  static const Color surfaceContainerHigh = Color(0xFFE2E2DC);
 
-  /// Surface container highest: Soft Clay
-  static const Color surfaceContainerHighest = softClay;
+  /// Surface container highest: Pale Concrete
+  static const Color surfaceContainerHighest = paleConcrete;
 
-  /// Primary text / main typography color: Cocoa Plum
-  static const Color onSurface = cocoaPlum;
-  static const Color onBackground = cocoaPlum;
+  /// Primary text / main typography color: Dense Obsidian
+  static const Color onSurface = denseObsidian;
+  static const Color onBackground = denseObsidian;
 
-  /// Secondary text / metadata color: Muted Mauve
-  static const Color onSurfaceVariant = mutedMauve;
+  /// Secondary text / metadata color: Industrial Steel
+  static const Color onSurfaceVariant = industrialSteel;
 
-  /// Primary action / accent color: Dusty Rose
-  static const Color primary = dustyRose;
+  /// Primary action / accent color: Electric Cobalt
+  static const Color primary = electricCobalt;
 
-  /// Secondary brand color: Cocoa Plum
-  static const Color secondary = cocoaPlum;
+  /// Secondary brand color: Cobalt Blue
+  static const Color secondary = cobaltBlue;
 
   /// Text on primary elements: White
   static const Color onPrimary = white;
   static const Color onSecondary = white;
 
-  /// Active accent: Dusty Rose
-  static const Color accentIndigo = dustyRose;
+  /// Active accent: Electric Cobalt
+  static const Color accentIndigo = electricCobalt;
 
-  /// Outline border color: Oat Beige
-  static const Color outline = oatBeige;
+  /// Outline border color: Pale Concrete / hairline
+  static const Color outline = Color(0xFFE2E2DC);
 
-  /// Light outline border color: soft beige
-  static const Color outlineVariant = Color(0xFFF0EAE2);
+  /// Light outline border color
+  static const Color outlineVariant = Color(0xFFEDEDE8);
 
-  /// Inverse surface (Cocoa Plum dark surfaces)
-  static const Color inverseSurface = cocoaPlum;
+  /// Inverse surface (Dense Obsidian dark surfaces)
+  static const Color inverseSurface = denseObsidian;
 
-  /// Light text on inverse surface: Vanilla Cream
-  static const Color inverseOnSurface = vanillaCream;
+  /// Light text on inverse surface: Chalk White
+  static const Color inverseOnSurface = chalkWhite;
 
   /// Error color
   static const Color error = Color(0xFFBA1A1A);
@@ -92,5 +118,5 @@ abstract class AppColors {
   static const Color onError = white;
 
   /// Semi-transparent overlays
-  static const Color scrim = Color(0x663A252B);
+  static const Color scrim = Color(0x66131416);
 }

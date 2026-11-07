@@ -62,16 +62,16 @@ class _AppSearchBarState extends State<AppSearchBar> {
       height: 46.0,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.paleConcrete,
         borderRadius: BorderRadius.circular(24.0),
         border: Border.all(
-          color: _hasFocus ? AppColors.cocoaPlum : AppColors.oatBeige,
-          width: _hasFocus ? 1.5 : 1.0,
+          color: _hasFocus ? AppColors.electricCobalt : Colors.transparent,
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.cocoaPlum.withOpacity(0.04),
-            blurRadius: 10,
+            color: AppColors.denseObsidian.withValues(alpha: 0.03),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
