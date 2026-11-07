@@ -34,6 +34,9 @@ abstract class HiveBoxes {
 
   /// Stores pending offline operations to replay on connection return.
   static const String offlineQueue = 'miee_offline_queue';
+
+  /// Stores persistent daily mix snapshots keyed by user id.
+  static const String dailyMixes = 'miee_daily_mixes';
 }
 
 /// Typed keys for the [HiveBoxes.preferences] box.

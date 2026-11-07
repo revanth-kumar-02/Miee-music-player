@@ -21,30 +21,31 @@ class HiveService {
   /// on Hive boxes.
   static Future<void> init() async {
     // Initialise Hive with the default Flutter path (app documents directory).
-    debugPrint("STARTUP: Hive.initFlutter() starting");
+    debugPrint('STARTUP: Hive.initFlutter() starting');
     await Hive.initFlutter();
-    debugPrint("STARTUP: Hive.initFlutter() done");
+    debugPrint('STARTUP: Hive.initFlutter() done');
 
     // Register type adapters — order does not matter.
-    debugPrint("STARTUP: Hive registering adapters starting");
+    debugPrint('STARTUP: Hive registering adapters starting');
     _registerAdapters();
-    debugPrint("STARTUP: Hive registering adapters done");
+    debugPrint('STARTUP: Hive registering adapters done');
 
     // Open all boxes eagerly so repositories never need to await box opening.
-    debugPrint("STARTUP: Hive opening all boxes eagerly starting");
+    debugPrint('STARTUP: Hive opening all boxes eagerly starting');
     await Future.wait([
-      Hive.openBox<TrackHiveModel>(HiveBoxes.favorites).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.favorites}"); return _; }),
-      Hive.openBox<PlaylistHiveModel>(HiveBoxes.playlists).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.playlists}"); return _; }),
-      Hive.openBox<HistoryEntry>(HiveBoxes.recentlyPlayed).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.recentlyPlayed}"); return _; }),
-      Hive.openBox<int>(HiveBoxes.mostPlayed).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.mostPlayed}"); return _; }),
-      Hive.openBox<PlaybackHistoryEntry>(HiveBoxes.playbackHistory).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.playbackHistory}"); return _; }),
-      Hive.openBox<QueueSnapshot>(HiveBoxes.queueState).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.queueState}"); return _; }),
-      Hive.openBox<String>(HiveBoxes.searchHistory).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.searchHistory}"); return _; }),
-      Hive.openBox(HiveBoxes.preferences).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.preferences}"); return _; }),
-      Hive.openBox(HiveBoxes.profile).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.profile}"); return _; }),
-      Hive.openBox(HiveBoxes.offlineQueue).then((_) { debugPrint("STARTUP: Hive Box loaded: ${HiveBoxes.offlineQueue}"); return _; }),
+      Hive.openBox<TrackHiveModel>(HiveBoxes.favorites).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.favorites}'); return box; }),
+      Hive.openBox<PlaylistHiveModel>(HiveBoxes.playlists).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.playlists}'); return box; }),
+      Hive.openBox<HistoryEntry>(HiveBoxes.recentlyPlayed).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.recentlyPlayed}'); return box; }),
+      Hive.openBox<int>(HiveBoxes.mostPlayed).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.mostPlayed}'); return box; }),
+      Hive.openBox<PlaybackHistoryEntry>(HiveBoxes.playbackHistory).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.playbackHistory}'); return box; }),
+      Hive.openBox<QueueSnapshot>(HiveBoxes.queueState).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.queueState}'); return box; }),
+      Hive.openBox<String>(HiveBoxes.searchHistory).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.searchHistory}'); return box; }),
+      Hive.openBox<dynamic>(HiveBoxes.preferences).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.preferences}'); return box; }),
+      Hive.openBox<dynamic>(HiveBoxes.profile).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.profile}'); return box; }),
+      Hive.openBox<dynamic>(HiveBoxes.offlineQueue).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.offlineQueue}'); return box; }),
+      Hive.openBox<dynamic>(HiveBoxes.dailyMixes).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.dailyMixes}'); return box; }),
     ]);
-    debugPrint("STARTUP: Hive opening all boxes eagerly done");
+    debugPrint('STARTUP: Hive opening all boxes eagerly done');
   }
 
   static void _registerAdapters() {
