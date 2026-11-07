@@ -26,6 +26,7 @@ import '../../rooms/providers/room_providers.dart';
 import '../../wrapped/presentation/widgets/wrapped_home_banner.dart';
 import '../../wrapped/providers/wrapped_providers.dart';
 import 'widgets/artist_rotation_section.dart';
+import 'widgets/daily_mixes_section.dart';
 
 /// Recreated Miee Home Screen matching the reference design:
 /// - Vanilla Cream primary canvas
@@ -122,6 +123,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
             // ── 2. "Made for you" Section ───────────────────────────────────
             _buildMadeForYouSection(context, playlists, favorites, recsAsync.valueOrNull),
+
+            const SizedBox(height: 36),
+
+            // ── 2.5 Daily Mixes Section ─────────────────────────────────────
+            const DailyMixesSection(),
 
             const SizedBox(height: 36),
 
