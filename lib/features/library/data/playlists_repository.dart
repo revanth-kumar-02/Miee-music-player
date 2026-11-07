@@ -280,14 +280,17 @@ class PlaylistsRepository {
     playlist.lastModified = DateTime.now();
     await playlist.save();
     
-    // Push the full updated order on re-sync since position order resolves on sync
+    // Push the updated track positions so Supabase playlist_tracks position order resolves on sync
     final op = OfflineOperation(
-      id: 'pl_rename_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
-      type: 'playlist_rename',
+      id: 'pl_reorder_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_tracks_reorder',
       payload: {
-        'id': playlistId,
-        'name': playlist.name,
+        'playlistId': playlistId,
         'lastModified': playlist.lastModified.toIso8601String(),
+        'trackPositions': [
+          for (int i = 0; i < tracks.length; i++)
+            {'trackId': tracks[i].id, 'position': i}
+        ],
       },
       timestamp: DateTime.now(),
     );

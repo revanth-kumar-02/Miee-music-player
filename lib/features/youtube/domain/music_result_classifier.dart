@@ -539,6 +539,9 @@ class MusicResultClassifier {
 
     // G. Influencer vlogs, lifestyle, food reviews, commentary, reality shows & public reactions
     final influencerVlogPatterns = [
+      'tn info',
+      'cinema info',
+      'movie info',
       'vlog',
       'vlogs',
       'daily vlog',
@@ -778,6 +781,32 @@ class MusicResultClassifier {
       hasMusicIndicator = true;
     }
 
+    // Signal: Soundtrack / Film Album Structure (e.g. (From "Leo"), (From "Amaran"), [From "..."]) (+35 points)
+    final hasSoundtrackPattern = titleLower.contains('(from ') ||
+        titleLower.contains('[from ') ||
+        titleLower.contains('{from ') ||
+        RegExp(r'\bfrom\s+["\u201C\u201D\u2018\u2019]', caseSensitive: false).hasMatch(rawTitle);
+    if (hasSoundtrackPattern) {
+      score += 35;
+      hasMusicIndicator = true;
+    }
+
+    // Signal: Verified Music Artist or Composer Channel (+40 points)
+    final isVerifiedArtistChannel = _isVerifiedMusicArtist(channelLower);
+    if (isVerifiedArtistChannel) {
+      score += 40;
+      hasMusicIndicator = true;
+    }
+
+    // Signal: High View Count on Valid Song Format (+15 to +30 points)
+    final numericViews = _parseNumericViews(video);
+    if (numericViews != null && numericViews >= 1000000) {
+      score += 30;
+      hasMusicIndicator = true;
+    } else if (numericViews != null && numericViews >= 100000) {
+      score += 15;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // 3. Final Confidence Determination
     // ─────────────────────────────────────────────────────────────────────────
@@ -811,7 +840,7 @@ class MusicResultClassifier {
       // If video has zero musical indicators and is from an unverified channel:
       // In individual playback mode, strictly reject it.
       // For general classification, mark as uncertain so official tracks rank above it.
-      if (!hasMusicIndicator && !isMusicLabelChannel) {
+      if (!hasMusicIndicator && !isMusicLabelChannel && !isVerifiedArtistChannel) {
         if (forIndividualPlayback || durationSec > 300) {
           return makeVerdict(
             MusicTrackConfidence.rejected,
@@ -863,8 +892,15 @@ class MusicResultClassifier {
     if (verdict.confidence == MusicTrackConfidence.uncertain) {
       final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
       final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+      final titleL = (video.rawTitle ?? video.title).toLowerCase();
+      final hasSoundtrack = titleL.contains('(from ') ||
+          titleL.contains('[from ') ||
+          titleL.contains('{from ') ||
+          RegExp(r'\bfrom\s+["\u201C\u201D\u2018\u2019]', caseSensitive: false).hasMatch(video.rawTitle ?? video.title);
       final hasPositiveProof = _hasExplicitMusicKeyword(rawTitle) ||
           _isOfficialMusicLabel(channelLower) ||
+          _isVerifiedMusicArtist(channelLower) ||
+          hasSoundtrack ||
           _hasMusicCredits(video.rawTitle ?? video.title) ||
           _isLegitimateMusicVersion(rawTitle) ||
           _hasPositiveMusicIndicator(rawTitle, channelLower);
@@ -935,7 +971,7 @@ class MusicResultClassifier {
   /// Detects whether a channel matches universal non-music creator / vlogger / entertainment archetypes.
   /// This protects against both established influencers and new / growing creators without needing hardcoded names.
   static bool _hasCreatorChannelArchetype(String channelLower) {
-    if (_isOfficialMusicLabel(channelLower)) return false;
+    if (_isOfficialMusicLabel(channelLower) || _isVerifiedMusicArtist(channelLower)) return false;
 
     final creatorWords = [
       'vlog',
@@ -1273,6 +1309,85 @@ class MusicResultClassifier {
     return false;
   }
 
+  /// Parses numeric view count from YouTubeVideo or formatted viewCount string.
+  static int? _parseNumericViews(YouTubeVideo video) {
+    if (video.rawViewCount != null) return video.rawViewCount;
+    final viewStr = video.viewCount;
+    if (viewStr.isEmpty) return null;
+    final clean = viewStr.toLowerCase().replaceAll('views', '').replaceAll(',', '').trim();
+    if (clean.isEmpty || clean.contains('no views')) return null;
+    if (clean.endsWith('b')) {
+      final val = double.tryParse(clean.replaceAll('b', '')) ?? 0.0;
+      return (val * 1000000000).toInt();
+    } else if (clean.endsWith('m')) {
+      final val = double.tryParse(clean.replaceAll('m', '')) ?? 0.0;
+      return (val * 1000000).toInt();
+    } else if (clean.endsWith('k')) {
+      final val = double.tryParse(clean.replaceAll('k', '')) ?? 0.0;
+      return (val * 1000).toInt();
+    }
+    return int.tryParse(clean);
+  }
+
+  /// Checks if channel belongs to a verified music artist, composer, or official artist channel.
+  static bool _isVerifiedMusicArtist(String channelLower) {
+    if (_isOfficialMusicLabel(channelLower)) return true;
+    final verifiedArtists = [
+      'anirudh ravichander',
+      'anirudh',
+      'a.r. rahman',
+      'ar rahman',
+      'a. r. rahman',
+      'dhanush',
+      'sai abhyankkar',
+      'yuvan shankar raja',
+      'yuvan',
+      'harris jayaraj',
+      'sid sriram',
+      'devi sri prasad',
+      'santhosh narayanan',
+      'g.v. prakash',
+      'gv prakash',
+      'tippu',
+      'pradeep kumar',
+      'karthik',
+      'shreya ghoshal',
+      'arijit singh',
+      'armaan malik',
+      'darshan raval',
+      'diljit dosanjh',
+      'satinder sartaaj',
+      's. p. balasubrahmanyam',
+      'spb',
+      'k. j. yesudas',
+      'chithra',
+      'coldplay',
+      'ed sheeran',
+      'dua lipa',
+      'taylor swift',
+      'the weeknd',
+      'bts',
+      'drake',
+      'eminem',
+      'adele',
+      'billie eilish',
+      'post malone',
+      'bruno mars',
+      'alan walker',
+      'sanjay subrahmanyan',
+    ];
+    for (final artist in verifiedArtists) {
+      if (channelLower == artist ||
+          channelLower.startsWith('$artist ') ||
+          channelLower.endsWith(' $artist') ||
+          channelLower == '$artist official' ||
+          channelLower.contains('$artist vevo')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Identifies whether channel is a known music label, distributor, or official artist channel.
   static bool _isOfficialMusicLabel(String channelLower) {
     // Exclude wrestling and sports entertainment channels even if name includes 'music' (e.g. WWE Music)
@@ -1283,7 +1398,9 @@ class MusicResultClassifier {
       return false;
     }
 
-    if (channelLower.contains('divo music') ||
+    if (channelLower.contains('wunderbar films') ||
+        channelLower.contains('wunderbar') ||
+        channelLower.contains('divo music') ||
         channelLower.contains('divomovies') ||
         channelLower.contains('lyca productions') ||
         channelLower.contains('raaj kamal') ||

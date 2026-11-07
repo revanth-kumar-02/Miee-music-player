@@ -23,6 +23,7 @@ import '../../features/recommendations/providers/recommendation_providers.dart';
 import '../../features/profile/providers/profile_providers.dart';
 import '../../features/wrapped/data/playback_analytics_tracker.dart';
 import '../../features/onboarding/domain/artist_model.dart';
+import 'youtube_audio_service.dart';
 
 import 'playback_diagnostics.dart';
 
@@ -130,6 +131,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _analyticsTracker = PlaybackAnalyticsTracker(
       historyRepo: _ref.read(listeningHistoryRepositoryProvider),
       getUid: () => _ref.read(currentAuthUserProvider)?.uid,
+      onEventRecorded: (uid) {
+        if (uid != null && uid.isNotEmpty) {
+          _ref.read(tasteProfileRepositoryProvider).invalidateCache(uid);
+        }
+      },
     );
 
     // ── Position stream ───────────────────────────────────────────────────────
@@ -556,21 +562,59 @@ class PlayerController extends StateNotifier<PlaybackState> {
       return;
     }
 
+    final originalTrackId = track.id;
+
     // Validate that online YouTube content represents genuine music
     if (track.isYoutube) {
       final rawT = (track is Track) ? (track.rawTitle ?? track.title) : track.title;
       final rawA = (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
-      final candidate = YouTubeVideo(
-        id: track.id.replaceFirst('youtube_', ''),
-        title: track.title,
-        channelTitle: track.artist,
-        thumbnailUrl: track.imageUrl,
-        duration: track.duration,
-        viewCount: '',
-        rawTitle: rawT,
-        rawChannelTitle: rawA,
-      );
-      if (!MusicResultClassifier.isValidIndividualSong(candidate)) {
+      var candidateId = track.id.replaceFirst('youtube_', '');
+      YouTubeVideo? verifiedCandidate;
+
+      // If the ID is a discovery/chart metadata ID (e.g. wm_chart_...), resolve verified YouTube video ID
+      if (candidateId.startsWith('wm_') || !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(candidateId)) {
+        final query = '$rawT $rawA'.trim();
+        verifiedCandidate = await YouTubeAudioService().resolveCandidateForQuery(query);
+        if (verifiedCandidate != null && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(verifiedCandidate.id)) {
+          candidateId = verifiedCandidate.id;
+          track = (track is Track)
+              ? track.copyWith(
+                  id: 'youtube_$candidateId',
+                  rawTitle: verifiedCandidate.rawTitle ?? verifiedCandidate.title,
+                  rawArtist: verifiedCandidate.rawChannelTitle ?? verifiedCandidate.channelTitle,
+                  duration: (track.duration.isNotEmpty && track.duration != '3:30')
+                      ? track.duration
+                      : (verifiedCandidate.duration.isNotEmpty ? verifiedCandidate.duration : track.duration),
+                  imageUrl: (track.imageUrl.isNotEmpty && !track.imageUrl.contains('default'))
+                      ? track.imageUrl
+                      : verifiedCandidate.thumbnailUrl,
+                )
+              : track;
+        } else {
+          debugLog('[Playback] Pre-validation failed: no verified YouTube stream found for "$query"');
+          state = state.copyWith(
+            status: PlaybackStatus.error,
+            clearLoadingTrackId: true,
+            errorMessage: 'This video is not a recognized music track.',
+          );
+          return;
+        }
+      }
+
+      final candidate = verifiedCandidate ??
+          YouTubeVideo(
+            id: candidateId,
+            title: track.title,
+            channelTitle: (track is Track && track.rawArtist != null && track.rawArtist!.isNotEmpty)
+                ? track.rawArtist!
+                : track.artist,
+            thumbnailUrl: track.imageUrl,
+            duration: track.duration,
+            viewCount: '',
+            rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
+            rawChannelTitle: (track is Track) ? (track.rawArtist ?? rawA) : rawA,
+          );
+      if (!MusicResultClassifier.isValidIndividualSong(candidate, query: '$rawT $rawA'.trim())) {
         debugLog('[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
         state = state.copyWith(
           status: PlaybackStatus.error,
@@ -638,6 +682,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
           _queueManager.currentIndex < _queueManager.queue.length) {
         final currentAtPointer = _queueManager.queue[_queueManager.currentIndex];
         if (currentAtPointer.id == track.id ||
+            currentAtPointer.id == originalTrackId ||
             _normalizeTrackId(currentAtPointer.id) == targetId) {
           targetIndex = _queueManager.currentIndex;
         }
@@ -646,7 +691,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
       // If not at currentIndex, find it in the queue
       if (targetIndex == -1) {
         targetIndex = _queueManager.queue.indexWhere(
-          (t) => t.id == track.id || _normalizeTrackId(t.id) == targetId,
+          (t) => t.id == track.id ||
+              t.id == originalTrackId ||
+              _normalizeTrackId(t.id) == targetId,
         );
       }
 
@@ -671,6 +718,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
       }
 
       state = state.copyWith(currentTrack: resolvedTrack);
+
+      if (resolvedTrack.id != originalTrackId) {
+        _persistQueueSnapshot();
+      }
 
       final queueSnapshot = _queueManager.queue;
       final startIdx = targetIndex >= 0 ? targetIndex : 0;

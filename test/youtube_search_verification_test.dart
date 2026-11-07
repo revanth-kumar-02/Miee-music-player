@@ -188,7 +188,11 @@ void main() {
 
 class FailingTestYouTubeRepository extends YouTubeRepository {
   @override
-  Future<List<YouTubeVideo>> search(String query) async {
+  Future<List<YouTubeVideo>> search(
+    String query, {
+    int page = 1,
+    bool forceFresh = false,
+  }) async {
     throw const SocketException('Failed host lookup: www.youtube.com');
   }
 }

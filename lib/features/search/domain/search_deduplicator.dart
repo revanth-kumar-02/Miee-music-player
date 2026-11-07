@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
 import '../../../shared/models/music_item.dart';
+import '../../recommendations/domain/music_language_service.dart';
 
 /// Represents genuinely distinct recording version categories.
 enum VersionType {
@@ -125,6 +126,7 @@ class _CanonicalSongSignature {
   final String normalizedArtist;
   final VersionType versionType;
   final String versionTag;
+  final String language;
   final int durationSeconds;
   final String rawTitle;
   final String rawChannel;
@@ -135,6 +137,7 @@ class _CanonicalSongSignature {
     required this.normalizedArtist,
     required this.versionType,
     required this.versionTag,
+    this.language = 'Unknown',
     required this.durationSeconds,
     required this.rawTitle,
     required this.rawChannel,
@@ -237,6 +240,13 @@ class SearchDeduplicator {
       for (final v in candidateList) {
         final editType = detectEditType(v, intent);
         final views = parseViewCount(v);
+        final rawTitle = (v.rawTitle ?? v.title).toLowerCase();
+        final channelLower = (v.rawChannelTitle ?? v.channelTitle).toLowerCase();
+        final isOfficial = channelLower.contains('- topic') ||
+            channelLower.endsWith('topic') ||
+            channelLower.contains('vevo') ||
+            _isOfficialMusicLabel(channelLower) ||
+            _isVerifiedArtist(channelLower);
 
         final isUnwantedEdit = editType != EditType.none;
         // Check relative view threshold: if maxViews is substantial (e.g. >= 100K)
@@ -247,7 +257,21 @@ class SearchDeduplicator {
             views < config.minViewCountForEdits &&
             isUnwantedEdit;
 
-        if (!isUnwantedEdit && !isLowViewDerivative) {
+        // Prune low-view fan lyric videos and unofficial re-uploads when an authoritative version exists
+        final isFanLyricUpload = rawTitle.contains('lyrics') &&
+            !rawTitle.contains('official') &&
+            !isOfficial &&
+            maxViews >= 500000 &&
+            views != null &&
+            views < (maxViews * 0.05);
+
+        final isLowViewFanReupload = !isOfficial &&
+            maxViews >= 500000 &&
+            views != null &&
+            views < (maxViews * 0.02) &&
+            views < 50000;
+
+        if (!isUnwantedEdit && !isLowViewDerivative && !isFanLyricUpload && !isLowViewFanReupload) {
           canonicalList.add(v);
         }
       }
@@ -380,12 +404,14 @@ class SearchDeduplicator {
     final normalizedArtist = _normalizeArtist(rawOrCleanChannel);
     final durSec = _parseDurationSeconds(video.duration);
     final isGeneric = _isGenericUploader(rawOrCleanChannel);
+    final language = MusicLanguageService.detectLanguage(rawOrCleanTitle, artist: rawOrCleanChannel);
 
     return _CanonicalSongSignature(
       normalizedTitle: normalizedTitle,
       normalizedArtist: normalizedArtist,
       versionType: versionInfo.type,
       versionTag: versionInfo.tag,
+      language: language,
       durationSeconds: durSec,
       rawTitle: rawOrCleanTitle,
       rawChannel: rawOrCleanChannel,
@@ -404,6 +430,11 @@ class SearchDeduplicator {
     // 1. Version tags MUST match (e.g. standard vs remix vs cover vs acoustic vs live)
     if (a.versionTag != b.versionTag) return false;
 
+    // 1b. Distinct known languages must NOT be merged (e.g. Tamil vs Telugu vs Hindi)
+    if (a.language != 'Unknown' && b.language != 'Unknown' && a.language != b.language) {
+      return false;
+    }
+
     // 2. Base titles must match substantially
     final titlesMatch = _titlesMatchSubstantially(a.normalizedTitle, b.normalizedTitle);
     if (!titlesMatch) return false;
@@ -415,13 +446,23 @@ class SearchDeduplicator {
     final hasDurations = a.durationSeconds > 0 && b.durationSeconds > 0;
     final durDiff = (a.durationSeconds - b.durationSeconds).abs();
 
-    // If durations differ by more than 15s (e.g. Adele 4:55 vs Lionel Richie 5:07), they are distinct songs!
-    if (hasDurations && durDiff > 15) {
+    // 4b. When titles match substantially and version tags match:
+    // Fan uploads and re-uploads regularly trim musical intros or add end cards (durDiff up to 45s).
+    if (hasDurations && durDiff <= 45) {
+      if (a.isGenericUploader || b.isGenericUploader) return true;
+      final rawTitleA = a.rawTitle.toLowerCase();
+      final rawTitleB = b.rawTitle.toLowerCase();
+      if (a.normalizedArtist.isNotEmpty && rawTitleB.contains(a.normalizedArtist)) return true;
+      if (b.normalizedArtist.isNotEmpty && rawTitleA.contains(b.normalizedArtist)) return true;
+    }
+
+    // If durations differ by more than 45s, they are distinct recordings
+    if (hasDurations && durDiff > 45) {
       return false;
     }
 
     // 5. If one or both uploaders is a generic channel / record label / fan distributor,
-    // and durations match within 15s, they are alternate uploads of the same underlying track
+    // and durations match within 20s, they are alternate uploads of the same underlying track
     if (a.isGenericUploader || b.isGenericUploader) {
       return true;
     }
@@ -487,7 +528,9 @@ class SearchDeduplicator {
       return false;
     }
 
-    return lower.contains('vevo') ||
+    return lower.startsWith('@') ||
+        lower.contains('@') ||
+        lower.contains('vevo') ||
         lower.contains('topic') ||
         lower.contains('music') ||
         lower.contains('records') ||
@@ -529,7 +572,20 @@ class SearchDeduplicator {
         lower.contains('lyrical') ||
         lower.contains('lyricist') ||
         lower.contains('songs') ||
+        lower.contains('song') ||
         lower.contains('melody') ||
+        lower.contains('info') ||
+        lower.contains('zone') ||
+        lower.contains('tune') ||
+        lower.contains('tunes') ||
+        lower.contains('hub') ||
+        lower.contains('box') ||
+        lower.contains('central') ||
+        lower.contains('red') ||
+        lower.contains('jan') ||
+        lower.contains('club') ||
+        lower.contains('upload') ||
+        lower.contains('uploads') ||
         lower.contains('beatz') ||
         lower.contains('beats') ||
         lower.contains('fx') ||
@@ -622,9 +678,9 @@ class SearchDeduplicator {
     );
     title = title.replaceAll(versionBracketRegex, ' ');
 
-    // 2. Remove bracketed upload packaging noise (e.g. [Official Video], (Lyrics), (Visualizer + HQ + SFX), etc.)
+    // 2. Remove bracketed upload packaging noise (e.g. [Official Video], (Lyrics), (Tamil), (Visualizer + HQ + SFX), (NEW), etc.)
     final bracketNoiseRegex = RegExp(
-      r'[\(\[\{][^\)\]\}]*(official|music\s+video|video|audio|lyric|visualizer|mv|hd|4k|hq|1080p|remaster|high\s+quality|explicit|clean|sfx)[^\)\]\}]*[\)\]\}]',
+      r'[\(\[\{][^\)\]\}]*(official|music\s+video|video|audio|lyric|lyrics|lyrical|visualizer|mv|hd|4k|hq|1080p|remaster|high\s+quality|explicit|clean|sfx|new|trend|trending|status|hit|hits|tamil|telugu|hindi|malayalam|kannada|bengali|marathi|punjabi|gujarati|bhojpuri|odia|assamese|english|spanish|french|german|korean|japanese)[^\)\]\}]*[\)\]\}]',
       caseSensitive: false,
     );
     title = title.replaceAll(bracketNoiseRegex, ' ');
@@ -658,12 +714,14 @@ class SearchDeduplicator {
       }
     }
 
-    // 3. Remove trailing upload noise (e.g. " - Official Audio", " | Lyric Video")
+    // 3. Remove trailing upload noise (e.g. " - Official Audio", " | Lyric Video", " Song")
     final trailingNoiseRegex = RegExp(
-      r'[\s\-\–\—\|\:]+(official\s+music\s+video|official\s+video|official\s+audio|lyric\s+video|lyrics|visualizer|mv|hd|4k|hq|1080p|audio|video)[\s]*$',
+      r'[\s\-\–\—\|\:]+(official\s+music\s+video|official\s+video|official\s+audio|lyrical\s+video|lyrics\s+video|lyric\s+video|lyrical|lyrics|lyric|video\s+song|video|visualizer|mv|hd|4k|hq|1080p|audio|full\s+song|song)[\s]*$',
       caseSensitive: false,
     );
-    title = title.replaceAll(trailingNoiseRegex, ' ');
+    while (trailingNoiseRegex.hasMatch(title)) {
+      title = title.replaceFirst(trailingNoiseRegex, ' ').trim();
+    }
 
     // 4. Remove artist prefix/suffix if present with a standard separator
     final separators = [' – ', ' — ', ' - ', ' | ', ' : '];
@@ -753,6 +811,54 @@ class SearchDeduplicator {
     }
 
     return best ?? candidates.first;
+  }
+
+  /// Checks if channel belongs to a verified music artist or official channel.
+  static bool _isVerifiedArtist(String rawChannel) {
+    if (_isOfficialMusicLabel(rawChannel)) return true;
+    final lower = rawChannel.toLowerCase().trim();
+    final verified = [
+      'dhanush',
+      'anirudh ravichander',
+      'anirudh',
+      'a.r. rahman',
+      'ar rahman',
+      'sai abhyankkar',
+      'yuvan shankar raja',
+      'yuvan',
+      'harris jayaraj',
+      'sid sriram',
+      'devi sri prasad',
+      'santhosh narayanan',
+      'g.v. prakash',
+      'gv prakash',
+      'tippu',
+      'pradeep kumar',
+      'karthik',
+      'shreya ghoshal',
+      'arijit singh',
+      'coldplay',
+      'ed sheeran',
+      'dua lipa',
+      'taylor swift',
+      'the weeknd',
+      'bts',
+      'drake',
+      'eminem',
+      'adele',
+      'billie eilish',
+      'sanjay subrahmanyan',
+    ];
+    for (final a in verified) {
+      if (lower == a ||
+          lower.startsWith('$a ') ||
+          lower.endsWith(' $a') ||
+          lower == '$a official' ||
+          lower.contains('$a vevo')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Checks whether a channel is a recognized major music record label.
@@ -1308,15 +1414,28 @@ class SearchDeduplicator {
     required int maxViewsInResultSet,
   }) {
     final relevance = calculateQueryRelevance(video, query);
-    // If relevance is near zero, video is completely unrelated to query!
+    final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
+    final channel = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+    final lang = MusicLanguageService.detectLanguage(rawTitle, artist: channel);
+
+    final isOfficialChannel = channel.contains('- topic') ||
+        channel.endsWith('topic') ||
+        channel.contains('vevo') ||
+        _isOfficialMusicLabel(channel) ||
+        _isVerifiedArtist(channel);
+
+    final isAlternateLanguage = lang != 'Unknown' && !query.toLowerCase().contains(lang.toLowerCase());
+
+    // If relevance is low, but it is an official release in another language (e.g. Telugu version)
     if (relevance < 0.25) {
-      return relevance * 10.0;
+      if (isOfficialChannel && isAlternateLanguage) {
+        // Retain legitimate official multilingual version with baseline
+      } else {
+        return relevance * 10.0;
+      }
     }
 
     double score = relevance * 1000.0;
-
-    final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
-    final channel = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
 
     // 1. Official channel bonus
     if (channel.contains('- topic') || channel.endsWith('topic')) {
@@ -1325,36 +1444,52 @@ class SearchDeduplicator {
       score += 200; // Official VEVO
     } else if (_isOfficialMusicLabel(channel)) {
       score += 220; // Official major music label (Think Music, Sony, T-Series, etc.)
+    } else if (_isVerifiedArtist(channel)) {
+      score += 210; // Verified artist / composer channel (e.g. Dhanush, Anirudh)
     } else if (channel.contains('official')) {
       score += 80;
     }
 
-    // 2. Title upload signals
-    if (rawTitle.contains('official audio')) {
-      score += 150;
-    } else if (rawTitle.contains('official music video') ||
+    // 2. Title upload signals (hierarchical ranking)
+    // Rank 1: Official original song / official music video
+    if (rawTitle.contains('official music video') ||
         rawTitle.contains('official video') ||
         rawTitle.contains('(music video)') ||
         rawTitle.contains('[music video]') ||
         rawTitle.contains('music video') ||
-        rawTitle.contains('video song') ||
-        rawTitle.contains('full video')) {
-      score += 130;
-    } else if (rawTitle.contains('official lyric video') || rawTitle.contains('official visualizer')) {
-      score += 70;
+        rawTitle.contains('video song')) {
+      score += 180;
+    } else if (rawTitle.contains('official audio')) {
+      score += 150; // Rank 2: Official audio
+    } else if (rawTitle.contains('official lyric video') ||
+        rawTitle.contains('official visualizer') ||
+        (rawTitle.contains('lyrical') && isOfficialChannel)) {
+      score += 130; // Rank 2: Official lyrical release
+    } else if (rawTitle.contains('full video')) {
+      score += 100;
     } else if (rawTitle.contains('audio')) {
       score += 30;
+    }
+
+    // Rank 3: Official releases in other languages (Telugu, Hindi, etc.)
+    if (isOfficialChannel && isAlternateLanguage) {
+      score += 220;
+    }
+
+    // Rank 4: Legitimate version indicators (Remixes, acoustic, unplugged)
+    if (rawTitle.contains('remix') || rawTitle.contains('acoustic') || rawTitle.contains('unplugged')) {
+      score += 70;
     }
 
     // 3. View count signal (logarithmic & relative)
     final views = parseViewCount(video);
     if (views != null && views > 0) {
-      final logScore = (math.log(views + 1) / math.ln10) * 12.0;
+      final logScore = (math.log(views + 1) / math.ln10) * 14.0;
       score += logScore;
 
       if (maxViewsInResultSet > 0) {
         final ratio = views / maxViewsInResultSet;
-        score += ratio * 50.0;
+        score += ratio * 55.0;
       }
     }
 
@@ -1370,6 +1505,16 @@ class SearchDeduplicator {
       }
     }
 
+    // Demote unofficial info, edit, status channels
+    if (!isOfficialChannel) {
+      if (channel.contains('info') ||
+          channel.contains('editz') ||
+          channel.contains('edits') ||
+          channel.contains('status')) {
+        score -= 400.0;
+      }
+    }
+
     // 5. Derivative edit demotion
     final intent = QueryIntent.fromQuery(query);
     final editType = detectEditType(video, intent);
@@ -1377,9 +1522,9 @@ class SearchDeduplicator {
       score -= 400.0;
     }
 
-    // 6. Fan lyric-only upload slight demotion compared to official
-    if (rawTitle.contains('lyrics') && !rawTitle.contains('official')) {
-      score -= 40.0;
+    // 6. Fan lyric-only upload demotion compared to official
+    if (rawTitle.contains('lyrics') && !rawTitle.contains('official') && !isOfficialChannel) {
+      score -= 100.0;
     }
 
     return score;

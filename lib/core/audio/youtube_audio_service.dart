@@ -92,7 +92,7 @@ class YouTubeAudioService {
   // ── Cache & in-flight deduplication ───────────────────────────────────────
   final Map<String, _CachedStream> _urlCache = {};
   final Map<String, Future<String?>> _inFlight = {};
-  final Map<String, String> _queryIdCache = {};
+  final Map<String, YouTubeVideo> _queryCandidateCache = {};
 
   // ── youtube_explode_dart client ───────────────────────────────────────────
   YoutubeExplode _yt = YoutubeExplode();
@@ -218,8 +218,17 @@ class YouTubeAudioService {
 
   void clearCache() {
     _urlCache.clear();
-    _queryIdCache.clear();
+    _queryCandidateCache.clear();
     debugPrint('[StreamCache] Cache cleared');
+  }
+
+  void _cacheCandidate(String cacheKey, YouTubeVideo candidate) {
+    if (!_queryCandidateCache.containsKey(cacheKey) &&
+        _queryCandidateCache.length >= _maxCacheSize) {
+      final oldestKey = _queryCandidateCache.keys.first;
+      _queryCandidateCache.remove(oldestKey);
+    }
+    _queryCandidateCache[cacheKey] = candidate;
   }
 
   void dispose() {
@@ -228,14 +237,27 @@ class YouTubeAudioService {
     debugPrint('[YouTubeAudioService] Disposed');
   }
 
-  /// Resolves a YouTube video ID for a track [query] (e.g. "West Coast Lana Del Rey").
-  Future<String?> resolveVideoIdForQuery(String query) async {
+  @visibleForTesting
+  void injectCachedCandidate(String query, YouTubeVideo candidate) {
+    final cleanQuery = query.trim().toLowerCase();
+    _cacheCandidate(cleanQuery, candidate);
+  }
+
+  @visibleForTesting
+  YouTubeVideo? getCachedCandidateForTesting(String query) =>
+      _queryCandidateCache[query.trim().toLowerCase()];
+
+  @visibleForTesting
+  int get cachedCandidateCountForTesting => _queryCandidateCache.length;
+
+  /// Resolves a full verified [YouTubeVideo] candidate for a track [query] (e.g. "West Coast Lana Del Rey").
+  Future<YouTubeVideo?> resolveCandidateForQuery(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return null;
     final cacheKey = cleanQuery.toLowerCase();
-    if (_queryIdCache.containsKey(cacheKey)) {
-      debugPrint('[YouTubeAudioService] Query ID cache HIT for "$cleanQuery" -> ${_queryIdCache[cacheKey]}');
-      return _queryIdCache[cacheKey];
+    if (_queryCandidateCache.containsKey(cacheKey)) {
+      debugPrint('[YouTubeAudioService] Query candidate cache HIT for "$cleanQuery" -> ${_queryCandidateCache[cacheKey]!.id}');
+      return _queryCandidateCache[cacheKey];
     }
 
     if (kIsWeb) {
@@ -279,8 +301,8 @@ class YouTubeAudioService {
                   candidates.add(candidate);
                   if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
                     debugPrint('[YouTubeAudioService] Resolved valid video ID "$id" for query "$cleanQuery" via web proxy ($baseUrl)');
-                    _queryIdCache[cacheKey] = id;
-                    return id;
+                    _cacheCandidate(cacheKey, candidate);
+                    return candidate;
                   }
                 }
               }
@@ -312,8 +334,8 @@ class YouTubeAudioService {
           if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
             final id = video.id.value;
             debugPrint('[YouTubeAudioService] Resolved valid music video ID "$id" for query "$cleanQuery" via YoutubeExplode');
-            _queryIdCache[cacheKey] = id;
-            return id;
+            _cacheCandidate(cacheKey, candidate);
+            return candidate;
           }
         }
         debugPrint('[YouTubeAudioService] No valid music tracks found for query "$cleanQuery" among ${candidates.length} candidates');
@@ -322,6 +344,12 @@ class YouTubeAudioService {
       }
     }
     return null;
+  }
+
+  /// Resolves a YouTube video ID for a track [query] (e.g. "West Coast Lana Del Rey").
+  Future<String?> resolveVideoIdForQuery(String query) async {
+    final candidate = await resolveCandidateForQuery(query);
+    return candidate?.id;
   }
 
   // ─────────────────────────────────────────────────────────────────────────

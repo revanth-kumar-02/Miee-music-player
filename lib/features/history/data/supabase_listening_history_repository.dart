@@ -5,6 +5,7 @@ import '../../../core/storage/adapters/track_hive_model.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
+import '../../recommendations/domain/music_language_service.dart';
 import '../domain/listening_event.dart';
 import '../domain/listening_history_repository.dart';
 
@@ -19,8 +20,8 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
     required int listenedSec,
     required int durationSec,
   }) async {
-    // Only record genuine listening sessions of at least 5 seconds
-    if (listenedSec < 5) return;
+    // Only record genuine listening sessions of at least 3 seconds (excludes 0-2s misclicks / stream stalls)
+    if (listenedSec < 3) return;
 
     final ratio = durationSec > 0 ? (listenedSec / durationSec).clamp(0.0, 1.0) : 0.0;
     final now = DateTime.now();
@@ -43,13 +44,14 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
       filePath: track.filePath,
     );
 
-    // 1. Record to local Hive box
+    // Record to local Hive box with account isolation (uid)
     try {
       await _localBox.add(
         PlaybackHistoryEntry(
           track: TrackHiveModel.fromTrack(durableTrack),
           startTime: now,
           completionPercent: ratio,
+          userId: uid,
         ),
       );
     } catch (e) {
@@ -62,7 +64,13 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
     required String? uid,
     int limit = 30,
   }) async {
-    final localEntries = _localBox.values.toList();
+    var localEntries = _localBox.values.toList();
+
+    // Strict account isolation: filter by authenticated user
+    if (uid != null) {
+      localEntries = localEntries.where((e) => e.userId == uid).toList();
+    }
+
     localEntries.sort((a, b) => b.startTime.compareTo(a.startTime));
 
     return localEntries.take(limit).map((entry) {
@@ -81,6 +89,12 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
         }
       }
 
+      final listenedSec = (parsedDurationSec * entry.completionPercent).round();
+      final language = MusicLanguageService.detectLanguage(
+        entry.track.title,
+        artist: entry.track.artist,
+      );
+
       return ListeningEvent(
         id: entry.key?.toString() ?? UniqueKey().toString(),
         trackId: entry.track.id,
@@ -90,14 +104,27 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
         source: entry.track.id.startsWith('youtube_') ? 'youtube' : 'local',
         timestamp: entry.startTime,
         durationSec: parsedDurationSec > 0 ? parsedDurationSec : 180,
-        listenedSec: (parsedDurationSec * entry.completionPercent).round(),
+        listenedSec: listenedSec,
         completionRatio: entry.completionPercent,
+        language: language,
+        userId: entry.userId ?? uid,
       );
     }).toList();
   }
 
   @override
   Future<void> clearHistory(String? uid) async {
-    await _localBox.clear();
+    if (uid != null) {
+      final keysToDelete = <dynamic>[];
+      for (final key in _localBox.keys) {
+        final entry = _localBox.get(key);
+        if (entry != null && entry.userId == uid) {
+          keysToDelete.add(key);
+        }
+      }
+      await _localBox.deleteAll(keysToDelete);
+    } else {
+      await _localBox.clear();
+    }
   }
 }

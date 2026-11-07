@@ -71,6 +71,9 @@ class FakeSearchNotifier extends StateNotifier<SearchState>
   FakeSearchNotifier(super.state);
 
   @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
   void setFilter(String filter) {}
 
   @override
@@ -362,10 +365,10 @@ void main() {
       expect(controller.lastSelectedTrack?.id, equals('youtube_vid_102'));
       expect(controller.lastSelectedTrack?.title, equals('Believer'));
 
-      // 2. Full search queue preserved (all 3 tracks in order)
+      // 2. Full search queue preserved (target track at index 0 followed by others)
       expect(controller.lastSelectedList?.length, equals(3));
-      expect(controller.lastSelectedList![0].id, equals('youtube_vid_101'));
-      expect(controller.lastSelectedList![1].id, equals('youtube_vid_102'));
+      expect(controller.lastSelectedList![0].id, equals('youtube_vid_102'));
+      expect(controller.lastSelectedList![1].id, equals('youtube_vid_101'));
       expect(controller.lastSelectedList![2].id, equals('youtube_vid_103'));
 
       // 3. playingFrom source label

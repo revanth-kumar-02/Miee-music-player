@@ -5,7 +5,6 @@ import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:Miee/core/storage/hive_boxes.dart';
 import 'package:Miee/core/sync/sync_manager.dart';
-import 'package:Miee/core/sync/sync_state.dart';
 import 'package:Miee/core/sync/network_monitor.dart';
 import 'package:Miee/core/sync/offline_operation.dart';
 import 'package:Miee/core/sync/offline_queue.dart';
@@ -22,7 +21,7 @@ class FakeNetworkMonitor implements NetworkMonitor {
   @override
   Future<bool> get isConnected async {
     if (delay > Duration.zero) {
-      await Future.delayed(delay);
+      await Future<void>.delayed(delay);
     }
     return connected;
   }
@@ -36,7 +35,7 @@ void main() {
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('miee_sync_test_');
     Hive.init(tempDir.path);
-    await Hive.openBox(HiveBoxes.offlineQueue);
+    await Hive.openBox<dynamic>(HiveBoxes.offlineQueue);
     await Hive.openBox<dynamic>(HiveBoxes.preferences);
     await Hive.openBox<dynamic>(HiveBoxes.profile);
   });
@@ -242,7 +241,7 @@ void main() {
     });
 
     test('10. Idempotent Queue Deletion: removeOperation removes only target operation by ID', () async {
-      final box = Hive.box(HiveBoxes.offlineQueue);
+      final box = Hive.box<dynamic>(HiveBoxes.offlineQueue);
       final queue = OfflineOperationQueue(box);
 
       await queue.addOperation(OfflineOperation(

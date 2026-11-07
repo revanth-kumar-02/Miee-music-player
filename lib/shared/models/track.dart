@@ -60,5 +60,33 @@ class Track implements MusicItem {
 
   @override
   int get hashCode => id.hashCode;
+
+  Track copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? imageUrl,
+    String? duration,
+    String? filePath,
+    double? progress,
+    bool? isPlaying,
+    bool? isFavorited,
+    String? rawTitle,
+    String? rawArtist,
+  }) {
+    return Track(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      imageUrl: imageUrl ?? this.imageUrl,
+      duration: duration ?? this.duration,
+      filePath: filePath ?? localFilePath,
+      progress: progress ?? this.progress,
+      isPlaying: isPlaying ?? this.isPlaying,
+      isFavorited: isFavorited ?? this.isFavorited,
+      rawTitle: rawTitle ?? this.rawTitle,
+      rawArtist: rawArtist ?? this.rawArtist,
+    );
+  }
 }
 

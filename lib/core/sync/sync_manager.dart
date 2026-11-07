@@ -1,8 +1,10 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/profile/domain/profile_model.dart';
@@ -23,29 +25,87 @@ import 'sync_state.dart';
 import 'supabase_config.dart';
 
 /// Orchestrates background sync, offline replay queues, conflict resolutions, login/logout handshakes.
-class SyncManager {
+class SyncManager with WidgetsBindingObserver {
   final Ref _ref;
   final OfflineOperationQueue _operationQueue;
   final NetworkMonitor _networkMonitor;
   late final StreamSubscription<bool> _networkSubscription;
 
+  Future<void>? _currentLock;
   Future<void>? _inFlightSync;
   bool _followUpNeeded = false;
   DateTime? _lastSyncTime;
   static const Duration minSyncInterval = Duration(seconds: 15);
 
-  SyncManager(this._ref)
-      : _operationQueue = OfflineOperationQueue(Hive.box(HiveBoxes.offlineQueue)),
+  bool _wasOffline = false;
+  Timer? _debounceTimer;
+  final Duration reconnectDebounceDuration;
+
+  SyncManager(
+    this._ref, {
+    this.reconnectDebounceDuration = const Duration(milliseconds: 750),
+  })  : _operationQueue = OfflineOperationQueue(Hive.box<dynamic>(HiveBoxes.offlineQueue)),
         _networkMonitor = _ref.read(networkMonitorProvider) {
-    // Automatically trigger sync when network returns
-    _networkSubscription = _networkMonitor.onConnectivityChanged.listen((isOnline) {
-      // if (isOnline) {
-      //   triggerSync();
-      // }
+    try {
+      WidgetsBinding.instance.addObserver(this);
+    } catch (_) {}
+
+    // Seed initial connectivity state asynchronously
+    _networkMonitor.isConnected.then((connected) {
+      _wasOffline = !connected;
+    });
+
+    // Automatically trigger debounced sync on genuine offline-to-online transitions
+    _networkSubscription = _networkMonitor.onConnectivityChanged.listen(_handleConnectivityChanged);
+  }
+
+  void _handleConnectivityChanged(bool isOnline) {
+    if (!isOnline) {
+      _wasOffline = true;
+      _debounceTimer?.cancel();
+      return;
+    }
+
+    // Debounce rapid connectivity events (e.g., cellular/WiFi handoffs or captive portal flaps)
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(reconnectDebounceDuration, () async {
+      final isReallyConnected = await _networkMonitor.isConnected;
+      if (!isReallyConnected) return;
+
+      // Only trigger if we genuinely transitioned from offline to online
+      if (_wasOffline) {
+        _wasOffline = false;
+        final user = _ref.read(authControllerProvider).user;
+        if (user != null) {
+          debugPrint('[SyncManager] Network restored (offline -> online). Triggering automatic sync.');
+          unawaited(triggerSync());
+        } else {
+          debugPrint('[SyncManager] Network restored but no user authenticated. Skipping automatic sync.');
+        }
+      }
     });
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _handleAppResume();
+    }
+  }
+
+  void _handleAppResume() {
+    final user = _ref.read(authControllerProvider).user;
+    if (user != null) {
+      debugPrint('[SyncManager] App resumed. Triggering non-forced sync (cooldown-guarded).');
+      unawaited(triggerSync(force: false));
+    }
+  }
+
   void dispose() {
+    try {
+      WidgetsBinding.instance.removeObserver(this);
+    } catch (_) {}
+    _debounceTimer?.cancel();
     _networkSubscription.cancel();
   }
 
@@ -54,29 +114,154 @@ class SyncManager {
   bool get isSyncing => _inFlightSync != null;
   DateTime? get lastSyncTime => _lastSyncTime;
 
+  /// Executes [action] exclusively under the shared synchronization lock.
+  /// Synchronously queues against [_currentLock] to prevent races between callers
+  /// observing a null mutex before assignment.
+  Future<void> _runExclusive(Future<void> Function() action) {
+    final previous = _currentLock;
+    final completer = Completer<void>();
+    final syncFuture = completer.future;
+    _currentLock = syncFuture;
+    _inFlightSync = syncFuture;
+
+    () async {
+      if (previous != null) {
+        try {
+          await previous;
+        } catch (_) {
+          // Ignore failures in previous operations so subsequent operations are not blocked
+        }
+      }
+      try {
+        await action();
+        completer.complete();
+      } catch (e, st) {
+        completer.completeError(e, st);
+      } finally {
+        if (_currentLock == syncFuture) {
+          _currentLock = null;
+          _inFlightSync = null;
+        }
+      }
+    }();
+
+    return syncFuture;
+  }
+
+  static bool _isTransientError(dynamic error) {
+    if (error is SocketException || error is TimeoutException) {
+      return true;
+    }
+    final str = error.toString().toLowerCase();
+    if (str.contains('socketexception') ||
+        str.contains('clientexception') ||
+        str.contains('connection timed out') ||
+        str.contains('connection refused') ||
+        str.contains('failed host lookup') ||
+        str.contains('network is unreachable') ||
+        str.contains('software caused connection abort') ||
+        str.contains('handshakeexception') ||
+        str.contains('timeout')) {
+      return true;
+    }
+    if (error is PostgrestException) {
+      // 5xx status codes indicate transient server errors
+      if (error.code == '502' || error.code == '503' || error.code == '504') {
+        return true;
+      }
+      final msg = error.message.toLowerCase();
+      final details = (error.details?.toString() ?? '').toLowerCase();
+
+      // Row-Level Security (RLS) or permission violations are permanent authorization/policy failures
+      final isRlsViolation = error.code == '42501' ||
+          msg.contains('row-level security') ||
+          details.contains('row-level security') ||
+          msg.contains('permission denied');
+      if (isRlsViolation) {
+        return false; // Permanent RLS violation -> move to dead-letter
+      }
+
+      // Expired JWT / token (401) is transient and recoverable via session refresh
+      if (error.code == '401' && (msg.contains('jwt expired') || msg.contains('token expired'))) {
+        return true; // Transient expired token -> session refreshable
+      }
+      return false;
+    }
+    return false;
+  }
+
   /// Queues an operation locally if offline, otherwise replays instantly.
   Future<void> queueOperation(OfflineOperation op) async {
-    await _operationQueue.addOperation(op);
+    final currentUserId = _ref.read(authControllerProvider).user?.id;
+    final resolvedOp = (op.userId == null && currentUserId != null)
+        ? op.copyWith(userId: currentUserId)
+        : op;
+    await _operationQueue.addOperation(resolvedOp);
     // Trigger background sync in the background
     unawaited(triggerSync());
   }
 
-  /// Replays all queued offline operations to Supabase.
-  Future<void> replayOfflineQueue() async {
+  /// Replays all queued offline operations to Supabase with unified mutex protection.
+  Future<void> replayOfflineQueue() {
+    if (_inFlightSync != null) {
+      return _inFlightSync!;
+    }
+    return _runExclusive(() async {
+      await _replayQueueInternal();
+    });
+  }
+
+  /// Internal queue replay implementation executed under the synchronization mutex.
+  Future<void> _replayQueueInternal() async {
     final authState = _ref.read(authControllerProvider);
     final isOnline = await _networkMonitor.isConnected;
 
-    if (!isOnline || !SupabaseConfig.hasActiveSupabase || authState.user == null) {
+    if (!isOnline || !SupabaseConfig.hasActiveSupabase || !SupabaseConfig.isInitialized || authState.user == null) {
       return;
     }
 
     final client = Supabase.instance.client;
+    final currentUserId = authState.user!.id;
     final operations = _operationQueue.getOperations();
 
+    // Track permanently failed playlist IDs so dependent operations don't retry fruitlessly
+    final Set<String> failedPlaylistCreations = {};
+
     for (final op in operations) {
+      // 1. Account Isolation Validation
+      if (op.userId != null && op.userId != currentUserId) {
+        debugPrint('[SyncManager] Skipping operation ${op.id} belonging to user ${op.userId} while authenticated as $currentUserId');
+        continue;
+      }
+
+      if (op.userId == null) {
+        // Legacy or unassigned operation without known account identity
+        debugPrint('[SyncManager] Quarantining legacy operation ${op.id} without account identity');
+        await _operationQueue.quarantineOperation(
+          op.id,
+          reason: 'Unassigned/legacy operation without user ownership',
+        );
+        continue;
+      }
+
+      // 2. Dependency Check: If parent playlist creation failed permanently, fail dependent operations
+      final parentPlaylistId = op.payload['playlistId']?.toString();
+      if ((op.type == 'playlist_song_add' ||
+              op.type == 'playlist_song_remove' ||
+              op.type == 'playlist_tracks_reorder') &&
+          parentPlaylistId != null &&
+          failedPlaylistCreations.contains(parentPlaylistId)) {
+        debugPrint('[SyncManager] Quarantining dependent operation ${op.id} because parent playlist creation failed');
+        await _operationQueue.markDeadLetter(
+          op.id,
+          error: 'Parent playlist creation failed permanently',
+        );
+        continue;
+      }
+
       try {
         final payload = op.payload;
-        final userId = authState.user!.id;
+        final userId = currentUserId;
 
         switch (op.type) {
           case 'favorite_add':
@@ -125,6 +310,38 @@ class SyncManager {
               'name': payload['name'],
               'last_modified': payload['lastModified'],
             });
+            break;
+
+          case 'playlist_tracks_reorder':
+            // ARCHITECTURAL NOTE — Playlist Reorder Synchronization:
+            // 1. Partial-Update Behavior: Each track position is updated sequentially over REST.
+            //    If network drops mid-loop (e.g. at index k of N), items 0..k-1 have updated positions
+            //    while items k..N retain old positions on remote.
+            // 2. Retry Safety: Because the payload contains the complete intended position array,
+            //    a subsequent retry re-applies all intended positions from index 0,
+            //    eventually restoring the intended order (idempotent convergence).
+            // 3. Affected-Row Behavior: PostgREST .update() returns 200 even if 0 rows matched
+            //    (e.g. if a track was concurrently removed). The loop continues safely.
+            // 4. Future Transactional Solution: To eliminate interim inconsistent states visible
+            //    to concurrent clients, implement an atomic PostgreSQL RPC function
+            //    (e.g., 'reorder_playlist_tracks(p_playlist_id, p_positions)') that updates all positions
+            //    within a single SQL transaction.
+            final positions = payload['trackPositions'] as List<dynamic>? ?? [];
+            for (final item in positions) {
+              if (item is Map) {
+                await client
+                    .from('playlist_tracks')
+                    .update({'position': item['position']})
+                    .eq('playlist_id', payload['playlistId'] as Object)
+                    .eq('track_id', item['trackId'] as Object)
+                    .eq('user_id', userId);
+              }
+            }
+            if (payload['lastModified'] != null) {
+              await client.from('playlists').update({
+                'last_modified': payload['lastModified'],
+              }).eq('id', payload['playlistId'] as Object).eq('user_id', userId);
+            }
             break;
 
           case 'playlist_song_add':
@@ -180,17 +397,40 @@ class SyncManager {
             break;
 
           case 'history_add':
-            await client.from('history').insert({
-              'track_id': payload['id'],
-              'user_id': userId,
-              'title': payload['title'],
-              'artist': payload['artist'],
-              'image_url': payload['imageUrl'],
-              'duration': payload['duration'],
-              'file_path': payload['filePath'],
-              'is_youtube': payload['isYoutube'] ?? false,
-              'played_at': payload['playedAt'],
-            });
+            // Generate deterministic UUID for idempotency
+            final trackId = payload['id']?.toString() ?? '';
+            final playedAtStr = payload['playedAt']?.toString() ?? op.timestamp.toIso8601String();
+            final deterministicId = const Uuid().v5(Namespace.url.value, 'miee:history:$userId:$trackId:$playedAtStr');
+
+            try {
+              await client.from('history').insert({
+                'id': deterministicId,
+                'track_id': trackId,
+                'user_id': userId,
+                'title': payload['title'],
+                'artist': payload['artist'],
+                'image_url': payload['imageUrl'],
+                'duration': payload['duration'],
+                'file_path': payload['filePath'],
+                'is_youtube': payload['isYoutube'] ?? false,
+                'played_at': playedAtStr,
+              });
+            } on PostgrestException catch (pgEx) {
+              // Code '23505' indicates duplicate key violation. Only treat as idempotent success if
+              // it is demonstrably the expected deterministic history primary-key conflict.
+              final message = pgEx.message.toLowerCase();
+              final details = (pgEx.details?.toString() ?? '').toLowerCase();
+              final isPrimaryKeyConflict = message.contains('history_pkey') ||
+                  details.contains('history_pkey') ||
+                  details.contains('key (id)=') ||
+                  (message.contains('duplicate key') && (message.contains('id') || details.contains('(id)')));
+
+              if (pgEx.code == '23505' && isPrimaryKeyConflict) {
+                debugPrint('[SyncManager] Idempotent history insertion: primary key record $deterministicId already exists on Supabase');
+              } else {
+                rethrow;
+              }
+            }
             break;
 
           case 'most_played_increment':
@@ -223,8 +463,47 @@ class SyncManager {
         await _operationQueue.removeOperation(op.id);
       } catch (e) {
         debugPrint('Failed to replay offline operation ${op.id} (${op.type}): $e');
-        // Stop replaying this queue batch to preserve chronological sequencing
-        break;
+        final isTransient = _isTransientError(e);
+        final newRetryCount = op.retryCount + 1;
+
+        if (op.type == 'playlist_create') {
+          failedPlaylistCreations.add(op.payload['id']?.toString() ?? '');
+        }
+
+        // Attempt session refresh if token expired during replay
+        if (e is PostgrestException && (e.code == '401' || e.message.toLowerCase().contains('jwt expired'))) {
+          try {
+            debugPrint('[SyncManager] Token expired during replay. Attempting session refresh...');
+            final refresh = await client.auth.refreshSession();
+            if (refresh.session != null) {
+              debugPrint('[SyncManager] Session refreshed successfully.');
+            }
+          } catch (refreshErr) {
+            debugPrint('[SyncManager] Session refresh attempt failed: $refreshErr');
+          }
+        }
+
+        // Only permanent errors (non-transient) should be quarantined to dead-letter immediately.
+        // Purely transient connection/network errors (e.g. SocketException, TimeoutException, expired JWT)
+        // must NOT be quarantined into dead-letter simply because an outage lasted several retries.
+        if (!isTransient) {
+          // Permanent failure or schema/constraint violation -> move to dead-letter state so it does not block the queue
+          debugPrint('[SyncManager] Moving operation ${op.id} to dead-letter state: $e');
+          await _operationQueue.markDeadLetter(
+            op.id,
+            error: e.toString(),
+            retryCount: newRetryCount,
+          );
+          // Continue to next independent operation!
+        } else {
+          // Transient failure (network unreachable, timeout, session refresh needed) -> update retry count and break batch to avoid spamming down network
+          await _operationQueue.updateRetry(
+            op.id,
+            retryCount: newRetryCount,
+            lastError: e.toString(),
+          );
+          break;
+        }
       }
     }
   }
@@ -248,16 +527,13 @@ class SyncManager {
       }
     }
 
-    final future = _performSync(force: force);
-    _inFlightSync = future.then((didRun) {
+    return _runExclusive(() async {
+      final didRun = await _performSync(force: force);
       if (didRun && _followUpNeeded && _operationQueue.getOperations().isNotEmpty) {
         _followUpNeeded = false;
         unawaited(triggerSync());
       }
-    }).whenComplete(() {
-      _inFlightSync = null;
     });
-    return _inFlightSync!;
   }
 
   Future<bool> _performSync({bool force = false}) async {
@@ -265,7 +541,7 @@ class SyncManager {
     final authState = _ref.read(authControllerProvider);
     final isOnline = await _networkMonitor.isConnected;
 
-    if (!isOnline || !SupabaseConfig.hasActiveSupabase || authState.user == null) {
+    if (!isOnline || !SupabaseConfig.hasActiveSupabase || !SupabaseConfig.isInitialized || authState.user == null) {
       _lastSyncTime = DateTime.now();
       return false;
     }
@@ -288,7 +564,27 @@ class SyncManager {
       }
 
       // 1. Replay local changes to Cloud
-      await replayOfflineQueue();
+      await _replayQueueInternal();
+
+      // Collect pending and dead-letter local deletions to prevent remote resurrection.
+      // Strict account isolation: only deletions explicitly owned by the current authenticated
+      // user protect against resurrection. Unassigned legacy operations remain quarantined
+      // and do not influence any user's cloud data.
+      final pendingOps = _operationQueue.getOperations(includeDeadLetter: true);
+      final pendingDeletedFavIds = pendingOps
+          .where((o) => o.type == 'favorite_remove' && o.userId == userId)
+          .map((o) => o.payload['id']?.toString() ?? '')
+          .toSet();
+
+      final pendingDeletedPlaylistIds = pendingOps
+          .where((o) => o.type == 'playlist_delete' && o.userId == userId)
+          .map((o) => o.payload['id']?.toString() ?? '')
+          .toSet();
+
+      final pendingRemovedPlaylistSongs = pendingOps
+          .where((o) => o.type == 'playlist_song_remove' && o.userId == userId)
+          .map((o) => '${o.payload['playlistId']}_${o.payload['trackId']}')
+          .toSet();
 
       // 2. Fetch Remote Updates from Cloud
       // A. Profile & Settings Table
@@ -402,7 +698,7 @@ class SyncManager {
             duration: '3:00',
             filePath: f['file_path'] as String?,
           );
-        }).toList();
+        }).where((t) => !pendingDeletedFavIds.contains(t.id)).toList();
 
         for (final track in deltaFavs) {
           await favsBox.put(track.id, TrackHiveModel.fromTrack(track));
@@ -419,7 +715,7 @@ class SyncManager {
             duration: '3:00',
             filePath: f['file_path'] as String?,
           );
-        }).toList();
+        }).where((t) => !pendingDeletedFavIds.contains(t.id)).toList();
 
         final localFavs = favsBox.values.map((t) => t.toTrack()).toList();
 
@@ -451,10 +747,12 @@ class SyncManager {
       final playlistsBox = Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
       final localPlaylists = playlistsBox.values.toList();
 
-      final List<PlaylistHiveModel> remotePlaylists = (playlistsRes as List).map((p) {
+      final List<PlaylistHiveModel> remotePlaylists = (playlistsRes as List)
+          .where((p) => !pendingDeletedPlaylistIds.contains(p['id']?.toString() ?? ''))
+          .map((p) {
         final pId = p['id'] as String;
         final songs = (playlistTracksRes as List)
-            .where((s) => s['playlist_id'] == pId)
+            .where((s) => s['playlist_id'] == pId && !pendingRemovedPlaylistSongs.contains('${pId}_${s['track_id']}'))
             .map((s) => TrackHiveModel(
                   id: s['track_id'] as String,
                   title: s['title'] as String,
@@ -608,16 +906,42 @@ class SyncManager {
   }
 
   /// Downloads all remote data from Supabase, completely replacing local Cache (used on sign-in).
-  Future<void> downloadAllRemoteData() async {
+  /// Coordinated under the shared synchronization lock to prevent race conditions or collisions with active syncs.
+  Future<void> downloadAllRemoteData() {
+    return _runExclusive(() async {
+      await _performDownloadAllRemoteData();
+    });
+  }
+
+  Future<void> _performDownloadAllRemoteData() async {
     final authState = _ref.read(authControllerProvider);
     final isOnline = await _networkMonitor.isConnected;
 
-    if (!isOnline || !SupabaseConfig.hasActiveSupabase || authState.user == null) {
+    if (!isOnline || !SupabaseConfig.hasActiveSupabase || !SupabaseConfig.isInitialized || authState.user == null) {
       return;
     }
 
     final client = Supabase.instance.client;
     final userId = authState.user!.id;
+
+    // Collect pending and dead-letter local deletions so restoring remote data
+    // does not resurrect items deleted locally.
+    // Strict account isolation: only deletions explicitly owned by the current authenticated user.
+    final pendingOps = _operationQueue.getOperations(includeDeadLetter: true);
+    final pendingDeletedFavIds = pendingOps
+        .where((o) => o.type == 'favorite_remove' && o.userId == userId)
+        .map((o) => o.payload['id']?.toString() ?? '')
+        .toSet();
+
+    final pendingDeletedPlaylistIds = pendingOps
+        .where((o) => o.type == 'playlist_delete' && o.userId == userId)
+        .map((o) => o.payload['id']?.toString() ?? '')
+        .toSet();
+
+    final pendingRemovedPlaylistSongs = pendingOps
+        .where((o) => o.type == 'playlist_song_remove' && o.userId == userId)
+        .map((o) => '${o.payload['playlistId']}_${o.payload['trackId']}')
+        .toSet();
 
     // A. Profile
     final profileRes = await client.from('profiles').select().eq('id', userId).maybeSingle();
@@ -651,8 +975,10 @@ class SyncManager {
     final favsBox = Hive.box<TrackHiveModel>(HiveBoxes.favorites);
     await favsBox.clear();
     for (final f in favsRes as List) {
+      final trackId = f['track_id'] as String;
+      if (pendingDeletedFavIds.contains(trackId)) continue;
       final track = Track(
-        id: f['track_id'] as String,
+        id: trackId,
         title: f['title'] as String,
         artist: f['artist'] as String,
         imageUrl: f['image_url'] as String? ?? '',
@@ -673,8 +999,9 @@ class SyncManager {
     await playlistsBox.clear();
     for (final p in playlistsRes as List) {
       final pId = p['id'] as String;
+      if (pendingDeletedPlaylistIds.contains(pId)) continue;
       final songs = (playlistTracksRes as List)
-          .where((s) => s['playlist_id'] == pId)
+          .where((s) => s['playlist_id'] == pId && !pendingRemovedPlaylistSongs.contains('${pId}_${s['track_id']}'))
           .map((s) => TrackHiveModel(
                 id: s['track_id'] as String,
                 title: s['title'] as String,

@@ -8,25 +8,31 @@ import '../../history/domain/listening_history_repository.dart';
 /// 2. Seeking forward or backward is NOT counted as listened time.
 /// 3. Pauses, interruptions, and buffering halt duration accumulation.
 /// 4. Flushes safely to [ListeningHistoryRepository] without double-counting.
+/// 5. Accurately measures full-session listening duration and completion ratios
+///    for completed plays, partial plays, and skips.
 class PlaybackAnalyticsTracker {
   final ListeningHistoryRepository _historyRepo;
   final String? Function() _getUid;
+  final void Function(String? uid)? _onEventRecorded;
 
   String? _activeTrackId;
   MusicItem? _activeTrack;
   DateTime? _sessionStartTime;
   Duration _lastPosition = Duration.zero;
   DateTime _lastWallClock = DateTime.now();
-  int _accumulatedListenedSec = 0;
+  int _sessionListenedSec = 0;
   bool _isPlaying = false;
+  bool _hasFlushedActiveSession = false;
 
   DateTime? get sessionStartTime => _sessionStartTime;
 
   PlaybackAnalyticsTracker({
     required ListeningHistoryRepository historyRepo,
     required String? Function() getUid,
+    void Function(String? uid)? onEventRecorded,
   })  : _historyRepo = historyRepo,
-        _getUid = getUid;
+        _getUid = getUid,
+        _onEventRecorded = onEventRecorded;
 
   /// Called on playback state changes (playing, paused, buffering, completed, idle).
   void onPlaybackStatusChanged(PlaybackStatus status, MusicItem? currentTrack) {
@@ -67,19 +73,13 @@ class PlaybackAnalyticsTracker {
 
     // Legitimate audio progression: position delta must be positive AND
     // cannot significantly exceed wall-clock time (accounting for small clock jitter).
-    // If the user sought 30 seconds ahead in 0.2s, posDeltaSec is ~30s while wallClockDeltaSec is ~0.2s.
-    // That means seeking forward must NOT be credited as listening time!
+    // Seeking forward is NOT credited as listening time.
     if (posDeltaSec > 0 && posDeltaSec <= (wallClockDeltaSec + 1.25)) {
-      _accumulatedListenedSec += posDeltaSec.round();
+      _sessionListenedSec += posDeltaSec.round();
     }
 
     _lastPosition = newPosition;
     _lastWallClock = now;
-
-    // Periodic flush during long sessions (>45s of active listening) to prevent data loss
-    if (_accumulatedListenedSec >= 45) {
-      _flushCurrentSession(keepSessionActive: true);
-    }
   }
 
   /// Handles track switching explicitly.
@@ -98,41 +98,42 @@ class PlaybackAnalyticsTracker {
     _activeTrack = track;
     _sessionStartTime = now;
     _lastWallClock = now;
-    _accumulatedListenedSec = 0;
+    _sessionListenedSec = 0;
+    _hasFlushedActiveSession = false;
   }
 
-  void _flushCurrentSession({bool keepSessionActive = false}) {
-    if (_activeTrack == null || _accumulatedListenedSec < 5) {
-      if (!keepSessionActive) {
-        _activeTrackId = null;
-        _activeTrack = null;
-        _accumulatedListenedSec = 0;
-      }
+  /// Flushes the active session to [ListeningHistoryRepository] if at least 3 seconds of
+  /// genuine playback occurred. Guarantees that each listening session produces at most
+  /// one feedback event.
+  void _flushCurrentSession() {
+    if (_hasFlushedActiveSession || _activeTrack == null || _sessionListenedSec < 3) {
+      _activeTrackId = null;
+      _activeTrack = null;
+      _sessionListenedSec = 0;
       return;
     }
 
     final trackToRecord = _activeTrack!;
-    final secondsToRecord = _accumulatedListenedSec;
+    final secondsToRecord = _sessionListenedSec;
     final durSec = _parseDurationSec(trackToRecord.duration);
 
+    _hasFlushedActiveSession = true;
+
+    final uid = _getUid();
     try {
       _historyRepo.recordListeningEvent(
-        uid: _getUid(),
+        uid: uid,
         track: trackToRecord,
         listenedSec: secondsToRecord,
         durationSec: durSec > 0 ? durSec : 180,
       );
+      _onEventRecorded?.call(uid);
     } catch (e) {
       debugPrint('[PlaybackAnalyticsTracker] Flush error: $e');
-    }
-
-    if (keepSessionActive) {
-      _accumulatedListenedSec = 0;
-      _lastWallClock = DateTime.now();
-    } else {
+    } finally {
       _activeTrackId = null;
       _activeTrack = null;
-      _accumulatedListenedSec = 0;
+      _sessionListenedSec = 0;
     }
   }
 
@@ -149,7 +150,7 @@ class PlaybackAnalyticsTracker {
     return 180;
   }
 
-  /// Flushes any pending listened time when application is paused, backgrounded, or disposed.
+  /// Flushes any pending listening session and releases tracker state.
   void dispose() {
     _flushCurrentSession();
   }

@@ -11,8 +11,11 @@ import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
 import '../../search/domain/search_deduplicator.dart';
 import '../../youtube/data/youtube_repository.dart';
+import 'taste_profile_repository.dart';
 import 'trending_music_service.dart';
+import '../domain/candidate_ranker.dart';
 import '../domain/music_language_service.dart';
+import '../domain/user_taste_profile.dart';
 
 class RecommendationSections {
   final List<ArtistSummary> favoriteArtists;
@@ -43,16 +46,22 @@ class RecommendationService {
   final ArtistRepository _artistRepo;
   final ListeningHistoryRepository _historyRepo;
   final TrendingMusicService _trendingService;
+  final TasteProfileRepository? _tasteRepo;
+  final CandidateRanker _candidateRanker;
 
   RecommendationService({
     YouTubeRepository? youtubeRepo,
     ArtistRepository? artistRepo,
     ListeningHistoryRepository? historyRepo,
     TrendingMusicService? trendingService,
+    TasteProfileRepository? tasteRepo,
+    CandidateRanker? candidateRanker,
   })  : _youtubeRepo = youtubeRepo ?? YouTubeRepository(),
         _artistRepo = artistRepo ?? DeezerArtistRepository(),
         _historyRepo = historyRepo ?? SupabaseListeningHistoryRepository(),
-        _trendingService = trendingService ?? TrendingMusicService();
+        _trendingService = trendingService ?? TrendingMusicService(),
+        _tasteRepo = tasteRepo,
+        _candidateRanker = candidateRanker ?? const CandidateRanker();
 
   static String _normalizeTrackId(String id) {
     return id.startsWith('youtube_') ? id.replaceFirst('youtube_', '') : id;
@@ -400,6 +409,10 @@ class RecommendationService {
 
     final uid = profile?.uid;
     final history = await _historyRepo.getRecentHistory(uid: uid, limit: 30);
+    final tasteProfile = (uid != null && uid.isNotEmpty && _tasteRepo != null)
+        ? await _tasteRepo!.getProfile(uid)
+        : UserTasteProfile.empty(uid ?? '');
+
     final preferredLanguages = MusicLanguageService.getPreferredLanguages(
       history: history,
       profile: profile,
@@ -418,7 +431,7 @@ class RecommendationService {
     try {
       final chartResult = await _trendingService.getTrendingAndRecentReleases();
       trendingTracks = chartResult.trendingTracks;
-      recentReleases = chartResult.recentReleases;
+      recentReleases = await _verifyAndResolveRecentReleases(chartResult.recentReleases);
     } catch (e) {
       debugPrint('[RecommendationService] Trending fetch error: $e');
     }
@@ -540,6 +553,17 @@ class RecommendationService {
       addCandidate(releaseTrack);
     }
 
+    // Build chart rank map for deterministic scoring
+    final chartRanks = <String, int>{};
+    for (int i = 0; i < trendingTracks.length; i++) {
+      final rank = i + 1;
+      final t = trendingTracks[i];
+      final cleanId = _normalizeTrackId(t.id);
+      chartRanks[cleanId] = rank;
+      chartRanks[t.id] = rank;
+      chartRanks['${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}'] = rank;
+    }
+
     // ── 5. Popular Tracks (Backwards Compatibility & Chart Depth) ────────────
     // If trendingTracks from provider has items, use them; otherwise fallback to search
     final popularTracks = trendingTracks.isNotEmpty
@@ -551,11 +575,25 @@ class RecommendationService {
         fromYourArtists.firstOrNull ??
         discoverMore.firstOrNull;
 
-    final rankedDiscoverMore = MusicLanguageService.rankAndDeduplicate(
-      discoverMore,
-      preferredLanguages,
+    final rankedDiscoverMore = _candidateRanker.rankCandidates(
+      candidates: discoverMore,
+      tasteProfile: tasteProfile,
+      preferredLanguages: preferredLanguages,
+      chartRanks: chartRanks,
+      recentHistory: history,
       limit: targetDiscoverCount,
+      excludedTrackIds: seenTrackIds,
+      excludedRecordingKeys: seenTrackKeys,
     );
+
+    // Fall back gracefully to original candidates if filtered set is empty
+    final finalDiscoverMore = rankedDiscoverMore.isNotEmpty
+        ? rankedDiscoverMore
+        : MusicLanguageService.rankAndDeduplicate(
+            discoverMore,
+            preferredLanguages,
+            limit: targetDiscoverCount,
+          );
 
     return RecommendationSections(
       favoriteArtists: effectiveArtists,
@@ -564,10 +602,67 @@ class RecommendationService {
       popularTracks: popularTracks,
       trendingTracks: trendingTracks,
       recentReleases: recentReleases,
-      discoverMore: rankedDiscoverMore,
+      discoverMore: finalDiscoverMore,
       recentlyPlayed: history,
       featuredTrack: featuredTrack,
     );
+  }
+
+  /// Verifies candidate recent releases, ensuring each item corresponds to a verified,
+  /// playable YouTube music track before presenting it in the Recent Releases section.
+  /// Candidates that cannot be verified are excluded.
+  Future<List<Track>> _verifyAndResolveRecentReleases(List<Track> rawReleases) async {
+    if (rawReleases.isEmpty) return const [];
+    final verified = <Track>[];
+    for (final track in rawReleases) {
+      if (verified.length >= 8) break;
+      final rawT = track.rawTitle ?? track.title;
+      final rawA = track.rawArtist ?? track.artist;
+
+      final cleanId = track.id.replaceFirst('youtube_', '');
+      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanId)) {
+        final candidate = YouTubeVideo(
+          id: cleanId,
+          title: track.title,
+          channelTitle: track.artist,
+          thumbnailUrl: track.imageUrl,
+          duration: track.duration,
+          viewCount: '',
+          rawTitle: rawT,
+          rawChannelTitle: rawA,
+        );
+        if (MusicResultClassifier.isValidIndividualSong(candidate)) {
+          verified.add(track);
+        }
+        continue;
+      }
+
+      // If it's a chart or metadata track (wm_chart_...), resolve and verify genuine music candidate
+      try {
+        final query = '$rawT $rawA'.trim();
+        final searchResults = await _youtubeRepo.search(query);
+        final validCandidate = searchResults
+            .where((v) => MusicResultClassifier.isValidIndividualSong(v, query: query))
+            .firstOrNull;
+
+        if (validCandidate != null) {
+          verified.add(
+            track.copyWith(
+              id: 'youtube_${validCandidate.id}',
+              duration: validCandidate.duration.isNotEmpty ? validCandidate.duration : track.duration,
+              imageUrl: validCandidate.thumbnailUrl.isNotEmpty ? validCandidate.thumbnailUrl : track.imageUrl,
+              rawTitle: validCandidate.rawTitle ?? validCandidate.title,
+              rawArtist: validCandidate.rawChannelTitle ?? validCandidate.channelTitle,
+            ),
+          );
+        } else {
+          debugPrint('[RecommendationService] Excluded unverified recent release: "${track.title}"');
+        }
+      } catch (e) {
+        debugPrint('[RecommendationService] Error verifying recent release "${track.title}": $e');
+      }
+    }
+    return verified;
   }
 
   /// Generates dynamic upcoming queue recommendations when the playback queue
@@ -708,6 +803,41 @@ class RecommendationService {
       debugPrint('[RecommendationService] Upcoming queue expansion error: $e');
     }
 
-    return upcoming;
+    if (upcoming.isEmpty) return const [];
+
+    // Pull taste profile and listening history for deterministic ranking
+    final uid = profile?.uid;
+    final history = await _historyRepo.getRecentHistory(uid: uid, limit: 30);
+    final tasteProfile = (uid != null && uid.isNotEmpty && _tasteRepo != null)
+        ? await _tasteRepo!.getProfile(uid)
+        : UserTasteProfile.empty(uid ?? '');
+
+    // Get chart ranks if available from cached trending
+    final chartRanks = <String, int>{};
+    final cachedTrending = await _trendingService.getTrendingAndRecentReleases();
+    for (int i = 0; i < cachedTrending.trendingTracks.length; i++) {
+      final t = cachedTrending.trendingTracks[i];
+      chartRanks[_normalizeTrackId(t.id)] = i + 1;
+      chartRanks[t.id] = i + 1;
+    }
+
+    final preferredLanguages = profile?.preferredLanguages ??
+        MusicLanguageService.getPreferredLanguages(
+          history: history,
+          profile: profile,
+        );
+
+    final ranked = _candidateRanker.rankCandidates(
+      candidates: upcoming,
+      tasteProfile: tasteProfile,
+      preferredLanguages: preferredLanguages,
+      chartRanks: chartRanks,
+      recentHistory: history,
+      limit: limit,
+      excludedTrackIds: queueIds,
+      excludedRecordingKeys: queueKeys,
+    );
+
+    return ranked.isNotEmpty ? ranked : upcoming;
   }
 }
