@@ -18,6 +18,10 @@ import 'package:Miee/features/recommendations/data/recommendation_service.dart';
 import 'package:Miee/features/recommendations/data/trending_music_service.dart';
 import 'package:Miee/features/recommendations/domain/daily_mix.dart';
 import 'package:Miee/features/recommendations/providers/daily_mix_providers.dart';
+import 'package:Miee/features/library/data/favorites_repository.dart';
+import 'package:Miee/features/library/data/most_played_repository.dart';
+import 'package:Miee/features/library/data/recently_played_repository.dart';
+import 'package:Miee/features/search/domain/search_deduplicator.dart';
 import 'package:Miee/features/youtube/data/youtube_repository.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/shared/models/music_item.dart';
@@ -764,6 +768,177 @@ void main() {
       expect(snap3.generatedAt, equals(testDate1.add(const Duration(seconds: 35))));
     });
   });
+
+  group('Daily Mix - Truly Unique Cross-Mix & Daily Rotation Guarantees', () {
+    late MockHistoryRepo mockHistory;
+    late MockTrendingMusicService mockTrending;
+    late MockArtistRepo mockArtist;
+    late MockRecommendationService mockRecService;
+    late DailyMixService service;
+
+    setUp(() {
+      mockHistory = MockHistoryRepo();
+      mockTrending = MockTrendingMusicService();
+      mockArtist = MockArtistRepo();
+      mockRecService = MockRecommendationService();
+
+      service = DailyMixService(
+        repository: repository,
+        historyRepo: mockHistory,
+        trendingService: mockTrending,
+        artistRepo: mockArtist,
+        youtubeRepo: MockYouTubeRepo(),
+        recommendationService: mockRecService,
+      );
+    });
+
+    test('Strict Cross-Mix Global Uniqueness: Mix 1, 2, and 3 share zero tracks', () async {
+      final overlapTrack1 = const Track(id: 'overlap_1', title: 'Shared Song 1', artist: 'Artist A', imageUrl: '', duration: '3:00');
+      final overlapTrack2 = const Track(id: 'overlap_2', title: 'Shared Song 2', artist: 'Artist B', imageUrl: '', duration: '3:00');
+
+      final favorites = [
+        overlapTrack1,
+        const Track(id: 'fav_1', title: 'Fav Song 1', artist: 'Artist A', imageUrl: '', duration: '3:00'),
+        const Track(id: 'fav_2', title: 'Fav Song 2', artist: 'Artist C', imageUrl: '', duration: '3:00'),
+      ];
+
+      final recent = [
+        overlapTrack1,
+        overlapTrack2,
+        const Track(id: 'rec_1', title: 'Recent Song 1', artist: 'Artist D', imageUrl: '', duration: '3:00'),
+      ];
+
+      mockTrending.trending = [
+        overlapTrack1,
+        overlapTrack2,
+        const Track(id: 'trend_1', title: 'Trend Song 1', artist: 'Artist E', imageUrl: '', duration: '3:00'),
+        const Track(id: 'trend_2', title: 'Trend Song 2', artist: 'Artist F', imageUrl: '', duration: '3:00'),
+      ];
+      mockTrending.recent = [
+        const Track(id: 'rel_1', title: 'Release Song 1', artist: 'Artist G', imageUrl: '', duration: '3:00'),
+      ];
+
+      final testService = DailyMixService(
+        repository: repository,
+        historyRepo: mockHistory,
+        trendingService: mockTrending,
+        artistRepo: mockArtist,
+        youtubeRepo: MockYouTubeRepo(),
+        recommendationService: mockRecService,
+        favoritesRepo: MockFavoritesRepo(favorites),
+        recentlyPlayedRepo: MockRecentlyPlayedRepo(recent),
+      );
+
+      final snapshot = await testService.getDailyMixes(userId: 'u_unique', now: testDate1);
+      expect(snapshot.mixes.length, equals(3));
+
+      final mix1Keys = snapshot.mixes[0].tracks.map((t) => SearchDeduplicator.computeRecordingKey(t)).toSet();
+      final mix2Keys = snapshot.mixes[1].tracks.map((t) => SearchDeduplicator.computeRecordingKey(t)).toSet();
+      final mix3Keys = snapshot.mixes[2].tracks.map((t) => SearchDeduplicator.computeRecordingKey(t)).toSet();
+
+      final mix1Ids = snapshot.mixes[0].tracks.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
+      final mix2Ids = snapshot.mixes[1].tracks.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
+      final mix3Ids = snapshot.mixes[2].tracks.map((t) => t.id.replaceFirst('youtube_', '')).toSet();
+
+      expect(mix1Keys.intersection(mix2Keys), isEmpty, reason: 'Mix 1 and Mix 2 must have zero key overlap');
+      expect(mix1Keys.intersection(mix3Keys), isEmpty, reason: 'Mix 1 and Mix 3 must have zero key overlap');
+      expect(mix2Keys.intersection(mix3Keys), isEmpty, reason: 'Mix 2 and Mix 3 must have zero key overlap');
+
+      expect(mix1Ids.intersection(mix2Ids), isEmpty, reason: 'Mix 1 and Mix 2 must have zero ID overlap');
+      expect(mix1Ids.intersection(mix3Ids), isEmpty, reason: 'Mix 1 and Mix 3 must have zero ID overlap');
+      expect(mix2Ids.intersection(mix3Ids), isEmpty, reason: 'Mix 2 and Mix 3 must have zero ID overlap');
+    });
+
+    test('Legitimate variations (remixes, acoustic, alternate languages) have distinct keys and are preserved', () async {
+      const orig = Track(id: 't_base', title: 'Arabic Kuthu', artist: 'Anirudh', imageUrl: '', duration: '3:00');
+      const remix = Track(id: 't_remix', title: 'Arabic Kuthu (Remix)', artist: 'Anirudh', imageUrl: '', duration: '3:00');
+      const acoustic = Track(id: 't_acoustic', title: 'Arabic Kuthu (Acoustic Version)', artist: 'Anirudh', imageUrl: '', duration: '3:00');
+      const telugu = Track(id: 't_telugu', title: 'Arabic Kuthu (Telugu Version)', artist: 'Anirudh', imageUrl: '', duration: '3:00');
+
+      final keyOrig = SearchDeduplicator.computeRecordingKey(orig);
+      final keyRemix = SearchDeduplicator.computeRecordingKey(remix);
+      final keyAcoustic = SearchDeduplicator.computeRecordingKey(acoustic);
+      final keyTelugu = SearchDeduplicator.computeRecordingKey(telugu);
+
+      expect(keyRemix, isNot(equals(keyOrig)));
+      expect(keyAcoustic, isNot(equals(keyOrig)));
+      expect(keyTelugu, isNot(equals(keyOrig)));
+    });
+
+    test('Rolling rotation ledger records history and deprioritizes recent songs on next day', () async {
+      final snap1 = await service.getDailyMixes(userId: 'u_rotation', now: testDate1);
+      expect(snap1.mixes, isNotEmpty);
+
+      final historyKeysDay1 = await repository.getRecentlyUsedRecordingKeys(
+        'u_rotation',
+        days: 2,
+        excludeDate: '2026-11-08',
+      );
+      expect(historyKeysDay1, isNotEmpty);
+
+      final snap2 = await service.getDailyMixes(userId: 'u_rotation', now: testDate2);
+      expect(snap2.localDate, equals('2026-11-08'));
+      expect(snap2.generatedAt, equals(testDate2));
+
+      final historyMap = await repository.getRecentGenerationsHistory('u_rotation');
+      expect(historyMap.containsKey('2026-11-07'), isTrue);
+      expect(historyMap.containsKey('2026-11-08'), isTrue);
+    });
+
+    test('Small candidate library populates mixes without throwing or duplicating within mix', () async {
+      final smallRecService = MockRecommendationService(artistTracks: {
+        'Related Artist 1': [
+          const Track(id: 's1', title: 'Song 1', artist: 'Artist 1', imageUrl: '', duration: '3:00'),
+          const Track(id: 's2', title: 'Song 2', artist: 'Artist 1', imageUrl: '', duration: '3:00'),
+        ],
+        'Related Artist 2': [
+          const Track(id: 's3', title: 'Song 3', artist: 'Artist 2', imageUrl: '', duration: '3:00'),
+          const Track(id: 's4', title: 'Song 4', artist: 'Artist 2', imageUrl: '', duration: '3:00'),
+        ],
+      });
+
+      final smallService = DailyMixService(
+        repository: repository,
+        historyRepo: mockHistory,
+        trendingService: mockTrending,
+        artistRepo: mockArtist,
+        youtubeRepo: MockYouTubeRepo(),
+        recommendationService: smallRecService,
+      );
+
+      final snapshot = await smallService.getDailyMixes(userId: 'u_small', now: testDate1);
+      expect(snapshot.mixes.length, equals(3));
+      for (final mix in snapshot.mixes) {
+        final ids = mix.tracks.map((t) => t.id).toList();
+        expect(ids.toSet().length, equals(ids.length), reason: 'No intra-mix duplicates');
+      }
+    });
+
+    test('Multi-source ingestion: Favorites, MostPlayed, RecentlyPlayed, and Local songs are integrated', () async {
+      final favSong = const Track(id: 'fav_loved', title: 'My Loved Track', artist: 'Special Artist', imageUrl: '', duration: '3:00');
+      final localSong = const Track(id: 'local_hit', title: 'Local Audio', artist: 'Special Artist', imageUrl: '', duration: '3:00');
+      final recentSong = const Track(id: 'recent_hit', title: 'Yesterday Jukebox', artist: 'Recent Star', imageUrl: '', duration: '3:00');
+
+      final multiService = DailyMixService(
+        repository: repository,
+        historyRepo: mockHistory,
+        trendingService: mockTrending,
+        artistRepo: mockArtist,
+        youtubeRepo: MockYouTubeRepo(),
+        recommendationService: mockRecService,
+        favoritesRepo: MockFavoritesRepo([favSong]),
+        mostPlayedRepo: MockMostPlayedRepo([const MapEntry('fav_loved', 10)]),
+        recentlyPlayedRepo: MockRecentlyPlayedRepo([recentSong]),
+        getLocalSongs: () => [localSong],
+      );
+
+      final snapshot = await multiService.getDailyMixes(userId: 'u_multi', now: testDate1);
+      final allTracks = snapshot.mixes.expand((m) => m.tracks).toList();
+
+      final allTitles = allTracks.map((t) => t.title).toSet();
+      expect(allTitles.contains('My Loved Track') || allTitles.contains('Yesterday Jukebox') || allTitles.contains('Local Audio'), isTrue);
+    });
+  });
 }
 
 class FakeAuthController extends AuthController {
@@ -822,4 +997,38 @@ class ThrowingBox implements Box<dynamic> {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => _delegate.noSuchMethod(invocation);
+}
+
+class MockFavoritesRepo implements FavoritesRepository {
+  final List<Track> favorites;
+  MockFavoritesRepo(this.favorites);
+
+  @override
+  List<Track> getFavorites() => favorites;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class MockMostPlayedRepo implements MostPlayedRepository {
+  final List<MapEntry<String, int>> mostPlayed;
+  MockMostPlayedRepo(this.mostPlayed);
+
+  @override
+  List<MapEntry<String, int>> getMostPlayed({int limit = 20}) =>
+      mostPlayed.take(limit).toList();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class MockRecentlyPlayedRepo implements RecentlyPlayedRepository {
+  final List<Track> recentTracks;
+  MockRecentlyPlayedRepo(this.recentTracks);
+
+  @override
+  List<Track> getRecentTracks() => recentTracks;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

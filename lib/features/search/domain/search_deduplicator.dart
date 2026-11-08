@@ -354,11 +354,13 @@ class SearchDeduplicator {
     final versionInfo = _extractVersion(rawTitle, rawTitle);
     final baseTitle = _normalizeBaseTitle(rawTitle, rawTitle, rawArtist);
     final isGeneric = _isGenericUploader(rawArtist);
+    final lang = MusicLanguageService.detectLanguage(rawTitle, artist: rawArtist);
+    final langSuffix = (lang != 'Unknown') ? '|$lang' : '';
     if (isGeneric) {
-      return '$baseTitle|${versionInfo.tag}';
+      return '$baseTitle|${versionInfo.tag}$langSuffix';
     }
     final normArtist = _normalizeArtist(rawArtist);
-    return '$baseTitle|$normArtist|${versionInfo.tag}';
+    return '$baseTitle|$normArtist|${versionInfo.tag}$langSuffix';
   }
 
   /// Checks whether two [MusicItem]s represent the same underlying canonical recording.
@@ -367,6 +369,10 @@ class SearchDeduplicator {
     final keyA = computeRecordingKey(a);
     final keyB = computeRecordingKey(b);
     if (keyA == keyB) return true;
+
+    final langA = MusicLanguageService.detectLanguage(a.title, artist: a.artist);
+    final langB = MusicLanguageService.detectLanguage(b.title, artist: b.artist);
+    if (langA != 'Unknown' && langB != 'Unknown' && langA != langB) return false;
 
     final vA = _extractVersion(a.title, a.title);
     final vB = _extractVersion(b.title, b.title);

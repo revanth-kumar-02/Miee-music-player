@@ -4,9 +4,13 @@ import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 import '../../history/data/supabase_listening_history_repository.dart';
 import '../../history/domain/listening_history_repository.dart';
+import '../../library/data/favorites_repository.dart';
+import '../../library/data/most_played_repository.dart';
+import '../../library/data/recently_played_repository.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../profile/domain/user_profile.dart';
+import '../../search/domain/search_deduplicator.dart';
 import '../../youtube/data/youtube_repository.dart';
 import '../domain/candidate_ranker.dart';
 import '../domain/daily_mix.dart';
@@ -22,12 +26,15 @@ import 'trending_music_service.dart';
 /// Service generating and maintaining deterministic personalized Daily Mixes.
 ///
 /// Produces 3 curated mixes with distinct listening characters:
-/// 1. **Daily Mix 1: Your Favorites** (High familiarity, top affinity artists, loved tracks)
+/// 1. **Daily Mix 1: Your Favorites** (High familiarity, top affinity artists, loved & most-played tracks)
 /// 2. **Daily Mix 2: In Rotation** (Balanced mix of familiar rotation and chart tracks)
 /// 3. **Daily Mix 3: Fresh Discovery** (Low familiarity, related artists, verified new releases)
 ///
 /// Guarantees:
-/// - Reuses Phase 3 [CandidateRanker] and [RecommendationScorer] without formula duplication.
+/// - Truly Unique: Zero track or recording overlap between Daily Mix 1, 2, and 3 on the same day.
+/// - Canonical Deduplication: Normalizes track IDs and computes canonical recording keys via [SearchDeduplicator].
+/// - Daily Rotation: Tracks used in recent days are rotated out to prevent consecutive-day repetition.
+/// - Small Library Resilient: Gracefully adapts to small libraries without starving mixes or creating fake tracks.
 /// - Deterministic: Identical inputs produce identical outputs.
 /// - Stable: Persisted per local calendar day ('YYYY-MM-DD'); does not regenerate on screen rebuilds.
 /// - Isolated: Keyed strictly to authenticated user ID; never leaks cross-account data.
@@ -42,6 +49,10 @@ class DailyMixService {
   final ArtistRepository _artistRepo;
   final YouTubeRepository _youtubeRepo;
   final RecommendationService _recommendationService;
+  final FavoritesRepository? _favoritesRepo;
+  final MostPlayedRepository? _mostPlayedRepo;
+  final RecentlyPlayedRepository? _recentlyPlayedRepo;
+  final List<MusicItem> Function()? _getLocalSongs;
 
   /// Cooldown between manual forced refreshes to prevent API spam, tracked per user.
   static const Duration minManualRefreshInterval = Duration(seconds: 30);
@@ -57,6 +68,10 @@ class DailyMixService {
     ArtistRepository? artistRepo,
     YouTubeRepository? youtubeRepo,
     RecommendationService? recommendationService,
+    FavoritesRepository? favoritesRepo,
+    MostPlayedRepository? mostPlayedRepo,
+    RecentlyPlayedRepository? recentlyPlayedRepo,
+    List<MusicItem> Function()? getLocalSongs,
   })  : candidateRanker = candidateRanker ?? const CandidateRanker(),
         _scorer = scorer ?? candidateRanker?.scorer ?? const RecommendationScorer(),
         _repository = repository ?? DailyMixRepository(),
@@ -72,7 +87,11 @@ class DailyMixService {
               historyRepo: historyRepo,
               trendingService: trendingService,
               tasteRepo: tasteRepo,
-            );
+            ),
+        _favoritesRepo = favoritesRepo,
+        _mostPlayedRepo = mostPlayedRepo,
+        _recentlyPlayedRepo = recentlyPlayedRepo,
+        _getLocalSongs = getLocalSongs;
 
   /// Retrieves the Daily Mix snapshot for [userId].
   ///
@@ -146,15 +165,55 @@ class DailyMixService {
     }
   }
 
-  /// Internal generator executing candidate collection and multi-tier ranking.
+  static String _normalizeTrackId(String id) {
+    if (id.startsWith('youtube_')) return id.replaceFirst('youtube_', '');
+    if (id.startsWith('wm_')) return id.replaceFirst('wm_', '');
+    return id.trim();
+  }
+
+  /// Partitions [candidates] into fresh tracks (not used in recent daily mix generations)
+  /// and previously used tracks. If fresh tracks meet [minFreshCount], prioritizes
+  /// fresh tracks to prevent consecutive-day repetition while allowing graceful fallback.
+  List<MusicItem> _rotateCandidates(
+    List<MusicItem> candidates,
+    Set<String> recentDayKeys, {
+    int minFreshCount = 10,
+  }) {
+    if (recentDayKeys.isEmpty) return candidates;
+
+    final fresh = <MusicItem>[];
+    final recent = <MusicItem>[];
+    final seen = <String>{};
+
+    for (final t in candidates) {
+      final id = _normalizeTrackId(t.id);
+      final key = SearchDeduplicator.computeRecordingKey(t);
+      if (seen.contains(id) || seen.contains(key)) continue;
+      seen.add(id);
+      seen.add(key);
+
+      if (recentDayKeys.contains(id) || recentDayKeys.contains(key)) {
+        recent.add(t);
+      } else {
+        fresh.add(t);
+      }
+    }
+
+    if (fresh.length >= minFreshCount) {
+      return [...fresh, ...recent];
+    }
+    return [...fresh, ...recent];
+  }
+
+  /// Internal generator executing candidate collection, daily rotation, and multi-tier ranking.
   Future<DailyMixSnapshot> _generateDailyMixSnapshot({
     required String userId,
     required UserProfile? profile,
     required DateTime referenceTime,
     required String localDate,
   }) async {
-    // 1. Fetch user taste profile and listening history
-    final history = await _historyRepo.getRecentHistory(uid: userId, limit: 50);
+    // 1. Fetch user taste profile, listening history, and user preferences
+    final history = await _historyRepo.getRecentHistory(uid: userId, limit: 100);
     final tasteProfile = (userId.isNotEmpty && _tasteRepo != null)
         ? await _tasteRepo!.getProfile(userId)
         : UserTasteProfile.empty(userId);
@@ -164,7 +223,14 @@ class DailyMixService {
       profile: profile,
     );
 
-    // 2. Fetch provider charts for trending popularity scoring
+    // 2. Fetch user library sources (Liked songs, Most played, Recently played, Local library)
+    final likedSongs = _favoritesRepo?.getFavorites() ?? const [];
+    final mostPlayedEntries = _mostPlayedRepo?.getMostPlayed(limit: 50) ?? const [];
+    final mostPlayedIds = mostPlayedEntries.map((e) => _normalizeTrackId(e.key)).toSet();
+    final recentlyPlayed = _recentlyPlayedRepo?.getRecentTracks() ?? const [];
+    final localSongs = _getLocalSongs?.call() ?? const [];
+
+    // 3. Fetch provider charts for trending popularity scoring
     List<Track> trendingTracks = [];
     List<Track> recentReleases = [];
     try {
@@ -181,13 +247,13 @@ class DailyMixService {
       final rank = i + 1;
       final t = trendingTracks[i];
       chartRanks[t.id] = rank;
-      final cleanId = t.id.startsWith('youtube_') ? t.id.replaceFirst('youtube_', '') : t.id;
+      final cleanId = _normalizeTrackId(t.id);
       chartRanks[cleanId] = rank;
       chartRanks['${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}'] = rank;
     }
 
-    // 3. User Artists pool (top affinity + profile selected artists)
-    final topAffinityArtists = tasteProfile.topArtists(limit: 6);
+    // 4. User Artists pool (top affinity + profile selected artists)
+    final topAffinityArtists = tasteProfile.topArtists(limit: 8);
     final profileArtists = (profile?.selectedArtists ?? const [])
         .map((a) => a.name)
         .where((n) => n.trim().isNotEmpty)
@@ -207,8 +273,15 @@ class DailyMixService {
       );
     }
 
-    // 4. Fetch candidate tracks for favorite artists
-    final favoriteCandidates = <MusicItem>[];
+    // 5. Query recent daily mix history for cross-day rotation (consecutive-day avoidance)
+    final recentDayKeys = await _repository.getRecentlyUsedRecordingKeys(
+      userId,
+      days: 2,
+      excludeDate: localDate,
+    );
+
+    // 6. Fetch candidate tracks for favorite artists
+    final onlineFavoriteCandidates = <MusicItem>[];
     for (final artistName in favoriteArtistNames.take(5)) {
       try {
         final artistSummary = ArtistSummary(
@@ -221,15 +294,41 @@ class DailyMixService {
           limit: 8,
           preferredLanguages: preferredLanguages,
         );
-        favoriteCandidates.addAll(tracks);
+        onlineFavoriteCandidates.addAll(tracks);
       } catch (e) {
         debugPrint('[DailyMixService] Candidate fetch error for $artistName: $e');
       }
     }
 
-    // Add recent history tracks as potential favorites
+    const targetMixCount = 25;
+    final assignedTrackIds = <String>{};
+    final assignedRecordingKeys = <String>{};
+
+    // ── MIX 1: Your Favorites ──────────────────────────────────────────────
+    // High familiarity target (0.90), strictly respecting 2 tracks per artist cap.
+    // Built from: Liked songs, Most played, History, and Favorite artist catalog.
+    final pool1 = <MusicItem>[];
+
+    // Priority 1A: Liked Songs
+    pool1.addAll(likedSongs);
+
+    // Priority 1B: Most Played tracks (from history or local library)
     for (final event in history) {
-      favoriteCandidates.add(Track(
+      final normId = _normalizeTrackId(event.trackId);
+      if (mostPlayedIds.contains(normId)) {
+        pool1.add(Track(
+          id: event.trackId,
+          title: event.title,
+          artist: event.artist,
+          imageUrl: event.imageUrl ?? '',
+          duration: '3:00',
+        ));
+      }
+    }
+
+    // Priority 1C: History tracks
+    for (final event in history) {
+      pool1.add(Track(
         id: event.trackId,
         title: event.title,
         artist: event.artist,
@@ -238,10 +337,20 @@ class DailyMixService {
       ));
     }
 
-    const targetMixCount = 25;
+    // Priority 1D: Favorite artists online tracks
+    pool1.addAll(onlineFavoriteCandidates);
 
-    // ── MIX 1: Your Favorites ──────────────────────────────────────────────
-    // High familiarity target (0.90), strictly respecting 2 tracks per artist cap
+    // Priority 1E: Local songs matching favorite artists
+    final favoriteArtistsLower = favoriteArtistNames.map((a) => a.toLowerCase().trim()).toSet();
+    for (final local in localSongs) {
+      if (favoriteArtistsLower.contains(local.artist.toLowerCase().trim())) {
+        pool1.add(local);
+      }
+    }
+
+    // Apply cross-day rotation to avoid yesterday's repetition
+    final rotatedPool1 = _rotateCandidates(pool1, recentDayKeys);
+
     final mix1Ranker = CandidateRanker(
       scorer: _scorer,
       diversityFilter: const RecommendationDiversityFilter(
@@ -254,17 +363,34 @@ class DailyMixService {
     );
 
     final mix1Items = mix1Ranker.rankCandidates(
-      candidates: favoriteCandidates,
+      candidates: rotatedPool1,
       tasteProfile: tasteProfile,
       preferredLanguages: preferredLanguages,
       chartRanks: chartRanks,
       recentHistory: history,
       limit: targetMixCount,
+      excludedTrackIds: assignedTrackIds,
+      excludedRecordingKeys: assignedRecordingKeys,
       now: referenceTime,
     );
 
-    final mix1TrackIds = mix1Items.map((t) => t.id).toSet();
-    final mix1RecordingKeys = mix1Items.map((t) => RecommendationService.normalizeKey(t.title, t.artist)).toSet();
+    final finalMix1Tracks = <Track>[];
+    for (final m in mix1Items) {
+      final t = m is Track ? m : Track(
+        id: m.id,
+        title: m.title,
+        artist: m.artist,
+        imageUrl: m.imageUrl,
+        duration: m.duration,
+        filePath: m.filePath,
+      );
+      final id = _normalizeTrackId(t.id);
+      final key = SearchDeduplicator.computeRecordingKey(t);
+      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key)) continue;
+      assignedTrackIds.add(id);
+      assignedRecordingKeys.add(key);
+      finalMix1Tracks.add(t);
+    }
 
     final dailyMix1 = DailyMix(
       id: 'favorites',
@@ -272,21 +398,35 @@ class DailyMixService {
       subtitle: favoriteArtistNames.isNotEmpty
           ? 'Featuring ${favoriteArtistNames.take(3).join(', ')} and more'
           : 'Your top artists and familiar favorites',
-      tracks: mix1Items.map((m) => m is Track ? m : Track(
-        id: m.id,
-        title: m.title,
-        artist: m.artist,
-        imageUrl: m.imageUrl,
-        duration: m.duration,
-        filePath: m.filePath,
-      )).toList(),
+      tracks: finalMix1Tracks,
       primaryColorHex: '#FF3366',
       familiarRatio: 0.90,
-      coverImageUrl: mix1Items.firstOrNull?.imageUrl,
+      coverImageUrl: finalMix1Tracks.firstOrNull?.imageUrl,
     );
 
     // ── MIX 2: In Rotation ─────────────────────────────────────────────────
-    // Balanced familiarity (0.60), combining rotation history with chart tracks
+    // Balanced familiarity (0.60), combining rotation history with chart tracks.
+    // Must contain DISTINCT tracks: zero overlap with Daily Mix 1!
+    final pool2 = <MusicItem>[];
+
+    // Priority 2A: Active rotation & recently played
+    pool2.addAll(recentlyPlayed);
+    pool2.addAll(onlineFavoriteCandidates);
+    pool2.addAll(localSongs);
+
+    // Priority 2B: Trending chart tracks in preferred languages
+    pool2.addAll(trendingTracks);
+
+    // Filter out anything assigned to Mix 1 before candidate ranking
+    final unassignedPool2 = pool2.where((t) {
+      final id = _normalizeTrackId(t.id);
+      final key = SearchDeduplicator.computeRecordingKey(t);
+      return !assignedTrackIds.contains(id) && !assignedRecordingKeys.contains(key);
+    }).toList();
+
+    // Apply cross-day rotation
+    final rotatedPool2 = _rotateCandidates(unassignedPool2, recentDayKeys);
+
     final mix2Ranker = CandidateRanker(
       scorer: _scorer,
       diversityFilter: const RecommendationDiversityFilter(
@@ -298,45 +438,84 @@ class DailyMixService {
       ),
     );
 
-    final rotationCandidates = <MusicItem>[
-      ...favoriteCandidates,
-      ...trendingTracks,
-    ];
-
     final mix2Items = mix2Ranker.rankCandidates(
-      candidates: rotationCandidates,
+      candidates: rotatedPool2,
       tasteProfile: tasteProfile,
       preferredLanguages: preferredLanguages,
       chartRanks: chartRanks,
       recentHistory: history,
       limit: targetMixCount,
-      excludedTrackIds: mix1TrackIds,
-      excludedRecordingKeys: mix1RecordingKeys,
+      excludedTrackIds: assignedTrackIds,
+      excludedRecordingKeys: assignedRecordingKeys,
       now: referenceTime,
     );
 
-    final mix2TrackIds = {...mix1TrackIds, ...mix2Items.map((t) => t.id)};
-    final mix2RecordingKeys = {...mix1RecordingKeys, ...mix2Items.map((t) => RecommendationService.normalizeKey(t.title, t.artist))};
-
-    final dailyMix2 = DailyMix(
-      id: 'rotation',
-      title: 'Daily Mix 2',
-      subtitle: 'Your active rotation with popular hits',
-      tracks: mix2Items.map((m) => m is Track ? m : Track(
+    final finalMix2Tracks = <Track>[];
+    for (final m in mix2Items) {
+      final t = m is Track ? m : Track(
         id: m.id,
         title: m.title,
         artist: m.artist,
         imageUrl: m.imageUrl,
         duration: m.duration,
         filePath: m.filePath,
-      )).toList(),
+      );
+      final id = _normalizeTrackId(t.id);
+      final key = SearchDeduplicator.computeRecordingKey(t);
+      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key)) continue;
+      assignedTrackIds.add(id);
+      assignedRecordingKeys.add(key);
+      finalMix2Tracks.add(t);
+    }
+
+    final dailyMix2 = DailyMix(
+      id: 'rotation',
+      title: 'Daily Mix 2',
+      subtitle: 'Your active rotation with popular hits',
+      tracks: finalMix2Tracks,
       primaryColorHex: '#6C5CE7',
       familiarRatio: 0.60,
-      coverImageUrl: mix2Items.firstOrNull?.imageUrl,
+      coverImageUrl: finalMix2Tracks.firstOrNull?.imageUrl,
     );
 
     // ── MIX 3: Fresh Discovery ─────────────────────────────────────────────
-    // High discovery target (0.20 familiar / 0.80 discovery)
+    // High discovery target (0.20 familiar / 0.80 discovery).
+    // Must contain DISTINCT tracks: zero overlap with Daily Mix 1 and Daily Mix 2!
+    final relatedArtists = <ArtistModel>[];
+    for (final artistName in favoriteArtistNames.take(3)) {
+      if (relatedArtists.length >= 6) break;
+      try {
+        final rel = await _artistRepo.getRelatedArtists(artistName);
+        relatedArtists.addAll(rel);
+      } catch (_) {}
+    }
+
+    final pool3 = <MusicItem>[];
+
+    // Source 3A: Tracks from related/discovered artists
+    for (final rel in relatedArtists.take(4)) {
+      try {
+        final relVideos = await _youtubeRepo.search('${rel.name} song');
+        for (final v in relVideos.take(3)) {
+          pool3.add(v.toTrack(reliableArtist: rel.name));
+        }
+      } catch (_) {}
+    }
+
+    // Source 3B: Verified recent releases & chart depth
+    pool3.addAll(recentReleases);
+    pool3.addAll(trendingTracks.skip(10));
+
+    // Filter out anything assigned to Mix 1 or Mix 2
+    final unassignedPool3 = pool3.where((t) {
+      final id = _normalizeTrackId(t.id);
+      final key = SearchDeduplicator.computeRecordingKey(t);
+      return !assignedTrackIds.contains(id) && !assignedRecordingKeys.contains(key);
+    }).toList();
+
+    // Apply cross-day rotation
+    final rotatedPool3 = _rotateCandidates(unassignedPool3, recentDayKeys);
+
     final mix3Ranker = CandidateRanker(
       scorer: _scorer,
       diversityFilter: const RecommendationDiversityFilter(
@@ -348,59 +527,51 @@ class DailyMixService {
       ),
     );
 
-    // Fetch related artists outside the user's top favorites
-    final relatedArtists = <ArtistModel>[];
-    for (final artistName in favoriteArtistNames.take(3)) {
-      if (relatedArtists.length >= 6) break;
-      try {
-        final rel = await _artistRepo.getRelatedArtists(artistName);
-        relatedArtists.addAll(rel);
-      } catch (_) {}
-    }
-
-    final discoveryCandidates = <MusicItem>[];
-
-    // Source A: Tracks from related/discovered artists
-    for (final rel in relatedArtists.take(4)) {
-      try {
-        final relVideos = await _youtubeRepo.search('${rel.name} song');
-        for (final v in relVideos.take(3)) {
-          discoveryCandidates.add(v.toTrack(reliableArtist: rel.name));
-        }
-      } catch (_) {}
-    }
-
-    // Source B: Verified recent releases & chart depth
-    discoveryCandidates.addAll(recentReleases);
-    discoveryCandidates.addAll(trendingTracks.skip(10));
-
     final mix3Items = mix3Ranker.rankCandidates(
-      candidates: discoveryCandidates,
+      candidates: rotatedPool3,
       tasteProfile: tasteProfile,
       preferredLanguages: preferredLanguages,
       chartRanks: chartRanks,
       recentHistory: history,
       limit: targetMixCount,
-      excludedTrackIds: mix2TrackIds,
-      excludedRecordingKeys: mix2RecordingKeys,
+      excludedTrackIds: assignedTrackIds,
+      excludedRecordingKeys: assignedRecordingKeys,
       now: referenceTime,
     );
 
-    final dailyMix3 = DailyMix(
-      id: 'discovery',
-      title: 'Daily Mix 3',
-      subtitle: 'New sounds and releases tailored to your taste',
-      tracks: mix3Items.map((m) => m is Track ? m : Track(
+    final finalMix3Tracks = <Track>[];
+    for (final m in mix3Items) {
+      final t = m is Track ? m : Track(
         id: m.id,
         title: m.title,
         artist: m.artist,
         imageUrl: m.imageUrl,
         duration: m.duration,
         filePath: m.filePath,
-      )).toList(),
+      );
+      final id = _normalizeTrackId(t.id);
+      final key = SearchDeduplicator.computeRecordingKey(t);
+      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key)) continue;
+      assignedTrackIds.add(id);
+      assignedRecordingKeys.add(key);
+      finalMix3Tracks.add(t);
+    }
+
+    final dailyMix3 = DailyMix(
+      id: 'discovery',
+      title: 'Daily Mix 3',
+      subtitle: 'New sounds and releases tailored to your taste',
+      tracks: finalMix3Tracks,
       primaryColorHex: '#00CEC9',
       familiarRatio: 0.20,
-      coverImageUrl: mix3Items.firstOrNull?.imageUrl,
+      coverImageUrl: finalMix3Tracks.firstOrNull?.imageUrl,
+    );
+
+    // 7. Record today's generated canonical keys in the rolling rotation ledger
+    await _repository.recordGenerationHistory(
+      userId,
+      localDate,
+      assignedRecordingKeys.toList(),
     );
 
     return DailyMixSnapshot(

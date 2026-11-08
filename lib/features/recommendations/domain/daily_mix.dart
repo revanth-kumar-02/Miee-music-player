@@ -84,10 +84,12 @@ class DailyMixSnapshot {
   });
 
   /// Formats [dateTime] into a local calendar date string ('YYYY-MM-DD').
+  /// Uses the device's local calendar day rather than UTC midnight.
   static String formatLocalDate(DateTime dateTime) {
-    final year = dateTime.year.toString().padLeft(4, '0');
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final day = dateTime.day.toString().padLeft(2, '0');
+    final local = dateTime.toLocal();
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
   }
 

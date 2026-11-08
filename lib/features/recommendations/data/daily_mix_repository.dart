@@ -28,6 +28,11 @@ class DailyMixRepository {
     return 'daily_mix_snapshot_$cleanUid';
   }
 
+  static String historyKey(String userId) {
+    final cleanUid = userId.trim().isEmpty ? 'guest' : userId.trim();
+    return 'daily_mix_history_$cleanUid';
+  }
+
   Future<T> _withLock<T>(String key, Future<T> Function() action) async {
     final previous = _writeLocks[key] ?? Future.value();
     final completer = Completer<void>();
@@ -93,13 +98,88 @@ class DailyMixRepository {
     });
   }
 
-  /// Clears the saved snapshot for [userId] (e.g. on account sign-out or account wipe).
+  /// Clears the saved snapshot and recent generation history for [userId].
   Future<void> clearSnapshot(String userId) async {
     try {
       final key = storageKey(userId);
       await _box.delete(key);
+      await _box.delete(historyKey(userId));
     } catch (e) {
       debugPrint('[DailyMixRepository] Error clearing snapshot for $userId: $e');
+    }
+  }
+
+  /// Retrieves the recorded daily mix generation history mapping localDate ('YYYY-MM-DD')
+  /// to lists of canonical recording keys used on that date.
+  Future<Map<String, List<String>>> getRecentGenerationsHistory(String userId) async {
+    try {
+      final key = historyKey(userId);
+      final raw = _box.get(key);
+      if (raw != null && raw is Map) {
+        final result = <String, List<String>>{};
+        for (final entry in raw.entries) {
+          if (entry.key != null && entry.value is List) {
+            result[entry.key.toString()] =
+                (entry.value as List).map((e) => e.toString()).toList();
+          }
+        }
+        return result;
+      }
+    } catch (e) {
+      debugPrint('[DailyMixRepository] Error reading generation history for $userId: $e');
+    }
+    return {};
+  }
+
+  /// Records the generated canonical recording keys for [localDate], pruning dates
+  /// older than [maxRetentionDays] to prevent unbound growth.
+  Future<void> recordGenerationHistory(
+    String userId,
+    String localDate,
+    List<String> canonicalKeys, {
+    int maxRetentionDays = 7,
+  }) async {
+    final key = historyKey(userId);
+    return _withLock<void>(key, () async {
+      try {
+        final existing = await getRecentGenerationsHistory(userId);
+        final updated = Map<String, List<String>>.from(existing);
+        updated[localDate] = canonicalKeys;
+
+        // Prune older dates beyond maxRetentionDays
+        final sortedDates = updated.keys.toList()..sort();
+        if (sortedDates.length > maxRetentionDays) {
+          final toRemove = sortedDates.take(sortedDates.length - maxRetentionDays);
+          for (final oldDate in toRemove) {
+            updated.remove(oldDate);
+          }
+        }
+
+        await _box.put(key, updated);
+      } catch (e) {
+        debugPrint('[DailyMixRepository] Error recording generation history for $userId: $e');
+      }
+    });
+  }
+
+  /// Retrieves canonical recording keys and track IDs used on recent days prior to [excludeDate]
+  /// (e.g. yesterday and the day before) to prevent consecutive-day repetition.
+  Future<Set<String>> getRecentlyUsedRecordingKeys(
+    String userId, {
+    int days = 2,
+    String? excludeDate,
+  }) async {
+    try {
+      final history = await getRecentGenerationsHistory(userId);
+      final sortedDates = history.keys.where((d) => d != excludeDate).toList()..sort();
+      final recentDates = sortedDates.reversed.take(days);
+      final keys = <String>{};
+      for (final date in recentDates) {
+        keys.addAll(history[date] ?? const []);
+      }
+      return keys;
+    } catch (_) {
+      return {};
     }
   }
 

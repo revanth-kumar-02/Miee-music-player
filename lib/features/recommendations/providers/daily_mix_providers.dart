@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/models/music_item.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../history/providers/history_providers.dart';
+import '../../library/providers/library_providers.dart';
+import '../../media/providers/media_providers.dart';
 import '../../onboarding/providers/onboarding_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../youtube/providers/youtube_providers.dart';
@@ -23,6 +26,9 @@ final dailyMixServiceProvider = Provider<DailyMixService>((ref) {
   final artistRepo = ref.watch(artistRepositoryProvider);
   final youtubeRepo = ref.watch(youtubeRepositoryProvider);
   final recService = ref.watch(recommendationServiceProvider);
+  final favoritesRepo = ref.watch(favoritesRepositoryProvider);
+  final mostPlayedRepo = ref.watch(mostPlayedRepositoryProvider);
+  final recentlyPlayedRepo = ref.watch(recentlyPlayedRepositoryProvider);
 
   return DailyMixService(
     candidateRanker: candidateRanker,
@@ -34,6 +40,16 @@ final dailyMixServiceProvider = Provider<DailyMixService>((ref) {
     artistRepo: artistRepo,
     youtubeRepo: youtubeRepo,
     recommendationService: recService,
+    favoritesRepo: favoritesRepo,
+    mostPlayedRepo: mostPlayedRepo,
+    recentlyPlayedRepo: recentlyPlayedRepo,
+    getLocalSongs: () {
+      try {
+        return List<MusicItem>.from(ref.read(songsProvider));
+      } catch (_) {
+        return const [];
+      }
+    },
   );
 });
 
