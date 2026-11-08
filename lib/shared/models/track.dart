@@ -25,6 +25,9 @@ class Track implements MusicItem {
   /// Original source artist / author preserved for diagnostics.
   final String? rawArtist;
 
+  /// Stable artist identifier (e.g. Deezer ID, Curated ID, or YouTube Channel ID).
+  final String? artistId;
+
   const Track({
     required this.id,
     required this.title,
@@ -37,6 +40,7 @@ class Track implements MusicItem {
     this.isFavorited = false,
     this.rawTitle,
     this.rawArtist,
+    this.artistId,
   }) : localFilePath = filePath;
 
   @override
@@ -73,6 +77,7 @@ class Track implements MusicItem {
     bool? isFavorited,
     String? rawTitle,
     String? rawArtist,
+    String? artistId,
   }) {
     return Track(
       id: id ?? this.id,
@@ -86,6 +91,7 @@ class Track implements MusicItem {
       isFavorited: isFavorited ?? this.isFavorited,
       rawTitle: rawTitle ?? this.rawTitle,
       rawArtist: rawArtist ?? this.rawArtist,
+      artistId: artistId ?? this.artistId,
     );
   }
 }

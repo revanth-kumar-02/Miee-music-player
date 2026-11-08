@@ -66,6 +66,13 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     state = state.copyWith(
       query: query,
+      localSongs: const [],
+      localAlbums: const [],
+      localArtists: const [],
+      localPlaylists: const [],
+      youtubeResults: const [],
+      onlineArtists: const [],
+      onlineAlbums: const [],
       isLocalLoading: true,
       isYouTubeLoading: true,
       isArtistsLoading: true,
@@ -103,6 +110,13 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     state = state.copyWith(
       query: query,
+      localSongs: const [],
+      localAlbums: const [],
+      localArtists: const [],
+      localPlaylists: const [],
+      youtubeResults: const [],
+      onlineArtists: const [],
+      onlineAlbums: const [],
       isLocalLoading: true,
       isYouTubeLoading: true,
       isArtistsLoading: true,

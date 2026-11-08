@@ -165,7 +165,8 @@ class SearchDeduplicator {
     final seenIds = <String>{};
     final uniqueVideos = <YouTubeVideo>[];
     for (final video in videos) {
-      if (video.id.isNotEmpty && seenIds.add(video.id)) {
+      final normId = video.id.replaceFirst('youtube_', '');
+      if (normId.isNotEmpty && seenIds.add(normId)) {
         if (MusicResultClassifier.isValidMusicTrack(video, query: query)) {
           uniqueVideos.add(video);
         }

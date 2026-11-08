@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,13 +18,13 @@ import '../../lyrics/presentation/widgets/lyrics_overlay.dart';
 import '../../rooms/providers/room_providers.dart';
 import '../../../shared/widgets/artist_avatar.dart';
 import '../../onboarding/domain/artist_model.dart';
-import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/providers/onboarding_providers.dart';
 import '../../media/providers/media_providers.dart';
 import '../../connect/presentation/connect_sheet.dart';
 import '../../connect/providers/connect_providers.dart';
 import '../../notifications/presentation/widgets/notification_sheet.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
+import '../../search/data/artist_resolution_service.dart';
 
 /// Recreated Now Playing Screen matching the reference design:
 /// - Cocoa Plum background (#3A252B) on Mobile
@@ -38,61 +36,20 @@ import '../../artwork/presentation/miee_artwork_image.dart';
 /// - Playback controls with circular Dusty Rose play button
 /// - "Lyrics" pill at the bottom
 /// Dynamically resolves artist metadata for the currently playing track.
-/// Checks curated catalog, local library, and Deezer repository with graceful fallback.
+/// Utilizes the centralized [ArtistResolutionService] with in-flight deduplication,
+/// tiered caching, and strict name verification to prevent unrelated artist associations.
 final nowPlayingArtistProvider = FutureProvider.autoDispose<ArtistModel?>((ref) async {
   final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
   if (currentTrack == null || currentTrack.artist.trim().isEmpty) return null;
 
-  final rawArtist = currentTrack.artist.trim();
+  final resolutionService = ref.read(artistResolutionServiceProvider);
+  final localArtists = ref.read(artistsProvider);
+  final artistRepo = ref.read(artistRepositoryProvider);
 
-  // 1. Direct curated match on full string
-  final curatedDirect = DeezerArtistRepository.findCuratedByName(rawArtist);
-  if (curatedDirect != null) return curatedDirect;
-
-  // 2. Extract primary artist from multi-artist string (commas, &, feat, ft, etc.)
-  final delimiters = RegExp(r'[,/|&]|\s+(feat\.?|ft\.?)\s+', caseSensitive: false);
-  final parts = rawArtist.split(delimiters);
-  if (parts.isNotEmpty) {
-    final first = parts.first.trim();
-    if (first.isNotEmpty && first != rawArtist) {
-      final curatedFirst = DeezerArtistRepository.findCuratedByName(first);
-      if (curatedFirst != null) return curatedFirst;
-    }
-  }
-
-  // 3. Check local device artists
-  try {
-    final localArtists = ref.read(artistsProvider);
-    final primaryName = parts.isNotEmpty && parts.first.trim().isNotEmpty ? parts.first.trim() : rawArtist;
-    final match = localArtists.where((a) {
-      final an = a.name.trim().toLowerCase();
-      return an == rawArtist.toLowerCase() || an == primaryName.toLowerCase();
-    }).firstOrNull;
-    if (match != null) {
-      return ArtistModel(
-        id: match.id,
-        name: match.name,
-        imageUrl: match.artworkPath ?? '',
-      );
-    }
-  } catch (_) {}
-
-  // 4. Online lookup via repository
-  try {
-    final repo = ref.read(artistRepositoryProvider);
-    final primaryName = parts.isNotEmpty && parts.first.trim().isNotEmpty ? parts.first.trim() : rawArtist;
-    final searchResults = await repo.searchArtists(primaryName);
-    if (searchResults.isNotEmpty) {
-      return searchResults.first;
-    }
-  } catch (_) {}
-
-  // 5. Fallback artist entity
-  final primaryName = parts.isNotEmpty && parts.first.trim().isNotEmpty ? parts.first.trim() : rawArtist;
-  return ArtistModel(
-    id: '',
-    name: primaryName,
-    imageUrl: '',
+  return resolutionService.resolveTrackArtist(
+    currentTrack,
+    localArtists: localArtists,
+    artistRepo: artistRepo,
   );
 });
 

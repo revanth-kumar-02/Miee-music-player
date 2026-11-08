@@ -19,6 +19,7 @@ import '../../onboarding/providers/onboarding_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
 import '../../youtube/data/youtube_repository.dart';
+import '../../youtube/providers/youtube_providers.dart';
 
 /// Combined state for the shared Artist Profile page.
 class ArtistProfileData {
@@ -195,7 +196,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       // Online tracks via YouTube search with deduplication & podcast/movie filtering
       bool hasMoreOnlineTracks = false;
       try {
-        final ytRepo = YouTubeRepository();
+        final ytRepo = ref.read(youtubeRepositoryProvider);
         final rawVideos = await ytRepo.getArtistTracks(artist.name, page: 1, limit: 15);
         hasMoreOnlineTracks = rawVideos.length >= 8 && !isLocal;
 
@@ -277,7 +278,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
 
     try {
       final nextPage = current.currentPage + 1;
-      final ytRepo = YouTubeRepository();
+      final ytRepo = ref.read(youtubeRepositoryProvider);
       final profile = ref.read(currentUserProfileProvider);
       final preferredLanguages = profile?.preferredLanguages ?? const [];
 

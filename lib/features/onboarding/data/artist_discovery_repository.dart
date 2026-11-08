@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../domain/artist_model.dart';
+import '../../search/domain/artist_classifier.dart';
 
 /// Verified album entity for an artist from Deezer or local metadata.
 class ArtistAlbum {
@@ -1031,7 +1032,14 @@ class DeezerArtistRepository implements ArtistRepository {
 
             return ArtistModel.fromDeezer(map);
           })
-          .where((a) => a.name.isNotEmpty && a.id.isNotEmpty)
+          .where((a) =>
+              a.name.isNotEmpty &&
+              a.id.isNotEmpty &&
+              ArtistClassifier.isLegitimateMusicArtist(
+                a.name,
+                fanCount: a.fanCount,
+                query: cleanQuery,
+              ))
           .toList();
 
       // Merge local matches and remote matches without duplicates
@@ -1079,7 +1087,13 @@ class DeezerArtistRepository implements ArtistRepository {
 
       final related = items
           .map((item) => ArtistModel.fromDeezer(Map<String, dynamic>.from(item as Map)))
-          .where((a) => a.name.isNotEmpty && a.id.isNotEmpty)
+          .where((a) =>
+              a.name.isNotEmpty &&
+              a.id.isNotEmpty &&
+              ArtistClassifier.isLegitimateMusicArtist(
+                a.name,
+                fanCount: a.fanCount,
+              ))
           .toList();
 
       if (related.isNotEmpty) {

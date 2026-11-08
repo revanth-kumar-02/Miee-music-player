@@ -1168,7 +1168,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ],
             ),
             const SizedBox(height: 12),
-            ...state.youtubeResults.take(15).map(
+            ...state.youtubeResults
+                .where((video) => matchingSong == null || video.id != matchingSong.id)
+                .take(15)
+                .map(
                   (video) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: YouTubeResultTile(

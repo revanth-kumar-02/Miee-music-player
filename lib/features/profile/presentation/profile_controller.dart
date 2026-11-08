@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import '../../../../core/storage/hive_boxes.dart';
+import '../../../core/storage/hive_boxes.dart';
 import '../../auth/domain/auth_user.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../domain/profile_model.dart';

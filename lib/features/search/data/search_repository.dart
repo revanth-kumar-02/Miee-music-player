@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../domain/search_deduplicator.dart';
+import '../domain/artist_classifier.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../youtube/domain/youtube_model.dart';
@@ -148,6 +149,13 @@ class SearchRepository {
     // 1. Process Curated / Deezer artists first (they have verified discography metadata)
     for (final artist in curatedAndDeezer) {
       if (artist.id.isEmpty) continue;
+      if (!ArtistClassifier.isLegitimateMusicArtist(
+        artist.name,
+        fanCount: artist.fanCount,
+        query: cleanQuery,
+      )) {
+        continue;
+      }
       final cName = canonical(artist.name);
 
       var effectiveArtist = artist;
@@ -167,6 +175,12 @@ class SearchRepository {
     // 2. Process YouTube artist channels
     for (final ytArtist in youtubeArtists) {
       if (ytArtist.id.isEmpty) continue;
+      if (!ArtistClassifier.isLegitimateMusicArtist(
+        ytArtist.name,
+        query: cleanQuery,
+      )) {
+        continue;
+      }
       final cName = canonical(ytArtist.name);
 
       // If an artist with the exact same canonical name is already present from Deezer/curated

@@ -5,6 +5,7 @@ import '../domain/youtube_metadata_cleaner.dart';
 import '../domain/youtube_failures.dart';
 import '../domain/music_result_classifier.dart';
 import '../../search/domain/search_deduplicator.dart';
+import '../../search/domain/artist_classifier.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../recommendations/domain/music_language_service.dart';
 import 'youtube_data_source.dart';
@@ -273,6 +274,7 @@ class YouTubeRepository {
 
   Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery, {int page = 1}) async {
     final candidateVideos = <YouTubeVideo>[];
+    final seenVideoIds = <String>{};
 
     try {
       if (page <= 1) {
@@ -280,7 +282,7 @@ class YouTubeRepository {
         _activeSearchLists[cleanQuery] = searchList;
 
         for (final video in searchList) {
-          if (video.id.value.isEmpty) continue;
+          if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
           final candidate = _processVideo(video, cleanQuery);
           if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
             candidateVideos.add(candidate);
@@ -294,7 +296,7 @@ class YouTubeRepository {
             if (nextPage != null && nextPage.isNotEmpty) {
               _activeSearchLists[cleanQuery] = nextPage;
               for (final video in nextPage) {
-                if (video.id.value.isEmpty) continue;
+                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
                 final candidate = _processVideo(video, cleanQuery);
                 if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
                   candidateVideos.add(candidate);
@@ -311,7 +313,7 @@ class YouTubeRepository {
             if (nextList != null && nextList.isNotEmpty) {
               _activeSearchLists[cleanQuery] = nextList;
               for (final video in nextList) {
-                if (video.id.value.isEmpty) continue;
+                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
                 final candidate = _processVideo(video, cleanQuery);
                 if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
                   candidateVideos.add(candidate);
@@ -329,7 +331,7 @@ class YouTubeRepository {
           debugPrint('[YouTubeRepository] Using continuation query variant: "$variantQuery"');
           final variantList = await _yt.search.search(variantQuery);
           for (final video in variantList) {
-            if (video.id.value.isEmpty) continue;
+            if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
             final candidate = _processVideo(video, variantQuery);
             if (MusicResultClassifier.isValidMusicTrack(candidate, query: variantQuery)) {
               candidateVideos.add(candidate);
@@ -348,6 +350,7 @@ class YouTubeRepository {
     final videoId = video.id.value;
     final title = video.title;
     final channelTitle = video.author;
+    final channelId = video.channelId.value;
 
     final durationStr = video.duration != null
         ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
@@ -379,6 +382,7 @@ class YouTubeRepository {
       rawTitle: title,
       rawChannelTitle: channelTitle,
       rawViewCount: rawViews,
+      channelId: channelId.isNotEmpty ? channelId : null,
     );
   }
 
@@ -518,6 +522,7 @@ class YouTubeRepository {
         rawTitle: title,
         rawChannelTitle: channelTitle,
         rawViewCount: viewsRaw,
+        channelId: snippet['channelId'] as String?,
       );
 
       if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
@@ -689,6 +694,10 @@ class YouTubeRepository {
   }
 
   static bool isExcludedArtistChannel(String rawName, String query) {
+    if (!ArtistClassifier.isLegitimateMusicArtist(rawName, query: query)) {
+      return true;
+    }
+
     final lower = rawName.toLowerCase();
     final queryLower = query.toLowerCase();
 
