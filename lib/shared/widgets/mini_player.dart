@@ -84,6 +84,7 @@ class MiniPlayer extends StatelessWidget {
       button: true,
       enabled: onTap != null,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
           height: 64.0,

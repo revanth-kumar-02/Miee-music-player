@@ -48,6 +48,9 @@ app.*.map.json
 # Android build artifacts
 /android/app/build/
 /android/build/
+
+# MCP local configuration & secrets
+.mcp.json
 /android/.kotlin/
 *.apk
 

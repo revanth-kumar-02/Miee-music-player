@@ -117,14 +117,10 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // 1. Scrollable List of Songs
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              bottom: false,
-              child: Column(
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
                 children: [
                   // Search & Sorting Controls
                   Padding(
@@ -379,53 +375,6 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
                 ],
               ),
             ),
-          ),
-
-          // 2. Floating MiniPlayer (positioned at the bottom since there's no bottom navigation bar)
-          Positioned(
-            left: AppSpacing.marginMobile,
-            right: AppSpacing.marginMobile,
-            bottom: bottomInset + AppSpacing.sm,
-            child: Consumer(
-              builder: (context, ref, child) {
-                final playbackState = ref.watch(playerControllerProvider);
-                final controller = ref.read(playerControllerProvider.notifier);
-                final currentTrack = playbackState.currentTrack;
-
-                if (currentTrack == null) {
-                  return const SizedBox.shrink();
-                }
-
-                final isPlaying =
-                    playbackState.status == PlaybackStatus.playing;
-                final isLoading = playbackState.status == PlaybackStatus.loading ||
-                    playbackState.status == PlaybackStatus.buffering;
-                final total = playbackState.duration.inMilliseconds;
-                final pos = playbackState.position.inMilliseconds;
-                final progress = total > 0 ? pos / total : 0.0;
-
-                return MiniPlayer(
-                  musicItem: currentTrack,
-                  progress: progress,
-                  isPlaying: isPlaying,
-                  isLoading: isLoading,
-                  isFavorited: favorites.any((t) => t.id == currentTrack.id),
-                  isDark: true,
-                  onTap: () => context.push('/player'),
-                  onPlayPauseTap: () {
-                    if (isPlaying) {
-                      controller.pause();
-                    } else {
-                      controller.play();
-                    }
-                  },
-                  onFavoriteTap: () {},
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

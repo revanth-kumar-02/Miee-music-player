@@ -63,16 +63,13 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
         title: 'Albums',
         isScrolled: _isScrolled,
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: SafeArea(
-              top: false,
-              bottom: false,
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
-                slivers: [
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(),
+          slivers: [
                   // Search Bar
                   SliverToBoxAdapter(
                     child: Padding(
@@ -170,53 +167,12 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
                         ),
                       ),
                     ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 120.0),
+                  ),
                 ],
               ),
             ),
-          ),
-
-          // Mini Player
-          Positioned(
-            left: AppSpacing.marginMobile,
-            right: AppSpacing.marginMobile,
-            bottom: bottomInset + AppSpacing.sm,
-            child: Consumer(
-              builder: (context, ref, child) {
-                final playbackState = ref.watch(playerControllerProvider);
-                final currentTrack = playbackState.currentTrack;
-                if (currentTrack == null) return const SizedBox.shrink();
-                
-                final favorites = ref.watch(favoritesProvider);
-                final isPlaying = playbackState.status == PlaybackStatus.playing;
-                final isLoading = playbackState.status == PlaybackStatus.loading ||
-                    playbackState.status == PlaybackStatus.buffering;
-                final total = playbackState.duration.inMilliseconds;
-                final pos = playbackState.position.inMilliseconds;
-                final progress = total > 0 ? pos / total : 0.0;
-
-                return MiniPlayer(
-                  musicItem: currentTrack,
-                  progress: progress,
-                  isPlaying: isPlaying,
-                  isLoading: isLoading,
-                  isFavorited: favorites.any((t) => t.id == currentTrack.id),
-                  isDark: false,
-                  onTap: () => context.push('/player'),
-                  onPlayPauseTap: () {
-                    final controller = ref.read(playerControllerProvider.notifier);
-                    if (isPlaying) {
-                      controller.pause();
-                    } else {
-                      controller.play();
-                    }
-                  },
-                  onFavoriteTap: () {},
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -137,6 +137,69 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         builder: (context, state) => const ArtistSelectionPage(),
       ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/player',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const PlayerPage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          reverseTransitionDuration: const Duration(milliseconds: 350),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                Tween<Offset>(
+                  begin: const Offset(0.0, 1.0),
+                  end: Offset.zero,
+                ).chain(CurveTween(curve: Curves.easeOutCubic)),
+              ),
+              child: child,
+            );
+          },
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/queue',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const QueuePage(),
+          transitionDuration: const Duration(milliseconds: 350),
+          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).chain(CurveTween(curve: Curves.easeOutCubic)),
+              ),
+              child: child,
+            );
+          },
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings',
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const SettingsPage(),
+          transitionDuration: const Duration(milliseconds: 350),
+          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: animation.drive(
+                Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).chain(CurveTween(curve: Curves.easeOutCubic)),
+              ),
+              child: child,
+            );
+          },
+        ),
+      ),
       ShellRoute(
         navigatorKey: shellNavigatorKey,
         builder: (context, state, child) {
@@ -150,48 +213,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/search',
             builder: (context, state) => const SearchPage(),
-          ),
-          GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
-            path: '/player',
-            pageBuilder: (context, state) => CustomTransitionPage<void>(
-              key: state.pageKey,
-              child: const PlayerPage(),
-              transitionDuration: const Duration(milliseconds: 400),
-              reverseTransitionDuration: const Duration(milliseconds: 350),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return SlideTransition(
-                  position: animation.drive(
-                    Tween<Offset>(
-                      begin: const Offset(0.0, 1.0),
-                      end: Offset.zero,
-                    ).chain(CurveTween(curve: Curves.easeOutCubic)),
-                  ),
-                  child: child,
-                );
-              },
-            ),
-          ),
-          GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
-            path: '/queue',
-            pageBuilder: (context, state) => CustomTransitionPage<void>(
-              key: state.pageKey,
-              child: const QueuePage(),
-              transitionDuration: const Duration(milliseconds: 350),
-              reverseTransitionDuration: const Duration(milliseconds: 300),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return SlideTransition(
-                  position: animation.drive(
-                    Tween<Offset>(
-                      begin: const Offset(0.0, 1.0),
-                      end: Offset.zero,
-                    ).chain(CurveTween(curve: Curves.easeOutCubic)),
-                  ),
-                  child: child,
-                );
-              },
-            ),
           ),
           GoRoute(
             path: '/playlists',
@@ -214,7 +235,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/local-songs',
             redirect: (context, state) {
               if (kIsWeb) return '/playlists';
@@ -239,7 +259,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/liked-songs',
             pageBuilder: (context, state) => CustomTransitionPage<void>(
               key: state.pageKey,
@@ -260,28 +279,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
-            path: '/settings',
-            pageBuilder: (context, state) => CustomTransitionPage<void>(
-              key: state.pageKey,
-              child: const SettingsPage(),
-              transitionDuration: const Duration(milliseconds: 350),
-              reverseTransitionDuration: const Duration(milliseconds: 300),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return SlideTransition(
-                  position: animation.drive(
-                    Tween<Offset>(
-                      begin: const Offset(1.0, 0.0),
-                      end: Offset.zero,
-                    ).chain(CurveTween(curve: Curves.easeOutCubic)),
-                  ),
-                  child: child,
-                );
-              },
-            ),
-          ),
-          GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/playlist/:id',
             pageBuilder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -329,7 +326,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const AlbumsPage(),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/album/:id',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -341,7 +337,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const ArtistsPage(),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/artist/:id',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -356,7 +351,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const GenresPage(),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/genre/:id',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -368,17 +362,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const RoomLandingPage(),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/rooms/create',
             builder: (context, state) => const CreateRoomPage(),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/rooms/join',
             builder: (context, state) => const JoinRoomPage(),
           ),
           GoRoute(
-            parentNavigatorKey: rootNavigatorKey,
             path: '/rooms/active',
             builder: (context, state) => const ActiveRoomPage(),
           ),

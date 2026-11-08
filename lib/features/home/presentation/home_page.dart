@@ -637,15 +637,20 @@ class _HomePageState extends ConsumerState<HomePage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              'Continue Listening',
-              style: GoogleFonts.geist(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.denseObsidian,
-                letterSpacing: -0.3,
+            Expanded(
+              child: Text(
+                'Continue Listening',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.geist(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.denseObsidian,
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
+            const SizedBox(width: 8),
             GestureDetector(
               onTap: () => context.go('/search'),
               child: Row(
@@ -875,14 +880,19 @@ class _HomePageState extends ConsumerState<HomePage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Made for you',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.cocoaPlum,
+            Expanded(
+              child: Text(
+                'Made for you',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.cocoaPlum,
+                ),
               ),
             ),
+            const SizedBox(width: 8),
             InkWell(
               onTap: () => context.go('/playlists'),
               child: Row(

@@ -1355,6 +1355,12 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
           ? playback.position.inMilliseconds / playback.duration.inMilliseconds
           : 0.0,
       onTap: () {
+        try {
+          final state = GoRouterState.of(context);
+          if (state.matchedLocation == '/player' || state.uri.path == '/player') {
+            return;
+          }
+        } catch (_) {}
         context.push('/player');
       },
       onPlayPauseTap: () {
