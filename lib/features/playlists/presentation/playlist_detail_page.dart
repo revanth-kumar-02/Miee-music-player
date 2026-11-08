@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_radius.dart';
@@ -418,6 +419,25 @@ class _PlaylistDetailView extends ConsumerWidget {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.image_outlined),
+                  title: const Text('Change Cover'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _pickPlaylistCover(context, ref, playlist.id);
+                  },
+                ),
+                if (playlist.customCoverPath != null)
+                  ListTile(
+                    leading: const Icon(Icons.hide_image_outlined),
+                    title: const Text('Remove Custom Cover'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      ref
+                          .read(playlistControllerProvider.notifier)
+                          .updateCoverPath(playlist.id, null);
+                    },
+                  ),
+                ListTile(
                   leading:
                       const Icon(Icons.delete_outline, color: AppColors.error),
                   title: const Text('Delete',
@@ -439,6 +459,19 @@ class _PlaylistDetailView extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _pickPlaylistCover(
+      BuildContext context, WidgetRef ref, String playlistId) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+    );
+    if (picked == null) return;
+    await ref
+        .read(playlistControllerProvider.notifier)
+        .updateCoverPath(playlistId, picked.path);
   }
 
   Future<bool?> _confirmDelete(BuildContext context) {

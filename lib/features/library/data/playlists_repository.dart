@@ -131,6 +131,19 @@ class PlaylistsRepository {
     playlist.customCoverPath = durablePath;
     playlist.lastModified = DateTime.now();
     await playlist.save();
+    await _box.put(playlistId, playlist);
+
+    final op = OfflineOperation(
+      id: 'pl_cover_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_cover_update',
+      payload: {
+        'id': playlistId,
+        'customCoverPath': durablePath,
+        'lastModified': playlist.lastModified.toIso8601String(),
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   /// Permanently deletes the playlist with [playlistId].
@@ -159,6 +172,7 @@ class PlaylistsRepository {
       tracks: List<TrackHiveModel>.from(source.tracks),
       createdAt: now,
       lastModified: now,
+      customCoverPath: source.customCoverPath,
     );
     await _box.put(id, copy);
 

@@ -51,17 +51,26 @@ class PlaylistModel {
     return '< 1m';
   }
 
-  /// First track in the playlist, used as fallback cover artwork source.
-  MusicItem? get artworkTrack => tracks.isNotEmpty ? tracks.first : null;
+  /// Track in the playlist used as fallback cover artwork source if no custom cover is set.
+  /// Prefers the first track that possesses valid artwork.
+  MusicItem? get artworkTrack {
+    if (tracks.isEmpty) return null;
+    return tracks.firstWhere(
+      (t) => t.imageUrl.trim().isNotEmpty,
+      orElse: () => tracks.first,
+    );
+  }
 
   /// Effective cover image URL/path for display, following the priority chain:
-  /// 1. User-selected [customCoverPath] (highest priority).
-  /// 2. Album art of the first track ([artworkTrack]?.imageUrl).
+  /// 1. User-selected [customCoverPath] (highest priority, stored independently).
+  /// 2. Album art of the first track with artwork ([artworkTrack]?.imageUrl).
   /// 3. null — callers should render a placeholder.
   String? get effectiveCoverUrl =>
-      customCoverPath?.isNotEmpty == true
+      (customCoverPath != null && customCoverPath!.trim().isNotEmpty)
           ? customCoverPath
-          : (artworkTrack?.imageUrl.isNotEmpty == true ? artworkTrack!.imageUrl : null);
+          : (artworkTrack != null && artworkTrack!.imageUrl.trim().isNotEmpty
+              ? artworkTrack!.imageUrl
+              : null);
 
   bool get isEmpty => tracks.isEmpty;
   bool get isNotEmpty => !isEmpty;

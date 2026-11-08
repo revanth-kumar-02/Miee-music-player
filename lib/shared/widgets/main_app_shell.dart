@@ -134,6 +134,8 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         uriPath.startsWith('/settings/');
     final isRoomDetailRoute = location.startsWith('/rooms/') ||
         uriPath.startsWith('/rooms/');
+    final isRoomsLandingRoute = location == '/rooms' || uriPath == '/rooms';
+    final isRoomsRoute = isRoomsLandingRoute || isRoomDetailRoute;
     final isQueueRoute = location == '/queue' ||
         uriPath == '/queue' ||
         location.startsWith('/queue/') ||
@@ -163,7 +165,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     if (!isDesktop) {
       final hideMiniPlayer = isNowPlayingRoute ||
           isSettingsRoute ||
-          isRoomDetailRoute ||
+          isRoomsRoute ||
           isQueueRoute ||
           !hasTrack;
 

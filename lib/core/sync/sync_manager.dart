@@ -328,6 +328,8 @@ class SyncManager with WidgetsBindingObserver {
               'id': payload['id'],
               'user_id': userId,
               'name': payload['name'],
+              if (payload['customCoverPath'] != null)
+                'custom_cover_path': payload['customCoverPath'],
               'created_at': payload['createdAt'],
               'last_modified': payload['lastModified'],
             });
@@ -348,6 +350,13 @@ class SyncManager with WidgetsBindingObserver {
               'name': payload['name'],
               'last_modified': payload['lastModified'],
             });
+            break;
+
+          case 'playlist_cover_update':
+            await client.from('playlists').update({
+              'custom_cover_path': payload['customCoverPath'],
+              'last_modified': payload['lastModified'],
+            }).eq('id', payload['id'] as Object).eq('user_id', userId);
             break;
 
           case 'playlist_tracks_reorder':
@@ -827,6 +836,7 @@ class SyncManager with WidgetsBindingObserver {
           tracks: songs,
           createdAt: DateTime.parse(p['created_at'] as String),
           lastModified: DateTime.parse(p['last_modified'] as String),
+          customCoverPath: p['custom_cover_path'] as String?,
         );
       }).toList();
 
@@ -849,12 +859,21 @@ class SyncManager with WidgetsBindingObserver {
             idSelector: (s) => s.id,
             mergeFn: (l, r) => l,
           );
+          // Preserve customCoverPath: local custom path takes highest precedence if valid/set,
+          // followed by remotePl or resolvedMetadata.
+          final durableCoverPath = localPl.customCoverPath?.isNotEmpty == true
+              ? localPl.customCoverPath
+              : (remotePl.customCoverPath?.isNotEmpty == true
+                  ? remotePl.customCoverPath
+                  : resolvedMetadata.customCoverPath);
+
           return PlaylistHiveModel(
             id: resolvedMetadata.id,
             name: resolvedMetadata.name,
             tracks: mergedSongs,
             createdAt: resolvedMetadata.createdAt,
             lastModified: resolvedMetadata.lastModified,
+            customCoverPath: durableCoverPath,
           );
         },
       );
@@ -1088,12 +1107,18 @@ class SyncManager with WidgetsBindingObserver {
               ))
           .toList();
 
+      final existingLocal = playlistsBox.get(pId);
+      final durableCoverPath = existingLocal?.customCoverPath?.isNotEmpty == true
+          ? existingLocal!.customCoverPath
+          : p['custom_cover_path'] as String?;
+
       final playlist = PlaylistHiveModel(
         id: pId,
         name: p['name'] as String,
         tracks: songs,
         createdAt: DateTime.parse(p['created_at'] as String),
         lastModified: DateTime.parse(p['last_modified'] as String),
+        customCoverPath: durableCoverPath,
       );
       await playlistsBox.put(pId, playlist);
     }
