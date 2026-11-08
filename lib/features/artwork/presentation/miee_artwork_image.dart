@@ -56,7 +56,12 @@ class MieeArtworkImage extends ConsumerWidget {
 
     return asyncArtwork.when(
       data: (artwork) {
-        return _renderResolvedArtwork(context, artwork, effectiveBorderRadius);
+        return _renderResolvedArtwork(
+          context,
+          artwork,
+          effectiveBorderRadius,
+          effectiveQuery,
+        );
       },
       loading: () {
         // While resolving, display the fallback thumbnail if available or neutral placeholder
@@ -88,8 +93,22 @@ class MieeArtworkImage extends ConsumerWidget {
     BuildContext context,
     ResolvedArtwork artwork,
     BorderRadius radius,
+    ArtworkQuery effectiveQuery,
   ) {
     if (artwork.isNeutralFallback || artwork.imageUrl.isEmpty) {
+      // Prioritize the track's authentic stream thumbnail or explicit URL
+      // over the neutral icon whenever available
+      if (effectiveQuery.fallbackThumbnailUrl != null &&
+          effectiveQuery.fallbackThumbnailUrl!.isNotEmpty) {
+        return _renderDirectImage(
+          context,
+          effectiveQuery.fallbackThumbnailUrl!,
+          radius,
+        );
+      }
+      if (explicitUrl != null && explicitUrl!.isNotEmpty) {
+        return _renderDirectImage(context, explicitUrl!, radius);
+      }
       return _buildNeutralFallback(context, radius);
     }
 

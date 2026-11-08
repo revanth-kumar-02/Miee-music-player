@@ -121,10 +121,21 @@ class ArtworkQuery {
         .toLowerCase()
         .replaceAll(RegExp(r'\([^)]*\)'), '') // remove parenthesized content
         .replaceAll(RegExp(r'\[[^\]]*\]'), '') // remove bracketed content
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), '') // remove punctuation
+        .replaceAll(RegExp(r'(\b[a-z])\.\s*'), r'$1') // collapse initials: 'a. r.' -> 'ar ', 'a.r.' -> 'ar'
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), '') // remove remaining punctuation
         .replaceAll(RegExp(r'\s+'), ' ') // collapse whitespace
         .trim();
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArtworkQuery &&
+          runtimeType == other.runtimeType &&
+          cacheKey == other.cacheKey;
+
+  @override
+  int get hashCode => cacheKey.hashCode;
 
   @override
   String toString() => 'ArtworkQuery(title: "$title", artist: "$artist", album: "$album")';

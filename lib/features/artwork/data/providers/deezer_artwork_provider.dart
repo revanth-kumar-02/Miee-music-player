@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../domain/artwork_provider_interface.dart';
 import '../../domain/artwork_query.dart';
@@ -45,10 +46,10 @@ class DeezerArtworkProvider implements ArtworkProvider {
     try {
       final cleanTitle = ArtworkMatchValidator.normalize(title);
       final cleanArtist = ArtworkMatchValidator.normalize(artist);
-      final searchQuery = 'artist:"$cleanArtist" track:"$cleanTitle"';
+      final searchQuery = '$cleanArtist $cleanTitle'.trim();
 
-      final response = await dio.get<Map<String, dynamic>>(
-        'https://api.deezer.com/search/track',
+      final response = await dio.get<dynamic>(
+        'https://api.deezer.com/search',
         queryParameters: {
           'q': searchQuery,
           'limit': 5,
@@ -59,7 +60,11 @@ class DeezerArtworkProvider implements ArtworkProvider {
         return null;
       }
 
-      final dataList = response.data!['data'] as List<dynamic>?;
+      final Map<String, dynamic> responseData = response.data is String
+          ? jsonDecode(response.data as String) as Map<String, dynamic>
+          : Map<String, dynamic>.from(response.data as Map);
+
+      final dataList = responseData['data'] as List<dynamic>?;
       if (dataList == null || dataList.isEmpty) {
         return null;
       }

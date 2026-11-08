@@ -61,7 +61,7 @@ class PlaylistModel {
   String? get effectiveCoverUrl =>
       customCoverPath?.isNotEmpty == true
           ? customCoverPath
-          : (artworkTrack?.imageUrl?.isNotEmpty == true ? artworkTrack!.imageUrl : null);
+          : (artworkTrack?.imageUrl.isNotEmpty == true ? artworkTrack!.imageUrl : null);
 
   bool get isEmpty => tracks.isEmpty;
   bool get isNotEmpty => !isEmpty;

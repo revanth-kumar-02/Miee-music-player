@@ -433,6 +433,55 @@ class MusicResultClassifier {
       }
     }
 
+    // C.2. Video essays, commentary, documentaries, exposé videos, controversy breakdowns, and industry discussions
+    final commentaryAndDocPatterns = [
+      'dark truth',
+      'the dark truth',
+      'truth of',
+      'the truth of',
+      'truth about',
+      'the truth about',
+      'music industry',
+      'film industry',
+      'cinema industry',
+      'paid pr',
+      'pr game',
+      'video essay',
+      'case study',
+      'documentary',
+      'scam exposed',
+      'exposed',
+      'expose',
+      'controversy',
+      'downfall of',
+      'rise and fall',
+      'rise & fall',
+      'what happened to',
+      'untold story',
+      'hidden truth',
+      'dark side of',
+      'conspiracy',
+      'biography',
+      'history of',
+      'evolution of',
+      'ending explained',
+      'story explained',
+      'scene breakdown',
+    ];
+
+    for (final pattern in commentaryAndDocPatterns) {
+      if (titleLower.contains(pattern) || channelLower.contains(pattern)) {
+        if (!_isLegitimateMusicalSuite(titleLower)) {
+          return makeVerdict(
+            MusicTrackConfidence.rejected,
+            false,
+            'Commentary, documentary, video essay, or industry discussion ($pattern)',
+            0,
+          );
+        }
+      }
+    }
+
     // D. Gaming, walkthroughs, vlogs, tech, tutorials, and unboxings
     final generalVideoPatterns = [
       'gameplay',
@@ -685,20 +734,21 @@ class MusicResultClassifier {
     }
 
     // H. Long duration check with lack of musical evidence
-    // Standard songs are typically 1.5 to 7.5 minutes.
-    // Classical music, full concerts, DJ sets, and extended mixes are legitimate long music.
+    // Standard songs are typically 1.5 to 7.0 minutes.
+    // Classical music, full concerts, DJ sets, OSTs, and extended mixes are legitimate long music.
     final isLongMusic = _hasPositiveMusicIndicator(titleLower, channelLower);
+    final isVerifiedChannel = _isOfficialMusicLabel(channelLower) || _isVerifiedMusicArtist(channelLower);
 
-    if (durationSec > 600 && !isLongMusic) {
+    if (durationSec > 540 && !isLongMusic && !isVerifiedChannel) {
       return makeVerdict(
         MusicTrackConfidence.rejected,
         false,
-        'Long duration (${video.duration}) exceeds single-track limit without long-music genre indicators',
+        'Long duration (${video.duration}) exceeds single-track limit without long-music genre indicators or verified music channel',
         0,
       );
     }
 
-    if (durationSec > 450 && !isLongMusic && !_isOfficialMusicLabel(channelLower)) {
+    if (durationSec > 420 && !isLongMusic && !isVerifiedChannel) {
       return makeVerdict(
         MusicTrackConfidence.rejected,
         false,
@@ -1467,10 +1517,20 @@ class MusicResultClassifier {
 
   /// Checks if video title contains explicit musical keywords.
   static bool _hasExplicitMusicKeyword(String titleLower) {
+    // If it's a commentary on the music industry or music review, exclude the keyword match
+    if (titleLower.contains('music industry') ||
+        titleLower.contains('music review') ||
+        titleLower.contains('about music') ||
+        titleLower.contains('dark truth') ||
+        titleLower.contains('truth of')) {
+      return false;
+    }
+
     return titleLower.contains('song') ||
         titleLower.contains('songs') ||
         titleLower.contains('audio') ||
-        titleLower.contains('music') ||
+        titleLower.contains('music video') ||
+        titleLower.contains('official music') ||
         titleLower.contains('track') ||
         titleLower.contains('soundtrack') ||
         titleLower.contains('ost') ||

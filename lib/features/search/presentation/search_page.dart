@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -101,6 +100,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _playYouTubeResult(YouTubeVideo video, List<YouTubeVideo> results) {
     if (results.isEmpty) return;
+
+    // Strict validation: Reject commentary, exposés, podcasts or non-music videos
+    if (!MusicResultClassifier.isValidIndividualSong(video, query: _searchQuery)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This video is not a recognized music track.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     final isLoading = ref.read(playerControllerProvider.select((s) =>
         s.loadingTrackId != null && isSameTrackId(s.loadingTrackId, video.id)));

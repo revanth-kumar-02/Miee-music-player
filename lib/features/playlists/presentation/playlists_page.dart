@@ -546,7 +546,7 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     for (final p in playlists.take(4)) {
       items.add((
         title: p.name,
-        image: p.customCoverPath,
+        image: p.effectiveCoverUrl,
         onTap: () => context.push('/playlist/${p.id}'),
       ));
     }
@@ -823,8 +823,6 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     String? imageUrl,
     required VoidCallback onTap,
   }) {
-    final hasImage = imageUrl != null && imageUrl.trim().isNotEmpty;
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),

@@ -279,28 +279,23 @@ class RecommendationService {
       return false;
     }
 
-    // 5. Long-form video heuristics
-    if (durationSec >= 1500) {
-      final isClassicalRecital = title.contains('raga') ||
+    // 5. Long-form video heuristics: require legitimate musical genre indicators
+    if (durationSec >= 480) {
+      final isLegitimateLongMusic = title.contains('raga') ||
           title.contains('alapana') ||
           title.contains('symphony') ||
           title.contains('carnatic') ||
           title.contains('kriti') ||
-          title.contains('varnam');
-      if (!isClassicalRecital) {
-        return false;
-      }
-    }
-
-    if (durationSec >= 900) {
-      if (title.contains('hits') ||
-          title.contains('songs') ||
-          title.contains('album') ||
-          title.contains('collection') ||
-          title.contains('mix') ||
-          title.contains('vol') ||
-          title.contains('part 1 & 2') ||
-          title.contains('medley')) {
+          title.contains('varnam') ||
+          title.contains('soundtrack') ||
+          title.contains('ost') ||
+          title.contains('concert') ||
+          title.contains('live at') ||
+          title.contains('live in') ||
+          title.contains('orchestra') ||
+          title.contains('extended mix') ||
+          title.contains('dj mix');
+      if (!isLegitimateLongMusic) {
         return false;
       }
     }

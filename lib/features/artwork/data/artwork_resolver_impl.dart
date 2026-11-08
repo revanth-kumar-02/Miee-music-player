@@ -106,7 +106,20 @@ class ArtworkResolver {
   Future<ResolvedArtwork> _executeOnlineCascade(ArtworkQuery query) async {
     final key = query.cacheKey;
 
-    // 3. Priority: MusicBrainz metadata match -> Cover Art Archive retrieval
+    // 3. Priority: Deezer track/album search (Fast, global catalog, high-res 1000x1000)
+    if (deezerProvider.isEnabled) {
+      try {
+        final deezerArtwork = await deezerProvider.resolve(query);
+        if (deezerArtwork != null) {
+          await cache.put(key, deezerArtwork);
+          return deezerArtwork;
+        }
+      } catch (e) {
+        debugPrint('[ArtworkResolver] Deezer lookup failed: $e');
+      }
+    }
+
+    // 4. Priority: MusicBrainz metadata match -> Cover Art Archive retrieval
     try {
       final mbMatch = await musicBrainzProvider.findReleaseMatch(query);
       if (mbMatch != null && mbMatch.releaseMbid.isNotEmpty) {
@@ -121,19 +134,6 @@ class ArtworkResolver {
       }
     } catch (e) {
       debugPrint('[ArtworkResolver] MusicBrainz/CAA lookup failed: $e');
-    }
-
-    // 4. Priority: Deezer track/album search
-    if (deezerProvider.isEnabled) {
-      try {
-        final deezerArtwork = await deezerProvider.resolve(query);
-        if (deezerArtwork != null) {
-          await cache.put(key, deezerArtwork);
-          return deezerArtwork;
-        }
-      } catch (e) {
-        debugPrint('[ArtworkResolver] Deezer lookup failed: $e');
-      }
     }
 
     // 5. Priority: Fanart.tv (if enabled)
@@ -175,9 +175,9 @@ class ArtworkResolver {
     } catch (_) {}
 
     // 8. Deterministic neutral fallback
-    final neutral = ResolvedArtwork.neutralFallback();
-    // Cache the neutral fallback so we don't spam failed queries repeatedly in the same session
-    await cache.put(key, neutral);
-    return neutral;
+    // Note: Do NOT write neutral fallback into persistent Hive storage.
+    // This ensures transient network hiccups or empty early queries do not
+    // permanently suppress artwork resolution for this track in future sessions.
+    return ResolvedArtwork.neutralFallback();
   }
 }

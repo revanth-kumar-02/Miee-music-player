@@ -6,12 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_radius.dart';
 import '../../../../app/theme/app_spacing.dart';
-import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/models/music_item.dart';
-import '../../../../shared/models/track.dart';
 import '../../../library/providers/library_providers.dart';
 import '../../../media/providers/media_providers.dart';
-import '../../../search/data/search_repository.dart';
 import '../../../search/providers/search_providers.dart';
 import '../../domain/playlist_model.dart';
 import '../../providers/playlist_providers.dart';
@@ -476,9 +473,9 @@ class _AddSongsToPlaylistSheetState
               child: SizedBox(
                 width: 44,
                 height: 44,
-                child: track.imageUrl != null && track.imageUrl!.isNotEmpty
+                child: track.imageUrl.isNotEmpty
                     ? Image.network(
-                        track.imageUrl!,
+                        track.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => _defaultArtwork(),
                       )
