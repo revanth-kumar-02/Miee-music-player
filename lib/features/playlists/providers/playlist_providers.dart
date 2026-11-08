@@ -107,6 +107,12 @@ class PlaylistController extends StateNotifier<PlaylistsState> {
     _refresh();
   }
 
+  Future<int> addTracks(String playlistId, List<MusicItem> tracks) async {
+    final added = await _repo.addTracks(playlistId, tracks);
+    _refresh();
+    return added;
+  }
+
   Future<void> removeTrack(String playlistId, String trackId) async {
     await _repo.removeTrack(playlistId, trackId);
     _refresh();

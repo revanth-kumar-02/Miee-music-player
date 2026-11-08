@@ -3,15 +3,15 @@ import '../../app/theme/app_colors.dart';
 
 /// Recreated Nordic Cobalt Floating Bottom Navigation Dock.
 ///
-/// Exactly reproduces the reference design across all 4 screens:
+/// Exactly reproduces the reference design across all screens:
 /// 1. Home
 /// 2. Search
-/// 3. Central elevated circular Electric Cobalt Play/Pause button
+/// 3. Central elevated circular Electric Cobalt Play/Pause button (opens Now Playing)
 /// 4. Library (/playlists)
-/// 5. Now Playing / Equalizer (/player)
+/// 5. Rooms (/rooms)
 class BottomNavigation extends StatelessWidget {
   /// The index of the currently selected tab:
-  /// 0 = Home, 1 = Search, 3 = Library, 4 = Now Playing
+  /// 0 = Home, 1 = Search, 3 = Library, 4 = Rooms
   final int currentIndex;
 
   /// Callback when a tab is tapped.
@@ -19,6 +19,9 @@ class BottomNavigation extends StatelessWidget {
 
   /// Callback when the central elevated play button is tapped.
   final VoidCallback? onCenterPlayTap;
+
+  /// Callback when the central elevated play button is long-pressed (toggles play/pause).
+  final VoidCallback? onCenterPlayLongPress;
 
   /// Whether audio is actively playing (controls play vs pause icon on the center button).
   final bool isPlaying;
@@ -28,6 +31,7 @@ class BottomNavigation extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
     this.onCenterPlayTap,
+    this.onCenterPlayLongPress,
     this.isPlaying = false,
   });
 
@@ -71,8 +75,11 @@ class BottomNavigation extends StatelessWidget {
                   Expanded(
                     child: _buildNavItem(
                       index: 0,
-                      icon: Icons.home_rounded,
+                      icon: currentIndex == 0
+                          ? Icons.home_rounded
+                          : Icons.home_outlined,
                       isActive: currentIndex == 0,
+                      tooltip: 'Home',
                     ),
                   ),
 
@@ -82,6 +89,7 @@ class BottomNavigation extends StatelessWidget {
                       index: 1,
                       icon: Icons.search_rounded,
                       isActive: currentIndex == 1,
+                      tooltip: 'Search',
                     ),
                   ),
 
@@ -92,17 +100,23 @@ class BottomNavigation extends StatelessWidget {
                   Expanded(
                     child: _buildNavItem(
                       index: 3,
-                      icon: Icons.queue_music_rounded,
+                      icon: currentIndex == 3
+                          ? Icons.queue_music_rounded
+                          : Icons.queue_music_outlined,
                       isActive: currentIndex == 3,
+                      tooltip: 'Library',
                     ),
                   ),
 
-                  // Tab 4: Now Playing / Equalizer
+                  // Tab 4: Rooms
                   Expanded(
                     child: _buildNavItem(
                       index: 4,
-                      icon: Icons.equalizer_rounded,
+                      icon: currentIndex == 4
+                          ? Icons.groups_rounded
+                          : Icons.groups_outlined,
                       isActive: currentIndex == 4,
+                      tooltip: 'Rooms',
                     ),
                   ),
                 ],
@@ -114,6 +128,7 @@ class BottomNavigation extends StatelessWidget {
               top: -6.0,
               child: GestureDetector(
                 onTap: onCenterPlayTap ?? () => onTap(2),
+                onLongPress: onCenterPlayLongPress,
                 child: Container(
                   width: 52.0,
                   height: 52.0,
@@ -148,8 +163,9 @@ class BottomNavigation extends StatelessWidget {
     required int index,
     required IconData icon,
     required bool isActive,
+    String? tooltip,
   }) {
-    return GestureDetector(
+    final item = GestureDetector(
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: Center(
@@ -160,5 +176,10 @@ class BottomNavigation extends StatelessWidget {
         ),
       ),
     );
+
+    if (tooltip != null && tooltip.isNotEmpty) {
+      return Tooltip(message: tooltip, child: item);
+    }
+    return item;
   }
 }

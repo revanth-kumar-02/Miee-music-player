@@ -22,10 +22,13 @@ class RoomLandingPage extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.cocoaPlum),
-          onPressed: () => context.pop(),
-        ),
+        leading: context.canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: AppColors.cocoaPlum),
+                onPressed: () => context.pop(),
+              )
+            : null,
         title: Text(
           'Listen Together',
           style: GoogleFonts.playfairDisplay(
@@ -38,7 +41,8 @@ class RoomLandingPage extends ConsumerWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.marginMobile, vertical: 16),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.marginMobile, 16, AppSpacing.marginMobile, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

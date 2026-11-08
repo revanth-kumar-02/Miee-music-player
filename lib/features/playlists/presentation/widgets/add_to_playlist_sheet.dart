@@ -15,6 +15,7 @@ import 'create_playlist_dialog.dart';
 void showAddToPlaylistSheet(BuildContext context, MusicItem track) {
   showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => _AddToPlaylistSheet(track: track),

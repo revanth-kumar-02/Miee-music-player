@@ -132,9 +132,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         uriPath == '/settings' ||
         location.startsWith('/settings/') ||
         uriPath.startsWith('/settings/');
-    final isRoomRoute = location == '/rooms' ||
-        uriPath == '/rooms' ||
-        location.startsWith('/rooms/') ||
+    final isRoomDetailRoute = location.startsWith('/rooms/') ||
         uriPath.startsWith('/rooms/');
     final isQueueRoute = location == '/queue' ||
         uriPath == '/queue' ||
@@ -142,21 +140,30 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         uriPath.startsWith('/queue/');
 
     // Detail screens where mobile bottom nav is hidden
-    final hideBottomNav = (isQueueRoute ||
+    final hideBottomNav = (isNowPlayingRoute ||
+        isQueueRoute ||
+        isSettingsRoute ||
         location == '/' ||
+        uriPath == '/' ||
         location.startsWith('/playlist/') ||
+        uriPath.startsWith('/playlist/') ||
         location.startsWith('/album/') ||
+        uriPath.startsWith('/album/') ||
         location.startsWith('/artist/') ||
+        uriPath.startsWith('/artist/') ||
         location.startsWith('/genre/') ||
+        uriPath.startsWith('/genre/') ||
         location == '/local-songs' ||
+        uriPath == '/local-songs' ||
         location == '/liked-songs' ||
-        isRoomRoute);
+        uriPath == '/liked-songs' ||
+        isRoomDetailRoute);
 
     // ── MOBILE & COMPACT TABLET LAYOUT ──
     if (!isDesktop) {
       final hideMiniPlayer = isNowPlayingRoute ||
           isSettingsRoute ||
-          isRoomRoute ||
+          isRoomDetailRoute ||
           isQueueRoute ||
           !hasTrack;
 
@@ -190,12 +197,13 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                   currentIndex: _getNavIndex(location),
                   isPlaying: ref.watch(playerControllerProvider
                       .select((s) => s.status == pb.PlaybackStatus.playing)),
-                  onCenterPlayTap: () {
+                  onCenterPlayTap: () => context.push('/player'),
+                  onCenterPlayLongPress: () {
                     final playbackState = ref.read(playerControllerProvider);
-                    if (playbackState.currentTrack == null) {
-                      context.go('/player');
-                    } else {
+                    if (playbackState.currentTrack != null) {
                       ref.read(playerControllerProvider.notifier).togglePlayPause();
+                    } else {
+                      context.push('/player');
                     }
                   },
                   onTap: (index) => _handleNavigation(context, index),
@@ -1384,7 +1392,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
     if (location == '/home') return 0;
     if (location == '/search') return 1;
     if (location == '/playlists' || location.startsWith('/playlist/')) return 3;
-    if (location == '/player') return 4;
+    if (location == '/rooms' || location.startsWith('/rooms')) return 4;
     return 0;
   }
 
@@ -1397,19 +1405,14 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
         context.go('/search');
         break;
       case 2:
-        // Center button fallback
-        final playbackState = ref.read(playerControllerProvider);
-        if (playbackState.currentTrack == null) {
-          context.go('/player');
-        } else {
-          ref.read(playerControllerProvider.notifier).togglePlayPause();
-        }
+        // Center player button opens dedicated Now Playing screen
+        context.push('/player');
         break;
       case 3:
         context.go('/playlists');
         break;
       case 4:
-        context.go('/player');
+        context.go('/rooms');
         break;
     }
   }

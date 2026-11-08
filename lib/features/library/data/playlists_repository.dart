@@ -203,46 +203,66 @@ class PlaylistsRepository {
 
   /// Appends [track] to playlist [playlistId]. No-op if already present.
   Future<void> addTrackToPlaylist(String playlistId, MusicItem track) async {
-    final playlist = _box.get(playlistId);
-    if (playlist == null) return;
-    
-    String trackId = track.id;
-    if (track.isYoutube && !trackId.startsWith('youtube_')) {
-      trackId = 'youtube_${track.id}';
-    }
+    await addTracksToPlaylist(playlistId, [track]);
+  }
 
-    final alreadyIn = playlist.tracks.any((t) {
-      final tid = t.id.startsWith('youtube_')
+  /// Appends a batch of [tracks] to playlist [playlistId].
+  /// Ignores duplicates already present in the playlist.
+  /// Returns the count of tracks actually added.
+  Future<int> addTracksToPlaylist(String playlistId, List<MusicItem> tracks) async {
+    final playlist = _box.get(playlistId);
+    if (playlist == null || tracks.isEmpty) return 0;
+
+    final existingIds = playlist.tracks.map((t) {
+      return t.id.startsWith('youtube_')
           ? t.id
           : (t.filePath?.contains('youtube.com') == true ? 'youtube_${t.id}' : t.id);
-      return tid == trackId;
-    });
+    }).toSet();
 
-    if (!alreadyIn) {
-      final hiveTrack = TrackHiveModel.fromTrack(track);
-      playlist.tracks.add(hiveTrack);
+    final currentTracks = List<TrackHiveModel>.from(playlist.tracks);
+    int addedCount = 0;
+
+    for (final track in tracks) {
+      String trackId = track.id;
+      if (track.isYoutube && !trackId.startsWith('youtube_')) {
+        trackId = 'youtube_${track.id}';
+      }
+
+      if (!existingIds.contains(trackId)) {
+        existingIds.add(trackId);
+        final hiveTrack = TrackHiveModel.fromTrack(track);
+        currentTracks.add(hiveTrack);
+        addedCount++;
+
+        final op = OfflineOperation(
+          id: 'pl_song_add_${playlistId}_${hiveTrack.id}_${DateTime.now().millisecondsSinceEpoch}',
+          type: 'playlist_song_add',
+          payload: {
+            'playlistId': playlistId,
+            'track': {
+              'id': hiveTrack.id,
+              'title': hiveTrack.title,
+              'artist': hiveTrack.artist,
+              'imageUrl': hiveTrack.imageUrl,
+              'duration': hiveTrack.duration,
+              'filePath': hiveTrack.filePath,
+              'isYoutube': hiveTrack.filePath?.contains('youtube.com') == true || hiveTrack.id.startsWith('youtube_'),
+            }
+          },
+          timestamp: DateTime.now(),
+        );
+        _ref.read(syncManagerProvider).queueOperation(op);
+      }
+    }
+
+    if (addedCount > 0) {
+      playlist.tracks = currentTracks;
       playlist.lastModified = DateTime.now();
       await playlist.save();
-
-      final op = OfflineOperation(
-        id: 'pl_song_add_${playlistId}_${hiveTrack.id}_${DateTime.now().millisecondsSinceEpoch}',
-        type: 'playlist_song_add',
-        payload: {
-          'playlistId': playlistId,
-          'track': {
-            'id': hiveTrack.id,
-            'title': hiveTrack.title,
-            'artist': hiveTrack.artist,
-            'imageUrl': hiveTrack.imageUrl,
-            'duration': hiveTrack.duration,
-            'filePath': hiveTrack.filePath,
-            'isYoutube': hiveTrack.filePath?.contains('youtube.com') == true || hiveTrack.id.startsWith('youtube_'),
-          }
-        },
-        timestamp: DateTime.now(),
-      );
-      await _ref.read(syncManagerProvider).queueOperation(op);
+      await _box.put(playlistId, playlist);
     }
+
+    return addedCount;
   }
 
   /// Removes the track with [trackId] from playlist [playlistId].

@@ -145,46 +145,25 @@ class _HomePageState extends ConsumerState<HomePage> {
 
             const SizedBox(height: 32),
 
-            // ── 5. Personalized Cloud Recommendations ───────────────────────
+            // ── 5. Recently Played (Instant Local Data - Never Blocks) ───────
+            if (recentlyPlayedTracks.isNotEmpty) ...[
+              _buildRecentlyPlayedList(
+                context,
+                recentlyPlayedTracks,
+                currentTrack,
+              ),
+              const SizedBox(height: 32),
+            ],
+
+            // ── 6. Personalized Cloud Recommendations ───────────────────────
             recsAsync.when(
               data: (sections) => _buildPersonalizedShelves(
                 context,
                 sections,
                 currentTrack,
-                recentlyPlayedTracks,
               ),
-              loading: () => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.dustyRose,
-                      ),
-                    ),
-                  ),
-                  if (recentlyPlayedTracks.isNotEmpty)
-                    _buildRecentlyPlayedList(
-                      context,
-                      recentlyPlayedTracks,
-                      currentTrack,
-                    ),
-                ],
-              ),
-              error: (e, _) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildDiscoveryErrorBanner(context, e),
-                  if (recentlyPlayedTracks.isNotEmpty)
-                    _buildRecentlyPlayedList(
-                      context,
-                      recentlyPlayedTracks,
-                      currentTrack,
-                    ),
-                ],
-              ),
+              loading: () => const SizedBox.shrink(),
+              error: (e, _) => _buildDiscoveryErrorBanner(context, e),
             ),
 
 
@@ -1133,7 +1112,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     BuildContext context,
     RecommendationSections sections,
     MusicItem? currentTrack,
-    List<Track> recentlyPlayedTracks,
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 960;
@@ -1430,15 +1408,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
           const SizedBox(height: 36),
-        ],
-
-        // ── 5. Recently Played (hidden when empty) ───────────────────────────
-        if (recentlyPlayedTracks.isNotEmpty) ...[
-          _buildRecentlyPlayedList(
-            context,
-            recentlyPlayedTracks,
-            currentTrack,
-          ),
         ],
       ],
     );

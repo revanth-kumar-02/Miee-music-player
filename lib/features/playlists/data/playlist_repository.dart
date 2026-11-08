@@ -74,6 +74,9 @@ class PlaylistRepository {
   Future<void> addTrack(String playlistId, MusicItem track) =>
       _base.addTrackToPlaylist(playlistId, track);
 
+  Future<int> addTracks(String playlistId, List<MusicItem> tracks) =>
+      _base.addTracksToPlaylist(playlistId, tracks);
+
 
   Future<void> removeTrack(String playlistId, String trackId) =>
       _base.removeTrackFromPlaylist(playlistId, trackId);

@@ -59,7 +59,14 @@ final recommendationSectionsProvider =
   final profile = ref.watch(currentUserProfileProvider);
   final service = ref.watch(recommendationServiceProvider);
 
-  return service.getPersonalizedSections(profile: profile);
+  try {
+    return await service.getPersonalizedSections(profile: profile).timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => service.cachedSections ?? const RecommendationSections(),
+    );
+  } catch (_) {
+    return service.cachedSections ?? const RecommendationSections();
+  }
 });
 
 /// Deterministic affinity calculator instance provider (configurable half-life & sigmoid scale)

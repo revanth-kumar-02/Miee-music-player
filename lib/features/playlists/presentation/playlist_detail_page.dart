@@ -14,6 +14,7 @@ import '../../../shared/widgets/widgets.dart';
 import '../../../shared/models/music_item.dart';
 import '../domain/playlist_model.dart';
 import '../providers/playlist_providers.dart';
+import 'widgets/add_songs_to_playlist_sheet.dart';
 import 'widgets/add_to_playlist_sheet.dart';
 import 'widgets/create_playlist_dialog.dart';
 
@@ -76,6 +77,12 @@ class _PlaylistDetailView extends ConsumerWidget {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.playlist_add, color: AppColors.onSurface),
+                tooltip: 'Add Songs',
+                onPressed: () => showAddSongsToPlaylistSheet(context, playlist),
+                splashRadius: 20.0,
+              ),
+              IconButton(
                 icon: const Icon(Icons.more_vert, color: AppColors.onSurface),
                 onPressed: () => _showOptionsMenu(context, ref),
                 splashRadius: 20.0,
@@ -102,13 +109,13 @@ class _PlaylistDetailView extends ConsumerWidget {
                   ),
                   AppSpacing.heightXs,
                   Text(
-                    '${playlist.songCount} songs · ${playlist.totalDurationFormatted}',
+                    '${playlist.songCount} ${playlist.songCount == 1 ? 'song' : 'songs'} · ${playlist.totalDurationFormatted}',
                     style: AppTypography.labelMedium
                         .copyWith(color: AppColors.onSurfaceVariant),
                   ),
                   AppSpacing.heightMd,
 
-                  // ── Play / Shuffle buttons ──────────────────────────────────
+                  // ── Play / Shuffle / Add buttons ─────────────────────────────
                   Row(
                     children: [
                       Expanded(
@@ -130,7 +137,7 @@ class _PlaylistDetailView extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      AppSpacing.widthMd,
+                      AppSpacing.widthSm,
                       Expanded(
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.shuffle, size: 20.0),
@@ -151,6 +158,19 @@ class _PlaylistDetailView extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      AppSpacing.widthSm,
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.playlist_add, size: 22.0),
+                        tooltip: 'Add Songs',
+                        onPressed: () =>
+                            showAddSongsToPlaylistSheet(context, playlist),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.surfaceContainerHigh,
+                          foregroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: AppRadius.radiusMd),
+                        ),
+                      ),
                     ],
                   ),
                   AppSpacing.heightMd,
@@ -161,11 +181,51 @@ class _PlaylistDetailView extends ConsumerWidget {
 
           // ── Song list ───────────────────────────────────────────────────────
           playlist.isEmpty
-              ? const SliverFillRemaining(
-                  child: EmptyState(
-                    title: 'No songs yet',
-                    message: 'Long-press any song and choose "Add to Playlist".',
-                    icon: Icons.music_off,
+              ? SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.queue_music_rounded,
+                            size: 64,
+                            color: AppColors.outlineVariant,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No songs yet',
+                            style: AppTypography.headlineMedium
+                                .copyWith(color: AppColors.onSurface),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Add songs to build your playlist',
+                            style: AppTypography.bodyMedium
+                                .copyWith(color: AppColors.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 24),
+                          FilledButton.icon(
+                            icon: const Icon(Icons.add, size: 20),
+                            label: const Text('Add Songs'),
+                            onPressed: () =>
+                                showAddSongsToPlaylistSheet(context, playlist),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: AppRadius.radiusMd,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               : SliverReorderableList(
@@ -293,70 +353,89 @@ class _PlaylistDetailView extends ConsumerWidget {
   void _showOptionsMenu(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.surfaceContainerLowest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
-              child: Container(
-                width: 36.0,
-                height: 4.0,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(2.0),
-                ),
-              ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).padding.bottom + 8.0,
             ),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Rename'),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await showCreatePlaylistDialog(
-                  context,
-                  existingId: playlist.id,
-                  initialName: playlist.name,
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy_outlined),
-              title: const Text('Duplicate'),
-              onTap: () {
-                Navigator.of(context).pop();
-                ref
-                    .read(playlistControllerProvider.notifier)
-                    .duplicatePlaylist(playlist.id);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Duplicated "${playlist.name}"'),
-                    behavior: SnackBarBehavior.floating,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
+                  child: Container(
+                    width: 36.0,
+                    height: 4.0,
+                    decoration: BoxDecoration(
+                      color: AppColors.outlineVariant,
+                      borderRadius: BorderRadius.circular(2.0),
+                    ),
                   ),
-                );
-              },
+                ),
+                ListTile(
+                  leading:
+                      const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add Songs'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    showAddSongsToPlaylistSheet(context, playlist);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: const Text('Rename'),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await showCreatePlaylistDialog(
+                      context,
+                      existingId: playlist.id,
+                      initialName: playlist.name,
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.copy_outlined),
+                  title: const Text('Duplicate'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    ref
+                        .read(playlistControllerProvider.notifier)
+                        .duplicatePlaylist(playlist.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Duplicated "${playlist.name}"'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading:
+                      const Icon(Icons.delete_outline, color: AppColors.error),
+                  title: const Text('Delete',
+                      style: TextStyle(color: AppColors.error)),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    final confirmed = await _confirmDelete(context);
+                    if (confirmed == true && context.mounted) {
+                      await ref
+                          .read(playlistControllerProvider.notifier)
+                          .deletePlaylist(playlist.id);
+                      if (context.mounted) context.pop();
+                    }
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading:
-                  const Icon(Icons.delete_outline, color: AppColors.error),
-              title: const Text('Delete',
-                  style: TextStyle(color: AppColors.error)),
-              onTap: () async {
-                Navigator.of(context).pop();
-                final confirmed = await _confirmDelete(context);
-                if (confirmed == true && context.mounted) {
-                  await ref
-                      .read(playlistControllerProvider.notifier)
-                      .deletePlaylist(playlist.id);
-                  if (context.mounted) context.pop();
-                }
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );

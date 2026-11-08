@@ -425,7 +425,103 @@ class PlayerPage extends ConsumerWidget {
               ),
 
               const Spacer(flex: 1),
-              const SizedBox(height: 72),
+
+              // ── 6. Bottom Actions: Lyrics & Queue Pills ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: hasTrack
+                        ? () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              useRootNavigator: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (ctx) => FractionallySizedBox(
+                                heightFactor: 0.92,
+                                child: LyricsOverlay(
+                                  track: currentTrack,
+                                  onClose: () => Navigator.of(ctx).pop(),
+                                ),
+                              ),
+                            );
+                          }
+                        : null,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.paleConcrete,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color:
+                              AppColors.outlineVariant.withValues(alpha: 0.4),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.lyrics_outlined,
+                            size: 16,
+                            color: AppColors.denseObsidian,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Lyrics',
+                            style: GoogleFonts.geist(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.denseObsidian,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  InkWell(
+                    onTap: () => context.push('/queue'),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.paleConcrete,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color:
+                              AppColors.outlineVariant.withValues(alpha: 0.4),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.queue_music_rounded,
+                            size: 16,
+                            color: AppColors.denseObsidian,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Queue',
+                            style: GoogleFonts.geist(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.denseObsidian,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),

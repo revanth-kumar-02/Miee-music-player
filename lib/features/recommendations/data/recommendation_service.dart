@@ -436,21 +436,36 @@ class RecommendationService {
       debugPrint('[RecommendationService] Trending fetch error: $e');
     }
 
-    // ── 2. From Your Artists (Multi-Artist Rotation & Depth) ──────────────────
+    // ── 2. From Your Artists (Multi-Artist Rotation & Depth - Parallel) ──────
     final fromYourArtists = <MusicItem>[];
     final selectedArtistsToQuery = effectiveArtists.take(4).toList();
 
-    // Fetch tracks for each selected artist to guarantee variety across favorites
+    // Fetch tracks for each selected artist concurrently to avoid slow sequential waterfalls
     final artistTrackBatches = <String, List<MusicItem>>{};
-    for (final artist in selectedArtistsToQuery) {
-      final tracks = await getTracksForArtist(
-        artist,
-        limit: 4,
-        preferredLanguages: preferredLanguages,
-      );
-      if (tracks.isNotEmpty) {
-        artistTrackBatches[artist.name] = tracks;
+    try {
+      final futures = selectedArtistsToQuery.map((artist) async {
+        try {
+          final tracks = await getTracksForArtist(
+            artist,
+            limit: 4,
+            preferredLanguages: preferredLanguages,
+          ).timeout(
+            const Duration(seconds: 4),
+            onTimeout: () => <MusicItem>[],
+          );
+          return MapEntry(artist.name, tracks);
+        } catch (_) {
+          return MapEntry(artist.name, <MusicItem>[]);
+        }
+      });
+      final results = await Future.wait(futures);
+      for (final entry in results) {
+        if (entry.value.isNotEmpty) {
+          artistTrackBatches[entry.key] = entry.value;
+        }
       }
+    } catch (e) {
+      debugPrint('[RecommendationService] Artist tracks concurrent fetch error: $e');
     }
 
     // Populate fromYourArtists strictly with the verified tracks for the initial spotlighted artist
@@ -466,7 +481,7 @@ class RecommendationService {
       }
     }
 
-    // ── 3. Discover New Artists (Outside User's Selected Artists) ────────────
+    // ── 3. Discover New Artists (Outside User's Selected Artists - Parallel) ────
     final relatedArtists = <ArtistModel>[];
     final selectedIds = effectiveArtists.map((a) => a.id).toSet();
     final selectedNames = effectiveArtists
@@ -474,22 +489,35 @@ class RecommendationService {
         .toSet();
 
     if (hasUserSelected) {
-      for (final artist in rawSelected.take(3)) {
-        if (relatedArtists.length >= 8) break;
-        try {
-          final related = await _artistRepo.getRelatedArtists(artist.id);
-          for (final r in related) {
+      try {
+        final relatedFutures = rawSelected.take(3).map((artist) async {
+          try {
+            return await _artistRepo
+                .getRelatedArtists(artist.id)
+                .timeout(
+                  const Duration(seconds: 3),
+                  onTimeout: () => <ArtistModel>[],
+                );
+          } catch (_) {
+            return <ArtistModel>[];
+          }
+        });
+        final allRelated = await Future.wait(relatedFutures);
+        for (final relatedList in allRelated) {
+          for (final r in relatedList) {
             final rNameClean = r.name.toLowerCase().trim();
             if (!selectedIds.contains(r.id) &&
                 !selectedNames.contains(rNameClean) &&
-                !relatedArtists.any((a) => a.id == r.id || a.name.toLowerCase().trim() == rNameClean)) {
+                !relatedArtists.any((a) =>
+                    a.id == r.id || a.name.toLowerCase().trim() == rNameClean)) {
               relatedArtists.add(r);
               if (relatedArtists.length >= 8) break;
             }
           }
-        } catch (e) {
-          debugPrint('[RecommendationService] Related error for ${artist.name}: $e');
+          if (relatedArtists.length >= 8) break;
         }
+      } catch (e) {
+        debugPrint('[RecommendationService] Related concurrent fetch error: $e');
       }
     }
 
@@ -600,7 +628,7 @@ class RecommendationService {
             limit: targetDiscoverCount,
           );
 
-    return RecommendationSections(
+    final sections = RecommendationSections(
       favoriteArtists: effectiveArtists,
       fromYourArtists: fromYourArtists,
       relatedArtists: relatedArtists.take(8).toList(),
@@ -611,7 +639,12 @@ class RecommendationService {
       recentlyPlayed: history,
       featuredTrack: featuredTrack,
     );
+    _cachedSections = sections;
+    return sections;
   }
+
+  RecommendationSections? _cachedSections;
+  RecommendationSections? get cachedSections => _cachedSections;
 
   /// Verifies candidate recent releases, ensuring each item corresponds to a verified,
   /// playable YouTube music track before presenting it in the Recent Releases section.

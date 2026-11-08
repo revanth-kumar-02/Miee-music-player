@@ -99,6 +99,11 @@ class AppRouterNotifier extends ChangeNotifier {
   }
 }
 
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> shellNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'shell');
+
 final appRouterNotifierProvider = Provider<AppRouterNotifier>((ref) {
   return AppRouterNotifier(ref);
 });
@@ -107,27 +112,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(appRouterNotifierProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: '/',
         builder: (context, state) => const SplashPage(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: '/login',
         builder: (context, state) => const LoginPage(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: '/register',
         builder: (context, state) => const RegisterPage(),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: '/onboarding',
         builder: (context, state) => const ArtistSelectionPage(),
       ),
       ShellRoute(
+        navigatorKey: shellNavigatorKey,
         builder: (context, state, child) {
           return MainAppShell(child: child);
         },
@@ -141,6 +152,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const SearchPage(),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/player',
             pageBuilder: (context, state) => CustomTransitionPage<void>(
               key: state.pageKey,
@@ -161,6 +173,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/queue',
             pageBuilder: (context, state) => CustomTransitionPage<void>(
               key: state.pageKey,
@@ -201,6 +214,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/local-songs',
             redirect: (context, state) {
               if (kIsWeb) return '/playlists';
@@ -225,6 +239,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/liked-songs',
             pageBuilder: (context, state) => CustomTransitionPage<void>(
               key: state.pageKey,
@@ -245,6 +260,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/settings',
             pageBuilder: (context, state) => CustomTransitionPage<void>(
               key: state.pageKey,
@@ -265,6 +281,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/playlist/:id',
             pageBuilder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -312,6 +329,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const AlbumsPage(),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/album/:id',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -323,6 +341,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const ArtistsPage(),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/artist/:id',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -337,6 +356,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const GenresPage(),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/genre/:id',
             builder: (context, state) {
               final id = state.pathParameters['id']!;
@@ -348,20 +368,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const RoomLandingPage(),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/rooms/create',
             builder: (context, state) => const CreateRoomPage(),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/rooms/join',
             builder: (context, state) => const JoinRoomPage(),
           ),
           GoRoute(
+            parentNavigatorKey: rootNavigatorKey,
             path: '/rooms/active',
             builder: (context, state) => const ActiveRoomPage(),
           ),
         ],
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: '/about-miee',
         pageBuilder: (context, state) => CustomTransitionPage<void>(
           key: state.pageKey,
@@ -382,6 +406,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         path: '/wrapped',
         redirect: (context, state) {
           final isEligible = ref.read(wrappedEligibilityProvider).isEligible;
