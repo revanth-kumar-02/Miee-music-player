@@ -48,7 +48,7 @@ class ArtworkResolver {
         coverArtArchiveProvider = coverArtArchiveProvider ?? CoverArtArchiveProvider(),
         deezerProvider = deezerProvider ?? DeezerArtworkProvider(),
         fanartProvider = fanartProvider ?? const FanartArtworkProvider(),
-        itunesProvider = itunesProvider ?? const ItunesArtworkProvider(),
+        itunesProvider = itunesProvider ?? ItunesArtworkProvider(),
         youtubeFallbackProvider = youtubeFallbackProvider ?? YouTubeFallbackProvider();
 
   /// Resolves artwork for the given [query] following the deterministic priority chain.
@@ -106,7 +106,20 @@ class ArtworkResolver {
   Future<ResolvedArtwork> _executeOnlineCascade(ArtworkQuery query) async {
     final key = query.cacheKey;
 
-    // 3. Priority: Deezer track/album search (Fast, global catalog, high-res 1000x1000)
+    // 1. Primary Online Priority: Apple iTunes Search API (Studio 600x600bb from Apple CDN)
+    if (itunesProvider.isEnabled) {
+      try {
+        final itunesArtwork = await itunesProvider.resolve(query);
+        if (itunesArtwork != null) {
+          await cache.put(key, itunesArtwork);
+          return itunesArtwork;
+        }
+      } catch (e) {
+        debugPrint('[ArtworkResolver] iTunes lookup failed: $e');
+      }
+    }
+
+    // 2. Secondary Priority: Deezer track/album search (Fast, global catalog, high-res 1000x1000)
     if (deezerProvider.isEnabled) {
       try {
         final deezerArtwork = await deezerProvider.resolve(query);
@@ -119,7 +132,7 @@ class ArtworkResolver {
       }
     }
 
-    // 4. Priority: MusicBrainz metadata match -> Cover Art Archive retrieval
+    // 3. Priority: MusicBrainz metadata match -> Cover Art Archive retrieval
     try {
       final mbMatch = await musicBrainzProvider.findReleaseMatch(query);
       if (mbMatch != null && mbMatch.releaseMbid.isNotEmpty) {
@@ -136,24 +149,13 @@ class ArtworkResolver {
       debugPrint('[ArtworkResolver] MusicBrainz/CAA lookup failed: $e');
     }
 
-    // 5. Priority: Fanart.tv (if enabled)
+    // 4. Priority: Fanart.tv (if enabled)
     if (fanartProvider.isEnabled) {
       try {
         final fanartArtwork = await fanartProvider.resolve(query);
         if (fanartArtwork != null) {
           await cache.put(key, fanartArtwork);
           return fanartArtwork;
-        }
-      } catch (_) {}
-    }
-
-    // 6. Priority: Apple iTunes (if enabled)
-    if (itunesProvider.isEnabled) {
-      try {
-        final itunesArtwork = await itunesProvider.resolve(query);
-        if (itunesArtwork != null) {
-          await cache.put(key, itunesArtwork);
-          return itunesArtwork;
         }
       } catch (_) {}
     }

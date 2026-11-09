@@ -62,23 +62,23 @@ class ArtworkQuery {
     if (item is YouTubeVideo) {
       return ArtworkQuery(
         id: item.id,
-        title: item.title,
-        artist: item.channelTitle,
-        album: album,
-        durationMs: null,
+        title: item.canonicalTitle ?? item.title,
+        artist: item.canonicalArtist ?? item.channelTitle,
+        album: album ?? item.albumName,
+        durationMs: _parseDurationString(item.duration),
         localFilePath: null,
         localArtworkPath: null,
-        fallbackThumbnailUrl: item.thumbnailUrl,
+        fallbackThumbnailUrl: item.highResArtworkUrl ?? item.thumbnailUrl,
       );
     }
 
     if (item is Track) {
       return ArtworkQuery(
         id: item.id,
-        title: item.rawTitle ?? item.title,
-        artist: item.rawArtist ?? item.artist,
-        album: album,
-        durationMs: null,
+        title: item.title,
+        artist: item.artist,
+        album: album ?? item.albumName,
+        durationMs: _parseDurationString(item.duration),
         localFilePath: item.localFilePath,
         localArtworkPath: (item.localFilePath != null && !item.isYoutube) ? item.imageUrl : null,
         fallbackThumbnailUrl: item.imageUrl.isNotEmpty ? item.imageUrl : null,
@@ -125,6 +125,22 @@ class ArtworkQuery {
         .replaceAll(RegExp(r'[^a-z0-9\s]'), '') // remove remaining punctuation
         .replaceAll(RegExp(r'\s+'), ' ') // collapse whitespace
         .trim();
+  }
+
+  static int? _parseDurationString(String? duration) {
+    if (duration == null || duration.trim().isEmpty) return null;
+    final parts = duration.trim().split(':');
+    if (parts.length == 2) {
+      final mins = int.tryParse(parts[0]) ?? 0;
+      final secs = int.tryParse(parts[1]) ?? 0;
+      return ((mins * 60) + secs) * 1000;
+    } else if (parts.length == 3) {
+      final hrs = int.tryParse(parts[0]) ?? 0;
+      final mins = int.tryParse(parts[1]) ?? 0;
+      final secs = int.tryParse(parts[2]) ?? 0;
+      return ((hrs * 3600) + (mins * 60) + secs) * 1000;
+    }
+    return null;
   }
 
   @override

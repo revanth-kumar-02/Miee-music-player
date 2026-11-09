@@ -21,6 +21,7 @@ import 'package:Miee/features/artwork/domain/artwork_query.dart';
 import 'package:Miee/features/artwork/domain/artwork_source.dart';
 import 'package:Miee/features/artwork/domain/resolved_artwork.dart';
 import 'package:Miee/features/artwork/presentation/miee_artwork_image.dart';
+import 'package:Miee/features/metadata/data/itunes_metadata_service.dart';
 
 /// In-memory mock HTTP client adapter for deterministic network testing.
 class MockHttpClientAdapter implements HttpClientAdapter {
@@ -254,13 +255,44 @@ void main() {
       final mbProvider = MusicBrainzProvider(dio: dio);
       final caaProvider = CoverArtArchiveProvider(dio: dio);
       final deezerProvider = DeezerArtworkProvider(dio: dio);
+      final itunesProvider = ItunesArtworkProvider(
+        metadataService: ItunesMetadataService(dio: dio),
+      );
 
       resolver = ArtworkResolver(
         cache: cache,
         musicBrainzProvider: mbProvider,
         coverArtArchiveProvider: caaProvider,
         deezerProvider: deezerProvider,
+        itunesProvider: itunesProvider,
       );
+    });
+
+    test('iTunes Search API resolves studio 600x600 artwork as Primary Priority', () async {
+      mockAdapter.setJsonResponse('itunes.apple.com/search', {
+        'results': [
+          {
+            'trackId': 1712663156,
+            'trackName': 'Badass',
+            'artistName': 'Anirudh Ravichander',
+            'collectionName': 'Leo (Original Motion Picture Soundtrack)',
+            'artworkUrl100': 'https://is1-ssl.mzstatic.com/art/100x100bb.jpg',
+            'trackTimeMillis': 229677,
+          }
+        ]
+      });
+
+      const query = ArtworkQuery(
+        id: 'yt_badass',
+        title: 'Badass',
+        artist: 'Anirudh Ravichander',
+      );
+
+      final result = await resolver.resolve(query);
+
+      expect(result.source, equals(ArtworkSource.itunes));
+      expect(result.confidence, greaterThanOrEqualTo(0.80));
+      expect(result.imageUrl, contains('600x600bb.jpg'));
     });
 
     test('MusicBrainz match + Cover Art Archive resolves front cover', () async {
@@ -316,7 +348,7 @@ void main() {
       });
 
       // Mock Deezer search response
-      mockAdapter.setJsonResponse('api.deezer.com/search/track', {
+      mockAdapter.setJsonResponse('api.deezer.com/search', {
         'data': [
           {
             'title': 'Blue Hour',
@@ -343,16 +375,18 @@ void main() {
       expect(result.imageUrl, contains('dzcdn.net'));
     });
 
-    test('Disabled optional providers (Fanart.tv, iTunes) remain inactive', () async {
+    test('Disabled optional providers (Fanart.tv) remain inactive, while iTunes is active as primary', () async {
       const fanart = FanartArtworkProvider();
       const itunes = ItunesArtworkProvider();
+      const itunesDisabled = ItunesArtworkProvider(isEnabled: false);
 
       expect(fanart.isEnabled, isFalse);
-      expect(itunes.isEnabled, isFalse);
+      expect(itunes.isEnabled, isTrue);
+      expect(itunesDisabled.isEnabled, isFalse);
 
       const query = ArtworkQuery(id: 'q', title: 'Song', artist: 'Artist');
       expect(await fanart.resolve(query), isNull);
-      expect(await itunes.resolve(query), isNull);
+      expect(await itunesDisabled.resolve(query), isNull);
     });
 
     test('YouTube fallback is returned when online providers fail', () async {

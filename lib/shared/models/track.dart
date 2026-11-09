@@ -28,6 +28,21 @@ class Track implements MusicItem {
   /// Stable artist identifier (e.g. Deezer ID, Curated ID, or YouTube Channel ID).
   final String? artistId;
 
+  /// Album name if known from iTunes or metadata tags.
+  final String? albumName;
+
+  /// Identifier of the metadata provider (e.g. 'itunes' or 'youtube').
+  final String? metadataProvider;
+
+  /// Provider-specific identifier for metadata tracking (e.g. iTunes trackId).
+  final String? metadataIdentifier;
+
+  /// Primary source provider for playback audio (e.g. 'youtube', 'local').
+  final String? sourceProvider;
+
+  /// Raw audio source identifier (e.g. 11-char YouTube videoId).
+  final String? sourceId;
+
   const Track({
     required this.id,
     required this.title,
@@ -41,6 +56,11 @@ class Track implements MusicItem {
     this.rawTitle,
     this.rawArtist,
     this.artistId,
+    this.albumName,
+    this.metadataProvider,
+    this.metadataIdentifier,
+    this.sourceProvider,
+    this.sourceId,
   }) : localFilePath = filePath;
 
   @override
@@ -78,6 +98,11 @@ class Track implements MusicItem {
     String? rawTitle,
     String? rawArtist,
     String? artistId,
+    String? albumName,
+    String? metadataProvider,
+    String? metadataIdentifier,
+    String? sourceProvider,
+    String? sourceId,
   }) {
     return Track(
       id: id ?? this.id,
@@ -92,6 +117,11 @@ class Track implements MusicItem {
       rawTitle: rawTitle ?? this.rawTitle,
       rawArtist: rawArtist ?? this.rawArtist,
       artistId: artistId ?? this.artistId,
+      albumName: albumName ?? this.albumName,
+      metadataProvider: metadataProvider ?? this.metadataProvider,
+      metadataIdentifier: metadataIdentifier ?? this.metadataIdentifier,
+      sourceProvider: sourceProvider ?? this.sourceProvider,
+      sourceId: sourceId ?? this.sourceId,
     );
   }
 }

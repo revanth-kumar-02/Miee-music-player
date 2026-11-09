@@ -13,6 +13,13 @@ class TrackHiveModel extends HiveObject {
   final String imageUrl;
   final String duration;
   final String? filePath;
+  final String? albumName;
+  final String? metadataProvider;
+  final String? metadataIdentifier;
+  final String? sourceProvider;
+  final String? sourceId;
+  final String? rawTitle;
+  final String? rawArtist;
 
   TrackHiveModel({
     required this.id,
@@ -21,6 +28,13 @@ class TrackHiveModel extends HiveObject {
     required this.imageUrl,
     required this.duration,
     this.filePath,
+    this.albumName,
+    this.metadataProvider,
+    this.metadataIdentifier,
+    this.sourceProvider,
+    this.sourceId,
+    this.rawTitle,
+    this.rawArtist,
   });
 
   /// Converts a domain [MusicItem] into a [TrackHiveModel].
@@ -29,6 +43,25 @@ class TrackHiveModel extends HiveObject {
     if (track.isYoutube && !finalId.startsWith('youtube_')) {
       finalId = 'youtube_${track.id}';
     }
+
+    if (track is Track) {
+      return TrackHiveModel(
+        id: finalId,
+        title: track.title,
+        artist: track.artist,
+        imageUrl: track.imageUrl,
+        duration: track.duration,
+        filePath: track.filePath,
+        albumName: track.albumName,
+        metadataProvider: track.metadataProvider,
+        metadataIdentifier: track.metadataIdentifier,
+        sourceProvider: track.sourceProvider,
+        sourceId: track.sourceId,
+        rawTitle: track.rawTitle,
+        rawArtist: track.rawArtist,
+      );
+    }
+
     return TrackHiveModel(
       id: finalId,
       title: track.title,
@@ -39,7 +72,6 @@ class TrackHiveModel extends HiveObject {
     );
   }
 
-
   /// Converts back to the domain [Track] model.
   Track toTrack() => Track(
         id: id,
@@ -48,6 +80,13 @@ class TrackHiveModel extends HiveObject {
         imageUrl: imageUrl,
         duration: duration,
         filePath: filePath,
+        albumName: albumName,
+        metadataProvider: metadataProvider,
+        metadataIdentifier: metadataIdentifier,
+        sourceProvider: sourceProvider,
+        sourceId: sourceId,
+        rawTitle: rawTitle,
+        rawArtist: rawArtist,
       );
 }
 
@@ -69,13 +108,20 @@ class TrackHiveModelAdapter extends TypeAdapter<TrackHiveModel> {
       imageUrl: (fields[3] ?? '').toString(),
       duration: (fields[4] ?? '0:00').toString(),
       filePath: fields[5]?.toString(),
+      albumName: fields[6]?.toString(),
+      metadataProvider: fields[7]?.toString(),
+      metadataIdentifier: fields[8]?.toString(),
+      sourceProvider: fields[9]?.toString(),
+      sourceId: fields[10]?.toString(),
+      rawTitle: fields[11]?.toString(),
+      rawArtist: fields[12]?.toString(),
     );
   }
 
   @override
   void write(BinaryWriter writer, TrackHiveModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -87,6 +133,20 @@ class TrackHiveModelAdapter extends TypeAdapter<TrackHiveModel> {
       ..writeByte(4)
       ..write(obj.duration)
       ..writeByte(5)
-      ..write(obj.filePath);
+      ..write(obj.filePath)
+      ..writeByte(6)
+      ..write(obj.albumName)
+      ..writeByte(7)
+      ..write(obj.metadataProvider)
+      ..writeByte(8)
+      ..write(obj.metadataIdentifier)
+      ..writeByte(9)
+      ..write(obj.sourceProvider)
+      ..writeByte(10)
+      ..write(obj.sourceId)
+      ..writeByte(11)
+      ..write(obj.rawTitle)
+      ..writeByte(12)
+      ..write(obj.rawArtist);
   }
 }

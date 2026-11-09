@@ -19,6 +19,24 @@ class YouTubeVideo implements MusicItem {
   final int? rawViewCount;
   final String? channelId;
 
+  /// Canonical song title resolved from Apple iTunes catalogue.
+  final String? canonicalTitle;
+
+  /// Canonical artist name resolved from Apple iTunes catalogue.
+  final String? canonicalArtist;
+
+  /// Canonical album collection name resolved from Apple iTunes catalogue.
+  final String? albumName;
+
+  /// High-resolution album artwork URL (`600x600bb.jpg`) from iTunes mzstatic CDN.
+  final String? highResArtworkUrl;
+
+  /// Metadata provider identifier (e.g. 'itunes' or 'youtube').
+  final String? metadataProvider;
+
+  /// Provider-specific track identifier (e.g. iTunes trackId).
+  final String? metadataIdentifier;
+
   const YouTubeVideo({
     required this.id,
     required this.title,
@@ -31,6 +49,12 @@ class YouTubeVideo implements MusicItem {
     this.audioStreamUrl,
     this.rawViewCount,
     this.channelId,
+    this.canonicalTitle,
+    this.canonicalArtist,
+    this.albumName,
+    this.highResArtworkUrl,
+    this.metadataProvider,
+    this.metadataIdentifier,
   });
 
   YouTubeVideo copyWith({
@@ -45,11 +69,17 @@ class YouTubeVideo implements MusicItem {
     String? audioStreamUrl,
     int? rawViewCount,
     String? channelId,
+    String? canonicalTitle,
+    String? canonicalArtist,
+    String? albumName,
+    String? highResArtworkUrl,
+    String? metadataProvider,
+    String? metadataIdentifier,
   }) {
     return YouTubeVideo(
       id: id ?? this.id,
-      title: title ?? this.title,
-      channelTitle: channelTitle ?? this.channelTitle,
+      title: title ?? (canonicalTitle ?? this.title),
+      channelTitle: channelTitle ?? (canonicalArtist ?? this.channelTitle),
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       duration: duration ?? this.duration,
       viewCount: viewCount ?? this.viewCount,
@@ -58,6 +88,12 @@ class YouTubeVideo implements MusicItem {
       audioStreamUrl: audioStreamUrl ?? this.audioStreamUrl,
       rawViewCount: rawViewCount ?? this.rawViewCount,
       channelId: channelId ?? this.channelId,
+      canonicalTitle: canonicalTitle ?? this.canonicalTitle,
+      canonicalArtist: canonicalArtist ?? this.canonicalArtist,
+      albumName: albumName ?? this.albumName,
+      highResArtworkUrl: highResArtworkUrl ?? this.highResArtworkUrl,
+      metadataProvider: metadataProvider ?? this.metadataProvider,
+      metadataIdentifier: metadataIdentifier ?? this.metadataIdentifier,
     );
   }
 
@@ -68,10 +104,10 @@ class YouTubeVideo implements MusicItem {
   String get musicUrl => 'https://music.youtube.com/watch?v=$id';
 
   @override
-  String get artist => channelTitle;
+  String get artist => canonicalArtist ?? channelTitle;
 
   @override
-  String get imageUrl => thumbnailUrl;
+  String get imageUrl => highResArtworkUrl ?? thumbnailUrl;
 
   @override
   String get filePath => audioStreamUrl ?? videoUrl;
@@ -85,20 +121,25 @@ class YouTubeVideo implements MusicItem {
     final cleaned = YouTubeMetadataCleaner.clean(
       rawTitle: rawTitle ?? title,
       rawChannel: rawChannelTitle ?? channelTitle,
-      reliableArtist: reliableArtist,
-      reliableTitle: reliableTitle,
+      reliableArtist: reliableArtist ?? canonicalArtist,
+      reliableTitle: reliableTitle ?? canonicalTitle,
     );
     return Track(
       id: 'youtube_$id',
-      title: cleaned.title,
-      artist: cleaned.artist,
-      imageUrl: thumbnailUrl,
+      title: canonicalTitle ?? cleaned.title,
+      artist: canonicalArtist ?? cleaned.artist,
+      imageUrl: highResArtworkUrl ?? thumbnailUrl,
       duration: duration,
       filePath: audioStreamUrl ?? videoUrl, // Playback engine will recognize direct audio stream or YouTube URL
       isFavorited: false,
       rawTitle: rawTitle ?? title,
       rawArtist: rawChannelTitle ?? channelTitle,
       artistId: channelId,
+      albumName: albumName,
+      metadataProvider: metadataProvider ?? 'youtube',
+      metadataIdentifier: metadataIdentifier,
+      sourceProvider: 'youtube',
+      sourceId: id,
     );
   }
 }

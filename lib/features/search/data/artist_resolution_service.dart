@@ -142,7 +142,7 @@ class ArtistResolutionService {
       _cacheResult(cPrimary, resolved);
       return resolved;
     } finally {
-      _inFlight.remove(cPrimary);
+      unawaited(_inFlight.remove(cPrimary));
     }
   }
 

@@ -6,6 +6,7 @@ import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/data/youtube_repository.dart';
+import '../../metadata/data/itunes_metadata_service.dart';
 import 'local_search_service.dart';
 
 /// Central search repository orchestrating local fuzzy matches, YouTube API queries,
@@ -14,14 +15,17 @@ class SearchRepository {
   final LocalSearchService localSearch;
   final YouTubeRepository youtubeRepository;
   final ArtistRepository artistRepository;
+  final ItunesMetadataService itunesMetadataService;
 
   SearchRepository({
     LocalSearchService? localSearch,
     YouTubeRepository? youtubeRepository,
     ArtistRepository? artistRepository,
+    ItunesMetadataService? itunesMetadataService,
   })  : localSearch = localSearch ?? LocalSearchService(),
         youtubeRepository = youtubeRepository ?? YouTubeRepository(),
-        artistRepository = artistRepository ?? DeezerArtistRepository();
+        artistRepository = artistRepository ?? DeezerArtistRepository(),
+        itunesMetadataService = itunesMetadataService ?? ItunesMetadataService();
 
   static const String _prefKey = 'youtube_search_history';
   static const int _maxHistory = 10;
@@ -102,11 +106,20 @@ class SearchRepository {
       } catch (_) {}
     }
 
-    return SearchDeduplicator.deduplicateAndRank(
+    final ranked = SearchDeduplicator.deduplicateAndRank(
       candidateList,
       query: clean,
       config: config ?? const SearchRankingConfig(filterDerivativeEdits: true),
     );
+
+    // Enrich top results with canonical iTunes metadata (studio title, artist, album, and 600x600 artwork)
+    try {
+      final topToEnrich = ranked.take(15).toList();
+      final enrichedTop = await itunesMetadataService.enrichYouTubeResults(topToEnrich);
+      return [...enrichedTop, ...ranked.skip(15)];
+    } catch (_) {
+      return ranked;
+    }
   }
 
   /// Searches verified online artists via Curated catalog, Deezer, and YouTube Music channels.

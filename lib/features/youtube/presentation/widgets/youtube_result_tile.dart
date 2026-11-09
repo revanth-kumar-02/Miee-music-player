@@ -93,7 +93,7 @@ class YouTubeResultTile extends ConsumerWidget {
                   ClipRRect(
                     borderRadius: AppRadius.radiusMd,
                     child: Image.network(
-                      video.thumbnailUrl,
+                      video.imageUrl,
                       width: 80.0,
                       height: 56.0,
                       fit: BoxFit.cover,
