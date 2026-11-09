@@ -12,6 +12,7 @@ import 'package:Miee/core/audio/player_controller.dart';
 import 'package:Miee/shared/models/track.dart';
 import 'package:Miee/features/library/providers/library_providers.dart';
 import 'package:Miee/features/media/providers/media_providers.dart';
+import 'package:Miee/features/media/domain/models.dart';
 
 class MockPlayerController extends StateNotifier<PlaybackState> implements PlayerController {
   MockPlayerController() : super(PlaybackState.initial());
@@ -105,6 +106,79 @@ void main() {
     expect(find.text('No internet connection. Please check your network and try again.'), findsOneWidget);
     expect(find.byIcon(Icons.wifi_off_outlined), findsOneWidget);
   });
+
+  testWidgets('SearchPage displays exactly 5 category filter chips (no Videos)', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerControllerProvider.overrideWith((ref) => MockPlayerController()),
+          favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+          songsProvider.overrideWith((ref) => []),
+          artistsProvider.overrideWith((ref) => []),
+          albumsProvider.overrideWith((ref) => []),
+          searchNotifierProvider.overrideWith((ref) => MockSearchNotifier(
+                const SearchState(query: 'Rock'),
+              )),
+        ],
+        child: const MaterialApp(
+          home: SearchPage(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Songs'), findsOneWidget);
+    expect(find.text('Artists'), findsOneWidget);
+    expect(find.text('Albums'), findsOneWidget);
+    expect(find.text('Playlists'), findsOneWidget);
+    expect(find.text('Videos'), findsNothing);
+  });
+
+  testWidgets('SearchPage preserves local songs and displays offline banner when network fails', (WidgetTester tester) async {
+    const localSong = MediaSong(
+      id: 'local_1',
+      title: 'Local Favorite',
+      artist: 'Local Band',
+      album: 'Local Album',
+      duration: '3:30',
+      durationMs: 210000,
+      filePath: '/storage/emulated/0/Music/local.mp3',
+      artworkPath: '',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerControllerProvider.overrideWith((ref) => MockPlayerController()),
+          favoritesProvider.overrideWith((ref) => MockFavoritesNotifier()),
+          songsProvider.overrideWith((ref) => []),
+          artistsProvider.overrideWith((ref) => []),
+          albumsProvider.overrideWith((ref) => []),
+          searchNotifierProvider.overrideWith((ref) => MockSearchNotifier(
+                const SearchState(
+                  query: 'Local',
+                  isYouTubeLoading: false,
+                  localSongs: [localSong],
+                  errorMessage: 'No internet connection. Please check your network and try again.',
+                ),
+              )),
+        ],
+        child: const MaterialApp(
+          home: SearchPage(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify offline banner is displayed
+    expect(find.text('Offline — Showing local library results'), findsOneWidget);
+    // Verify local song title and artist are still rendered and interactive
+    expect(find.text('Local Favorite'), findsOneWidget);
+    expect(find.text('Local Band'), findsOneWidget);
+  });
 }
 
 class MockSearchNotifier extends StateNotifier<SearchState> implements SearchNotifier {
@@ -127,4 +201,7 @@ class MockSearchNotifier extends StateNotifier<SearchState> implements SearchNot
 
   @override
   Future<void> clearHistory() async {}
+
+  @override
+  void enrichArtistsFromSongsForTesting(String query, List<YouTubeVideo> youtube) {}
 }

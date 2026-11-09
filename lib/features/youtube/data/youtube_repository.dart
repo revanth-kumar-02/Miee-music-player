@@ -6,6 +6,7 @@ import '../domain/youtube_failures.dart';
 import '../domain/music_result_classifier.dart';
 import '../../search/domain/search_deduplicator.dart';
 import '../../search/domain/artist_classifier.dart';
+import '../../search/domain/online_playlist.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../recommendations/domain/music_language_service.dart';
 import 'youtube_data_source.dart';
@@ -21,6 +22,7 @@ class YouTubeRepository {
   /// In-memory search cache (bounded to 50 queries)
   final Map<String, List<YouTubeVideo>> _searchCache = {};
   final Map<String, List<ArtistModel>> _artistSearchCache = {};
+  final Map<String, List<OnlinePlaylist>> _playlistSearchCache = {};
   static const int _maxCacheSize = 50;
 
   /// Active search lists to support continuous pagination across batches
@@ -768,9 +770,64 @@ class YouTubeRepository {
     return result;
   }
 
+  /// Searches for playlists matching [query].
+  Future<List<OnlinePlaylist>> searchPlaylists(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return const [];
+
+    final cacheKey = cleanQuery.toLowerCase();
+    if (_playlistSearchCache.containsKey(cacheKey)) {
+      return _playlistSearchCache[cacheKey]!;
+    }
+
+    final playlists = <OnlinePlaylist>[];
+
+    if (!kIsWeb) {
+      final yt = yte.YoutubeExplode();
+      try {
+        final searchResults = await yt.search.searchContent(
+          cleanQuery,
+          filter: yte.TypeFilters.playlist,
+        );
+
+        for (final item in searchResults) {
+          if (item is yte.SearchPlaylist) {
+            String thumb = '';
+            if (item.thumbnails.isNotEmpty) {
+              thumb = item.thumbnails.last.url.toString();
+            }
+            playlists.add(
+              OnlinePlaylist(
+                id: item.id.value,
+                title: item.title,
+                author: 'Playlist',
+                thumbnailUrl: normalizeImageUrl(thumb),
+                trackCount: item.videoCount,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('YouTubeRepository: searchPlaylists error: $e');
+      } finally {
+        yt.close();
+      }
+    }
+
+    if (playlists.isNotEmpty) {
+      if (_playlistSearchCache.length >= _maxCacheSize) {
+        _playlistSearchCache.remove(_playlistSearchCache.keys.first);
+      }
+      _playlistSearchCache[cacheKey] = playlists;
+    }
+
+    return playlists;
+  }
+
   void clearCache() {
     _searchCache.clear();
     _artistSearchCache.clear();
+    _playlistSearchCache.clear();
     _activeSearchLists.clear();
   }
 }

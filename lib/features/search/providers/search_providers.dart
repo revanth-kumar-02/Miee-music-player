@@ -47,6 +47,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
       state = state.copyWith(
         query: '',
         suggestions: const [],
+        liveSuggestions: const [],
         localSongs: const [],
         localAlbums: const [],
         localArtists: const [],
@@ -54,9 +55,12 @@ class SearchNotifier extends StateNotifier<SearchState> {
         youtubeResults: const [],
         onlineArtists: const [],
         onlineAlbums: const [],
+        onlinePlaylists: const [],
         isLocalLoading: false,
         isYouTubeLoading: false,
         isArtistsLoading: false,
+        isPlaylistsLoading: false,
+        isSuggestionsLoading: false,
         errorMessage: null,
       );
       return;
@@ -64,32 +68,95 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     final currentReqId = ++_searchRequestId;
 
+    // Fast local scan for instant feedback while typing
+    final library = _ref.read(mediaLibraryServiceProvider);
+    final instantLocalSongs = _repo.localSearch.searchSongs(library.songs, trimmed);
+    final instantLocalArtists = _repo.localSearch.searchArtists(library.artists, trimmed);
+    final instantLocalAlbums = _repo.localSearch.searchAlbums(library.albums, trimmed);
+    final instantLocalPlaylists = _repo.localSearch.searchPlaylists(library.playlists, trimmed);
+
+    final initialSuggestions = <MusicSuggestion>[];
+    for (final a in instantLocalArtists.take(2)) {
+      initialSuggestions.add(MusicSuggestion(
+        id: a.id,
+        title: a.name,
+        imageUrl: a.artworkPath,
+        type: SuggestionType.artist,
+        entity: a,
+      ));
+    }
+    for (final s in instantLocalSongs.take(3)) {
+      initialSuggestions.add(MusicSuggestion(
+        id: s.id,
+        title: s.title,
+        subtitle: s.artist,
+        imageUrl: s.artworkPath,
+        type: SuggestionType.song,
+        entity: s,
+      ));
+    }
+    for (final alb in instantLocalAlbums.take(1)) {
+      initialSuggestions.add(MusicSuggestion(
+        id: alb.id,
+        title: alb.title,
+        subtitle: alb.artist,
+        imageUrl: alb.artworkPath,
+        type: SuggestionType.album,
+        entity: alb,
+      ));
+    }
+    initialSuggestions.add(MusicSuggestion(
+      id: 'search_query_$trimmed',
+      title: 'Search for "$trimmed"',
+      type: SuggestionType.searchQuery,
+      entity: trimmed,
+    ));
+
     state = state.copyWith(
       query: query,
-      localSongs: const [],
-      localAlbums: const [],
-      localArtists: const [],
-      localPlaylists: const [],
+      localSongs: instantLocalSongs,
+      localAlbums: instantLocalAlbums,
+      localArtists: instantLocalArtists,
+      localPlaylists: instantLocalPlaylists,
+      liveSuggestions: initialSuggestions,
       youtubeResults: const [],
       onlineArtists: const [],
       onlineAlbums: const [],
-      isLocalLoading: true,
+      onlinePlaylists: const [],
+      isLocalLoading: false,
       isYouTubeLoading: true,
       isArtistsLoading: true,
+      isPlaylistsLoading: true,
+      isSuggestionsLoading: true,
       errorMessage: null,
     );
 
-    // Suggestions autocomplete updates (150ms)
-    _suggestionDebounceTimer = Timer(const Duration(milliseconds: 150), () async {
+    // Live music-first suggestions (debounced 200ms)
+    _suggestionDebounceTimer = Timer(const Duration(milliseconds: 200), () async {
       if (currentReqId != _searchRequestId) return;
-      final suggestions = await _repo.getSuggestions(trimmed);
-      if (currentReqId == _searchRequestId) {
-        state = state.copyWith(suggestions: suggestions);
+      try {
+        final liveMusic = await _repo.getLiveMusicSuggestions(
+          query: trimmed,
+          localSongs: instantLocalSongs,
+          localArtists: instantLocalArtists,
+          localAlbums: instantLocalAlbums,
+          localPlaylists: instantLocalPlaylists,
+        );
+        if (currentReqId == _searchRequestId) {
+          state = state.copyWith(
+            liveSuggestions: liveMusic,
+            isSuggestionsLoading: false,
+          );
+        }
+      } catch (_) {
+        if (currentReqId == _searchRequestId) {
+          state = state.copyWith(isSuggestionsLoading: false);
+        }
       }
     });
 
-    // Main search debounce (300ms)
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+    // Main search debounce (350ms)
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
       _runSearch(trimmed, currentReqId);
     });
   }
@@ -110,6 +177,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     state = state.copyWith(
       query: query,
+      liveSuggestions: const [],
       localSongs: const [],
       localAlbums: const [],
       localArtists: const [],
@@ -117,9 +185,12 @@ class SearchNotifier extends StateNotifier<SearchState> {
       youtubeResults: const [],
       onlineArtists: const [],
       onlineAlbums: const [],
+      onlinePlaylists: const [],
       isLocalLoading: true,
       isYouTubeLoading: true,
       isArtistsLoading: true,
+      isPlaylistsLoading: true,
+      isSuggestionsLoading: false,
       errorMessage: null,
     );
 
@@ -195,6 +266,21 @@ class SearchNotifier extends StateNotifier<SearchState> {
           isYouTubeLoading: false,
           errorMessage: message,
         );
+      }
+    }
+
+    // 4. Run Online Playlists Search
+    try {
+      final playlists = await _repo.searchPlaylists(query);
+      if (reqId == _searchRequestId) {
+        state = state.copyWith(
+          onlinePlaylists: playlists,
+          isPlaylistsLoading: false,
+        );
+      }
+    } catch (_) {
+      if (reqId == _searchRequestId) {
+        state = state.copyWith(isPlaylistsLoading: false);
       }
     }
   }

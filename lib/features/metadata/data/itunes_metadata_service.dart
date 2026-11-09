@@ -367,7 +367,7 @@ class ItunesMetadataService {
   }) async {
     if (videos.isEmpty) return const [];
 
-    final enriched = List<YouTubeVideo>.filled(videos.length, videos.first);
+    final enriched = List<YouTubeVideo>.from(videos);
     final chunks = <List<int>>[];
     for (int i = 0; i < videos.length; i += maxConcurrent) {
       final end = (i + maxConcurrent < videos.length) ? i + maxConcurrent : videos.length;

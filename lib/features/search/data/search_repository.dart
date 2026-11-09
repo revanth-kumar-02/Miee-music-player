@@ -2,6 +2,9 @@ import 'package:hive/hive.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../domain/search_deduplicator.dart';
 import '../domain/artist_classifier.dart';
+import '../domain/online_playlist.dart';
+import '../domain/music_suggestion.dart';
+import '../../media/domain/models.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../youtube/domain/youtube_model.dart';
@@ -289,6 +292,263 @@ class SearchRepository {
     }
 
     return resultAlbums;
+  }
+
+  /// Searches online YouTube Music playlists.
+  Future<List<OnlinePlaylist>> searchPlaylists(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return const [];
+    try {
+      return await youtubeRepository.searchPlaylists(cleanQuery);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Fetches Spotify-inspired music entity live suggestions (Artists, Songs, Albums, Playlists).
+  Future<List<MusicSuggestion>> getLiveMusicSuggestions({
+    required String query,
+    List<MediaSong> localSongs = const [],
+    List<MediaArtist> localArtists = const [],
+    List<MediaAlbum> localAlbums = const [],
+    List<MediaPlaylist> localPlaylists = const [],
+  }) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return const [];
+
+    final suggestions = <MusicSuggestion>[];
+    final seenKeys = <String>{};
+
+    void addSuggestion(MusicSuggestion s) {
+      final key = '${s.type}_${s.id}';
+      final normTitle = '${s.type}_${s.title.toLowerCase().trim()}';
+      if (seenKeys.add(key) && seenKeys.add(normTitle)) {
+        suggestions.add(s);
+      }
+    }
+
+    final lowerQuery = cleanQuery.toLowerCase();
+    final normQuery = lowerQuery.replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+    // 1. Local Library Instant Matches
+    for (final artist in localArtists) {
+      if (artist.name.toLowerCase().contains(lowerQuery)) {
+        addSuggestion(MusicSuggestion(
+          id: artist.id,
+          title: artist.name,
+          subtitle: null,
+          imageUrl: artist.artworkPath,
+          type: SuggestionType.artist,
+          entity: artist,
+        ));
+      }
+    }
+
+    for (final song in localSongs) {
+      if (song.title.toLowerCase().contains(lowerQuery) ||
+          song.artist.toLowerCase().contains(lowerQuery)) {
+        addSuggestion(MusicSuggestion(
+          id: song.id,
+          title: song.title,
+          subtitle: song.artist,
+          imageUrl: song.artworkPath,
+          type: SuggestionType.song,
+          entity: song,
+        ));
+      }
+    }
+
+    for (final album in localAlbums) {
+      if (album.title.toLowerCase().contains(lowerQuery) ||
+          album.artist.toLowerCase().contains(lowerQuery)) {
+        addSuggestion(MusicSuggestion(
+          id: album.id,
+          title: album.title,
+          subtitle: album.artist,
+          imageUrl: album.artworkPath,
+          type: SuggestionType.album,
+          entity: album,
+        ));
+      }
+    }
+
+    for (final playlist in localPlaylists) {
+      if (playlist.name.toLowerCase().contains(lowerQuery)) {
+        addSuggestion(MusicSuggestion(
+          id: playlist.id,
+          title: playlist.name,
+          subtitle: '${playlist.trackCount} tracks',
+          imageUrl: null,
+          type: SuggestionType.playlist,
+          entity: playlist,
+        ));
+      }
+    }
+
+    // 2. Fetch Online Candidates in Parallel
+    final results = await Future.wait([
+      searchArtists(cleanQuery).catchError((_) => <ArtistModel>[]),
+      searchYouTube(cleanQuery).catchError((_) => <YouTubeVideo>[]),
+      searchPlaylists(cleanQuery).catchError((_) => <OnlinePlaylist>[]),
+    ]);
+
+    final onlineArtists = results[0] as List<ArtistModel>;
+    final onlineVideos = results[1] as List<YouTubeVideo>;
+    final onlinePlaylists = results[2] as List<OnlinePlaylist>;
+
+    // Fetch albums for top artist if available
+    List<ArtistAlbum> onlineAlbums = const [];
+    if (onlineArtists.isNotEmpty) {
+      try {
+        onlineAlbums = await searchAlbums(cleanQuery, matchedArtists: onlineArtists.take(1).toList());
+      } catch (_) {}
+    }
+
+    // 3. Determine Query Intent: Does query strongly match an artist or a song?
+    final exactArtistMatch = onlineArtists.cast<ArtistModel?>().firstWhere(
+      (a) => a != null && (a.name.toLowerCase() == lowerQuery ||
+          a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '') == normQuery),
+      orElse: () => null,
+    );
+
+    final prefixArtistMatch = onlineArtists.cast<ArtistModel?>().firstWhere(
+      (a) => a != null && (a.name.toLowerCase().startsWith(lowerQuery) ||
+          lowerQuery.startsWith(a.name.toLowerCase())),
+      orElse: () => null,
+    );
+
+    final topArtist = exactArtistMatch ?? prefixArtistMatch ?? (onlineArtists.isNotEmpty ? onlineArtists.first : null);
+
+    final isArtistQuery = topArtist != null &&
+        (topArtist == exactArtistMatch ||
+            topArtist == prefixArtistMatch ||
+            DeezerArtistRepository.findCuratedByName(topArtist.name) != null ||
+            topArtist.fanCount >= 5000);
+
+    // 4. Assemble Spotify-style Live Suggestions
+    if (isArtistQuery) {
+      // Artist is #1
+      addSuggestion(MusicSuggestion(
+        id: topArtist.id,
+        title: topArtist.name,
+        subtitle: null,
+        imageUrl: topArtist.imageUrl,
+        type: SuggestionType.artist,
+        entity: topArtist,
+      ));
+
+      // Followed by top songs by or matching this artist
+      for (final v in onlineVideos.take(3)) {
+        addSuggestion(MusicSuggestion(
+          id: v.id,
+          title: v.canonicalTitle ?? v.title,
+          subtitle: v.canonicalArtist ?? v.channelTitle,
+          imageUrl: v.highResArtworkUrl ?? v.thumbnailUrl,
+          type: SuggestionType.song,
+          entity: v,
+        ));
+      }
+
+      // Followed by 1 top album
+      for (final alb in onlineAlbums.take(1)) {
+        addSuggestion(MusicSuggestion(
+          id: alb.id,
+          title: alb.title,
+          subtitle: alb.artistName,
+          imageUrl: alb.coverUrl,
+          type: SuggestionType.album,
+          entity: alb,
+        ));
+      }
+
+      // Followed by 1 top playlist
+      for (final p in onlinePlaylists.take(1)) {
+        addSuggestion(MusicSuggestion(
+          id: p.id,
+          title: p.title,
+          subtitle: p.author,
+          imageUrl: p.thumbnailUrl,
+          type: SuggestionType.playlist,
+          entity: p,
+        ));
+      }
+    } else {
+      // Song or general query:
+      // 1-2 Top songs
+      for (final v in onlineVideos.take(2)) {
+        addSuggestion(MusicSuggestion(
+          id: v.id,
+          title: v.canonicalTitle ?? v.title,
+          subtitle: v.canonicalArtist ?? v.channelTitle,
+          imageUrl: v.highResArtworkUrl ?? v.thumbnailUrl,
+          type: SuggestionType.song,
+          entity: v,
+        ));
+      }
+
+      // 1 Top artist (if legitimate and verified)
+      if (topArtist != null) {
+        addSuggestion(MusicSuggestion(
+          id: topArtist.id,
+          title: topArtist.name,
+          subtitle: null,
+          imageUrl: topArtist.imageUrl,
+          type: SuggestionType.artist,
+          entity: topArtist,
+        ));
+      }
+
+      // Remaining songs up to 4 total songs
+      for (final v in onlineVideos.skip(2).take(2)) {
+        addSuggestion(MusicSuggestion(
+          id: v.id,
+          title: v.canonicalTitle ?? v.title,
+          subtitle: v.canonicalArtist ?? v.channelTitle,
+          imageUrl: v.highResArtworkUrl ?? v.thumbnailUrl,
+          type: SuggestionType.song,
+          entity: v,
+        ));
+      }
+
+      // 1 Album
+      for (final alb in onlineAlbums.take(1)) {
+        addSuggestion(MusicSuggestion(
+          id: alb.id,
+          title: alb.title,
+          subtitle: alb.artistName,
+          imageUrl: alb.coverUrl,
+          type: SuggestionType.album,
+          entity: alb,
+        ));
+      }
+
+      // 1 Playlist
+      for (final p in onlinePlaylists.take(1)) {
+        addSuggestion(MusicSuggestion(
+          id: p.id,
+          title: p.title,
+          subtitle: p.author,
+          imageUrl: p.thumbnailUrl,
+          type: SuggestionType.playlist,
+          entity: p,
+        ));
+      }
+    }
+
+    // Cap suggestions at 6 music entities to keep UI compact and scannable
+    final capped = suggestions.take(6).toList();
+
+    // 5. Append secondary Search Query action at the bottom
+    capped.add(MusicSuggestion(
+      id: 'search_query_$cleanQuery',
+      title: 'Search for "$cleanQuery"',
+      subtitle: null,
+      imageUrl: null,
+      type: SuggestionType.searchQuery,
+      entity: cleanQuery,
+    ));
+
+    return capped;
   }
 
   /// Fetches auto-complete suggestions from history and online provider.

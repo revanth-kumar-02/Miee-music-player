@@ -82,7 +82,7 @@ class YouTubeResultTile extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10.0),
-            color: isCurrentTrack ? AppColors.dustyRose.withOpacity(0.08) : Colors.transparent,
+            color: isCurrentTrack ? AppColors.dustyRose.withValues(alpha: 0.08) : Colors.transparent,
           ),
           child: Row(
             children: [
@@ -112,7 +112,7 @@ class YouTubeResultTile extends ConsumerWidget {
                       width: 80.0,
                       height: 56.0,
                       decoration: BoxDecoration(
-                        color: AppColors.cocoaPlum.withOpacity(0.45),
+                        color: AppColors.cocoaPlum.withValues(alpha: 0.45),
                         borderRadius: AppRadius.radiusMd,
                       ),
                       child: const Center(
@@ -129,7 +129,7 @@ class YouTubeResultTile extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: AppColors.cocoaPlum.withOpacity(0.85),
+                        color: AppColors.cocoaPlum.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: Text(
@@ -194,7 +194,7 @@ class YouTubeResultTile extends ConsumerWidget {
                       )
                     : Icon(
                         isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
-                        color: isCurrentTrack ? AppColors.dustyRose : AppColors.mutedMauve.withOpacity(0.6),
+                        color: isCurrentTrack ? AppColors.dustyRose : AppColors.mutedMauve.withValues(alpha: 0.6),
                         size: 28.0,
                       ),
                 onPressed: isTrackLoading
