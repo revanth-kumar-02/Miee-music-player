@@ -58,8 +58,16 @@ class FavoritesRepository {
   bool isFavorite(String trackId) => _box.containsKey(trackId);
 
   /// Returns the current list of favorited tracks.
-  List<Track> getFavorites() =>
-      _box.values.map((m) => m.toTrack()).toList(growable: false);
+  List<Track> getFavorites() {
+    try {
+      return _box.values
+          .whereType<TrackHiveModel>()
+          .map((m) => m.toTrack())
+          .toList(growable: false);
+    } catch (_) {
+      return const <Track>[];
+    }
+  }
 
   /// Stream that emits a new list whenever favorites change.
   Stream<List<Track>> watchFavorites() => _box.watch().map((_) => getFavorites());

@@ -36,27 +36,34 @@ class DailyMixesSection extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Daily Mixes',
-                      style: GoogleFonts.geist(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.denseObsidian,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Daily Mixes',
+                        style: GoogleFonts.geist(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.denseObsidian,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Tuned to your taste and listening habits',
-                      style: GoogleFonts.geist(
-                        fontSize: 12,
-                        color: AppColors.industrialSteel,
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tuned to your taste and listening habits',
+                        style: GoogleFonts.geist(
+                          fontSize: 12,
+                          color: AppColors.industrialSteel,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   'See All >',
                   style: GoogleFonts.geist(

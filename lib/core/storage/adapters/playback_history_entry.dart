@@ -33,11 +33,46 @@ class PlaybackHistoryEntryAdapter extends TypeAdapter<PlaybackHistoryEntry> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+
+    DateTime parseDate(dynamic val, DateTime fallback) {
+      if (val is DateTime) return val;
+      if (val is String) return DateTime.tryParse(val) ?? fallback;
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return fallback;
+    }
+
+    TrackHiveModel parseTrack(dynamic val) {
+      if (val is TrackHiveModel) return val;
+      if (val is Map) {
+        return TrackHiveModel(
+          id: (val['id'] ?? '').toString(),
+          title: (val['title'] ?? 'Unknown Title').toString(),
+          artist: (val['artist'] ?? 'Unknown Artist').toString(),
+          imageUrl: (val['imageUrl'] ?? val['image_url'] ?? '').toString(),
+          duration: (val['duration'] ?? '0:00').toString(),
+          filePath: val['filePath']?.toString(),
+        );
+      }
+      return TrackHiveModel(
+        id: '',
+        title: 'Unknown Title',
+        artist: 'Unknown Artist',
+        imageUrl: '',
+        duration: '0:00',
+      );
+    }
+
+    double parseDouble(dynamic val, double fallback) {
+      if (val is num) return val.toDouble();
+      if (val is String) return double.tryParse(val) ?? fallback;
+      return fallback;
+    }
+
     return PlaybackHistoryEntry(
-      track: fields[0] as TrackHiveModel,
-      startTime: fields[1] as DateTime,
-      completionPercent: (fields[2] as num).toDouble(),
-      userId: fields[3] as String?,
+      track: parseTrack(fields[0]),
+      startTime: parseDate(fields[1], DateTime.now()),
+      completionPercent: parseDouble(fields[2], 0.0),
+      userId: fields[3]?.toString(),
     );
   }
 

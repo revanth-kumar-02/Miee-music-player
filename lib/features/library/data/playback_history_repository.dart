@@ -1,4 +1,4 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 
 import '../../../core/storage/adapters/playback_history_entry.dart';
 import '../../../core/storage/adapters/track_hive_model.dart';
@@ -27,9 +27,13 @@ class PlaybackHistoryRepository {
 
   /// Returns all history entries, newest first.
   List<PlaybackHistoryEntry> getHistory() {
-    final entries = _box.values.toList();
-    entries.sort((a, b) => b.startTime.compareTo(a.startTime));
-    return entries;
+    try {
+      final entries = _box.values.whereType<PlaybackHistoryEntry>().toList();
+      entries.sort((a, b) => b.startTime.compareTo(a.startTime));
+      return entries;
+    } catch (_) {
+      return const <PlaybackHistoryEntry>[];
+    }
   }
 
   /// Clears all history.

@@ -36,11 +36,15 @@ class MostPlayedRepository {
 
   /// Returns track ids sorted by play count descending, limited to [limit].
   List<MapEntry<String, int>> getMostPlayed({int limit = 20}) {
-    final entries = _box.keys
-        .map((key) => MapEntry(key as String, _box.get(key, defaultValue: 0)!))
-        .toList();
-    entries.sort((a, b) => b.value.compareTo(a.value));
-    return entries.take(limit).toList(growable: false);
+    try {
+      final entries = _box.keys
+          .map((key) => MapEntry(key.toString(), _box.get(key, defaultValue: 0) ?? 0))
+          .toList();
+      entries.sort((a, b) => b.value.compareTo(a.value));
+      return entries.take(limit).toList(growable: false);
+    } catch (_) {
+      return const <MapEntry<String, int>>[];
+    }
   }
 
   /// Resets the play count for [trackId] to zero.

@@ -1,4 +1,4 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 import 'track_hive_model.dart';
 
 /// Represents a single "recently played" entry stored in Hive.
@@ -22,9 +22,38 @@ class HistoryEntryAdapter extends TypeAdapter<HistoryEntry> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+
+    DateTime parseDate(dynamic val, DateTime fallback) {
+      if (val is DateTime) return val;
+      if (val is String) return DateTime.tryParse(val) ?? fallback;
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return fallback;
+    }
+
+    TrackHiveModel parseTrack(dynamic val) {
+      if (val is TrackHiveModel) return val;
+      if (val is Map) {
+        return TrackHiveModel(
+          id: (val['id'] ?? '').toString(),
+          title: (val['title'] ?? 'Unknown Title').toString(),
+          artist: (val['artist'] ?? 'Unknown Artist').toString(),
+          imageUrl: (val['imageUrl'] ?? val['image_url'] ?? '').toString(),
+          duration: (val['duration'] ?? '0:00').toString(),
+          filePath: val['filePath']?.toString(),
+        );
+      }
+      return TrackHiveModel(
+        id: '',
+        title: 'Unknown Title',
+        artist: 'Unknown Artist',
+        imageUrl: '',
+        duration: '0:00',
+      );
+    }
+
     return HistoryEntry(
-      track: fields[0] as TrackHiveModel,
-      playedAt: fields[1] as DateTime,
+      track: parseTrack(fields[0]),
+      playedAt: parseDate(fields[1], DateTime.now()),
     );
   }
 

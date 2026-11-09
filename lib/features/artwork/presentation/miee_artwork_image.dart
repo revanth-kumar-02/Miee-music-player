@@ -117,10 +117,21 @@ class MieeArtworkImage extends ConsumerWidget {
 
   Widget _renderDirectImage(BuildContext context, String pathOrUrl, BorderRadius radius) {
     final isNetwork = pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
+    final isAsset = pathOrUrl.startsWith('assets/');
 
     Widget imageWidget;
     if (isNetwork) {
       imageWidget = Image.network(
+        pathOrUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) {
+          return errorWidget ?? _buildNeutralFallback(context, radius);
+        },
+      );
+    } else if (isAsset) {
+      imageWidget = Image.asset(
         pathOrUrl,
         width: width,
         height: height,

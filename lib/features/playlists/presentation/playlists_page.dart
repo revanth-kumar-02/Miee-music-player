@@ -305,20 +305,26 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Recently Added',
-                    style: GoogleFonts.geist(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.denseObsidian,
-                      letterSpacing: -0.3,
+                  Expanded(
+                    child: Text(
+                      'Recently Added',
+                      style: GoogleFonts.geist(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.denseObsidian,
+                        letterSpacing: -0.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
                       setState(() => _selectedFilter = 'Playlists');
                     },
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'See All',
@@ -381,14 +387,19 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${playlists.length} playlists',
-                    style: GoogleFonts.geist(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.mutedMauve,
+                  Expanded(
+                    child: Text(
+                      '${playlists.length} playlists',
+                      style: GoogleFonts.geist(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.mutedMauve,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   _buildSortDropdown(),
                 ],
               ),

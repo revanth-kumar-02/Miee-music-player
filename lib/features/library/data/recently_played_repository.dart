@@ -144,9 +144,13 @@ class RecentlyPlayedRepository {
 
   /// Returns all recently played entries, newest first.
   List<HistoryEntry> getRecentlyPlayed() {
-    final entries = _box.values.toList();
-    entries.sort((a, b) => b.playedAt.compareTo(a.playedAt));
-    return entries;
+    try {
+      final entries = _box.values.whereType<HistoryEntry>().toList();
+      entries.sort((a, b) => b.playedAt.compareTo(a.playedAt));
+      return entries;
+    } catch (_) {
+      return const <HistoryEntry>[];
+    }
   }
 
   /// Returns the most recently played [Track] objects (newest first) with restored artwork.
