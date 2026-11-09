@@ -22,6 +22,7 @@ import '../../library/providers/library_providers.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
 import '../../onboarding/domain/artist_model.dart';
+import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
 
 /// Recreated Miee Search Screen matching the reference design:
@@ -1003,11 +1004,39 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           (state.youtubeResults.isNotEmpty ? state.youtubeResults.first : null),
     );
 
+    final isArtistHighProminence = matchingArtist != null &&
+        (DeezerArtistRepository.findCuratedByName(matchingArtist.name) != null ||
+            matchingArtist.fanCount >= 5000);
+
+    final hasExactSongMatch = matchingSong != null &&
+        (matchingSong.title.toLowerCase().contains(cleanQuery) ||
+            cleanQuery.contains(matchingSong.title.toLowerCase()) ||
+            (matchingSong.canonicalTitle != null &&
+                matchingSong.canonicalTitle!.toLowerCase().contains(cleanQuery)));
+
+    // When query matches a prominent song and artist is obscure (< 5000 fans, non-curated),
+    // prioritize the song in All filter.
+    final preferSongTopResult = (filter != 'Artists' && hasExactSongMatch && !isArtistHighProminence);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 1. Top Result Card
-        if (showArtists && matchingArtist != null) ...[
+        if (preferSongTopResult && matchingSong != null) ...[
+          _buildTopResultCard(
+            name: matchingSong.canonicalTitle ?? matchingSong.title,
+            subtitle: matchingSong.canonicalArtist ?? matchingSong.channelTitle,
+            imageUrl: matchingSong.highResArtworkUrl ?? matchingSong.thumbnailUrl,
+            isSong: true,
+            onTap: () {
+              _playYouTubeResult(matchingSong, state.youtubeResults);
+            },
+            onPlay: () {
+              _playYouTubeResult(matchingSong, state.youtubeResults);
+            },
+          ),
+          const SizedBox(height: 28),
+        ] else if (showArtists && matchingArtist != null) ...[
           _buildTopResultCard(
             name: matchingArtist.name,
             subtitle: matchingArtist.fanCount > 0
@@ -1024,9 +1053,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           const SizedBox(height: 28),
         ] else if (showSongs && matchingSong != null) ...[
           _buildTopResultCard(
-            name: matchingSong.title,
-            subtitle: matchingSong.channelTitle,
-            imageUrl: matchingSong.thumbnailUrl,
+            name: matchingSong.canonicalTitle ?? matchingSong.title,
+            subtitle: matchingSong.canonicalArtist ?? matchingSong.channelTitle,
+            imageUrl: matchingSong.highResArtworkUrl ?? matchingSong.thumbnailUrl,
             isSong: true,
             onTap: () {
               _playYouTubeResult(matchingSong, state.youtubeResults);

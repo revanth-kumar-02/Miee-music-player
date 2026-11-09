@@ -128,3 +128,4 @@ class ItunesSong {
   String toString() =>
       'ItunesSong(id: $trackId, name: "$trackName", artist: "$artistName", album: "$collectionName")';
 }
+

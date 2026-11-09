@@ -5,3 +5,4 @@ import '../data/itunes_metadata_service.dart';
 final itunesMetadataServiceProvider = Provider<ItunesMetadataService>((ref) {
   return ItunesMetadataService();
 });
+

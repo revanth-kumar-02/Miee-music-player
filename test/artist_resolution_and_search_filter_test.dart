@@ -285,5 +285,39 @@ void main() {
       expect(names.contains('West Coast Eagles Football Club'), isFalse);
       expect(names.contains('West Coast Dealing School'), isFalse);
     });
+
+    test('3. Personal vlogger channels with emojis or vlog tags are excluded', () {
+      expect(ArtistClassifier.isLegitimateMusicArtist('emmy brooklyn baby ❤️'), isFalse);
+      expect(ArtistClassifier.isLegitimateMusicArtist('Brooklynbaby Suriname'), isFalse);
+      expect(ArtistClassifier.isLegitimateMusicArtist('Daily Gaming Vlogs'), isFalse);
+      expect(ArtistClassifier.isLegitimateMusicArtist('TikTok Reaction Hub'), isFalse);
+    });
+
+    test('4. Curated performing artist (Lana Del Rey) is prioritized over obscure homonyms', () {
+      final curatedAndDeezer = [
+        const ArtistModel(id: '106407692', name: 'Brooklyn Baby', imageUrl: '', fanCount: 197),
+        const ArtistModel(id: '163794507', name: 'Brooklyn BA', imageUrl: '', fanCount: 4),
+        const ArtistModel(id: '1190659', name: 'Brooklyn Boys', imageUrl: '', fanCount: 17),
+        const ArtistModel(id: 'lana_del_rey', name: 'Lana Del Rey', imageUrl: 'https://example.com/lana.jpg', fanCount: 8000000),
+      ];
+
+      final youtubeArtists = [
+        const ArtistModel(id: 'yt_emmy', name: 'emmy brooklyn baby ❤️', imageUrl: ''),
+        const ArtistModel(id: 'yt_suriname', name: 'Brooklynbaby Suriname', imageUrl: ''),
+      ];
+
+      final merged = SearchRepository.mergeAndDeduplicateArtists(
+        curatedAndDeezer: curatedAndDeezer,
+        youtubeArtists: youtubeArtists,
+        query: 'brooklyn baby',
+      );
+
+      // Emoji and vlog channels are filtered out
+      expect(merged.any((a) => a.name.contains('❤️')), isFalse);
+      expect(merged.any((a) => a.name.contains('Suriname')), isFalse);
+
+      // Curated superstar performing artist Lana Del Rey is sorted to #1!
+      expect(merged.first.name, equals('Lana Del Rey'));
+    });
   });
 }

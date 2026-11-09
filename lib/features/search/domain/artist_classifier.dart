@@ -46,6 +46,18 @@ class ArtistClassifier {
     caseSensitive: false,
   );
 
+  // 7. Personal vloggers, reactions, gaming channels, and personal social channels
+  static final _personalVlogPattern = RegExp(
+    r'\b(vlog|vlogs|gaming|gameplay|unboxing|reactions?|shorts|tiktok|suriname)\b',
+    caseSensitive: false,
+  );
+
+  // 8. Emojis and decorative symbols commonly used in personal vlog titles
+  static final _emojiSymbolPattern = RegExp(
+    r'[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]',
+    unicode: true,
+  );
+
   /// Determines whether the given candidate represents a legitimate music artist entity.
   static bool isLegitimateMusicArtist(
     String rawName, {
@@ -57,6 +69,11 @@ class ArtistClassifier {
 
     final name = rawName.trim();
     if (name.isEmpty) return false;
+
+    // Check for emojis (personal social channels, e.g. "emmy brooklyn baby ❤️")
+    if (_emojiSymbolPattern.hasMatch(name)) {
+      return false;
+    }
 
     final lower = name.toLowerCase();
 
@@ -90,6 +107,11 @@ class ArtistClassifier {
 
     // 6. Vibe aggregator channels check
     if (_vibeAggregatorPattern.hasMatch(lower) && !hasEnsembleRescue) {
+      return false;
+    }
+
+    // 7. Personal vlogger / social channels check
+    if (_personalVlogPattern.hasMatch(lower) && !hasEnsembleRescue) {
       return false;
     }
 

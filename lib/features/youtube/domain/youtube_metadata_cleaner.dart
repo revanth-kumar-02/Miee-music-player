@@ -189,6 +189,20 @@ class YouTubeMetadataCleaner {
               artist = reliableArtist.trim();
             }
           }
+          // Check 1b: Is right pure video or promotional fluff? (e.g. "music video", "official video", "lyric video")
+          else if (_isPureVideoNoise(right) || _isPureVideoNoise(parts.sublist(1).join(matchedSep).trim())) {
+            title = left;
+            if (reliableArtist != null && reliableArtist.trim().isNotEmpty) {
+              artist = reliableArtist.trim();
+            }
+          }
+          // Check 1c: Is left pure video noise?
+          else if (_isPureVideoNoise(left)) {
+            title = right;
+            if (reliableArtist != null && reliableArtist.trim().isNotEmpty) {
+              artist = reliableArtist.trim();
+            }
+          }
           // Check 2: Does left start with @handle?
           else if (left.startsWith('@')) {
             final handle = left.replaceFirst(RegExp(r'^@'), '').trim();
@@ -306,18 +320,24 @@ class YouTubeMetadataCleaner {
     final lower = clause.toLowerCase().trim();
     return lower == 'official video' ||
         lower == 'official music video' ||
+        lower == 'music video' ||
         lower == 'official audio' ||
+        lower == 'official' ||
         lower == 'lyrical video' ||
         lower == 'lyric video' ||
+        lower == 'lyrics' ||
         lower == 'lyrical' ||
         lower == 'video song' ||
         lower == 'audio song' ||
         lower == 'full video song' ||
         lower == 'full song' ||
+        lower == 'video' ||
+        lower == 'audio' ||
         lower == 'trailer' ||
         lower == 'teaser' ||
         lower == 'promo' ||
         lower == 'visualizer' ||
+        lower == 'mv' ||
         lower == '4k' ||
         lower == 'hd';
   }
@@ -328,14 +348,14 @@ class YouTubeMetadataCleaner {
 
     // Remove bracketed noise
     final bracketNoise = RegExp(
-      r'[\(\[\{]\s*(official\s+music\s+video|official\s+video|official\s+audio|official|music\s+video|video|audio|lyric\s+video|lyrics|lyrical|visualizer|mv|hd|4k|4k\s+uhd|remastered|full\s+song|video\s+song)\s*[\)\]\}]',
+      r'[\(\[\{]\s*(official\s*(music)?\s*video|official\s*video|official\s*audio|official|music\s*video|video\s*song|video|audio\s*song|audio|lyric\s*video|lyrical\s*video|lyrics|lyrical|visualizer|mv|hd|4k|4k\s*uhd|remastered|full\s*song|full\s*video\s*song)\s*[\)\]\}]',
       caseSensitive: false,
     );
     str = str.replaceAll(bracketNoise, '').trim();
 
-    // Strip trailing video descriptors (e.g. "Radhimaa Video Song" -> "Radhimaa")
+    // Strip trailing video descriptors (e.g. "Radhimaa Video Song" -> "Radhimaa", "Brooklyn Baby - music video" -> "Brooklyn Baby")
     final trailingNoise = RegExp(
-      r'(\s+[\-\–\—]?\s*|\s+)(video\s+song|lyrical\s+video\s+song|lyrical\s+video|lyric\s+video|full\s+video\s+song|full\s+song|audio\s+song|official\s+video|official\s+audio|visualizer|mv)$',
+      r'(\s*[\-\–\—\|\:\/•]\s*|\s+)(video\s*song|lyrical\s*video\s*song|lyrical\s*video|lyric\s*video|lyrics|lyrical|full\s*video\s*song|full\s*song|audio\s*song|official\s*(music)?\s*video|official\s*video|official\s*audio|official|music\s*video|visualizer|mv|video|audio)\s*$',
       caseSensitive: false,
     );
     str = str.replaceAll(trailingNoise, '').trim();
@@ -378,13 +398,13 @@ class YouTubeMetadataCleaner {
   static String _removeVideoNoise(String input) {
     var str = input;
     final noiseRegex = RegExp(
-      r'[\(\[\{]\s*(official\s+music\s+video|official\s+video|official\s+audio|official|music\s+video|video|audio|lyric\s+video|lyrics|visualizer|mv|hd|4k|remastered|full\s+song)\s*[\)\]\}]',
+      r'[\(\[\{]\s*(official\s*(music)?\s*video|official\s*video|official\s*audio|official|music\s*video|video|audio|lyric\s*video|lyrical\s*video|lyrics|lyrical|visualizer|mv|hd|4k|remastered|full\s*song|video\s*song|audio\s*song)\s*[\)\]\}]',
       caseSensitive: false,
     );
     str = str.replaceAll(noiseRegex, '').trim();
 
     final trailingNoiseRegex = RegExp(
-      r'\s+(official\s+music\s+video|official\s+video|official\s+audio|lyric\s+video|visualizer|mv)$',
+      r'(\s*[\-\–\—\|\:\/•]\s*|\s+)(official\s*(music)?\s*video|official\s*video|music\s*video|official\s*audio|official|lyric\s*video|lyrical\s*video|lyrics|lyrical|visualizer|mv|video\s*song|audio\s*song|full\s*song|video|audio)\s*$',
       caseSensitive: false,
     );
     str = str.replaceAll(trailingNoiseRegex, '').trim();

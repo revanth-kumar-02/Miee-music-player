@@ -200,28 +200,20 @@ class SearchNotifier extends StateNotifier<SearchState> {
   }
 
   /// Automatically resolves and displays verified artists from top song results
-  /// when a user searches for a song title (e.g. "Alaakaa Loova" -> Sai Abhyankkar).
+  /// when a user searches for a song title (e.g. "Brooklyn Baby" -> Lana Del Rey).
   void _enrichArtistsFromSongs(
     String query,
     List<YouTubeVideo> youtube,
     int reqId,
-  ) {
+  ) async {
     if (reqId != _searchRequestId || youtube.isEmpty) return;
 
     final existingArtists = List<ArtistModel>.from(state.onlineArtists);
-    final cleanQuery = query.trim().toLowerCase();
-
-    // If existing artists already contain a direct match for the query, preserve them
-    final hasDirectArtist = existingArtists.any((a) {
-      final aName = a.name.trim().toLowerCase();
-      return aName == cleanQuery || aName.contains(cleanQuery);
-    });
-    if (hasDirectArtist && existingArtists.isNotEmpty) return;
 
     // Extract potential artist tokens from top songs
     final candidateNames = <String>[];
     for (final video in youtube.take(5)) {
-      final artistName = video.channelTitle.trim();
+      final artistName = (video.canonicalArtist ?? video.channelTitle).trim();
       if (artistName.isEmpty) continue;
 
       final parts = artistName.split(
@@ -240,6 +232,32 @@ class SearchNotifier extends StateNotifier<SearchState> {
       final curated = DeezerArtistRepository.findCuratedByName(name);
       if (curated != null && !resolvedArtists.any((a) => a.id == curated.id)) {
         resolvedArtists.add(curated);
+      } else {
+        // Also check if existing online artists already have this artist
+        final match = existingArtists.cast<ArtistModel?>().firstWhere(
+          (a) => a != null && a.name.toLowerCase() == name.toLowerCase(),
+          orElse: () => null,
+        );
+        if (match != null && !resolvedArtists.any((a) => a.id == match.id)) {
+          resolvedArtists.add(match);
+        }
+      }
+    }
+
+    // If candidate artist is not yet in resolvedArtists, query online artist repo
+    for (final name in candidateNames.take(2)) {
+      if (!resolvedArtists.any((a) => a.name.toLowerCase() == name.toLowerCase())) {
+        try {
+          final online = await _repo.artistRepository.searchArtists(name);
+          if (online.isNotEmpty) {
+            final top = online.first;
+            if (top.fanCount > 100 || DeezerArtistRepository.findCuratedByName(top.name) != null) {
+              if (!resolvedArtists.any((a) => a.id == top.id)) {
+                resolvedArtists.add(top);
+              }
+            }
+          }
+        } catch (_) {}
       }
     }
 

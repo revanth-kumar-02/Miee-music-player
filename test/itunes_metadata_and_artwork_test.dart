@@ -4,6 +4,7 @@ import '../lib/features/metadata/domain/itunes_song.dart';
 import '../lib/features/metadata/domain/metadata_match_result.dart';
 import '../lib/features/metadata/data/itunes_metadata_service.dart';
 import '../lib/features/youtube/domain/youtube_model.dart';
+import '../lib/features/youtube/domain/youtube_metadata_cleaner.dart';
 import '../lib/shared/models/track.dart';
 import '../lib/core/storage/adapters/track_hive_model.dart';
 import 'package:hive/hive.dart';
@@ -236,6 +237,16 @@ void main() {
 
       expect(hasAcoustic, isFalse);
       expect(hasLive, isFalse);
+    });
+
+    test('Video fluff cleaner cleans "Brooklyn Baby - music video" and matches iTunes studio metadata', () {
+      final cleaned = YouTubeMetadataCleaner.clean(
+        rawTitle: 'Brooklyn Baby - music video',
+        rawChannel: 'Lana Del Rey',
+      );
+
+      expect(cleaned.title, equals('Brooklyn Baby'));
+      expect(cleaned.artist, equals('Lana Del Rey'));
     });
   });
 }

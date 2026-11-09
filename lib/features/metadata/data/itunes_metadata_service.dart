@@ -73,7 +73,7 @@ class ItunesMetadataService {
 
   /// Promotional / video fluff tags stripped before iTunes querying.
   static final RegExp _videoFluffPattern = RegExp(
-    r'\b(official\s*(music)?\s*video|official\s*audio|official\s*lyric\s*video|lyric\s*video|lyrical\s*video|full\s*video\s*song|video\s*song|visualizer|4k|hd|1080p|audio\s*track)\b',
+    r'\b(official\s*(music)?\s*video|music\s*video|official\s*audio|official\s*lyric\s*video|lyric\s*video|lyrical\s*video|lyrics|full\s*video\s*song|video\s*song|visualizer|mv|4k|hd|1080p|audio\s*track|audio\s*song)\b',
     caseSensitive: false,
   );
 
@@ -224,8 +224,8 @@ class ItunesMetadataService {
 
     for (final candidate in candidates) {
       final scoreData = _scoreCandidate(
-        queryTitle: cleaned.title,
-        queryArtist: cleaned.artist,
+        queryTitle: queryTitle.isNotEmpty ? queryTitle : cleaned.title,
+        queryArtist: queryArtist.isNotEmpty ? queryArtist : cleaned.artist,
         queryAlbum: album,
         targetDurationMs: targetDurationMs,
         candidate: candidate,

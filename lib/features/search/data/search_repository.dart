@@ -221,17 +221,38 @@ class SearchRepository {
       }
     }
 
-    // Prioritize exact or prefix matches to query
+    // Prioritize prominent artists and verified curated artists over obscure homonyms
     merged.sort((a, b) {
+      final aIsCurated = DeezerArtistRepository.findCuratedByName(a.name) != null;
+      final bIsCurated = DeezerArtistRepository.findCuratedByName(b.name) != null;
+
+      // Curated/verified performing artists take precedence over obscure entities (< 5000 fans)
+      if (aIsCurated && !bIsCurated && b.fanCount < 5000) return -1;
+      if (!aIsCurated && bIsCurated && a.fanCount < 5000) return 1;
+
       final aName = a.name.toLowerCase();
       final bName = b.name.toLowerCase();
       final aExact = aName == cleanQuery || canonical(aName) == queryCanonical;
       final bExact = bName == cleanQuery || canonical(bName) == queryCanonical;
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
+
+      final aEligibleExact = aExact && (aIsCurated || a.fanCount >= 1000);
+      final bEligibleExact = bExact && (bIsCurated || b.fanCount >= 1000);
+      if (aEligibleExact && !bEligibleExact) return -1;
+      if (!aEligibleExact && bEligibleExact) return 1;
 
       final aStarts = aName.startsWith(cleanQuery);
       final bStarts = bName.startsWith(cleanQuery);
+      final aEligibleStarts = aStarts && (aIsCurated || a.fanCount >= 1000);
+      final bEligibleStarts = bStarts && (bIsCurated || b.fanCount >= 1000);
+      if (aEligibleStarts && !bEligibleStarts) return -1;
+      if (!aEligibleStarts && bEligibleStarts) return 1;
+
+      if (aIsCurated && !bIsCurated) return -1;
+      if (!aIsCurated && bIsCurated) return 1;
+
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
 
