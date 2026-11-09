@@ -130,9 +130,14 @@ class MieeArtworkImage extends ConsumerWidget {
         },
       );
     } else {
-      final cleanPath = pathOrUrl.startsWith('file://')
-          ? Uri.parse(pathOrUrl).toFilePath()
-          : pathOrUrl;
+      String cleanPath;
+      try {
+        cleanPath = pathOrUrl.startsWith('file://')
+            ? (Uri.tryParse(pathOrUrl)?.toFilePath() ?? pathOrUrl.replaceFirst('file://', ''))
+            : pathOrUrl;
+      } catch (_) {
+        cleanPath = pathOrUrl.replaceFirst('file://', '');
+      }
       final file = File(cleanPath);
 
       imageWidget = Image.file(

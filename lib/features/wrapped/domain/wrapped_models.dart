@@ -324,7 +324,7 @@ class WrappedEligibility {
     final ageDays = difference.isNegative ? 0 : difference.inDays;
 
     int completed = 0;
-    while (true) {
+    while (completed < 50) {
       final nextAnniv = anniversaryForYear(accountStartDate, completed + 1);
       if (now.isAfter(nextAnniv) || now.isAtSameMomentAs(nextAnniv)) {
         completed++;

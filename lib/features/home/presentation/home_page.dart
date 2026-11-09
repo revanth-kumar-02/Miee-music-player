@@ -2301,9 +2301,24 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       );
     }
+    if (rawUrl.startsWith('assets/')) {
+      return Image.asset(
+        rawUrl,
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
+        errorBuilder: (_, __, ___) => const Center(
+          child: Icon(
+            Icons.queue_music_rounded,
+            size: 44,
+            color: AppColors.cocoaPlum,
+          ),
+        ),
+      );
+    }
     try {
       final normalizedPath = rawUrl.startsWith('file://')
-          ? Uri.parse(rawUrl).toFilePath()
+          ? (Uri.tryParse(rawUrl)?.toFilePath() ?? rawUrl.replaceFirst('file://', ''))
           : rawUrl;
       return Image.file(
         File(normalizedPath),

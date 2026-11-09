@@ -21,9 +21,21 @@ class PlaylistsRepository {
 
   /// Returns all stored playlists ordered by last modified (newest first).
   List<PlaylistHiveModel> getPlaylists() {
-    final list = _box.values.toList();
-    list.sort((a, b) => b.lastModified.compareTo(a.lastModified));
-    return list;
+    try {
+      final list = _box.values.whereType<PlaylistHiveModel>().toList();
+      list.sort((a, b) {
+        final aTime = a.lastModified;
+        final bTime = b.lastModified;
+        return bTime.compareTo(aTime);
+      });
+      return list;
+    } catch (_) {
+      try {
+        return _box.values.whereType<PlaylistHiveModel>().toList();
+      } catch (_) {
+        return const [];
+      }
+    }
   }
 
   /// Returns a single playlist by [id], or null if not found.

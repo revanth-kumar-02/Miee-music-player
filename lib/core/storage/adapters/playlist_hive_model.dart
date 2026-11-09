@@ -36,16 +36,44 @@ class PlaylistHiveModelAdapter extends TypeAdapter<PlaylistHiveModel> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    final createdAt = fields[3] as DateTime;
+
+    DateTime parseDate(dynamic val, DateTime fallback) {
+      if (val is DateTime) return val;
+      if (val is String) return DateTime.tryParse(val) ?? fallback;
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return fallback;
+    }
+
+    final now = DateTime.now();
+    final createdAt = parseDate(fields[3], now);
+    final lastModified = parseDate(fields[4], createdAt);
+
+    final tracks = <TrackHiveModel>[];
+    final rawTracks = fields[2];
+    if (rawTracks is List) {
+      for (final item in rawTracks) {
+        if (item is TrackHiveModel) {
+          tracks.add(item);
+        } else if (item is Map) {
+          tracks.add(TrackHiveModel(
+            id: (item['id'] ?? '').toString(),
+            title: (item['title'] ?? 'Unknown Title').toString(),
+            artist: (item['artist'] ?? 'Unknown Artist').toString(),
+            imageUrl: (item['imageUrl'] ?? item['image_url'] ?? '').toString(),
+            duration: (item['duration'] ?? '0:00').toString(),
+            filePath: item['filePath'] as String?,
+          ));
+        }
+      }
+    }
+
     return PlaylistHiveModel(
-      id: fields[0] as String,
-      name: fields[1] as String,
-      tracks: (fields[2] as List).cast<TrackHiveModel>(),
+      id: (fields[0] ?? '').toString(),
+      name: (fields[1] ?? 'Untitled Playlist').toString(),
+      tracks: tracks,
       createdAt: createdAt,
-      // Field 4 is lastModified — falls back to createdAt for old data.
-      lastModified: fields[4] as DateTime? ?? createdAt,
-      // Field 5 is customCoverPath — null for old records lacking this field.
-      customCoverPath: fields[5] as String?,
+      lastModified: lastModified,
+      customCoverPath: fields[5]?.toString(),
     );
   }
 

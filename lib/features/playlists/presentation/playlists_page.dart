@@ -612,40 +612,16 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (item.image != null && item.image!.isNotEmpty)
-                      (item.image!.startsWith('http')
-                          ? Image.network(
-                              item.image!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Center(
-                                child: Icon(Icons.album_rounded,
-                                    color: AppColors.industrialSteel),
-                              ),
-                            )
-                          : (item.image!.startsWith('assets/')
-                              ? Image.asset(
-                                  item.image!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Center(
-                                    child: Icon(Icons.album_rounded,
-                                        color: AppColors.industrialSteel),
-                                  ),
-                                )
-                              : Image.file(
-                                  File(item.image!.startsWith('file://')
-                                      ? Uri.parse(item.image!).toFilePath()
-                                      : item.image!),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Center(
-                                    child: Icon(Icons.album_rounded,
-                                        color: AppColors.industrialSteel),
-                                  ),
-                                )))
-                    else
-                      const Center(
+                    _buildSafeImage(
+                      rawPath: item.image,
+                      width: null,
+                      height: null,
+                      fit: BoxFit.cover,
+                      fallback: const Center(
                         child: Icon(Icons.album_rounded,
                             color: AppColors.industrialSteel, size: 32),
                       ),
+                    ),
                     // Gradient overlay with title
                     DecoratedBox(
                       decoration: BoxDecoration(
@@ -889,6 +865,58 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
         ),
       ),
     );
+  }
+
+  
+  Widget _buildSafeImage({
+    required String? rawPath,
+    required double? width,
+    required double? height,
+    required BoxFit fit,
+    required Widget fallback,
+    int? cacheWidth,
+    int? cacheHeight,
+  }) {
+    if (rawPath == null || rawPath.trim().isEmpty) return fallback;
+    final clean = rawPath.trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return Image.network(
+        clean,
+        width: width,
+        height: height,
+        fit: fit,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+        errorBuilder: (_, __, ___) => fallback,
+      );
+    }
+    if (clean.startsWith('assets/')) {
+      return Image.asset(
+        clean,
+        width: width,
+        height: height,
+        fit: fit,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+        errorBuilder: (_, __, ___) => fallback,
+      );
+    }
+    try {
+      final normalized = clean.startsWith('file://')
+          ? (Uri.tryParse(clean)?.toFilePath() ?? clean.replaceFirst('file://', ''))
+          : clean;
+      return Image.file(
+        File(normalized),
+        width: width,
+        height: height,
+        fit: fit,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+        errorBuilder: (_, __, ___) => fallback,
+      );
+    } catch (_) {
+      return fallback;
+    }
   }
 
   Widget _buildFallbackCover() {
@@ -1140,56 +1168,24 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
                                       color: AppColors.white,
                                     ),
                                   )
-                                : (img != null && img.isNotEmpty)
-                                    ? (img.startsWith('http')
-                                        ? Image.network(
-                                            img,
-                                            width: 36,
-                                            height: 36,
-                                            fit: BoxFit.cover,
-                                            cacheWidth: 72,
-                                            cacheHeight: 72,
-                                            errorBuilder: (_, __, ___) => Container(
-                                              width: 36,
-                                              height: 36,
-                                              color: AppColors.softClay,
-                                              child: const Icon(
-                                                Icons.music_note_rounded,
-                                                size: 18,
-                                                color: AppColors.cocoaPlum,
-                                              ),
-                                            ),
-                                          )
-                                        : Image.file(
-                                            File(img.startsWith('file://')
-                                                ? Uri.parse(img).toFilePath()
-                                                : img),
-                                            width: 36,
-                                            height: 36,
-                                            fit: BoxFit.cover,
-                                            cacheWidth: 72,
-                                            cacheHeight: 72,
-                                            errorBuilder: (_, __, ___) => Container(
-                                              width: 36,
-                                              height: 36,
-                                              color: AppColors.softClay,
-                                              child: const Icon(
-                                                Icons.music_note_rounded,
-                                                size: 18,
-                                                color: AppColors.cocoaPlum,
-                                              ),
-                                            ),
-                                          ))
-                                    : Container(
-                                        width: 36,
-                                        height: 36,
-                                        color: AppColors.softClay,
-                                        child: const Icon(
-                                          Icons.music_note_rounded,
-                                          size: 18,
-                                          color: AppColors.cocoaPlum,
-                                        ),
+                                : _buildSafeImage(
+                                    rawPath: img,
+                                    width: 36,
+                                    height: 36,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 72,
+                                    cacheHeight: 72,
+                                    fallback: Container(
+                                      width: 36,
+                                      height: 36,
+                                      color: AppColors.softClay,
+                                      child: const Icon(
+                                        Icons.music_note_rounded,
+                                        size: 18,
+                                        color: AppColors.cocoaPlum,
                                       ),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(

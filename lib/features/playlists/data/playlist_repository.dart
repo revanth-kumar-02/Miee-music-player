@@ -1,3 +1,4 @@
+import '../../../core/storage/adapters/track_hive_model.dart';
 import '../../../features/library/data/playlists_repository.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
@@ -87,22 +88,76 @@ class PlaylistRepository {
   // ── Conversion ────────────────────────────────────────────────────────────
 
   PlaylistModel _toModel(dynamic raw) {
-    final tracksList = (raw.tracks as List)
-        .map((t) => t.toTrack() as Track)
-        .where((t) {
-          final clean = t.artist.trim().toLowerCase();
-          return !(clean.isEmpty ||
-              clean == 'unknown' ||
-              clean == '<unknown>' ||
-              clean == 'unknown artist');
-        })
-        .toList();
+    if (raw == null) {
+      return PlaylistModel(
+        id: '',
+        name: 'Untitled Playlist',
+        tracks: const [],
+        createdAt: DateTime.now(),
+        lastModified: DateTime.now(),
+      );
+    }
+
+    final tracksList = <Track>[];
+    try {
+      final rawTracks = raw.tracks;
+      if (rawTracks is List) {
+        for (final t in rawTracks) {
+          Track? track;
+          if (t is TrackHiveModel) {
+            track = t.toTrack();
+          } else if (t is Track) {
+            track = t;
+          } else if (t is MusicItem) {
+            track = Track(
+              id: t.id,
+              title: t.title,
+              artist: t.artist,
+              imageUrl: t.imageUrl,
+              duration: t.duration,
+              filePath: t.filePath,
+            );
+          } else if (t is Map) {
+            track = Track(
+              id: (t['id'] ?? '').toString(),
+              title: (t['title'] ?? 'Unknown Title').toString(),
+              artist: (t['artist'] ?? 'Unknown Artist').toString(),
+              imageUrl: (t['imageUrl'] ?? t['image_url'] ?? '').toString(),
+              duration: (t['duration'] ?? '0:00').toString(),
+              filePath: t['filePath'] as String?,
+            );
+          }
+
+          if (track != null) {
+            final clean = track.artist.trim().toLowerCase();
+            if (!(clean.isEmpty ||
+                clean == 'unknown' ||
+                clean == '<unknown>' ||
+                clean == 'unknown artist')) {
+              tracksList.add(track);
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    DateTime parseDate(dynamic val, DateTime fallback) {
+      if (val is DateTime) return val;
+      if (val is String) return DateTime.tryParse(val) ?? fallback;
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return fallback;
+    }
+
+    final now = DateTime.now();
+    final createdAt = parseDate(raw.createdAt, now);
+    final lastModified = parseDate(raw.lastModified, createdAt);
+
     return PlaylistModel(
-      id: raw.id as String,
-      name: raw.name as String,
+      id: (raw.id ?? '').toString(),
+      name: (raw.name ?? 'Untitled Playlist').toString(),
       tracks: tracksList,
-      createdAt: raw.createdAt as DateTime,
-      lastModified: raw.lastModified as DateTime,
+      createdAt: createdAt,
+      lastModified: lastModified,
       customCoverPath: raw.customCoverPath as String?,
     );
   }

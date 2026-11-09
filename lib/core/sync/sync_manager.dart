@@ -830,12 +830,16 @@ class SyncManager with WidgetsBindingObserver {
                 ))
             .toList();
 
+        final now = DateTime.now();
+        final createdAt = DateTime.tryParse(p['created_at']?.toString() ?? '') ?? now;
+        final lastModified = DateTime.tryParse(p['last_modified']?.toString() ?? '') ?? createdAt;
+
         return PlaylistHiveModel(
           id: pId,
-          name: p['name'] as String,
+          name: p['name'] as String? ?? 'Untitled Playlist',
           tracks: songs,
-          createdAt: DateTime.parse(p['created_at'] as String),
-          lastModified: DateTime.parse(p['last_modified'] as String),
+          createdAt: createdAt,
+          lastModified: lastModified,
           customCoverPath: p['custom_cover_path'] as String?,
         );
       }).toList();
@@ -1112,12 +1116,16 @@ class SyncManager with WidgetsBindingObserver {
           ? existingLocal!.customCoverPath
           : p['custom_cover_path'] as String?;
 
+      final now = DateTime.now();
+      final createdAt = DateTime.tryParse(p['created_at']?.toString() ?? '') ?? now;
+      final lastModified = DateTime.tryParse(p['last_modified']?.toString() ?? '') ?? createdAt;
+
       final playlist = PlaylistHiveModel(
         id: pId,
-        name: p['name'] as String,
+        name: p['name'] as String? ?? 'Untitled Playlist',
         tracks: songs,
-        createdAt: DateTime.parse(p['created_at'] as String),
-        lastModified: DateTime.parse(p['last_modified'] as String),
+        createdAt: createdAt,
+        lastModified: lastModified,
         customCoverPath: durableCoverPath,
       );
       await playlistsBox.put(pId, playlist);

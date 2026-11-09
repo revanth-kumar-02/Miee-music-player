@@ -56,7 +56,7 @@ class PlaylistModel {
   MusicItem? get artworkTrack {
     if (tracks.isEmpty) return null;
     return tracks.firstWhere(
-      (t) => t.imageUrl.trim().isNotEmpty,
+      (t) => (t.imageUrl.trim().isNotEmpty),
       orElse: () => tracks.first,
     );
   }
@@ -65,12 +65,20 @@ class PlaylistModel {
   /// 1. User-selected [customCoverPath] (highest priority, stored independently).
   /// 2. Album art of the first track with artwork ([artworkTrack]?.imageUrl).
   /// 3. null — callers should render a placeholder.
-  String? get effectiveCoverUrl =>
-      (customCoverPath != null && customCoverPath!.trim().isNotEmpty)
-          ? customCoverPath
-          : (artworkTrack != null && artworkTrack!.imageUrl.trim().isNotEmpty
-              ? artworkTrack!.imageUrl
-              : null);
+  String? get effectiveCoverUrl {
+    final custom = customCoverPath;
+    if (custom != null && custom.trim().isNotEmpty) {
+      return custom.trim();
+    }
+    final fallback = artworkTrack;
+    if (fallback != null) {
+      final img = fallback.imageUrl;
+      if (img.trim().isNotEmpty) {
+        return img.trim();
+      }
+    }
+    return null;
+  }
 
   bool get isEmpty => tracks.isEmpty;
   bool get isNotEmpty => !isEmpty;

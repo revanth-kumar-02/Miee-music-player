@@ -63,12 +63,12 @@ class TrackHiveModelAdapter extends TypeAdapter<TrackHiveModel> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return TrackHiveModel(
-      id: fields[0] as String,
-      title: fields[1] as String,
-      artist: fields[2] as String,
-      imageUrl: fields[3] as String,
-      duration: fields[4] as String,
-      filePath: fields[5] as String?,
+      id: (fields[0] ?? '').toString(),
+      title: (fields[1] ?? 'Unknown Title').toString(),
+      artist: (fields[2] ?? 'Unknown Artist').toString(),
+      imageUrl: (fields[3] ?? '').toString(),
+      duration: (fields[4] ?? '0:00').toString(),
+      filePath: fields[5]?.toString(),
     );
   }
 

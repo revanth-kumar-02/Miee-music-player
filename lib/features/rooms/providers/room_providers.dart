@@ -681,7 +681,9 @@ class RoomController extends StateNotifier<RoomState> {
       unawaited(_repo.unsubscribeChannel(activeRoomId));
     }
     _lastAppliedRevision = 0;
-    _ref.read(playerControllerProvider.notifier).setRoomListener(false);
+    try {
+      _ref.read(playerControllerProvider.notifier).setRoomListener(false);
+    } catch (_) {}
   }
 
   @override
