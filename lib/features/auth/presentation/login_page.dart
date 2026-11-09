@@ -7,9 +7,16 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_providers.dart';
 import 'widgets/auth_components.dart';
 
-/// Recreated Login Screen strictly matching Stitch:
-/// - Mobile: `17_mobile_miee_mobile_login.html`
-/// - Desktop / Web: `16_desktop_miee_web_login_clean_auth.html`
+/// Faithfully implemented Login Screen reproducing the reference design:
+/// - Editorial collage hero image (`login_collage.png`)
+/// - Warm ivory background (`#FAF8F5`)
+/// - Cobalt blue Miee branding emblem + `miee.` typography
+/// - "Welcome back" heading & subtitle
+/// - Email & Password inputs with leading icons
+/// - Remember me & Forgot password
+/// - Cobalt pill "Log in →" button
+/// - "Don't have an account? Create account"
+/// - Outlined pill "▷ Continue as Guest" button
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -54,8 +61,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-      // Notify password managers (Google Password Manager on Android & browsers on Web)
-      // that login succeeded and credentials can be saved/updated.
+      // Notify password managers that login succeeded
       TextInput.finishAutofillContext(shouldSave: true);
     } catch (e) {
       TextInput.finishAutofillContext(shouldSave: false);
@@ -68,7 +74,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             str.contains('network is unreachable') ||
             str.contains('connection refused') ||
             str.contains('clientexception')) {
-          message = 'Unable to reach the server. Please check your internet connection or Private DNS settings, or tap "Continue as Guest".';
+          message =
+              'Unable to reach the server. Please check your internet connection or Private DNS settings, or tap "Continue as Guest".';
         }
         setState(() {
           _errorMessage = message;
@@ -89,17 +96,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AuthPalette.cardSurface,
+          backgroundColor: MieeAuthTheme.panelSurface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AuthPalette.cardBorder, width: 1),
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: MieeAuthTheme.fieldBorder, width: 1),
           ),
           title: Text(
             'Reset Password',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: AuthPalette.textPrimary,
+              color: MieeAuthTheme.textPrimary,
             ),
           ),
           content: ConstrainedBox(
@@ -112,7 +119,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   'Enter your account email to receive a password reset link.',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13.5,
-                    color: AuthPalette.textMuted,
+                    color: MieeAuthTheme.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -122,35 +129,39 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   autofillHints: const [AutofillHints.email],
                   autocorrect: false,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    color: AuthPalette.textPrimary,
+                    fontSize: 14.5,
+                    color: MieeAuthTheme.textPrimary,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Email address',
                     hintStyle: GoogleFonts.plusJakartaSans(
-                      color: AuthPalette.textMuted.withValues(alpha: 0.6),
-                      fontSize: 13.5,
+                      color: MieeAuthTheme.textMuted,
+                      fontSize: 14,
                     ),
                     filled: true,
-                    fillColor: AuthPalette.inputFill,
+                    fillColor: MieeAuthTheme.fieldFill,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                      horizontal: 16,
+                      vertical: 14,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AuthPalette.inputBorder),
+                      borderSide: const BorderSide(
+                        color: MieeAuthTheme.fieldBorder,
+                        width: 1.2,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AuthPalette.inputBorder),
+                      borderSide: const BorderSide(
+                        color: MieeAuthTheme.fieldBorder,
+                        width: 1.2,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                        color: AuthPalette.inputFocusBorder,
+                        color: MieeAuthTheme.cobaltBlue,
                         width: 1.5,
                       ),
                     ),
@@ -164,8 +175,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                       color: isSuccess
-                          ? const Color(0xFF2E7D32)
-                          : AuthPalette.errorRed,
+                          ? MieeAuthTheme.successGreen
+                          : MieeAuthTheme.errorRed,
                     ),
                   ),
                 ],
@@ -178,7 +189,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               child: Text(
                 'Cancel',
                 style: GoogleFonts.plusJakartaSans(
-                  color: AuthPalette.textMuted,
+                  color: MieeAuthTheme.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -221,11 +232,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AuthPalette.primaryButton,
+                backgroundColor: MieeAuthTheme.cobaltBlue,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: isSending
@@ -257,86 +268,218 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final width = media.size.width;
     final height = media.size.height;
     final isDesktop = width >= 900;
-    final isCompact = height < 860;
+    final heroHeight = (height * 0.38).clamp(280.0, 420.0);
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          SystemNavigator.pop();
-        }
-      },
-      child: AuthScaffold(
-        desktopHeader: AuthDesktopHeader(isCompact: isCompact),
-        desktopFooter: AuthDesktopFooter(isCompact: isCompact),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: isDesktop ? 1060 : 440,
-            ),
-            child: isDesktop
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Left Column: Login Form
-                      Expanded(
-                        flex: 5,
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            right: isCompact ? 36.0 : 48.0,
-                          ),
-                          child: _buildFormContent(isDesktop: true),
-                        ),
-                      ),
-                      // Right Column: Optimized Archival Artwork Showcase
-                      Expanded(
-                        flex: 6,
-                        child: Center(
-                          child: _buildDesktopShowcaseCard(
-                            isCompact: isCompact,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : _buildFormContent(isDesktop: false),
-          ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            SystemNavigator.pop();
+          }
+        },
+        child: Scaffold(
+          backgroundColor: MieeAuthTheme.background,
+          body: isDesktop
+              ? _buildDesktopLayout(height: height)
+              : _buildMobileLayout(heroHeight: heroHeight),
         ),
       ),
     );
   }
 
-  Widget _buildFormContent({required bool isDesktop}) {
+  /// Mobile layout faithfully matching the reference design.
+  Widget _buildMobileLayout({required double heroHeight}) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Top Hero: Editorial Collage Image
+          SizedBox(
+            width: double.infinity,
+            height: heroHeight,
+            child: Image.asset(
+              'assets/images/auth/login_collage.png',
+              width: double.infinity,
+              height: heroHeight,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+
+          // Main Form Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+
+                // Miee Branding: Blue Square Soundwave Emblem + miee. Wordmark
+                const MieeAuthBrandMark(
+                  emblemSize: 40,
+                  fontSize: 28,
+                ),
+                const SizedBox(height: 18),
+
+                // Main Heading
+                Text(
+                  'Welcome back',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                    color: MieeAuthTheme.textPrimary,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Subtitle
+                Text(
+                  'Pick up where the music left off.',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    color: MieeAuthTheme.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Interactive Form
+                _buildForm(),
+                const SizedBox(height: 28),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Desktop layout with dual-pane composition.
+  Widget _buildDesktopLayout({required double height}) {
+    final isCompact = height < 860;
+    return Column(
+      children: [
+        AuthDesktopHeader(isCompact: isCompact),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1040),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left Column: Login Form
+                  Expanded(
+                    flex: 5,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 36.0),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const MieeAuthBrandMark(
+                              emblemSize: 42,
+                              fontSize: 30,
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Welcome back',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.6,
+                                color: MieeAuthTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Pick up where the music left off.',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
+                                color: MieeAuthTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            _buildForm(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Right Column: Collage Showcase
+                  Expanded(
+                    flex: 6,
+                    child: Center(
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          maxWidth: 480,
+                          maxHeight: 560,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x14000000),
+                              blurRadius: 32,
+                              offset: Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          'assets/images/auth/login_collage.png',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        AuthDesktopFooter(isCompact: isCompact),
+      ],
+    );
+  }
+
+  /// Form inputs, controls, primary submit, and secondary actions.
+  Widget _buildForm() {
     return AutofillGroup(
       child: Form(
         key: _formKey,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Branding & Title Header
-            AuthBrandHeader(
-              title: 'Welcome back',
-              subtitle: 'Pick up where the music left off.',
-              showEmblem: !isDesktop,
-            ),
-
             // Error banner
             if (_errorMessage != null) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AuthPalette.errorContainer,
-                  borderRadius: BorderRadius.circular(10),
+                  color: MieeAuthTheme.errorContainer,
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AuthPalette.errorRed.withValues(alpha: 0.3),
+                    color: MieeAuthTheme.errorRed.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.error_outline_rounded,
-                      color: AuthPalette.errorRed,
+                      color: MieeAuthTheme.errorRed,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
@@ -345,7 +488,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         _errorMessage!,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12.5,
-                          color: AuthPalette.errorRed,
+                          color: MieeAuthTheme.errorRed,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -356,16 +499,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               const SizedBox(height: 16),
             ],
 
-            // Email Input (52px rounded-xl)
+            // Field 1: Email
             AuthTextField(
               label: 'Email address',
-              hintText: isDesktop ? 'name@example.com' : 'Enter your email',
+              showLabel: false,
+              hintText: 'Enter your email',
               controller: _emailController,
               focusNode: _emailFocusNode,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.email, AutofillHints.username],
               autocorrect: false,
+              prefixIcon: Icons.mail_outline_rounded,
               onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -377,11 +522,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            // Password Input (52px rounded-xl)
+            // Field 2: Password
             AuthTextField(
               label: 'Password',
+              showLabel: false,
               hintText: 'Enter your password',
               controller: _passwordController,
               focusNode: _passwordFocusNode,
@@ -389,202 +535,144 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.password],
               autocorrect: false,
+              prefixIcon: Icons.lock_outline_rounded,
               onFieldSubmitted: (_) => _handleLogin(),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _isPasswordVisible
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-                color: AuthPalette.textMuted,
-                size: 20,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: MieeAuthTheme.fieldIcon,
+                  size: 20,
+                ),
+                onPressed: () {
+                  setState(() => _isPasswordVisible = !_isPasswordVisible);
+                },
+                tooltip:
+                    _isPasswordVisible ? 'Hide password' : 'Show password',
               ),
-              onPressed: () {
-                setState(() => _isPasswordVisible = !_isPasswordVisible);
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your password';
+                }
+                return null;
               },
-              tooltip:
-                  _isPasswordVisible ? 'Hide password' : 'Show password',
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your password';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 14),
 
-          // Remember Me Checkbox & Forgot Password Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: InkWell(
-                  onTap: () => setState(() => _rememberMe = !_rememberMe),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: Checkbox(
-                            value: _rememberMe,
-                            onChanged: (val) {
-                              setState(() => _rememberMe = val ?? false);
-                            },
-                            activeColor: AuthPalette.primaryButton,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            side: const BorderSide(
-                              color: AuthPalette.inputBorder,
-                              width: 1.5,
+            // Controls: Remember me checkbox + Forgot password link
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: InkWell(
+                    onTap: () => setState(() => _rememberMe = !_rememberMe),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: Checkbox(
+                              value: _rememberMe,
+                              onChanged: (val) {
+                                setState(() => _rememberMe = val ?? false);
+                              },
+                              activeColor: MieeAuthTheme.cobaltBlue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              side: const BorderSide(
+                                color: MieeAuthTheme.fieldBorder,
+                                width: 1.5,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            'Remember me',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: AuthPalette.textMuted,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Remember me',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: MieeAuthTheme.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _showForgotPasswordDialog,
-                child: Text(
-                  'Forgot password?',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AuthPalette.primaryButton,
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _showForgotPasswordDialog,
+                  child: Text(
+                    'Forgot password?',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: MieeAuthTheme.cobaltBlue,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+              ],
+            ),
+            const SizedBox(height: 22),
 
-          // Solid Bordeaux Pill "Log in" Button
-          AuthPrimaryButton(
-            label: 'Log in',
-            trailingIcon: isDesktop ? Icons.arrow_forward_rounded : null,
-            isLoading: _isLoading,
-            onPressed: _handleLogin,
-          ),
-          const SizedBox(height: 24),
+            // Primary Button: "Log in →"
+            AuthPrimaryButton(
+              label: 'Log in',
+              trailingIcon: Icons.arrow_forward_rounded,
+              isLoading: _isLoading,
+              onPressed: _handleLogin,
+            ),
+            const SizedBox(height: 20),
 
-          // Footer: Don't have an account? Create account
-          Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                "Don't have an account?",
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  color: AuthPalette.textMuted,
-                ),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => context.go('/register'),
-                child: Text(
-                  'Create account',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AuthPalette.primaryButton,
+            // Secondary Action 1: "Don't have an account? Create account"
+            Center(
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    "Don't have an account? ",
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w500,
+                      color: MieeAuthTheme.textSecondary,
+                    ),
                   ),
-                ),
+                  GestureDetector(
+                    onTap: () => context.go('/register'),
+                    child: Text(
+                      'Create account',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: MieeAuthTheme.cobaltBlue,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 18),
 
-          // Continue as Guest Option
-          Center(
-            child: TextButton.icon(
+            // Secondary Action 2: "▷ Continue as Guest"
+            MieeGuestOutlineButton(
               onPressed: () {
                 ref.read(guestModeProvider.notifier).state = true;
                 context.go('/home');
               },
-              icon: const Icon(
-                Icons.arrow_forward_rounded,
-                size: 16,
-                color: AuthPalette.textMuted,
-              ),
-              label: Text(
-                'Continue as Guest',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: AuthPalette.textMuted,
-                ),
-              ),
             ),
-          ),
-        ],
-      ),
-    ),
-    );
-  }
-
-  Widget _buildDesktopShowcaseCard({required bool isCompact}) {
-    return Container(
-      constraints: BoxConstraints(
-        maxWidth: isCompact ? 440 : 490,
-        maxHeight: isCompact ? 478 : 533,
-      ),
-      child: AspectRatio(
-        aspectRatio: 500 / 544,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF140D0F),
-            borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
-            border: Border.all(
-              color: const Color(0xFFE3E2E0),
-              width: 1.0,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0C1A0F12),
-                blurRadius: 28,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Image.asset(
-            'assets/images/login_artwork.webp',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: AuthPalette.primaryButton,
-              child: const Center(
-                child: Icon(
-                  Icons.music_note_rounded,
-                  size: 64,
-                  color: Colors.white30,
-                ),
-              ),
-            ),
-          ),
+          ],
         ),
       ),
     );
   }
 }
-

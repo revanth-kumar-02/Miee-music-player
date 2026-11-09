@@ -85,15 +85,12 @@ void main() {
       expect(passwordWidget.obscureText, isTrue);
       expect(passwordWidget.autocorrect, isFalse);
 
-      // 5. Confirm Password field has AutofillHints.newPassword
+      // 5. Verify exactly 3 registration fields are present (strictly NO Confirm Password)
+      expect(find.byType(AuthTextField), findsNWidgets(3));
       final confirmPasswordFinder = find.byWidgetPredicate(
         (widget) => widget is AuthTextField && widget.label == 'CONFIRM PASSWORD',
       );
-      expect(confirmPasswordFinder, findsOneWidget);
-      final confirmPasswordWidget = tester.widget<AuthTextField>(confirmPasswordFinder);
-      expect(confirmPasswordWidget.autofillHints, contains(AutofillHints.newPassword));
-      expect(confirmPasswordWidget.obscureText, isTrue);
-      expect(confirmPasswordWidget.autocorrect, isFalse);
+      expect(confirmPasswordFinder, findsNothing);
     });
 
     testWidgets('AuthTextField correctly propagates autofillHints to underlying TextField', (tester) async {
@@ -134,6 +131,7 @@ void main() {
       // Tap Log in button with empty fields
       final loginBtnFinder = find.widgetWithText(AuthPrimaryButton, 'Log in');
       expect(loginBtnFinder, findsOneWidget);
+      await tester.ensureVisible(loginBtnFinder);
       await tester.tap(loginBtnFinder);
       await tester.pumpAndSettle();
 

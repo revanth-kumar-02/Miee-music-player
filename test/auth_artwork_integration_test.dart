@@ -8,8 +8,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Auth Artwork Integration Tests', () {
-    testWidgets('RegisterPage renders register_artwork.webp on desktop viewport', (tester) async {
-      tester.view.physicalSize = const Size(1440, 900);
+    testWidgets('RegisterPage renders register_vinyl.png hero image', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -22,29 +22,29 @@ void main() {
       );
       await tester.pump();
 
-      // Find the artwork image widget
+      // Find the register hero image widget
       final registerImageFinder = find.byWidgetPredicate((widget) {
         if (widget is Image && widget.image is AssetImage) {
           final assetImage = widget.image as AssetImage;
-          return assetImage.assetName == 'assets/images/register_artwork.webp';
+          return assetImage.assetName == 'assets/images/auth/register_vinyl.png';
         }
         return false;
       });
 
       expect(registerImageFinder, findsOneWidget);
 
-      // Verify no login artwork is rendered on RegisterPage
+      // Verify no login collage is rendered on RegisterPage
       final loginImageFinder = find.byWidgetPredicate((widget) {
         if (widget is Image && widget.image is AssetImage) {
           final assetImage = widget.image as AssetImage;
-          return assetImage.assetName == 'assets/images/login_artwork.webp';
+          return assetImage.assetName == 'assets/images/auth/login_collage.png';
         }
         return false;
       });
       expect(loginImageFinder, findsNothing);
     });
 
-    testWidgets('LoginPage renders login_artwork.webp on desktop viewport', (tester) async {
+    testWidgets('LoginPage renders login_collage.png on desktop viewport', (tester) async {
       tester.view.physicalSize = const Size(1440, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -58,22 +58,22 @@ void main() {
       );
       await tester.pump();
 
-      // Find the artwork image widget
+      // Find the login collage image widget
       final loginImageFinder = find.byWidgetPredicate((widget) {
         if (widget is Image && widget.image is AssetImage) {
           final assetImage = widget.image as AssetImage;
-          return assetImage.assetName == 'assets/images/login_artwork.webp';
+          return assetImage.assetName == 'assets/images/auth/login_collage.png';
         }
         return false;
       });
 
       expect(loginImageFinder, findsOneWidget);
 
-      // Verify no register artwork is rendered on LoginPage
+      // Verify no register vinyl is rendered on LoginPage
       final registerImageFinder = find.byWidgetPredicate((widget) {
         if (widget is Image && widget.image is AssetImage) {
           final assetImage = widget.image as AssetImage;
-          return assetImage.assetName == 'assets/images/register_artwork.webp';
+          return assetImage.assetName == 'assets/images/auth/register_vinyl.png';
         }
         return false;
       });
@@ -81,8 +81,8 @@ void main() {
 
       // Verify form elements on desktop
       expect(find.text('Welcome back'), findsOneWidget);
-      expect(find.text('Email address'), findsOneWidget);
-      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Enter your email'), findsOneWidget);
+      expect(find.text('Enter your password'), findsOneWidget);
       expect(find.text('Remember me'), findsOneWidget);
       expect(find.text('Forgot password?'), findsOneWidget);
       expect(find.text('Log in'), findsOneWidget);
@@ -90,7 +90,7 @@ void main() {
       expect(find.text('Continue as Guest'), findsOneWidget);
     });
 
-    testWidgets('LoginPage on mobile renders single-column without artwork card', (tester) async {
+    testWidgets('LoginPage on mobile renders login_collage.png hero image', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -104,20 +104,20 @@ void main() {
       );
       await tester.pump();
 
-      // Artwork card should not appear on mobile
+      // Hero image should appear on mobile
       final loginImageFinder = find.byWidgetPredicate((widget) {
         if (widget is Image && widget.image is AssetImage) {
           final assetImage = widget.image as AssetImage;
-          return assetImage.assetName == 'assets/images/login_artwork.webp';
+          return assetImage.assetName == 'assets/images/auth/login_collage.png';
         }
         return false;
       });
-      expect(loginImageFinder, findsNothing);
+      expect(loginImageFinder, findsOneWidget);
 
       // Form remains functional on mobile
       expect(find.text('Welcome back'), findsOneWidget);
-      expect(find.text('Email address'), findsOneWidget);
-      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Enter your email'), findsOneWidget);
+      expect(find.text('Enter your password'), findsOneWidget);
       expect(find.text('Log in'), findsOneWidget);
     });
   });
