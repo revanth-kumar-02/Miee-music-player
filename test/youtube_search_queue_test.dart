@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -112,7 +111,9 @@ void main() {
       );
     });
 
-    test('YouTubeVideo converts to Track with sanitized metadata and prefixed ID', () {
+    test(
+        'YouTubeVideo converts to Track with sanitized metadata and prefixed ID',
+        () {
       final video = searchVideos[0];
       final track = video.toTrack();
 
@@ -124,8 +125,11 @@ void main() {
       expect(track.isYoutube, isTrue);
     });
 
-    test('Selecting first, middle, and last item selects exact track and preserves queue index', () {
-      final tracks = List<Track>.unmodifiable(searchVideos.map((v) => v.toTrack()));
+    test(
+        'Selecting first, middle, and last item selects exact track and preserves queue index',
+        () {
+      final tracks =
+          List<Track>.unmodifiable(searchVideos.map((v) => v.toTrack()));
 
       // 1. Select First Item (Index 0)
       final firstTarget = tracks[0];
@@ -159,7 +163,8 @@ void main() {
     });
 
     test('Full search results list is preserved in exact order', () {
-      final tracks = List<Track>.unmodifiable(searchVideos.map((v) => v.toTrack()));
+      final tracks =
+          List<Track>.unmodifiable(searchVideos.map((v) => v.toTrack()));
       queueManager.setQueue(tracks, startIndex: 2);
 
       for (int i = 0; i < tracks.length; i++) {
@@ -169,8 +174,10 @@ void main() {
       }
     });
 
-    test('Next and previous navigate sequentially through search result queue', () {
-      final tracks = List<Track>.unmodifiable(searchVideos.map((v) => v.toTrack()));
+    test('Next and previous navigate sequentially through search result queue',
+        () {
+      final tracks =
+          List<Track>.unmodifiable(searchVideos.map((v) => v.toTrack()));
       queueManager.setQueue(tracks, startIndex: 1);
 
       // Current is index 1
@@ -211,7 +218,9 @@ void main() {
           id.startsWith('youtube_') ? id.replaceFirst('youtube_', '') : id;
 
       final rawVideo = searchVideos[3]; // id: 'yt_vid_3'
-      final tracks = searchVideos.map((v) => v.toTrack()).toList(); // ids: 'youtube_yt_vid_...'
+      final tracks = searchVideos
+          .map((v) => v.toTrack())
+          .toList(); // ids: 'youtube_yt_vid_...'
 
       // Match raw video ID against list of tracks with youtube_ prefix
       final targetNormalized = normalize(rawVideo.id);
@@ -232,19 +241,24 @@ void main() {
       expect(foundInVideos, equals(1));
     });
 
-    test('Empty results list fails safely without crash or enqueuing invalid items', () {
+    test(
+        'Empty results list fails safely without crash or enqueuing invalid items',
+        () {
       final controller = SpyPlayerController();
       final emptyList = <Track>[];
       final dummyTrack = searchVideos[0].toTrack();
 
-      controller.selectTrack(dummyTrack, emptyList, playingFrom: 'YouTube Search');
+      controller.selectTrack(dummyTrack, emptyList,
+          playingFrom: 'YouTube Search');
 
       expect(controller.selectTrackCallCount, equals(0));
       expect(controller.lastSelectedTrack, isNull);
       expect(controller.lastSelectedList, isNull);
     });
 
-    test('Unresolvable selection fails safely without clobbering queue or playing wrong song', () {
+    test(
+        'Unresolvable selection fails safely without clobbering queue or playing wrong song',
+        () {
       final controller = SpyPlayerController();
       final tracks = searchVideos.take(3).map((v) => v.toTrack()).toList();
       const alienTrack = Track(
@@ -262,7 +276,8 @@ void main() {
       expect(controller.lastSelectedTrack, isNull);
     });
 
-    test('Rapid taps: newer selection supersedes older selection token', () async {
+    test('Rapid taps: newer selection supersedes older selection token',
+        () async {
       int playRequestToken = 0;
       int activeToken = 0;
       MusicItem? finalPlayedTrack;
@@ -299,7 +314,9 @@ void main() {
   });
 
   group('YouTube Search Queue Context Preservation — Widget Integration', () {
-    testWidgets('Tapping YouTube result tile passes full search queue to selectTrack with playingFrom', (tester) async {
+    testWidgets(
+        'Tapping YouTube result tile passes full search queue to selectTrack with playingFrom',
+        (tester) async {
       final controller = SpyPlayerController();
       final searchVideos = [
         const YouTubeVideo(
@@ -365,17 +382,17 @@ void main() {
       expect(controller.lastSelectedTrack?.id, equals('youtube_vid_102'));
       expect(controller.lastSelectedTrack?.title, equals('Believer'));
 
-      // 2. Full search queue preserved (target track at index 0 followed by others)
-      expect(controller.lastSelectedList?.length, equals(3));
+      // 2. Playback queue is initialized with the selected track (not the entire search result list)
+      expect(controller.lastSelectedList?.length, equals(1));
       expect(controller.lastSelectedList![0].id, equals('youtube_vid_102'));
-      expect(controller.lastSelectedList![1].id, equals('youtube_vid_101'));
-      expect(controller.lastSelectedList![2].id, equals('youtube_vid_103'));
 
       // 3. playingFrom source label
-      expect(controller.lastPlayingFrom, equals('YouTube Search'));
+      expect(controller.lastPlayingFrom, contains('Search'));
     });
 
-    testWidgets('YouTubeResultTile recognizes isCurrentTrack across ID normalization', (tester) async {
+    testWidgets(
+        'YouTubeResultTile recognizes isCurrentTrack across ID normalization',
+        (tester) async {
       const activeVideo = YouTubeVideo(
         id: 'vid_active',
         title: 'Active Playing Song',

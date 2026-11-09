@@ -20,7 +20,6 @@ import '../../recommendations/providers/recommendation_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
 import '../../library/providers/library_providers.dart';
 import '../../../shared/models/track.dart';
-import '../../../shared/models/music_item.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
@@ -81,7 +80,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     setState(() {
       _searchQuery = _searchController.text;
     });
-    ref.read(searchNotifierProvider.notifier).updateQuery(_searchController.text);
+    ref
+        .read(searchNotifierProvider.notifier)
+        .updateQuery(_searchController.text);
   }
 
   void _handleSearchSubmit(String query) {
@@ -100,11 +101,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     ref.read(searchNotifierProvider.notifier).searchNow(query);
   }
 
-  void _playYouTubeResult(YouTubeVideo video, List<YouTubeVideo> results) {
-    if (results.isEmpty) return;
-
+  void _playYouTubeResult(YouTubeVideo video) {
     // Strict validation: Reject commentary, exposés, podcasts or non-music videos
-    if (!MusicResultClassifier.isValidIndividualSong(video, query: _searchQuery)) {
+    if (!MusicResultClassifier.isValidIndividualSong(video,
+        query: _searchQuery)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('This video is not a recognized music track.'),
@@ -121,47 +121,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final targetTrack = video.toTrack();
     final playerNotifier = ref.read(playerControllerProvider.notifier);
 
-    // 1. Filter queue to ensure only verified individual songs enter playback
-    // and reject any derivative edits/mashups/fan-edits
-    final intent = QueryIntent.fromQuery(_searchQuery);
-    final validVideos = results.where((v) {
-      if (!MusicResultClassifier.isValidIndividualSong(v, query: _searchQuery)) {
-        return false;
-      }
-      final editType = SearchDeduplicator.detectEditType(v, intent);
-      if (editType == EditType.fanEdit ||
-          editType == EditType.fourKEdit ||
-          editType == EditType.statusVideo ||
-          editType == EditType.compilationMix ||
-          editType == EditType.mashupRemake ||
-          editType == EditType.nonMusicEntertainment) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    // 2. Queue deduplication:
-    // Retain target track at index 0, and remove any other video that is the same
-    // canonical recording as the target track (alternate uploads, lyric videos, cuts).
-    // Also deduplicate remaining candidates against each other while strictly preserving distinct songs.
-    final queueTracks = <MusicItem>[targetTrack];
-    final seenKeys = <String>{SearchDeduplicator.computeRecordingKey(targetTrack)};
-    final seenIds = <String>{video.id};
-
-    for (final v in validVideos) {
-      if (v.id == video.id || seenIds.contains(v.id)) continue;
-      final track = v.toTrack();
-      final recKey = SearchDeduplicator.computeRecordingKey(track);
-      if (seenKeys.add(recKey)) {
-        seenIds.add(v.id);
-        queueTracks.add(track);
-      }
-    }
-
+    // Play the selected track as the queue's current item.
+    // Separation of Search and Queue: search results must not become the playback queue.
+    // Intelligent queue replenishment will seed context-aware upcoming recommendations from this track.
     playerNotifier.selectTrack(
       targetTrack,
-      queueTracks,
-      playingFrom: 'YouTube Search',
+      [targetTrack],
+      playingFrom:
+          'Search: ${targetTrack.artist.isNotEmpty ? targetTrack.artist : 'Track'}',
     );
   }
 
@@ -174,7 +141,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final favorites = ref.watch(favoritesProvider);
     final recs = ref.watch(recommendationSectionsProvider).valueOrNull;
 
-    final activeQuery = _searchQuery.isNotEmpty ? _searchQuery : searchState.query;
+    final activeQuery =
+        _searchQuery.isNotEmpty ? _searchQuery : searchState.query;
     final hasFocus = _searchFocusNode.hasFocus;
     final isSearching = searchState.hasQuery;
     final showLiveSuggestions = hasFocus && activeQuery.isNotEmpty;
@@ -184,7 +152,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final isDesktop = screenWidth >= 960;
 
     // Sync search input controller with global search query when not focused
-    ref.listen<String>(searchNotifierProvider.select((s) => s.query), (previous, next) {
+    ref.listen<String>(searchNotifierProvider.select((s) => s.query),
+        (previous, next) {
       if (_searchController.text != next && !_searchFocusNode.hasFocus) {
         _searchController.text = next;
         _searchQuery = next;
@@ -260,11 +229,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     InkWell(
                       onTap: () {
                         _searchController.clear();
-                        ref.read(searchNotifierProvider.notifier).updateQuery('');
+                        ref
+                            .read(searchNotifierProvider.notifier)
+                            .updateQuery('');
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.oatBeige.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(12),
@@ -272,7 +244,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.close_rounded, size: 14, color: AppColors.mutedMauve),
+                            const Icon(Icons.close_rounded,
+                                size: 14, color: AppColors.mutedMauve),
                             const SizedBox(width: 3),
                             Text(
                               'Clear',
@@ -411,11 +384,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             explicitUrl: imageUrl,
                             width: 72,
                             height: 72,
-                            borderRadius: BorderRadius.circular(isSong ? 12 : 36),
+                            borderRadius:
+                                BorderRadius.circular(isSong ? 12 : 36),
                             fit: BoxFit.cover,
                             errorWidget: Center(
                               child: Icon(
-                                isSong ? Icons.music_note_rounded : Icons.person_rounded,
+                                isSong
+                                    ? Icons.music_note_rounded
+                                    : Icons.person_rounded,
                                 color: AppColors.cocoaPlum,
                                 size: 32,
                               ),
@@ -543,7 +519,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 onTap: () => _applyHistoryQuery('Top Global Charts'),
                 child: Container(
                   height: 76,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.electricCobalt,
                     borderRadius: BorderRadius.circular(16),
@@ -584,7 +561,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 onTap: () => _applyHistoryQuery('New Releases 2026'),
                 child: Container(
                   height: 76,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.paleConcrete,
                     borderRadius: BorderRadius.circular(16),
@@ -625,7 +603,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 onTap: () => _applyHistoryQuery('Acoustic Pop Indie'),
                 child: Container(
                   height: 76,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.paleConcrete,
                     borderRadius: BorderRadius.circular(16),
@@ -659,7 +638,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 onTap: () => _applyHistoryQuery('Chill Relaxing Calm'),
                 child: Container(
                   height: 76,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.paleConcrete,
                     borderRadius: BorderRadius.circular(16),
@@ -1012,7 +992,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.mutedMauve),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.mutedMauve),
             ],
           ),
         ),
@@ -1072,7 +1053,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 height: 32,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1103,7 +1085,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         return _buildCategoryEmptyState(
           icon: Icons.music_off_rounded,
           title: 'No songs found',
-          message: 'No songs found for "${state.query}". Try searching another title.',
+          message:
+              'No songs found for "${state.query}". Try searching another title.',
         );
       }
       if (filter == 'Albums' && state.totalAlbumsCount == 0) {
@@ -1170,8 +1153,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final showAlbums = filter == 'All' || filter == 'Albums';
     final showPlaylists = filter == 'All' || filter == 'Playlists';
 
-    final activeTrackId = ref.watch(playerControllerProvider.select((s) =>
-        s.status == PlaybackStatus.playing ? s.currentTrack?.id : null));
+    final activeTrackId = ref.watch(playerControllerProvider.select(
+        (s) => s.status == PlaybackStatus.playing ? s.currentTrack?.id : null));
 
     final cleanQuery = state.query.trim().toLowerCase();
     final normCleanQuery = cleanQuery.replaceAll(RegExp(r'[^a-z0-9]'), '');
@@ -1190,7 +1173,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
     for (final a in state.localArtists) {
       final norm = a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-      if (seenArtistIds.add(a.id) && (norm.isEmpty || seenArtistNames.add(norm))) {
+      if (seenArtistIds.add(a.id) &&
+          (norm.isEmpty || seenArtistNames.add(norm))) {
         allArtists.add(ArtistModel(
           id: a.id,
           name: a.name,
@@ -1201,36 +1185,43 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     // Top Result matching
     final matchingArtist = allArtists.cast<ArtistModel?>().firstWhere(
-      (a) =>
-          a != null &&
-          (a.name.toLowerCase() == cleanQuery ||
-              a.name.toLowerCase().contains(cleanQuery) ||
-              cleanQuery.contains(a.name.toLowerCase()) ||
-              (normCleanQuery.length >= 3 &&
-                  a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '') ==
-                      normCleanQuery)),
-      orElse: () =>
-          (filter == 'Artists' && allArtists.isNotEmpty ? allArtists.first : null),
-    );
+          (a) =>
+              a != null &&
+              (a.name.toLowerCase() == cleanQuery ||
+                  a.name.toLowerCase().contains(cleanQuery) ||
+                  cleanQuery.contains(a.name.toLowerCase()) ||
+                  (normCleanQuery.length >= 3 &&
+                      a.name
+                              .toLowerCase()
+                              .replaceAll(RegExp(r'[^a-z0-9]'), '') ==
+                          normCleanQuery)),
+          orElse: () => (filter == 'Artists' && allArtists.isNotEmpty
+              ? allArtists.first
+              : null),
+        );
 
     final matchingSong = state.youtubeResults.cast<YouTubeVideo?>().firstWhere(
-      (v) =>
-          v != null &&
-          (v.title.toLowerCase().contains(cleanQuery) ||
-              cleanQuery.contains(v.title.toLowerCase())),
-      orElse: () =>
-          (state.youtubeResults.isNotEmpty ? state.youtubeResults.first : null),
-    );
+          (v) =>
+              v != null &&
+              (v.title.toLowerCase().contains(cleanQuery) ||
+                  cleanQuery.contains(v.title.toLowerCase())),
+          orElse: () => (state.youtubeResults.isNotEmpty
+              ? state.youtubeResults.first
+              : null),
+        );
 
     final isArtistHighProminence = matchingArtist != null &&
-        (DeezerArtistRepository.findCuratedByName(matchingArtist.name) != null ||
+        (DeezerArtistRepository.findCuratedByName(matchingArtist.name) !=
+                null ||
             matchingArtist.fanCount >= 5000);
 
     final hasExactSongMatch = matchingSong != null &&
         (matchingSong.title.toLowerCase().contains(cleanQuery) ||
             cleanQuery.contains(matchingSong.title.toLowerCase()) ||
             (matchingSong.canonicalTitle != null &&
-                matchingSong.canonicalTitle!.toLowerCase().contains(cleanQuery)));
+                matchingSong.canonicalTitle!
+                    .toLowerCase()
+                    .contains(cleanQuery)));
 
     final preferSongTopResult = (hasExactSongMatch && !isArtistHighProminence);
 
@@ -1275,14 +1266,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           if (preferSongTopResult) ...[
             _buildTopResultCard(
               name: matchingSong.canonicalTitle ?? matchingSong.title,
-              subtitle: matchingSong.canonicalArtist ?? matchingSong.channelTitle,
-              imageUrl: matchingSong.highResArtworkUrl ?? matchingSong.thumbnailUrl,
+              subtitle:
+                  matchingSong.canonicalArtist ?? matchingSong.channelTitle,
+              imageUrl:
+                  matchingSong.highResArtworkUrl ?? matchingSong.thumbnailUrl,
               isSong: true,
               onTap: () {
-                _playYouTubeResult(matchingSong, state.youtubeResults);
+                _playYouTubeResult(matchingSong);
               },
               onPlay: () {
-                _playYouTubeResult(matchingSong, state.youtubeResults);
+                _playYouTubeResult(matchingSong);
               },
             ),
             const SizedBox(height: 28),
@@ -1296,7 +1289,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               onTap: () => _navigateToArtist(context, matchingArtist),
               onPlay: () {
                 if (state.youtubeResults.isNotEmpty) {
-                  _playYouTubeResult(state.youtubeResults.first, state.youtubeResults);
+                  final artistNorm =
+                      SearchDeduplicator.normalizeArtist(matchingArtist.name);
+                  final artistTrack = state.youtubeResults.firstWhere(
+                    (v) =>
+                        SearchDeduplicator.normalizeArtist(v.channelTitle) ==
+                        artistNorm,
+                    orElse: () => state.youtubeResults.first,
+                  );
+                  _playYouTubeResult(artistTrack);
                 }
               },
             ),
@@ -1304,14 +1305,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ] else if (matchingSong != null) ...[
             _buildTopResultCard(
               name: matchingSong.canonicalTitle ?? matchingSong.title,
-              subtitle: matchingSong.canonicalArtist ?? matchingSong.channelTitle,
-              imageUrl: matchingSong.highResArtworkUrl ?? matchingSong.thumbnailUrl,
+              subtitle:
+                  matchingSong.canonicalArtist ?? matchingSong.channelTitle,
+              imageUrl:
+                  matchingSong.highResArtworkUrl ?? matchingSong.thumbnailUrl,
               isSong: true,
               onTap: () {
-                _playYouTubeResult(matchingSong, state.youtubeResults);
+                _playYouTubeResult(matchingSong);
               },
               onPlay: () {
-                _playYouTubeResult(matchingSong, state.youtubeResults);
+                _playYouTubeResult(matchingSong);
               },
             ),
             const SizedBox(height: 28),
@@ -1374,7 +1377,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 physics: const BouncingScrollPhysics(),
                 itemCount: allArtists.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 14),
-                itemBuilder: (context, idx) => _buildArtistCard(allArtists[idx]),
+                itemBuilder: (context, idx) =>
+                    _buildArtistCard(allArtists[idx]),
               ),
             ),
             const SizedBox(height: 24),
@@ -1405,26 +1409,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ],
             ),
             const SizedBox(height: 12),
-            ...(filter == 'All' ? state.localSongs.take(5) : state.localSongs).map(
-                  (song) {
-                    final isPlaying = activeTrackId == song.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: SongTile(
-                        title: song.title,
-                        artist: song.artist,
-                        duration: song.duration,
-                        imageUrl: song.artworkPath,
-                        isPlaying: isPlaying,
-                        onTap: () {
-                          ref
-                              .read(playerControllerProvider.notifier)
-                              .selectTrack(song, state.localSongs);
-                        },
-                      ),
-                    );
-                  },
-                ),
+            ...(filter == 'All' ? state.localSongs.take(5) : state.localSongs)
+                .map(
+              (song) {
+                final isPlaying = activeTrackId == song.id;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SongTile(
+                    title: song.title,
+                    artist: song.artist,
+                    duration: song.duration,
+                    imageUrl: song.artworkPath,
+                    isPlaying: isPlaying,
+                    onTap: () {
+                      ref.read(playerControllerProvider.notifier).selectTrack(
+                          song, [song],
+                          playingFrom: 'Local Search');
+                    },
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 16),
           ],
           if (state.youtubeResults.isNotEmpty) ...[
@@ -1450,14 +1455,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ],
             ),
             const SizedBox(height: 12),
-            ...state.youtubeResults
-                .take(filter == 'All' ? 5 : 50)
-                .map(
+            ...state.youtubeResults.take(filter == 'All' ? 5 : 50).map(
                   (video) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: YouTubeResultTile(
                       video: video,
-                      onTap: () => _playYouTubeResult(video, state.youtubeResults),
+                      onTap: () => _playYouTubeResult(video),
                     ),
                   ),
                 ),
@@ -1467,7 +1470,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
         // 4. Albums Section
         if (showAlbums &&
-            (state.onlineAlbums.isNotEmpty || state.localAlbums.isNotEmpty)) ...[
+            (state.onlineAlbums.isNotEmpty ||
+                state.localAlbums.isNotEmpty)) ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1483,7 +1487,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 '${state.totalAlbumsCount} ${filter == 'Albums' ? 'FOUND' : 'found'}',
                 style: GoogleFonts.geist(
                   fontSize: 12,
-                  fontWeight: filter == 'Albums' ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight:
+                      filter == 'Albums' ? FontWeight.w600 : FontWeight.normal,
                   color: AppColors.mutedMauve,
                 ),
               ),
@@ -1513,7 +1518,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     isGrid: true,
                   );
                 } else {
-                  final album = state.localAlbums[idx - state.onlineAlbums.length];
+                  final album =
+                      state.localAlbums[idx - state.onlineAlbums.length];
                   return _buildAlbumCard(
                     album.title,
                     album.artist,
@@ -1562,7 +1568,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
         // 5. Playlists Section
         if (showPlaylists &&
-            (state.onlinePlaylists.isNotEmpty || state.localPlaylists.isNotEmpty)) ...[
+            (state.onlinePlaylists.isNotEmpty ||
+                state.localPlaylists.isNotEmpty)) ...[
           if (filter == 'Playlists') ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1591,7 +1598,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 title: playlist.name,
                 subtitle: '${playlist.trackCount} tracks · Local Playlist',
                 imageUrl: null,
-                onTap: () => context.push('/playlist/${Uri.encodeComponent(playlist.id)}'),
+                onTap: () => context
+                    .push('/playlist/${Uri.encodeComponent(playlist.id)}'),
               ),
             ),
             ...state.onlinePlaylists.map(
@@ -1638,7 +1646,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         title: playlist.name,
                         subtitle: '${playlist.trackCount} tracks',
                         imageUrl: null,
-                        onTap: () => context.push('/playlist/${Uri.encodeComponent(playlist.id)}'),
+                        onTap: () => context.push(
+                            '/playlist/${Uri.encodeComponent(playlist.id)}'),
                       ),
                     ),
                   ),
@@ -1665,14 +1674,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _navigateToArtist(BuildContext context, dynamic artist) {
     if (artist is ArtistModel) {
-      context.push('/artist/${Uri.encodeComponent(artist.id.trim())}', extra: artist);
+      context.push('/artist/${Uri.encodeComponent(artist.id.trim())}',
+          extra: artist);
     } else if (artist is MediaArtist) {
       final model = ArtistModel(
         id: artist.id,
         name: artist.name,
         imageUrl: artist.artworkPath ?? '',
       );
-      context.push('/artist/${Uri.encodeComponent(artist.id.trim())}', extra: model);
+      context.push('/artist/${Uri.encodeComponent(artist.id.trim())}',
+          extra: model);
     }
   }
 
@@ -1727,7 +1738,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 2),
             Text(
-              artist.fanCount > 0 ? '${_formatNumber(artist.fanCount)} fans' : 'Artist',
+              artist.fanCount > 0
+                  ? '${_formatNumber(artist.fanCount)} fans'
+                  : 'Artist',
               style: GoogleFonts.geist(
                 fontSize: 11,
                 color: AppColors.mutedMauve,
@@ -1793,8 +1806,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     Row(
                       children: [
                         Container(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1.5),
                           decoration: BoxDecoration(
                             color: AppColors.oatBeige.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(6),
@@ -2014,7 +2027,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           color: AppColors.softClay,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Icon(Icons.search_rounded, color: AppColors.dustyRose, size: 20),
+        child: const Icon(Icons.search_rounded,
+            color: AppColors.dustyRose, size: 20),
       );
     } else if (isArtist) {
       leadingWidget = ClipOval(
@@ -2028,14 +2042,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   width: 40,
                   height: 40,
                   color: AppColors.softClay,
-                  child: const Icon(Icons.person, color: AppColors.cocoaPlum, size: 22),
+                  child: const Icon(Icons.person,
+                      color: AppColors.cocoaPlum, size: 22),
                 ),
               )
             : Container(
                 width: 40,
                 height: 40,
                 color: AppColors.softClay,
-                child: const Icon(Icons.person, color: AppColors.cocoaPlum, size: 22),
+                child: const Icon(Icons.person,
+                    color: AppColors.cocoaPlum, size: 22),
               ),
       );
     } else {
@@ -2122,7 +2138,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     style: GoogleFonts.geist(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isQuery ? AppColors.dustyRose : AppColors.cocoaPlum,
+                      color:
+                          isQuery ? AppColors.dustyRose : AppColors.cocoaPlum,
                     ),
                   ),
                   if (!isQuery) ...[
@@ -2165,7 +2182,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       case SuggestionType.song:
         if (suggestion.entity is YouTubeVideo) {
           final video = suggestion.entity as YouTubeVideo;
-          _playYouTubeResult(video, [video]);
+          _playYouTubeResult(video);
         } else if (suggestion.entity is MediaSong) {
           final song = suggestion.entity as MediaSong;
           ref.read(playerControllerProvider.notifier).selectTrack(song, [song]);
@@ -2292,35 +2309,35 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               border: Border.all(color: AppColors.oatBeige),
             ),
             child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: history.length,
-            separatorBuilder: (_, __) =>
-                const Divider(color: AppColors.oatBeige, height: 1),
-            itemBuilder: (context, index) {
-              final query = history[index];
-              return ListTile(
-                leading: const Icon(Icons.history,
-                    color: AppColors.mutedMauve, size: 20.0),
-                title: Text(
-                  query,
-                  style: GoogleFonts.geist(color: AppColors.cocoaPlum),
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.clear, size: 16.0),
-                  onPressed: () {
-                    ref
-                        .read(searchNotifierProvider.notifier)
-                        .removeHistory(query);
-                  },
-                ),
-                onTap: () => _applyHistoryQuery(query),
-              );
-            },
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: history.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(color: AppColors.oatBeige, height: 1),
+              itemBuilder: (context, index) {
+                final query = history[index];
+                return ListTile(
+                  leading: const Icon(Icons.history,
+                      color: AppColors.mutedMauve, size: 20.0),
+                  title: Text(
+                    query,
+                    style: GoogleFonts.geist(color: AppColors.cocoaPlum),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.clear, size: 16.0),
+                    onPressed: () {
+                      ref
+                          .read(searchNotifierProvider.notifier)
+                          .removeHistory(query);
+                    },
+                  ),
+                  onTap: () => _applyHistoryQuery(query),
+                );
+              },
+            ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
   }
 }

@@ -55,7 +55,8 @@ class YouTubeRepository {
       debugPrint('YouTubeRepository: Cache hit for "$cleanQuery"');
       final cached = _searchCache[cleanQuery]!;
       // Re-validate cached entries against music classification rules
-      final validCached = MusicResultClassifier.filterAndRankMusicTracks(cached, query: cleanQuery, individualOnly: true);
+      final validCached = MusicResultClassifier.filterAndRankMusicTracks(cached,
+          query: cleanQuery, individualOnly: true);
       if (validCached.isNotEmpty) {
         return validCached;
       }
@@ -75,10 +76,12 @@ class YouTubeRepository {
     // 1. Primary: YouTube Data API v3 if configured
     if (_dataSource.isConfigured) {
       try {
-        debugPrint('YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery" (p$page)');
+        debugPrint(
+            'YouTubeRepository: Searching YouTube Data API v3 for "$cleanQuery" (p$page)');
         results = await _searchWithDataApi(cleanQuery);
       } catch (e) {
-        debugPrint('YouTubeRepository: Data API search failed ($e), falling back to alternative discovery');
+        debugPrint(
+            'YouTubeRepository: Data API search failed ($e), falling back to alternative discovery');
         results = [];
       }
     }
@@ -86,24 +89,30 @@ class YouTubeRepository {
     // 2. Secondary: WebMusicDiscoverySource on web (CORS-safe) or YoutubeExplode on native
     if (results.isEmpty) {
       if (kIsWeb) {
-        debugPrint('[YouTubeRepository] Web environment detected. Direct browser scraping of youtube.com is restricted by browser CORS policy.');
+        debugPrint(
+            '[YouTubeRepository] Web environment detected. Direct browser scraping of youtube.com is restricted by browser CORS policy.');
         try {
-          debugPrint('[YouTubeRepository] Querying WebMusicDiscoverySource for "$cleanQuery"');
+          debugPrint(
+              '[YouTubeRepository] Querying WebMusicDiscoverySource for "$cleanQuery"');
           results = await _webDiscoverySource.searchVideos(cleanQuery);
         } catch (e) {
-          debugPrint('[YouTubeRepository] WebMusicDiscoverySource search failed ($e)');
-          throw YouTubeSearchFailure('Web music discovery failed for "$cleanQuery": $e');
+          debugPrint(
+              '[YouTubeRepository] WebMusicDiscoverySource search failed ($e)');
+          throw YouTubeSearchFailure(
+              'Web music discovery failed for "$cleanQuery": $e');
         }
       } else {
         try {
-          debugPrint('YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery" (p$page)');
+          debugPrint(
+              'YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery" (p$page)');
           results = await _searchWithExplode(cleanQuery, page: page);
         } catch (e, stack) {
           debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
           if (kDebugMode) debugPrintStack(stackTrace: stack);
           // Fallback to WebMusicDiscoverySource on native if explode fails
           try {
-            debugPrint('YouTubeRepository: Falling back to WebMusicDiscoverySource for "$cleanQuery"');
+            debugPrint(
+                'YouTubeRepository: Falling back to WebMusicDiscoverySource for "$cleanQuery"');
             results = await _webDiscoverySource.searchVideos(cleanQuery);
           } catch (_) {
             rethrow;
@@ -113,7 +122,8 @@ class YouTubeRepository {
     }
 
     // Filter out non-music entertainment and prioritize verified music releases
-    final validResults = MusicResultClassifier.filterAndRankMusicTracks(results, query: cleanQuery, individualOnly: true);
+    final validResults = MusicResultClassifier.filterAndRankMusicTracks(results,
+        query: cleanQuery, individualOnly: true);
 
     if (validResults.isNotEmpty) {
       if (_searchCache.length >= _maxCacheSize) {
@@ -141,16 +151,20 @@ class YouTubeRepository {
     if (cleanArtist.isEmpty) return const [];
 
     final candidateVideos = <YouTubeVideo>[];
-    final topLang = preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
+    final topLang =
+        preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
 
     // 1. Language-targeted query on page 1 if artist is known to perform in preferred language
-    if (page == 1 && topLang != null && MusicLanguageService.isArtistMultilingualInLang(cleanArtist, topLang)) {
+    if (page == 1 &&
+        topLang != null &&
+        MusicLanguageService.isArtistMultilingualInLang(cleanArtist, topLang)) {
       final langVideos = await search('$cleanArtist $topLang songs', page: 1);
       candidateVideos.addAll(langVideos);
     }
 
     // 2. Fetch page of artist songs
-    final mainVideos = await search('$cleanArtist songs', page: page, forceFresh: page > 1);
+    final mainVideos =
+        await search('$cleanArtist songs', page: page, forceFresh: page > 1);
     candidateVideos.addAll(mainVideos);
 
     // 3. If page > 1, filter out tracks already returned in earlier pages for this artist
@@ -159,13 +173,15 @@ class YouTubeRepository {
       final priorIds = <String>{};
       for (int p = 1; p < page; p++) {
         final priorKey = '$cleanArtist songs:p$p';
-        final priorList = _searchCache[priorKey] ?? (p == 1 ? _searchCache['$cleanArtist songs'] : null);
+        final priorList = _searchCache[priorKey] ??
+            (p == 1 ? _searchCache['$cleanArtist songs'] : null);
         if (priorList != null) {
           priorIds.addAll(priorList.map((v) => v.id));
         }
       }
       if (priorIds.isNotEmpty) {
-        filteredCandidates = candidateVideos.where((v) => !priorIds.contains(v.id)).toList();
+        filteredCandidates =
+            candidateVideos.where((v) => !priorIds.contains(v.id)).toList();
       }
     }
 
@@ -236,45 +252,80 @@ class YouTubeRepository {
           }
         }
       } catch (e) {
-        debugPrint('[YouTubeRepository] getRelatedVideos failed ($e), proceeding to query-based discovery');
+        debugPrint(
+            '[YouTubeRepository] getRelatedVideos failed ($e), proceeding to query-based discovery');
       } finally {
         yt.close();
       }
     }
 
-    // 2. Secondary fallback: Search for related music by artist / composer if we need more candidates
+    // 2. Secondary fallback: Search for related music by artist if we need more candidates.
+    // Strictly do NOT search for the song title alone, as that returns unrelated songs by different artists.
     if (candidateTracks.length < 5) {
       try {
         final artistQuery = seedVideo.channelTitle.isNotEmpty
             ? seedVideo.channelTitle
             : seedVideo.artist;
-        final query = artistQuery.isNotEmpty ? '$artistQuery songs' : '${seedVideo.title} songs';
-        final searchResults = await search(query);
-        candidateTracks.addAll(searchResults);
+        if (artistQuery.isNotEmpty) {
+          final query = '$artistQuery songs';
+          final searchResults = await search(query);
+          candidateTracks.addAll(searchResults);
+        }
       } catch (e) {
         debugPrint('[YouTubeRepository] Related search fallback failed: $e');
       }
     }
 
-    // 3. Filter out the seed track and any duplicates of the seed song
+    final seedBaseTitle = SearchDeduplicator.normalizeBaseTitle(
+      seedVideo.title,
+      rawTitle: seedVideo.rawTitle,
+      artist: seedVideo.channelTitle,
+    ).toLowerCase().trim();
+    final seedArtistNorm = SearchDeduplicator.normalizeArtist(
+      seedVideo.channelTitle.isNotEmpty
+          ? seedVideo.channelTitle
+          : seedVideo.artist,
+    );
+
+    // 3. Filter out the seed track, duplicate uploads, and any different artists' tracks merely sharing the title
     final filtered = candidateTracks.where((track) {
       if (track.id == seedVideo.id) return false;
-      if (SearchDeduplicator.isSameCanonicalSong(track, seedVideo)) return false;
+      if (SearchDeduplicator.isSameCanonicalSong(track, seedVideo))
+        return false;
       if (!MusicResultClassifier.isValidMusicTrack(track)) return false;
+
+      // Do NOT add different artists' tracks merely because they share the selected track's title
+      final trackBaseTitle = SearchDeduplicator.normalizeBaseTitle(
+        track.title,
+        rawTitle: track.rawTitle,
+        artist: track.channelTitle,
+      ).toLowerCase().trim();
+      final trackArtistNorm = SearchDeduplicator.normalizeArtist(
+        track.channelTitle.isNotEmpty ? track.channelTitle : track.artist,
+      );
+      if (seedBaseTitle.isNotEmpty &&
+          trackBaseTitle == seedBaseTitle &&
+          trackArtistNorm != seedArtistNorm) {
+        return false;
+      }
+
       return true;
     }).toList();
 
     // 4. Run deduplication on upcoming candidates so Next Up itself contains distinct songs
     final deduplicated = SearchDeduplicator.deduplicateAndRank(
       filtered,
-      query: seedVideo.channelTitle.isNotEmpty ? seedVideo.channelTitle : seedVideo.title,
+      query: seedVideo.channelTitle.isNotEmpty
+          ? seedVideo.channelTitle
+          : seedVideo.title,
       config: const SearchRankingConfig(filterDerivativeEdits: true),
     );
 
     return deduplicated.take(limit).toList();
   }
 
-  Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery, {int page = 1}) async {
+  Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery,
+      {int page = 1}) async {
     final candidateVideos = <YouTubeVideo>[];
     final seenVideoIds = <String>{};
 
@@ -284,23 +335,28 @@ class YouTubeRepository {
         _activeSearchLists[cleanQuery] = searchList;
 
         for (final video in searchList) {
-          if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
+          if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
+            continue;
           final candidate = _processVideo(video, cleanQuery);
-          if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+          if (MusicResultClassifier.isValidMusicTrack(candidate,
+              query: cleanQuery)) {
             candidateVideos.add(candidate);
           }
         }
 
         // Fetch additional candidates if early results contain mostly edits or fewer than 20 candidates
-        if (candidateVideos.length < 20 || SearchDeduplicator.hasHighEditRatio(candidateVideos, cleanQuery)) {
+        if (candidateVideos.length < 20 ||
+            SearchDeduplicator.hasHighEditRatio(candidateVideos, cleanQuery)) {
           try {
             final nextPage = await searchList.nextPage();
             if (nextPage != null && nextPage.isNotEmpty) {
               _activeSearchLists[cleanQuery] = nextPage;
               for (final video in nextPage) {
-                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
+                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
+                  continue;
                 final candidate = _processVideo(video, cleanQuery);
-                if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+                if (MusicResultClassifier.isValidMusicTrack(candidate,
+                    query: cleanQuery)) {
                   candidateVideos.add(candidate);
                 }
               }
@@ -315,9 +371,11 @@ class YouTubeRepository {
             if (nextList != null && nextList.isNotEmpty) {
               _activeSearchLists[cleanQuery] = nextList;
               for (final video in nextList) {
-                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
+                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
+                  continue;
                 final candidate = _processVideo(video, cleanQuery);
-                if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+                if (MusicResultClassifier.isValidMusicTrack(candidate,
+                    query: cleanQuery)) {
                   candidateVideos.add(candidate);
                 }
               }
@@ -330,12 +388,15 @@ class YouTubeRepository {
         // If pagination list was empty or exhausted, use query variant
         if (candidateVideos.isEmpty) {
           final variantQuery = _getQueryVariantForPage(cleanQuery, page);
-          debugPrint('[YouTubeRepository] Using continuation query variant: "$variantQuery"');
+          debugPrint(
+              '[YouTubeRepository] Using continuation query variant: "$variantQuery"');
           final variantList = await _yt.search.search(variantQuery);
           for (final video in variantList) {
-            if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) continue;
+            if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
+              continue;
             final candidate = _processVideo(video, variantQuery);
-            if (MusicResultClassifier.isValidMusicTrack(candidate, query: variantQuery)) {
+            if (MusicResultClassifier.isValidMusicTrack(candidate,
+                query: variantQuery)) {
               candidateVideos.add(candidate);
             }
           }
@@ -455,7 +516,8 @@ class YouTubeRepository {
       final title = snippet['title'] as String? ?? '';
       final channelTitle = snippet['channelTitle'] as String? ?? '';
       final description = snippet['description'] as String? ?? '';
-      final liveBroadcast = snippet['liveBroadcastContent'] as String? ?? 'none';
+      final liveBroadcast =
+          snippet['liveBroadcastContent'] as String? ?? 'none';
 
       // 1. Exclude live streams
       if (liveBroadcast != 'none') continue;
@@ -493,7 +555,8 @@ class YouTubeRepository {
       int? viewsRaw;
 
       if (detail != null) {
-        final contentDetails = detail['contentDetails'] as Map<String, dynamic>?;
+        final contentDetails =
+            detail['contentDetails'] as Map<String, dynamic>?;
         final statistics = detail['statistics'] as Map<String, dynamic>?;
 
         if (contentDetails != null) {
@@ -527,7 +590,8 @@ class YouTubeRepository {
         channelId: snippet['channelId'] as String?,
       );
 
-      if (MusicResultClassifier.isValidMusicTrack(candidate, query: cleanQuery)) {
+      if (MusicResultClassifier.isValidMusicTrack(candidate,
+          query: cleanQuery)) {
         candidateVideos.add(candidate);
       }
     }
@@ -543,14 +607,17 @@ class YouTubeRepository {
       if (channelLower.contains('official')) score += 50;
 
       if (titleLower.contains('official audio')) score += 80;
-      if (titleLower.contains('official music video') || titleLower.contains('official video')) score += 75;
-      if (titleLower.contains('music video') || titleLower.contains('mv')) score += 40;
+      if (titleLower.contains('official music video') ||
+          titleLower.contains('official video')) score += 75;
+      if (titleLower.contains('music video') || titleLower.contains('mv'))
+        score += 40;
       if (titleLower.contains('audio')) score += 30;
 
       return score;
     }
 
-    candidateVideos.sort((a, b) => calculateScore(b).compareTo(calculateScore(a)));
+    candidateVideos
+        .sort((a, b) => calculateScore(b).compareTo(calculateScore(a)));
     return candidateVideos;
   }
 
@@ -614,7 +681,8 @@ class YouTubeRepository {
         final rawChannels = await _dataSource.searchChannels(cleanQuery);
         for (final item in rawChannels) {
           final idObj = item['id'];
-          final channelId = (idObj is Map ? idObj['channelId'] : null) as String?;
+          final channelId =
+              (idObj is Map ? idObj['channelId'] : null) as String?;
           if (channelId == null || channelId.isEmpty) continue;
 
           final snippet = item['snippet'] as Map<String, dynamic>? ?? {};
@@ -622,7 +690,8 @@ class YouTubeRepository {
           if (isExcludedArtistChannel(rawTitle, cleanQuery)) continue;
 
           final cleanName = cleanArtistName(rawTitle);
-          final thumbnails = snippet['thumbnails'] as Map<String, dynamic>? ?? {};
+          final thumbnails =
+              snippet['thumbnails'] as Map<String, dynamic>? ?? {};
           String imgUrl = '';
           if (thumbnails['high'] != null) {
             imgUrl = thumbnails['high']['url'] as String? ?? '';
@@ -677,7 +746,8 @@ class YouTubeRepository {
           }
         }
       } catch (e) {
-        debugPrint('YouTubeRepository: YoutubeExplode searchChannels error: $e');
+        debugPrint(
+            'YouTubeRepository: YoutubeExplode searchChannels error: $e');
       } finally {
         yt.close();
       }
@@ -738,7 +808,8 @@ class YouTubeRepository {
   static String cleanArtistName(String rawName) {
     var name = rawName.trim();
     // Strip YouTube Music Topic channel indicator
-    name = name.replaceFirst(RegExp(r'\s*-\s*Topic$', caseSensitive: false), '');
+    name =
+        name.replaceFirst(RegExp(r'\s*-\s*Topic$', caseSensitive: false), '');
     // Strip leading @ handle indicator
     if (name.startsWith('@')) {
       name = name.substring(1);
@@ -754,15 +825,18 @@ class YouTubeRepository {
     return clean;
   }
 
-  static List<ArtistModel> _deduplicateArtistEntities(List<ArtistModel> candidates) {
+  static List<ArtistModel> _deduplicateArtistEntities(
+      List<ArtistModel> candidates) {
     final seenIds = <String>{};
     final seenNames = <String>{};
     final result = <ArtistModel>[];
 
     for (final artist in candidates) {
       if (artist.id.isEmpty) continue;
-      final normName = artist.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-      if (seenIds.add(artist.id) && (normName.isEmpty || seenNames.add(normName))) {
+      final normName =
+          artist.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (seenIds.add(artist.id) &&
+          (normName.isEmpty || seenNames.add(normName))) {
         result.add(artist);
       }
     }

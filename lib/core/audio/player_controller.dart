@@ -76,7 +76,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
   bool get hasMoreArtistTracksForTesting => _hasMoreArtistTracks;
 
   @visibleForTesting
-  void setArtistContextForTesting(String? artist, {int page = 1, bool hasMore = true}) {
+  void setArtistContextForTesting(String? artist,
+      {int page = 1, bool hasMore = true}) {
     _activeArtistContext = artist;
     _artistContinuationPage = page;
     _hasMoreArtistTracks = hasMore;
@@ -104,7 +105,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       final snapshot = queueRepo.loadSnapshot();
       if (snapshot != null && snapshot.queue.isNotEmpty) {
         final restoredTracks = snapshot.queue.map((m) => m.toTrack()).toList();
-        _queueManager.setQueue(restoredTracks, startIndex: snapshot.currentIndex);
+        _queueManager.setQueue(restoredTracks,
+            startIndex: snapshot.currentIndex);
         final current = _queueManager.currentTrack;
         final repeat = snapshot.repeatMode == 'one'
             ? RepeatMode.one
@@ -154,7 +156,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
             state.currentTrack != null &&
             _normalizeTrackId(currentHandlerTrack.id) ==
                 _normalizeTrackId(state.currentTrack!.id)) {
-          debugLog('[Playback] Position > 0 for active track while in error state — auto-recovering UI');
+          debugLog(
+              '[Playback] Position > 0 for active track while in error state — auto-recovering UI');
           state = state.copyWith(
             status: PlaybackStatus.playing,
             clearErrorMessage: true,
@@ -201,8 +204,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (mediaItem != null) {
         final queueList = _queueManager.queue;
         final targetId = _normalizeTrackId(mediaItem.id);
-        final index = queueList.indexWhere((t) =>
-            t.id == mediaItem.id || _normalizeTrackId(t.id) == targetId);
+        final index = queueList.indexWhere(
+            (t) => t.id == mediaItem.id || _normalizeTrackId(t.id) == targetId);
         if (index >= 0) {
           _queueManager.setIndex(index);
           state = state.copyWith(currentTrack: queueList[index]);
@@ -276,14 +279,17 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   // ── Queue management ─────────────────────────────────────────────────────
 
-  void setQueue(List<MusicItem> tracks, {int startIndex = 0, String? playingFrom}) {
+  void setQueue(List<MusicItem> tracks,
+      {int startIndex = 0, String? playingFrom}) {
     _queueGenerationToken++;
 
     // Track artist context if playing an artist session
     if (playingFrom != null && playingFrom.startsWith('Artist: ')) {
       _activeArtistContext = playingFrom.replaceFirst('Artist: ', '').trim();
     } else if (tracks.length > 1 &&
-        tracks.every((t) => t.artist.trim().toLowerCase() == tracks.first.artist.trim().toLowerCase())) {
+        tracks.every((t) =>
+            t.artist.trim().toLowerCase() ==
+            tracks.first.artist.trim().toLowerCase())) {
       _activeArtistContext = tracks.first.artist.trim();
     } else {
       _activeArtistContext = null;
@@ -299,8 +305,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     final targetTrack = (startIndex >= 0 && startIndex < tracks.length)
         ? tracks[startIndex]
         : tracks.firstOrNull;
-    final targetNormId = targetTrack != null ? _normalizeTrackId(targetTrack.id) : null;
-    final targetRecKey = targetTrack != null ? SearchDeduplicator.computeRecordingKey(targetTrack) : null;
+    final targetNormId =
+        targetTrack != null ? _normalizeTrackId(targetTrack.id) : null;
+    final targetRecKey = targetTrack != null
+        ? SearchDeduplicator.computeRecordingKey(targetTrack)
+        : null;
 
     final seenNormIds = <String>{};
     final seenRecKeys = <String>{};
@@ -319,7 +328,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       final t = tracks[i];
       final normId = _normalizeTrackId(t.id);
       final recKey = SearchDeduplicator.computeRecordingKey(t);
-      final isTarget = (i == startIndex) || (targetNormId != null && normId == targetNormId);
+      final isTarget =
+          (i == startIndex) || (targetNormId != null && normId == targetNormId);
 
       if (isTarget) {
         uniqueTracks.add(t);
@@ -340,9 +350,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
 
     final finalQueue = uniqueTracks.isNotEmpty ? uniqueTracks : tracks;
-    final finalStartIndex = (resolvedStartIndex >= 0 && resolvedStartIndex < finalQueue.length)
-        ? resolvedStartIndex
-        : 0;
+    final finalStartIndex =
+        (resolvedStartIndex >= 0 && resolvedStartIndex < finalQueue.length)
+            ? resolvedStartIndex
+            : 0;
 
     _queueManager.setQueue(finalQueue, startIndex: finalStartIndex);
     _persistQueueSnapshot();
@@ -352,7 +363,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
   }
 
-  void selectTrack(MusicItem track, List<MusicItem> currentList, {String? playingFrom}) {
+  void selectTrack(MusicItem track, List<MusicItem> currentList,
+      {String? playingFrom}) {
     if (currentList.isEmpty) return;
     final targetId = _normalizeTrackId(track.id);
     final index = currentList.indexWhere(
@@ -378,19 +390,25 @@ class PlayerController extends StateNotifier<PlaybackState> {
     required String forTrackId,
   }) async {
     if (token != _queueGenerationToken) {
-      debugLog('[Queue] Stale recommendation response ignored (token $token vs $_queueGenerationToken)');
+      debugLog(
+          '[Queue] Stale recommendation response ignored (token $token vs $_queueGenerationToken)');
       return;
     }
     if (state.currentTrack == null ||
-        _normalizeTrackId(state.currentTrack!.id) != _normalizeTrackId(forTrackId)) {
-      debugLog('[Queue] Active track changed, discarding upcoming tracks for $forTrackId');
+        _normalizeTrackId(state.currentTrack!.id) !=
+            _normalizeTrackId(forTrackId)) {
+      debugLog(
+          '[Queue] Active track changed, discarding upcoming tracks for $forTrackId');
       return;
     }
     if (tracks.isEmpty) return;
 
     // Filter out any track already in queue and deduplicate within batch
-    final currentIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
-    final currentKeys = _queueManager.queue.map((t) => SearchDeduplicator.computeRecordingKey(t)).toSet();
+    final currentIds =
+        _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
+    final currentKeys = _queueManager.queue
+        .map((t) => SearchDeduplicator.computeRecordingKey(t))
+        .toSet();
     final batchSeenIds = <String>{};
     final batchSeenKeys = <String>{};
     final freshTracks = <MusicItem>[];
@@ -408,7 +426,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     await _handler.appendTracks(freshTracks);
     _persistQueueSnapshot();
     state = state.copyWith(currentTrack: _queueManager.currentTrack);
-    debugLog('[Queue] Appended ${freshTracks.length} diverse upcoming tracks to Next Up');
+    debugLog(
+        '[Queue] Appended ${freshTracks.length} diverse upcoming tracks to Next Up');
   }
 
   /// Automatically replenishes the playback queue when 3 or fewer tracks remain.
@@ -443,7 +462,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _isExpandingQueue = true;
     final token = _queueGenerationToken;
 
-    debugLog('[QueueExpansion] Queue low ($remaining tracks remaining). Expanding queue...');
+    debugLog(
+        '[QueueExpansion] Queue low ($remaining tracks remaining). Expanding queue...');
 
     try {
       final recService = _ref.read(recommendationServiceProvider);
@@ -453,9 +473,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
       List<MusicItem> upcoming = [];
 
       // 1. If playing in an artist session and catalog not yet exhausted:
-      if (_activeArtistContext != null && _activeArtistContext!.isNotEmpty && _hasMoreArtistTracks) {
+      if (_activeArtistContext != null &&
+          _activeArtistContext!.isNotEmpty &&
+          _hasMoreArtistTracks) {
         final nextPage = _artistContinuationPage + 1;
-        debugLog('[QueueExpansion] Fetching page $nextPage for artist "$_activeArtistContext"');
+        debugLog(
+            '[QueueExpansion] Fetching page $nextPage for artist "$_activeArtistContext"');
 
         final artistTracks = await recService.getTracksForArtist(
           ArtistSummary(id: '', name: _activeArtistContext!, imageUrl: ''),
@@ -465,7 +488,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
         );
 
         if (token != _queueGenerationToken) {
-          debugLog('[QueueExpansion] Discarding artist expansion: queue replaced during fetch');
+          debugLog(
+              '[QueueExpansion] Discarding artist expansion: queue replaced during fetch');
           return;
         }
 
@@ -473,13 +497,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
           upcoming = artistTracks;
           _artistContinuationPage = nextPage;
         } else {
-          debugLog('[QueueExpansion] Artist "$_activeArtistContext" has no more catalog results.');
+          debugLog(
+              '[QueueExpansion] Artist "$_activeArtistContext" has no more catalog results.');
           _hasMoreArtistTracks = false;
         }
       }
 
       // 2. Fall back to general queue recommendations if not artist session or artist catalog ended:
-      if (upcoming.isEmpty && (!_hasMoreArtistTracks || _activeArtistContext == null)) {
+      if (upcoming.isEmpty &&
+          (!_hasMoreArtistTracks || _activeArtistContext == null)) {
         upcoming = await recService.getUpcomingQueueRecommendations(
           currentTrack: current,
           currentQueue: queue,
@@ -489,15 +515,25 @@ class PlayerController extends StateNotifier<PlaybackState> {
       }
 
       if (token != _queueGenerationToken) {
-        debugLog('[QueueExpansion] Discarding recommendations: queue replaced during fetch');
+        debugLog(
+            '[QueueExpansion] Discarding recommendations: queue replaced during fetch');
         return;
       }
 
       if (upcoming.isNotEmpty) {
-        final currentNormIds = _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
+        final currentNormIds =
+            _queueManager.queue.map((t) => _normalizeTrackId(t.id)).toSet();
         final currentKeys = _queueManager.queue
             .map((t) => SearchDeduplicator.computeRecordingKey(t))
             .toSet();
+
+        final currentBaseTitle = SearchDeduplicator.normalizeBaseTitle(
+          current.title,
+          rawTitle: (current is Track) ? current.rawTitle : current.title,
+          artist: current.artist,
+        ).toLowerCase().trim();
+        final currentArtistNorm =
+            SearchDeduplicator.normalizeArtist(current.artist);
 
         final freshTracks = <MusicItem>[];
         for (final t in upcoming) {
@@ -506,11 +542,25 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
           if (currentNormIds.contains(normId)) continue;
           if (!_isPlayableMusicItem(t)) {
-            debugLog('[QueueExpansion] Discarding non-music candidate: "${t.title}"');
+            debugLog(
+                '[QueueExpansion] Discarding non-music candidate: "${t.title}"');
             continue;
           }
 
           if (currentKeys.contains(recKey)) continue;
+
+          // Reject different artists' tracks merely sharing the current track's title
+          final tBaseTitle = SearchDeduplicator.normalizeBaseTitle(
+            t.title,
+            rawTitle: (t is Track) ? t.rawTitle : t.title,
+            artist: t.artist,
+          ).toLowerCase().trim();
+          final tArtistNorm = SearchDeduplicator.normalizeArtist(t.artist);
+          if (currentBaseTitle.isNotEmpty &&
+              tBaseTitle == currentBaseTitle &&
+              tArtistNorm != currentArtistNorm) {
+            continue;
+          }
 
           currentNormIds.add(normId);
           currentKeys.add(recKey);
@@ -522,7 +572,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
           await _handler.appendTracks(freshTracks);
           _persistQueueSnapshot();
           state = state.copyWith(currentTrack: _queueManager.currentTrack);
-          debugLog('[QueueExpansion] Successfully appended ${freshTracks.length} fresh tracks. Total queue size: ${_queueManager.queue.length}');
+          debugLog(
+              '[QueueExpansion] Successfully appended ${freshTracks.length} fresh tracks. Total queue size: ${_queueManager.queue.length}');
         } else {
           debugLog('[QueueExpansion] All candidates were already in queue.');
         }
@@ -558,7 +609,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     if (state.status == PlaybackStatus.loading &&
         state.loadingTrackId != null &&
         isSameTrackId(state.loadingTrackId, track.id)) {
-      debugLog('[Playback] Tap ignored: track ${track.id} is already in-flight');
+      debugLog(
+          '[Playback] Tap ignored: track ${track.id} is already in-flight');
       return;
     }
 
@@ -566,32 +618,44 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     // Validate that online YouTube content represents genuine music
     if (track.isYoutube) {
-      final rawT = (track is Track) ? (track.rawTitle ?? track.title) : track.title;
-      final rawA = (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
+      final rawT =
+          (track is Track) ? (track.rawTitle ?? track.title) : track.title;
+      final rawA =
+          (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
       var candidateId = track.id.replaceFirst('youtube_', '');
       YouTubeVideo? verifiedCandidate;
 
       // If the ID is a discovery/chart metadata ID (e.g. wm_chart_...), resolve verified YouTube video ID
-      if (candidateId.startsWith('wm_') || !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(candidateId)) {
+      if (candidateId.startsWith('wm_') ||
+          !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(candidateId)) {
         final query = '$rawT $rawA'.trim();
-        verifiedCandidate = await YouTubeAudioService().resolveCandidateForQuery(query);
-        if (verifiedCandidate != null && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(verifiedCandidate.id)) {
+        verifiedCandidate =
+            await YouTubeAudioService().resolveCandidateForQuery(query);
+        if (verifiedCandidate != null &&
+            RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(verifiedCandidate.id)) {
           candidateId = verifiedCandidate.id;
           track = (track is Track)
               ? track.copyWith(
                   id: 'youtube_$candidateId',
-                  rawTitle: verifiedCandidate.rawTitle ?? verifiedCandidate.title,
-                  rawArtist: verifiedCandidate.rawChannelTitle ?? verifiedCandidate.channelTitle,
-                  duration: (track.duration.isNotEmpty && track.duration != '3:30')
-                      ? track.duration
-                      : (verifiedCandidate.duration.isNotEmpty ? verifiedCandidate.duration : track.duration),
-                  imageUrl: (track.imageUrl.isNotEmpty && !track.imageUrl.contains('default'))
+                  rawTitle:
+                      verifiedCandidate.rawTitle ?? verifiedCandidate.title,
+                  rawArtist: verifiedCandidate.rawChannelTitle ??
+                      verifiedCandidate.channelTitle,
+                  duration:
+                      (track.duration.isNotEmpty && track.duration != '3:30')
+                          ? track.duration
+                          : (verifiedCandidate.duration.isNotEmpty
+                              ? verifiedCandidate.duration
+                              : track.duration),
+                  imageUrl: (track.imageUrl.isNotEmpty &&
+                          !track.imageUrl.contains('default'))
                       ? track.imageUrl
                       : verifiedCandidate.thumbnailUrl,
                 )
               : track;
         } else {
-          debugLog('[Playback] Pre-validation failed: no verified YouTube stream found for "$query"');
+          debugLog(
+              '[Playback] Pre-validation failed: no verified YouTube stream found for "$query"');
           state = state.copyWith(
             status: PlaybackStatus.error,
             clearLoadingTrackId: true,
@@ -605,17 +669,22 @@ class PlayerController extends StateNotifier<PlaybackState> {
           YouTubeVideo(
             id: candidateId,
             title: track.title,
-            channelTitle: (track is Track && track.rawArtist != null && track.rawArtist!.isNotEmpty)
+            channelTitle: (track is Track &&
+                    track.rawArtist != null &&
+                    track.rawArtist!.isNotEmpty)
                 ? track.rawArtist!
                 : track.artist,
             thumbnailUrl: track.imageUrl,
             duration: track.duration,
             viewCount: '',
             rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
-            rawChannelTitle: (track is Track) ? (track.rawArtist ?? rawA) : rawA,
+            rawChannelTitle:
+                (track is Track) ? (track.rawArtist ?? rawA) : rawA,
           );
-      if (!MusicResultClassifier.isValidIndividualSong(candidate, query: '$rawT $rawA'.trim())) {
-        debugLog('[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
+      if (!MusicResultClassifier.isValidIndividualSong(candidate,
+          query: '$rawT $rawA'.trim())) {
+        debugLog(
+            '[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
         state = state.copyWith(
           status: PlaybackStatus.error,
           clearLoadingTrackId: true,
@@ -639,7 +708,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (kIsWeb) {
         await _handler.pause();
       } else if (_handler.isPlaying) {
-        await _handler.fadeOutAndPause(duration: const Duration(milliseconds: 180));
+        await _handler.fadeOutAndPause(
+            duration: const Duration(milliseconds: 180));
       } else {
         await _handler.pause();
       }
@@ -670,7 +740,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     try {
       final resolvedTrack = await _resolveSource(track);
       if (token != _playRequestToken) {
-        debugLog('[Playback] Superseded by newer track selection (token $token vs $_playRequestToken)');
+        debugLog(
+            '[Playback] Superseded by newer track selection (token $token vs $_playRequestToken)');
         return;
       }
 
@@ -680,7 +751,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       // Check if currentIndex already points to this track (e.g. from skipToQueueItem)
       if (_queueManager.currentIndex >= 0 &&
           _queueManager.currentIndex < _queueManager.queue.length) {
-        final currentAtPointer = _queueManager.queue[_queueManager.currentIndex];
+        final currentAtPointer =
+            _queueManager.queue[_queueManager.currentIndex];
         if (currentAtPointer.id == track.id ||
             currentAtPointer.id == originalTrackId ||
             _normalizeTrackId(currentAtPointer.id) == targetId) {
@@ -691,7 +763,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       // If not at currentIndex, find it in the queue
       if (targetIndex == -1) {
         targetIndex = _queueManager.queue.indexWhere(
-          (t) => t.id == track.id ||
+          (t) =>
+              t.id == track.id ||
               t.id == originalTrackId ||
               _normalizeTrackId(t.id) == targetId,
         );
@@ -751,7 +824,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
   /// Resolves the best source for [track] based on the user's source preference.
   Future<MusicItem> _resolveSource(MusicItem track) async {
     // If the track is already a verified local file, immediately play it without network checks
-    if (!track.isYoutube && track.filePath.isNotEmpty && !track.filePath.startsWith('http')) {
+    if (!track.isYoutube &&
+        track.filePath.isNotEmpty &&
+        !track.filePath.startsWith('http')) {
       return track;
     }
 
@@ -808,12 +883,16 @@ class PlayerController extends StateNotifier<PlaybackState> {
   Future<void> play() async {
     final resumePos = state.position > Duration.zero
         ? state.position
-        : (_handler.lastValidPosition > Duration.zero ? _handler.lastValidPosition : null);
+        : (_handler.lastValidPosition > Duration.zero
+            ? _handler.lastValidPosition
+            : null);
 
-    if ((state.status == PlaybackStatus.idle || state.status == PlaybackStatus.error) &&
+    if ((state.status == PlaybackStatus.idle ||
+            state.status == PlaybackStatus.error) &&
         state.currentTrack != null) {
       await playTrack(state.currentTrack!, initialPosition: resumePos);
-    } else if (_handler.loadedAudioTrackId == null && state.currentTrack != null) {
+    } else if (_handler.loadedAudioTrackId == null &&
+        state.currentTrack != null) {
       await playTrack(state.currentTrack!, initialPosition: resumePos);
     } else {
       await _handler.play();
@@ -863,8 +942,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
       thumbnailUrl: track.imageUrl,
       duration: track.duration,
       viewCount: '',
-      rawTitle: (track is Track) ? (track.rawTitle ?? track.title) : track.title,
-      rawChannelTitle: (track is Track) ? (track.rawArtist ?? track.artist) : track.artist,
+      rawTitle:
+          (track is Track) ? (track.rawTitle ?? track.title) : track.title,
+      rawChannelTitle:
+          (track is Track) ? (track.rawArtist ?? track.artist) : track.artist,
     );
     return MusicResultClassifier.isValidIndividualSong(candidate);
   }
@@ -881,7 +962,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     // Validate that candidate in queue is a legitimate music track.
     // If an invalid non-music item was somehow in queue, skip it cleanly.
     while (nextTrack != null && !_isPlayableMusicItem(nextTrack)) {
-      debugLog('[Playback] Skipping non-music upload in queue on Next: "${nextTrack.title}"');
+      debugLog(
+          '[Playback] Skipping non-music upload in queue on Next: "${nextTrack.title}"');
       nextTrack = _queueManager.next();
     }
 
@@ -897,7 +979,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       await expandQueueIfNeeded();
       MusicItem? expandedTrack = _queueManager.next();
       while (expandedTrack != null && !_isPlayableMusicItem(expandedTrack)) {
-        debugLog('[Playback] Skipping non-music upload in expanded queue: "${expandedTrack.title}"');
+        debugLog(
+            '[Playback] Skipping non-music upload in expanded queue: "${expandedTrack.title}"');
         expandedTrack = _queueManager.next();
       }
       if (expandedTrack != null) {
@@ -914,7 +997,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     MusicItem? prevTrack = _queueManager.previous();
     while (prevTrack != null && !_isPlayableMusicItem(prevTrack)) {
-      debugLog('[Playback] Skipping non-music upload in queue on Previous: "${prevTrack.title}"');
+      debugLog(
+          '[Playback] Skipping non-music upload in queue on Previous: "${prevTrack.title}"');
       prevTrack = _queueManager.previous();
     }
 
@@ -942,9 +1026,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
     state = state.copyWith(isShuffleEnabled: isShuffle);
     await _handler.setShuffleMode(
-      isShuffle
-          ? AudioServiceShuffleMode.all
-          : AudioServiceShuffleMode.none,
+      isShuffle ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
     _persistQueueSnapshot();
     debugLog('[Playback] Shuffle toggled: $isShuffle');
@@ -1036,7 +1118,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
   void _recordRecentlyPlayed(MusicItem track) {
     try {
       String resolvedImage = track.imageUrl;
-      if (track.isYoutube && (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
+      if (track.isYoutube &&
+          (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
         final videoId = _normalizeTrackId(track.id);
         if (videoId.isNotEmpty) {
           resolvedImage = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
@@ -1044,9 +1127,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
       } else if (!track.isYoutube && resolvedImage.isEmpty) {
         try {
           final localSongs = _ref.read(songsProvider);
-          final match = localSongs.where((s) =>
-              s.id == track.id ||
-              (s.filePath.isNotEmpty && s.filePath == track.filePath)).firstOrNull;
+          final match = localSongs
+              .where((s) =>
+                  s.id == track.id ||
+                  (s.filePath.isNotEmpty && s.filePath == track.filePath))
+              .firstOrNull;
           if (match != null && match.artworkPath.isNotEmpty) {
             resolvedImage = match.artworkPath;
           }

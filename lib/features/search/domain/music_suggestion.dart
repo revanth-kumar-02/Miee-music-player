@@ -55,3 +55,4 @@ class MusicSuggestion {
   @override
   String toString() => 'MusicSuggestion($type: "$title", subtitle: "$subtitle")';
 }
+

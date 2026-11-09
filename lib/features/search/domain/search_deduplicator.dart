@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
 import '../../../shared/models/music_item.dart';
+import '../../../shared/models/track.dart';
 import '../../recommendations/domain/music_language_service.dart';
 
 /// Represents genuinely distinct recording version categories.
@@ -19,15 +20,15 @@ enum VersionType {
 /// Identifies categorized derivative upload types.
 enum EditType {
   none,
-  fourKEdit,       // 4K edit, 4K status, 4K 60fps, 4K HDR edit
-  fanEdit,         // fan edit, edit audio, AMV edit, fanmade edit, standalone edits, trending
-  slowedReverb,    // slowed + reverb, slowed down, reverse, slowed+reverse
+  fourKEdit, // 4K edit, 4K status, 4K 60fps, 4K HDR edit
+  fanEdit, // fan edit, edit audio, AMV edit, fanmade edit, standalone edits, trending
+  slowedReverb, // slowed + reverb, slowed down, reverse, slowed+reverse
   spedUpNightcore, // sped up, speed up, nightcore
-  statusVideo,     // whatsapp status, status video, #shorts, reels
-  compilationMix,  // jukebox, non-stop, continuous mix, full album
-  mashupRemake,    // mashup, X spiderman, crossover, remake
-  audioModified,   // bass audio, bass boosted, 8D audio
-  promoTeaser,     // promo, teaser, trailer, preview, promo video, glimpse
+  statusVideo, // whatsapp status, status video, #shorts, reels
+  compilationMix, // jukebox, non-stop, continuous mix, full album
+  mashupRemake, // mashup, X spiderman, crossover, remake
+  audioModified, // bass audio, bass boosted, 8D audio
+  promoTeaser, // promo, teaser, trailer, preview, promo video, glimpse
   documentaryMaking, // documentary, making of, behind the scenes, interview
   nonMusicEntertainment, // comedy clips, podcasts, talk shows, vlogs, reactions, gaming, sketches
 }
@@ -102,20 +103,53 @@ class QueryIntent {
     return QueryIntent(
       normalizedQuery: q,
       wants4kEdit: q.contains('4k') || q.contains('edit'),
-      wantsFanEdit: q.contains('fan edit') || q.contains('edit audio') || q.contains('amv') || q.contains('edit'),
-      wantsSlowed: q.contains('slowed') || q.contains('reverb') || q.contains('slow down') || q.contains('slow') || q.contains('reverse'),
-      wantsSpedUp: q.contains('sped up') || q.contains('speed up') || q.contains('nightcore') || q.contains('speedup'),
-      wantsStatus: q.contains('status') || q.contains('shorts') || q.contains('short') || q.contains('reels'),
-      wantsCompilation: q.contains('jukebox') || q.contains('non stop') || q.contains('nonstop') || q.contains('mix') || q.contains('compilation'),
-      wantsRemix: q.contains('remix') || q.contains('club mix') || q.contains('vip mix'),
-      wantsLive: q.contains('live') || q.contains('concert') || q.contains('tour'),
+      wantsFanEdit: q.contains('fan edit') ||
+          q.contains('edit audio') ||
+          q.contains('amv') ||
+          q.contains('edit'),
+      wantsSlowed: q.contains('slowed') ||
+          q.contains('reverb') ||
+          q.contains('slow down') ||
+          q.contains('slow') ||
+          q.contains('reverse'),
+      wantsSpedUp: q.contains('sped up') ||
+          q.contains('speed up') ||
+          q.contains('nightcore') ||
+          q.contains('speedup'),
+      wantsStatus: q.contains('status') ||
+          q.contains('shorts') ||
+          q.contains('short') ||
+          q.contains('reels'),
+      wantsCompilation: q.contains('jukebox') ||
+          q.contains('non stop') ||
+          q.contains('nonstop') ||
+          q.contains('mix') ||
+          q.contains('compilation'),
+      wantsRemix: q.contains('remix') ||
+          q.contains('club mix') ||
+          q.contains('vip mix'),
+      wantsLive:
+          q.contains('live') || q.contains('concert') || q.contains('tour'),
       wantsAcoustic: q.contains('acoustic') || q.contains('unplugged'),
       wantsCover: q.contains('cover') || q.contains('tribute'),
       wantsInstrumental: q.contains('instrumental') || q.contains('karaoke'),
-      wantsMashup: q.contains('mashup') || q.contains('crossover') || q.contains(' x ') || q.contains(' vs ') || q.contains('remake'),
-      wantsAudioModified: q.contains('bass') || q.contains('8d') || q.contains('boosted') || q.contains('atmos'),
-      wantsPromo: q.contains('promo') || q.contains('teaser') || q.contains('trailer') || q.contains('preview'),
-      wantsDocumentary: q.contains('documentary') || q.contains('making of') || q.contains('interview') || q.contains('bts'),
+      wantsMashup: q.contains('mashup') ||
+          q.contains('crossover') ||
+          q.contains(' x ') ||
+          q.contains(' vs ') ||
+          q.contains('remake'),
+      wantsAudioModified: q.contains('bass') ||
+          q.contains('8d') ||
+          q.contains('boosted') ||
+          q.contains('atmos'),
+      wantsPromo: q.contains('promo') ||
+          q.contains('teaser') ||
+          q.contains('trailer') ||
+          q.contains('preview'),
+      wantsDocumentary: q.contains('documentary') ||
+          q.contains('making of') ||
+          q.contains('interview') ||
+          q.contains('bts'),
     );
   }
 }
@@ -209,9 +243,10 @@ class SearchDeduplicator {
       final orderIndex = groupFirstIndex[g];
 
       final bestVideo = _selectBestCandidate(candidates, query: query);
-      final rawOrCleanTitle = (bestVideo.rawTitle != null && bestVideo.rawTitle!.isNotEmpty)
-          ? bestVideo.rawTitle!
-          : bestVideo.title;
+      final rawOrCleanTitle =
+          (bestVideo.rawTitle != null && bestVideo.rawTitle!.isNotEmpty)
+              ? bestVideo.rawTitle!
+              : bestVideo.title;
       final versionInfo = _extractVersion(rawOrCleanTitle, bestVideo.title);
       final finalizedVideo = _ensureVersionInTitle(bestVideo, versionInfo.type);
 
@@ -219,7 +254,9 @@ class SearchDeduplicator {
     }
 
     // 4. If filterDerivativeEdits is true, apply view-count filtering and quality ranking
-    if (config.filterDerivativeEdits && query != null && query.trim().isNotEmpty) {
+    if (config.filterDerivativeEdits &&
+        query != null &&
+        query.trim().isNotEmpty) {
       final intent = QueryIntent.fromQuery(query);
       final candidateList = representatives.map((r) => r.video).toList();
 
@@ -242,7 +279,8 @@ class SearchDeduplicator {
         final editType = detectEditType(v, intent);
         final views = parseViewCount(v);
         final rawTitle = (v.rawTitle ?? v.title).toLowerCase();
-        final channelLower = (v.rawChannelTitle ?? v.channelTitle).toLowerCase();
+        final channelLower =
+            (v.rawChannelTitle ?? v.channelTitle).toLowerCase();
         final isOfficial = channelLower.contains('- topic') ||
             channelLower.endsWith('topic') ||
             channelLower.contains('vevo') ||
@@ -272,7 +310,10 @@ class SearchDeduplicator {
             views < (maxViews * 0.02) &&
             views < 50000;
 
-        if (!isUnwantedEdit && !isLowViewDerivative && !isFanLyricUpload && !isLowViewFanReupload) {
+        if (!isUnwantedEdit &&
+            !isLowViewDerivative &&
+            !isFanLyricUpload &&
+            !isLowViewFanReupload) {
           canonicalList.add(v);
         }
       }
@@ -280,15 +321,19 @@ class SearchDeduplicator {
       // Safe fallback: If filtering would eliminate every result because all were edits,
       // retain candidateList ONLY if it contains valid music tracks (not non-music entertainment).
       final validCandidates = candidateList
-          .where((v) => detectEditType(v, intent) != EditType.nonMusicEntertainment)
+          .where((v) =>
+              detectEditType(v, intent) != EditType.nonMusicEntertainment)
           .toList();
-      final resultPool = canonicalList.isNotEmpty ? canonicalList : validCandidates;
+      final resultPool =
+          canonicalList.isNotEmpty ? canonicalList : validCandidates;
       if (resultPool.isEmpty) return const [];
 
       // Sort by global candidate score (relevance, official authenticity, view count)
       resultPool.sort((a, b) {
-        final scoreA = calculateGlobalCandidateScore(a, query: query, maxViewsInResultSet: maxViews);
-        final scoreB = calculateGlobalCandidateScore(b, query: query, maxViewsInResultSet: maxViews);
+        final scoreA = calculateGlobalCandidateScore(a,
+            query: query, maxViewsInResultSet: maxViews);
+        final scoreB = calculateGlobalCandidateScore(b,
+            query: query, maxViewsInResultSet: maxViews);
         return scoreB.compareTo(scoreA);
       });
 
@@ -301,7 +346,8 @@ class SearchDeduplicator {
   }
 
   /// Appends appropriate version suffix to track title if it was stripped by metadata cleaning.
-  static YouTubeVideo _ensureVersionInTitle(YouTubeVideo video, VersionType type) {
+  static YouTubeVideo _ensureVersionInTitle(
+      YouTubeVideo video, VersionType type) {
     final lowerTitle = video.title.toLowerCase();
     switch (type) {
       case VersionType.slowed:
@@ -347,20 +393,20 @@ class SearchDeduplicator {
 
   /// Checks whether two YouTube videos represent the same underlying canonical song.
   /// Computes a canonical recording key for any [MusicItem] (Track, Song, etc.).
-  /// Used across Queue, PlayerController, Recommendations and Search to eliminate duplicate uploads.
+  /// Computes a canonical recording key for any [MusicItem] (Track, Song, etc.).
+  /// Used across Queue, PlayerController, Recommendations and Search to eliminate duplicate uploads
+  /// while strictly preserving distinct tracks with identical titles by different artists.
   static String computeRecordingKey(MusicItem track) {
     final rawTitle = track.title;
     final rawArtist = track.artist;
     final versionInfo = _extractVersion(rawTitle, rawTitle);
     final baseTitle = _normalizeBaseTitle(rawTitle, rawTitle, rawArtist);
-    final isGeneric = _isGenericUploader(rawArtist);
-    final lang = MusicLanguageService.detectLanguage(rawTitle, artist: rawArtist);
+    final lang =
+        MusicLanguageService.detectLanguage(rawTitle, artist: rawArtist);
     final langSuffix = (lang != 'Unknown') ? '|$lang' : '';
-    if (isGeneric) {
-      return '$baseTitle|${versionInfo.tag}$langSuffix';
-    }
     final normArtist = _normalizeArtist(rawArtist);
-    return '$baseTitle|$normArtist|${versionInfo.tag}$langSuffix';
+    final resolvedArtist = normArtist.isNotEmpty ? normArtist : 'unknown';
+    return '$baseTitle|$resolvedArtist|${versionInfo.tag}$langSuffix';
   }
 
   /// Checks whether two [MusicItem]s represent the same underlying canonical recording.
@@ -370,9 +416,12 @@ class SearchDeduplicator {
     final keyB = computeRecordingKey(b);
     if (keyA == keyB) return true;
 
-    final langA = MusicLanguageService.detectLanguage(a.title, artist: a.artist);
-    final langB = MusicLanguageService.detectLanguage(b.title, artist: b.artist);
-    if (langA != 'Unknown' && langB != 'Unknown' && langA != langB) return false;
+    final langA =
+        MusicLanguageService.detectLanguage(a.title, artist: a.artist);
+    final langB =
+        MusicLanguageService.detectLanguage(b.title, artist: b.artist);
+    if (langA != 'Unknown' && langB != 'Unknown' && langA != langB)
+      return false;
 
     final vA = _extractVersion(a.title, a.title);
     final vB = _extractVersion(b.title, b.title);
@@ -381,14 +430,39 @@ class SearchDeduplicator {
     final baseA = _normalizeBaseTitle(a.title, a.title, a.artist);
     final baseB = _normalizeBaseTitle(b.title, b.title, b.artist);
     if (_titlesMatchSubstantially(baseA, baseB)) {
-      final genA = _isGenericUploader(a.artist);
-      final genB = _isGenericUploader(b.artist);
-      if (genA || genB) return true;
       final artA = _normalizeArtist(a.artist);
       final artB = _normalizeArtist(b.artist);
-      if (artA == artB) return true;
+      if (artA.isNotEmpty && artB.isNotEmpty && artA == artB) return true;
+
+      // Check if one track's raw title explicitly credits the other's artist
+      final rawTitleA = (a is Track && a.rawTitle != null)
+          ? a.rawTitle!.toLowerCase()
+          : a.title.toLowerCase();
+      final rawTitleB = (b is Track && b.rawTitle != null)
+          ? b.rawTitle!.toLowerCase()
+          : b.title.toLowerCase();
+      if (artA.isNotEmpty && rawTitleB.contains(artA)) return true;
+      if (artB.isNotEmpty && rawTitleA.contains(artB)) return true;
     }
     return false;
+  }
+
+  /// Public exposure of base title normalization for queue filtering and context checks.
+  static String normalizeBaseTitle(String title,
+      {String? rawTitle, String? artist}) {
+    return _normalizeBaseTitle(title, rawTitle ?? title, artist ?? '');
+  }
+
+  /// Public exposure of artist normalization.
+  static String normalizeArtist(String rawChannel) {
+    return _normalizeArtist(rawChannel);
+  }
+
+  /// Checks if two titles match substantially (ignoring punctuation, regional prefixes, and noise).
+  static bool areTitlesMatching(String titleA, String titleB) {
+    final baseA = _normalizeBaseTitle(titleA, titleA, '');
+    final baseB = _normalizeBaseTitle(titleB, titleB, '');
+    return _titlesMatchSubstantially(baseA, baseB);
   }
 
   static bool isSameCanonicalSong(YouTubeVideo a, YouTubeVideo b) {
@@ -398,20 +472,24 @@ class SearchDeduplicator {
   }
 
   /// Computes a canonical signature for clustering YouTube results.
-  static _CanonicalSongSignature _computeCanonicalSignature(YouTubeVideo video) {
-    final rawOrCleanTitle = (video.rawTitle != null && video.rawTitle!.isNotEmpty)
-        ? video.rawTitle!
-        : video.title;
+  static _CanonicalSongSignature _computeCanonicalSignature(
+      YouTubeVideo video) {
+    final rawOrCleanTitle =
+        (video.rawTitle != null && video.rawTitle!.isNotEmpty)
+            ? video.rawTitle!
+            : video.title;
     final rawOrCleanChannel = (video.channelTitle.isNotEmpty)
         ? video.channelTitle
         : (video.rawChannelTitle ?? '');
 
     final versionInfo = _extractVersion(rawOrCleanTitle, video.title);
-    final normalizedTitle = _normalizeBaseTitle(video.title, rawOrCleanTitle, rawOrCleanChannel);
+    final normalizedTitle =
+        _normalizeBaseTitle(video.title, rawOrCleanTitle, rawOrCleanChannel);
     final normalizedArtist = _normalizeArtist(rawOrCleanChannel);
     final durSec = _parseDurationSeconds(video.duration);
     final isGeneric = _isGenericUploader(rawOrCleanChannel);
-    final language = MusicLanguageService.detectLanguage(rawOrCleanTitle, artist: rawOrCleanChannel);
+    final language = MusicLanguageService.detectLanguage(rawOrCleanTitle,
+        artist: rawOrCleanChannel);
 
     return _CanonicalSongSignature(
       normalizedTitle: normalizedTitle,
@@ -433,17 +511,21 @@ class SearchDeduplicator {
   }
 
   /// Evaluates whether two signatures represent identical recordings or distinct songs.
-  static bool _isSameCanonicalSong(_CanonicalSongSignature a, _CanonicalSongSignature b) {
+  static bool _isSameCanonicalSong(
+      _CanonicalSongSignature a, _CanonicalSongSignature b) {
     // 1. Version tags MUST match (e.g. standard vs remix vs cover vs acoustic vs live)
     if (a.versionTag != b.versionTag) return false;
 
     // 1b. Distinct known languages must NOT be merged (e.g. Tamil vs Telugu vs Hindi)
-    if (a.language != 'Unknown' && b.language != 'Unknown' && a.language != b.language) {
+    if (a.language != 'Unknown' &&
+        b.language != 'Unknown' &&
+        a.language != b.language) {
       return false;
     }
 
     // 2. Base titles must match substantially
-    final titlesMatch = _titlesMatchSubstantially(a.normalizedTitle, b.normalizedTitle);
+    final titlesMatch =
+        _titlesMatchSubstantially(a.normalizedTitle, b.normalizedTitle);
     if (!titlesMatch) return false;
 
     // 3. If normalized artists match, it's definitely the same song
@@ -459,8 +541,10 @@ class SearchDeduplicator {
       if (a.isGenericUploader || b.isGenericUploader) return true;
       final rawTitleA = a.rawTitle.toLowerCase();
       final rawTitleB = b.rawTitle.toLowerCase();
-      if (a.normalizedArtist.isNotEmpty && rawTitleB.contains(a.normalizedArtist)) return true;
-      if (b.normalizedArtist.isNotEmpty && rawTitleA.contains(b.normalizedArtist)) return true;
+      if (a.normalizedArtist.isNotEmpty &&
+          rawTitleB.contains(a.normalizedArtist)) return true;
+      if (b.normalizedArtist.isNotEmpty &&
+          rawTitleA.contains(b.normalizedArtist)) return true;
     }
 
     // If durations differ by more than 45s, they are distinct recordings
@@ -485,7 +569,9 @@ class SearchDeduplicator {
 
     // 7. For film music with identical duration (within 5s) and identical titles:
     // (e.g. composer credited on one upload vs singer credited on another)
-    if (hasDurations && durDiff <= 5 && a.normalizedTitle == b.normalizedTitle) {
+    if (hasDurations &&
+        durDiff <= 5 &&
+        a.normalizedTitle == b.normalizedTitle) {
       return true;
     }
 
@@ -511,7 +597,8 @@ class SearchDeduplicator {
     if (t1 == t2) return true;
     if (t1.isEmpty || t2.isEmpty) return false;
     if (t1 == 'en $t2' || t2 == 'en $t1') return true;
-    if ((t1.startsWith(t2) || t2.startsWith(t1)) && (t1.length - t2.length).abs() <= 5) {
+    if ((t1.startsWith(t2) || t2.startsWith(t1)) &&
+        (t1.length - t2.length).abs() <= 5) {
       return true;
     }
 
@@ -519,7 +606,8 @@ class SearchDeduplicator {
     final p2 = _phoneticCollapse(t2);
     if (p1 == p2) return true;
     if (p1 == 'en $p2' || p2 == 'en $p1') return true;
-    if ((p1.startsWith(p2) || p2.startsWith(p1)) && (p1.length - p2.length).abs() <= 5) {
+    if ((p1.startsWith(p2) || p2.startsWith(p1)) &&
+        (p1.length - p2.length).abs() <= 5) {
       return true;
     }
 
@@ -528,20 +616,16 @@ class SearchDeduplicator {
 
   /// Checks whether a channel is a generic record label, distributor, or fan uploader.
   static bool _isGenericUploader(String channel) {
-    final lower = channel.toLowerCase();
-    // Do not flag official artist VEVO as generic (e.g. AdeleVEVO, LionelRichieVEVO)
-    final clean = lower.endsWith('vevo') ? lower.substring(0, lower.length - 4) : lower;
-    if (clean == 'adele' || clean == 'lionelrichie' || clean == 'lanadelrey') {
+    final lower = channel.toLowerCase().trim();
+    // Do not flag official artist VEVO channels as generic
+    if (lower.endsWith('vevo')) {
       return false;
     }
 
     return lower.startsWith('@') ||
         lower.contains('@') ||
-        lower.contains('vevo') ||
         lower.contains('topic') ||
-        lower.contains('music') ||
         lower.contains('records') ||
-        lower.contains('record') ||
         lower.contains('label') ||
         lower.contains('channel') ||
         lower.contains('series') ||
@@ -612,7 +696,8 @@ class SearchDeduplicator {
   }
 
   /// Extracts version type and a specific version identifier (e.g. remixer name).
-  static ({VersionType type, String tag}) _extractVersion(String rawTitle, String cleanTitle) {
+  static ({VersionType type, String tag}) _extractVersion(
+      String rawTitle, String cleanTitle) {
     final combined = '$rawTitle $cleanTitle'.toLowerCase();
 
     // Check remix (extract specific remixer if available inside brackets/parentheses)
@@ -620,7 +705,8 @@ class SearchDeduplicator {
       r'[\(\[\{]([^\)\]\}]+?\s+remix)[\)\]\}]',
       caseSensitive: false,
     );
-    final remixMatch = remixRegex.firstMatch(rawTitle) ?? remixRegex.firstMatch(cleanTitle);
+    final remixMatch =
+        remixRegex.firstMatch(rawTitle) ?? remixRegex.firstMatch(cleanTitle);
     if (remixMatch != null) {
       final specificRemix = _sanitizeText(remixMatch.group(1) ?? 'remix');
       return (type: VersionType.remix, tag: 'remix:$specificRemix');
@@ -635,7 +721,9 @@ class SearchDeduplicator {
     }
 
     // Check live
-    final liveRegex = RegExp(r'\b(live(\s+(at|in|performance|session|version|from))?)\b', caseSensitive: false);
+    final liveRegex = RegExp(
+        r'\b(live(\s+(at|in|performance|session|version|from))?)\b',
+        caseSensitive: false);
     if (liveRegex.hasMatch(combined)) {
       return (type: VersionType.live, tag: 'live');
     }
@@ -647,25 +735,31 @@ class SearchDeduplicator {
     }
 
     // Check acoustic
-    final acousticRegex = RegExp(r'\b(acoustic(\s+version)?|unplugged)\b', caseSensitive: false);
+    final acousticRegex =
+        RegExp(r'\b(acoustic(\s+version)?|unplugged)\b', caseSensitive: false);
     if (acousticRegex.hasMatch(combined)) {
       return (type: VersionType.acoustic, tag: 'acoustic');
     }
 
     // Check sped up
-    final spedUpRegex = RegExp(r'\b(sped\s+up|speed\s+up|nightcore)\b', caseSensitive: false);
+    final spedUpRegex =
+        RegExp(r'\b(sped\s+up|speed\s+up|nightcore)\b', caseSensitive: false);
     if (spedUpRegex.hasMatch(combined)) {
       return (type: VersionType.spedUp, tag: 'sped_up');
     }
 
     // Check slowed / reverb
-    final slowedRegex = RegExp(r"\b(slowed(\s*(\+|&|and|n|'n'|\/)\s*reverb)?|slowed\s+down|reverb)\b", caseSensitive: false);
+    final slowedRegex = RegExp(
+        r"\b(slowed(\s*(\+|&|and|n|'n'|\/)\s*reverb)?|slowed\s+down|reverb)\b",
+        caseSensitive: false);
     if (slowedRegex.hasMatch(combined)) {
       return (type: VersionType.slowed, tag: 'slowed');
     }
 
     // Check instrumental
-    final instrumentalRegex = RegExp(r'\b(instrumental|karaoke|backing\s+track)\b', caseSensitive: false);
+    final instrumentalRegex = RegExp(
+        r'\b(instrumental|karaoke|backing\s+track)\b',
+        caseSensitive: false);
     if (instrumentalRegex.hasMatch(combined)) {
       return (type: VersionType.instrumental, tag: 'instrumental');
     }
@@ -674,7 +768,8 @@ class SearchDeduplicator {
   }
 
   /// Normalizes base title by removing upload noise, packaging decorations, and version markers.
-  static String _normalizeBaseTitle(String cleanTitle, String rawTitle, String channel) {
+  static String _normalizeBaseTitle(
+      String cleanTitle, String rawTitle, String channel) {
     var title = cleanTitle.isNotEmpty ? cleanTitle : rawTitle;
 
     // 1. Remove version markers from brackets/parentheses so that different uploads of the same version
@@ -911,13 +1006,15 @@ class SearchDeduplicator {
     var score = 0;
 
     final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
-    final rawChannel = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+    final rawChannel =
+        (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
     final cleanTitle = video.title.toLowerCase();
 
     // 1. High-confidence official channel signals
     if (rawChannel.contains('- topic') || rawChannel.endsWith('topic')) {
       score += 130; // Official YouTube Music track delivery
-    } else if (rawChannel.contains('vevo') || _isOfficialMusicLabel(rawChannel)) {
+    } else if (rawChannel.contains('vevo') ||
+        _isOfficialMusicLabel(rawChannel)) {
       score += 130; // Official major music label or VEVO channel
     } else if (rawChannel.contains('official')) {
       score += 40;
@@ -934,8 +1031,10 @@ class SearchDeduplicator {
         rawTitle.contains('video song')) {
       score += 85;
     } else if (rawTitle.contains('full video')) {
-      score += 20; // Video releases often contain extended non-musical intros/dialogue
-    } else if (rawTitle.contains('official visualizer') || rawTitle.contains('visualizer')) {
+      score +=
+          20; // Video releases often contain extended non-musical intros/dialogue
+    } else if (rawTitle.contains('official visualizer') ||
+        rawTitle.contains('visualizer')) {
       score += 50;
     } else if (rawTitle.contains('audio')) {
       score += 30;
@@ -954,7 +1053,8 @@ class SearchDeduplicator {
       final pTitle = _phoneticCollapse(sanitizedCleanTitle);
       if (sanitizedCleanTitle == sanitizedQuery || pTitle == pQuery) {
         score += 50;
-      } else if (sanitizedCleanTitle.contains(sanitizedQuery) || pTitle.contains(pQuery)) {
+      } else if (sanitizedCleanTitle.contains(sanitizedQuery) ||
+          pTitle.contains(pQuery)) {
         score += 25;
       }
     }
@@ -1058,7 +1158,11 @@ class SearchDeduplicator {
   /// Parses view count string like "1.2M views", "450K views", or "12,400 views".
   static int? _parseViewCount(String viewCountStr) {
     if (viewCountStr.isEmpty) return null;
-    final clean = viewCountStr.toLowerCase().replaceAll('views', '').replaceAll(',', '').trim();
+    final clean = viewCountStr
+        .toLowerCase()
+        .replaceAll('views', '')
+        .replaceAll(',', '')
+        .trim();
     if (clean.isEmpty || clean.contains('no views')) return null;
 
     if (clean.endsWith('b')) {
@@ -1077,13 +1181,15 @@ class SearchDeduplicator {
   /// Identifies derivative / edit upload types unless explicitly requested in query intent.
   static EditType detectEditType(YouTubeVideo video, QueryIntent intent) {
     // 0. Non-music entertainment check (comedy, podcasts, vlogs, reactions, web series, roasts, etc.)
-    if (!MusicResultClassifier.isValidMusicTrack(video, query: intent.normalizedQuery)) {
+    if (!MusicResultClassifier.isValidMusicTrack(video,
+        query: intent.normalizedQuery)) {
       return EditType.nonMusicEntertainment;
     }
 
     final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
     final cleanTitle = video.title.toLowerCase();
-    final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+    final channelLower =
+        (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
     final collapsedTitle = rawTitle.replaceAll(RegExp(r'\s+'), '');
 
     // 1. 4K edit / status check
@@ -1110,7 +1216,8 @@ class SearchDeduplicator {
           channelLower.contains('editz') ||
           channelLower.contains('amv') ||
           channelLower.contains('vfx') ||
-          (channelLower.contains('edit') && !_isOfficialMusicLabel(channelLower)) ||
+          (channelLower.contains('edit') &&
+              !_isOfficialMusicLabel(channelLower)) ||
           rawTitle.contains('fanmade edit') ||
           rawTitle.contains('anime edit') ||
           rawTitle.contains('trending') ||
@@ -1119,8 +1226,11 @@ class SearchDeduplicator {
           rawTitle.contains('trend song') ||
           collapsedTitle.contains('fanedit') ||
           collapsedTitle.contains('audioedit') ||
-          RegExp(r'[\(\[\{\|\-]\s*(edit|edits|editz|fan\s*edit|audio\s*edit|trending)\b', caseSensitive: false).hasMatch(rawTitle) ||
-          RegExp(r'\b(edit|edits|editz)\b', caseSensitive: false).hasMatch(rawTitle)) {
+          RegExp(r'[\(\[\{\|\-]\s*(edit|edits|editz|fan\s*edit|audio\s*edit|trending)\b',
+                  caseSensitive: false)
+              .hasMatch(rawTitle) ||
+          RegExp(r'\b(edit|edits|editz)\b', caseSensitive: false)
+              .hasMatch(rawTitle)) {
         if (!rawTitle.contains('radio edit') && !rawTitle.contains('edition')) {
           return EditType.fanEdit;
         }
@@ -1145,7 +1255,8 @@ class SearchDeduplicator {
           channelLower.contains('ringtones') ||
           collapsedTitle.contains('statusvideo') ||
           collapsedTitle.contains('whatsappstatus') ||
-          RegExp(r'\b(status\s+video|wa\s+status|lyric\s+status|ringtone|ringtones)\b').hasMatch(rawTitle)) {
+          RegExp(r'\b(status\s+video|wa\s+status|lyric\s+status|ringtone|ringtones)\b')
+              .hasMatch(rawTitle)) {
         return EditType.statusVideo;
       }
 
@@ -1189,7 +1300,8 @@ class SearchDeduplicator {
             collapsedTitle.contains('slowed') ||
             collapsedTitle.contains('reverb') ||
             collapsedTitle.contains('reverse') ||
-            RegExp(r'[\(\[\{]\s*(slowed|reverb|reverse)\s*[\)\]\}]').hasMatch(rawTitle)) {
+            RegExp(r'[\(\[\{]\s*(slowed|reverb|reverse)\s*[\)\]\}]')
+                .hasMatch(rawTitle)) {
           return EditType.slowedReverb;
         }
       }
@@ -1197,7 +1309,8 @@ class SearchDeduplicator {
 
     // 5. Sped up / Nightcore (Conservative: don't flag "Speed Demon")
     if (!intent.wantsSpedUp) {
-      final isSongTitleSpeed = cleanTitle == 'speed demon' || cleanTitle.startsWith('speed demon ');
+      final isSongTitleSpeed =
+          cleanTitle == 'speed demon' || cleanTitle.startsWith('speed demon ');
       if (!isSongTitleSpeed) {
         if (rawTitle.contains('nightcore') ||
             rawTitle.contains('sped up') ||
@@ -1206,7 +1319,8 @@ class SearchDeduplicator {
             collapsedTitle.contains('nightcore') ||
             collapsedTitle.contains('spedup') ||
             collapsedTitle.contains('speedup') ||
-            RegExp(r'[\(\[\{]\s*(sped\s+up|speed\s+up|nightcore)\s*[\)\]\}]').hasMatch(rawTitle)) {
+            RegExp(r'[\(\[\{]\s*(sped\s+up|speed\s+up|nightcore)\s*[\)\]\}]')
+                .hasMatch(rawTitle)) {
           return EditType.spedUpNightcore;
         }
       }
@@ -1252,8 +1366,11 @@ class SearchDeduplicator {
     }
 
     // 7. Mashups / Crossovers / Remakes / Multimixes
-        if (!intent.wantsMashup) {
-      if (RegExp(r'\b(batman|spiderman|superman|iron\s*man|anime|amv|goku|naruto|luffy)\b.*\b(ft\.?|x|vs\.?)\b', caseSensitive: false).hasMatch(rawTitle)) {
+    if (!intent.wantsMashup) {
+      if (RegExp(
+              r'\b(batman|spiderman|superman|iron\s*man|anime|amv|goku|naruto|luffy)\b.*\b(ft\.?|x|vs\.?)\b',
+              caseSensitive: false)
+          .hasMatch(rawTitle)) {
         return EditType.mashupRemake;
       }
       if (rawTitle.contains('mashup') ||
@@ -1280,8 +1397,11 @@ class SearchDeduplicator {
           collapsedTitle.contains('multimix') ||
           collapsedTitle.contains('megamix') ||
           collapsedTitle.contains('mashup') ||
-          RegExp(r'[\s\(\[\{]([xX\u00D7]|vs\.?)\s+[a-zA-Z0-9]', caseSensitive: false).hasMatch(rawTitle) ||
-          RegExp(r'\b[a-zA-Z0-9]+\s*[xX\u00D7]\s*[a-zA-Z0-9]+\b').hasMatch(rawTitle)) {
+          RegExp(r'[\s\(\[\{]([xX\u00D7]|vs\.?)\s+[a-zA-Z0-9]',
+                  caseSensitive: false)
+              .hasMatch(rawTitle) ||
+          RegExp(r'\b[a-zA-Z0-9]+\s*[xX\u00D7]\s*[a-zA-Z0-9]+\b')
+              .hasMatch(rawTitle)) {
         return EditType.mashupRemake;
       }
     }
@@ -1303,7 +1423,8 @@ class SearchDeduplicator {
           collapsedTitle.contains('boosted') ||
           collapsedTitle.contains('bassboost') ||
           collapsedTitle.contains('8daudio') ||
-          RegExp(r'\b(bass\s+(audio|boosted|boost)|8d\s+audio|boosted)\b').hasMatch(rawTitle)) {
+          RegExp(r'\b(bass\s+(audio|boosted|boost)|8d\s+audio|boosted)\b')
+              .hasMatch(rawTitle)) {
         return EditType.audioModified;
       }
     }
@@ -1321,8 +1442,12 @@ class SearchDeduplicator {
           collapsedTitle.contains('teaser') ||
           collapsedTitle.contains('trailer') ||
           collapsedTitle.contains('thangamaanapaiyan') ||
-          RegExp(r'[\(\[\{\|\-]\s*(promo|teaser|trailer|preview|glimpse)\b', caseSensitive: false).hasMatch(rawTitle) ||
-          RegExp(r'\b(promo|teaser|trailer|preview|glimpse)\b', caseSensitive: false).hasMatch(rawTitle)) {
+          RegExp(r'[\(\[\{\|\-]\s*(promo|teaser|trailer|preview|glimpse)\b',
+                  caseSensitive: false)
+              .hasMatch(rawTitle) ||
+          RegExp(r'\b(promo|teaser|trailer|preview|glimpse)\b',
+                  caseSensitive: false)
+              .hasMatch(rawTitle)) {
         return EditType.promoTeaser;
       }
 
@@ -1350,8 +1475,11 @@ class SearchDeduplicator {
           rawTitle.contains('audio launch') ||
           collapsedTitle.contains('documentary') ||
           collapsedTitle.contains('behindthescenes') ||
-          RegExp(r'[\(\[\{\|\-]\s*(documentary|bts|making)\b', caseSensitive: false).hasMatch(rawTitle) ||
-          RegExp(r'\b(documentary|bts)\b', caseSensitive: false).hasMatch(rawTitle)) {
+          RegExp(r'[\(\[\{\|\-]\s*(documentary|bts|making)\b',
+                  caseSensitive: false)
+              .hasMatch(rawTitle) ||
+          RegExp(r'\b(documentary|bts)\b', caseSensitive: false)
+              .hasMatch(rawTitle)) {
         return EditType.documentaryMaking;
       }
     }
@@ -1377,12 +1505,18 @@ class SearchDeduplicator {
     final pClean = _phoneticCollapse(cleanTitle);
     final pRaw = _phoneticCollapse(rawTitle);
 
-    if (cleanTitle == normQuery || rawTitle == normQuery || pClean == pQuery || pRaw == pQuery) {
+    if (cleanTitle == normQuery ||
+        rawTitle == normQuery ||
+        pClean == pQuery ||
+        pRaw == pQuery) {
       return 1.0;
     }
 
     // 2. Title contains query phrase or query phrase contains title
-    if (cleanTitle.contains(normQuery) || rawTitle.contains(normQuery) || pClean.contains(pQuery) || pRaw.contains(pQuery)) {
+    if (cleanTitle.contains(normQuery) ||
+        rawTitle.contains(normQuery) ||
+        pClean.contains(pQuery) ||
+        pRaw.contains(pQuery)) {
       return 0.95;
     }
     if (normQuery.contains(cleanTitle) && cleanTitle.length >= 3) {
@@ -1398,10 +1532,14 @@ class SearchDeduplicator {
 
     for (final token in qTokens) {
       final pToken = _phoneticCollapse(token);
-      if (cleanTitle.contains(token) || rawTitle.contains(token) || pClean.contains(pToken) || pRaw.contains(pToken)) {
+      if (cleanTitle.contains(token) ||
+          rawTitle.contains(token) ||
+          pClean.contains(pToken) ||
+          pRaw.contains(pToken)) {
         titleTokensMatched++;
       }
-      if (allText.contains(token) || _phoneticCollapse(allText).contains(pToken)) {
+      if (allText.contains(token) ||
+          _phoneticCollapse(allText).contains(pToken)) {
         allTokensMatched++;
       }
     }
@@ -1431,7 +1569,8 @@ class SearchDeduplicator {
         _isOfficialMusicLabel(channel) ||
         _isVerifiedArtist(channel);
 
-    final isAlternateLanguage = lang != 'Unknown' && !query.toLowerCase().contains(lang.toLowerCase());
+    final isAlternateLanguage =
+        lang != 'Unknown' && !query.toLowerCase().contains(lang.toLowerCase());
 
     // If relevance is low, but it is an official release in another language (e.g. Telugu version)
     if (relevance < 0.25) {
@@ -1450,9 +1589,11 @@ class SearchDeduplicator {
     } else if (channel.contains('vevo')) {
       score += 200; // Official VEVO
     } else if (_isOfficialMusicLabel(channel)) {
-      score += 220; // Official major music label (Think Music, Sony, T-Series, etc.)
+      score +=
+          220; // Official major music label (Think Music, Sony, T-Series, etc.)
     } else if (_isVerifiedArtist(channel)) {
-      score += 210; // Verified artist / composer channel (e.g. Dhanush, Anirudh)
+      score +=
+          210; // Verified artist / composer channel (e.g. Dhanush, Anirudh)
     } else if (channel.contains('official')) {
       score += 80;
     }
@@ -1484,7 +1625,9 @@ class SearchDeduplicator {
     }
 
     // Rank 4: Legitimate version indicators (Remixes, acoustic, unplugged)
-    if (rawTitle.contains('remix') || rawTitle.contains('acoustic') || rawTitle.contains('unplugged')) {
+    if (rawTitle.contains('remix') ||
+        rawTitle.contains('acoustic') ||
+        rawTitle.contains('unplugged')) {
       score += 70;
     }
 
@@ -1530,7 +1673,9 @@ class SearchDeduplicator {
     }
 
     // 6. Fan lyric-only upload demotion compared to official
-    if (rawTitle.contains('lyrics') && !rawTitle.contains('official') && !isOfficialChannel) {
+    if (rawTitle.contains('lyrics') &&
+        !rawTitle.contains('official') &&
+        !isOfficialChannel) {
       score -= 100.0;
     }
 

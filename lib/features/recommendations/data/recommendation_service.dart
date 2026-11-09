@@ -68,8 +68,12 @@ class RecommendationService {
   }
 
   static String normalizeKey(String title, String artist) {
-    var cleanT = title.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
-    var cleanA = artist.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+    var cleanT = title
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+    var cleanA = artist
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
     if (cleanT.isEmpty) cleanT = title.toLowerCase().trim();
     if (cleanA.isEmpty) cleanA = artist.toLowerCase().trim();
     return '$cleanT|$cleanA';
@@ -92,7 +96,9 @@ class RecommendationService {
     if (trackArtist.isNotEmpty) {
       if (aliases.any((alias) => trackArtist == alias)) return true;
       final creditedArtists = trackArtist
-          .split(RegExp(r'\s*(&|,|\bfeat\.?|\bft\.?|\bwith\b|\band\b|\bx\b|\bvs\.?|\/)\s*', caseSensitive: false))
+          .split(RegExp(
+              r'\s*(&|,|\bfeat\.?|\bft\.?|\bwith\b|\band\b|\bx\b|\bvs\.?|\/)\s*',
+              caseSensitive: false))
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty)
           .toList();
@@ -105,14 +111,18 @@ class RecommendationService {
     }
 
     // 3. Check raw artist/channel if available
-    final rawArtist = (track is Track ? (track.rawArtist ?? '') : '').toLowerCase().trim();
+    final rawArtist =
+        (track is Track ? (track.rawArtist ?? '') : '').toLowerCase().trim();
     if (rawArtist.isNotEmpty) {
-      if (aliases.any((alias) => isArtistNameMatch(rawArtist, alias))) return true;
+      if (aliases.any((alias) => isArtistNameMatch(rawArtist, alias)))
+        return true;
     }
 
     // 4. Check raw title or title for structured credit clauses:
     // e.g. "Song | Movie | A.R. Rahman | Singer...", "Music: A. R. Rahman", "Composed by Anirudh"
-    final rawTitle = (track is Track ? (track.rawTitle ?? track.title) : track.title).toLowerCase();
+    final rawTitle =
+        (track is Track ? (track.rawTitle ?? track.title) : track.title)
+            .toLowerCase();
     for (final alias in aliases) {
       if (_hasStructuredArtistCredit(rawTitle, alias)) {
         return true;
@@ -125,13 +135,27 @@ class RecommendationService {
   /// Returns known aliases and spelling variations for [artistName].
   static List<String> getArtistAliases(String artistName) {
     final clean = artistName.trim().toLowerCase();
-    final normalized = clean.replaceAll(RegExp(r'[\.\,\-]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normalized = clean
+        .replaceAll(RegExp(r'[\.\,\-]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
 
     final aliases = <String>{clean, normalized};
 
     // Specific well-known aliases and variations
-    if (clean.contains('rahman') || clean == 'a. r. rahman' || clean == 'ar rahman') {
-      aliases.addAll(['a. r. rahman', 'a.r. rahman', 'ar rahman', 'a r rahman', 'rahman', 'arrahman', 'a r rehman', 'ar rehman']);
+    if (clean.contains('rahman') ||
+        clean == 'a. r. rahman' ||
+        clean == 'ar rahman') {
+      aliases.addAll([
+        'a. r. rahman',
+        'a.r. rahman',
+        'ar rahman',
+        'a r rahman',
+        'rahman',
+        'arrahman',
+        'a r rehman',
+        'ar rehman'
+      ]);
     } else if (clean.contains('anirudh')) {
       aliases.addAll(['anirudh ravichander', 'anirudh', 'anirudhravichander']);
     } else if (clean.contains('yuvan')) {
@@ -141,7 +165,13 @@ class RecommendationService {
     } else if (clean.contains('ilaiyaraaja') || clean.contains('ilayaraja')) {
       aliases.addAll(['ilaiyaraaja', 'ilaiyaraja', 'ilayaraja', 'raaja']);
     } else if (clean.contains('balasubrahmanyam') || clean == 'spb') {
-      aliases.addAll(['s. p. balasubrahmanyam', 'sp balasubrahmanyam', 'spb', 's p balasubrahmanyam', 'balasubrahmanyam']);
+      aliases.addAll([
+        's. p. balasubrahmanyam',
+        'sp balasubrahmanyam',
+        'spb',
+        's p balasubrahmanyam',
+        'balasubrahmanyam'
+      ]);
     } else if (clean.contains('chithra')) {
       aliases.addAll(['k. s. chithra', 'ks chithra', 'chithra']);
     } else if (clean.contains('arijit')) {
@@ -166,8 +196,14 @@ class RecommendationService {
     final cleanAlias = alias.trim().toLowerCase();
     if (cleanCredited == cleanAlias) return true;
 
-    final normCredited = cleanCredited.replaceAll(RegExp(r'[\.\,\-]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
-    final normAlias = cleanAlias.replaceAll(RegExp(r'[\.\,\-]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normCredited = cleanCredited
+        .replaceAll(RegExp(r'[\.\,\-]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final normAlias = cleanAlias
+        .replaceAll(RegExp(r'[\.\,\-]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
     if (normCredited == normAlias) return true;
 
     if (cleanAlias.length >= 4) {
@@ -182,12 +218,24 @@ class RecommendationService {
     if (alias.length < 3) return false;
     final lowerTitle = title.toLowerCase();
 
-    final prefixes = ['music:', 'music by', 'composed by', 'composer:', 'singer:', 'singers:', 'ft.', 'feat.', 'featuring'];
+    final prefixes = [
+      'music:',
+      'music by',
+      'composed by',
+      'composer:',
+      'singer:',
+      'singers:',
+      'ft.',
+      'feat.',
+      'featuring'
+    ];
     for (final prefix in prefixes) {
       final idx = lowerTitle.indexOf(prefix);
       if (idx != -1) {
         final after = lowerTitle.substring(idx + prefix.length).trim();
-        if (after.startsWith(alias) || isArtistNameMatch(after.split(RegExp(r'[\|\,\-\•]')).first.trim(), alias)) {
+        if (after.startsWith(alias) ||
+            isArtistNameMatch(
+                after.split(RegExp(r'[\|\,\-\•]')).first.trim(), alias)) {
           return true;
         }
       }
@@ -367,7 +415,8 @@ class RecommendationService {
         if (!isLegitimateSong(v)) continue;
         final track = v.toTrack(reliableArtist: artist.name);
         if (!isTrackAttributedToArtist(track, artist.name)) {
-          debugPrint('[RecommendationService] Track "${track.title}" by "${track.artist}" excluded: not attributed to "${artist.name}"');
+          debugPrint(
+              '[RecommendationService] Track "${track.title}" by "${track.artist}" excluded: not attributed to "${artist.name}"');
           continue;
         }
         if (seenIds.add(track.id)) {
@@ -382,7 +431,8 @@ class RecommendationService {
         limit: limit,
       );
     } catch (e) {
-      debugPrint('[RecommendationService] Fetch error for ${artist.name} (page $page): $e');
+      debugPrint(
+          '[RecommendationService] Fetch error for ${artist.name} (page $page): $e');
     }
     return tracks;
   }
@@ -412,9 +462,8 @@ class RecommendationService {
       history: history,
       profile: profile,
     );
-    final historyKeys = history
-        .map((e) => normalizeKey(e.title, e.artist))
-        .toSet();
+    final historyKeys =
+        history.map((e) => normalizeKey(e.title, e.artist)).toSet();
 
     final seenTrackKeys = <String>{...historyKeys};
     final seenTrackIds = <String>{};
@@ -426,7 +475,8 @@ class RecommendationService {
     try {
       final chartResult = await _trendingService.getTrendingAndRecentReleases();
       trendingTracks = chartResult.trendingTracks;
-      recentReleases = await _verifyAndResolveRecentReleases(chartResult.recentReleases);
+      recentReleases =
+          await _verifyAndResolveRecentReleases(chartResult.recentReleases);
     } catch (e) {
       debugPrint('[RecommendationService] Trending fetch error: $e');
     }
@@ -460,7 +510,8 @@ class RecommendationService {
         }
       }
     } catch (e) {
-      debugPrint('[RecommendationService] Artist tracks concurrent fetch error: $e');
+      debugPrint(
+          '[RecommendationService] Artist tracks concurrent fetch error: $e');
     }
 
     // Populate fromYourArtists strictly with the verified tracks for the initial spotlighted artist
@@ -479,17 +530,14 @@ class RecommendationService {
     // ── 3. Discover New Artists (Outside User's Selected Artists - Parallel) ────
     final relatedArtists = <ArtistModel>[];
     final selectedIds = effectiveArtists.map((a) => a.id).toSet();
-    final selectedNames = effectiveArtists
-        .map((a) => a.name.toLowerCase().trim())
-        .toSet();
+    final selectedNames =
+        effectiveArtists.map((a) => a.name.toLowerCase().trim()).toSet();
 
     if (hasUserSelected) {
       try {
         final relatedFutures = rawSelected.take(3).map((artist) async {
           try {
-            return await _artistRepo
-                .getRelatedArtists(artist.id)
-                .timeout(
+            return await _artistRepo.getRelatedArtists(artist.id).timeout(
                   const Duration(seconds: 3),
                   onTimeout: () => <ArtistModel>[],
                 );
@@ -504,7 +552,8 @@ class RecommendationService {
             if (!selectedIds.contains(r.id) &&
                 !selectedNames.contains(rNameClean) &&
                 !relatedArtists.any((a) =>
-                    a.id == r.id || a.name.toLowerCase().trim() == rNameClean)) {
+                    a.id == r.id ||
+                    a.name.toLowerCase().trim() == rNameClean)) {
               relatedArtists.add(r);
               if (relatedArtists.length >= 8) break;
             }
@@ -512,7 +561,8 @@ class RecommendationService {
           if (relatedArtists.length >= 8) break;
         }
       } catch (e) {
-        debugPrint('[RecommendationService] Related concurrent fetch error: $e');
+        debugPrint(
+            '[RecommendationService] Related concurrent fetch error: $e');
       }
     }
 
@@ -551,21 +601,27 @@ class RecommendationService {
       if (discoverMore.length >= targetDiscoverCount) break;
       try {
         final rawRelVideos = <YouTubeVideo>[];
-        final topLang = preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
-        if (topLang != null && MusicLanguageService.isArtistMultilingualInLang(rel.name, topLang)) {
-          final langVideos = await _youtubeRepo.search('${rel.name} $topLang song');
+        final topLang =
+            preferredLanguages.isNotEmpty ? preferredLanguages.first : null;
+        if (topLang != null &&
+            MusicLanguageService.isArtistMultilingualInLang(
+                rel.name, topLang)) {
+          final langVideos =
+              await _youtubeRepo.search('${rel.name} $topLang song');
           rawRelVideos.addAll(langVideos);
         }
         final generalVideos = await _youtubeRepo.search('${rel.name} song');
         rawRelVideos.addAll(generalVideos);
 
         final valid = rawRelVideos.where(isLegitimateSong).toList();
-        valid.sort((a, b) => rankDiscoverCandidate(b).compareTo(rankDiscoverCandidate(a)));
+        valid.sort((a, b) =>
+            rankDiscoverCandidate(b).compareTo(rankDiscoverCandidate(a)));
         for (final v in valid.take(2)) {
           addCandidate(v.toTrack(reliableArtist: rel.name));
         }
       } catch (e) {
-        debugPrint('[RecommendationService] Discover related candidate error for ${rel.name}: $e');
+        debugPrint(
+            '[RecommendationService] Discover related candidate error for ${rel.name}: $e');
       }
     }
 
@@ -589,7 +645,9 @@ class RecommendationService {
       final cleanId = _normalizeTrackId(t.id);
       chartRanks[cleanId] = rank;
       chartRanks[t.id] = rank;
-      chartRanks['${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}'] = rank;
+      chartRanks[
+              '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}'] =
+          rank;
     }
 
     // ── 5. Popular Tracks (Backwards Compatibility & Chart Depth) ────────────
@@ -644,7 +702,8 @@ class RecommendationService {
   /// Verifies candidate recent releases, ensuring each item corresponds to a verified,
   /// playable YouTube music track before presenting it in the Recent Releases section.
   /// Candidates that cannot be verified are excluded.
-  Future<List<Track>> _verifyAndResolveRecentReleases(List<Track> rawReleases) async {
+  Future<List<Track>> _verifyAndResolveRecentReleases(
+      List<Track> rawReleases) async {
     if (rawReleases.isEmpty) return const [];
     final verified = <Track>[];
     for (final track in rawReleases) {
@@ -675,24 +734,32 @@ class RecommendationService {
         final query = '$rawT $rawA'.trim();
         final searchResults = await _youtubeRepo.search(query);
         final validCandidate = searchResults
-            .where((v) => MusicResultClassifier.isValidIndividualSong(v, query: query))
+            .where((v) =>
+                MusicResultClassifier.isValidIndividualSong(v, query: query))
             .firstOrNull;
 
         if (validCandidate != null) {
           verified.add(
             track.copyWith(
               id: 'youtube_${validCandidate.id}',
-              duration: validCandidate.duration.isNotEmpty ? validCandidate.duration : track.duration,
-              imageUrl: validCandidate.thumbnailUrl.isNotEmpty ? validCandidate.thumbnailUrl : track.imageUrl,
+              duration: validCandidate.duration.isNotEmpty
+                  ? validCandidate.duration
+                  : track.duration,
+              imageUrl: validCandidate.thumbnailUrl.isNotEmpty
+                  ? validCandidate.thumbnailUrl
+                  : track.imageUrl,
               rawTitle: validCandidate.rawTitle ?? validCandidate.title,
-              rawArtist: validCandidate.rawChannelTitle ?? validCandidate.channelTitle,
+              rawArtist:
+                  validCandidate.rawChannelTitle ?? validCandidate.channelTitle,
             ),
           );
         } else {
-          debugPrint('[RecommendationService] Excluded unverified recent release: "${track.title}"');
+          debugPrint(
+              '[RecommendationService] Excluded unverified recent release: "${track.title}"');
         }
       } catch (e) {
-        debugPrint('[RecommendationService] Error verifying recent release "${track.title}": $e');
+        debugPrint(
+            '[RecommendationService] Error verifying recent release "${track.title}": $e');
       }
     }
     return verified;
@@ -723,6 +790,15 @@ class RecommendationService {
     queueKeys.add(SearchDeduplicator.computeRecordingKey(currentTrack));
     queueIds.add(_normalizeTrackId(currentTrack.id));
 
+    final currentBaseTitle = SearchDeduplicator.normalizeBaseTitle(
+      currentTrack.title,
+      rawTitle:
+          (currentTrack is Track) ? currentTrack.rawTitle : currentTrack.title,
+      artist: currentTrack.artist,
+    ).toLowerCase().trim();
+    final currentArtistNorm =
+        SearchDeduplicator.normalizeArtist(currentTrack.artist);
+
     // Track how many songs per artist are in the upcoming batch to guarantee variety
     final artistCount = <String, int>{};
     void addQueueTrack(MusicItem track) {
@@ -732,13 +808,32 @@ class RecommendationService {
       final count = artistCount[artistKey] ?? 0;
 
       final currentArtistKey = currentTrack.artist.toLowerCase().trim();
-      final isDominantArtist = currentArtistKey.isNotEmpty && currentArtistKey == artistKey;
+      final isDominantArtist =
+          currentArtistKey.isNotEmpty && currentArtistKey == artistKey;
       final maxAllowed = isDominantArtist ? 6 : 2;
       if (count >= maxAllowed) return;
 
+      // Rule: Do not add different artists' tracks merely because they share the selected track's title
+      final candidateBaseTitle = SearchDeduplicator.normalizeBaseTitle(
+        track.title,
+        rawTitle: (track is Track) ? track.rawTitle : track.title,
+        artist: track.artist,
+      ).toLowerCase().trim();
+      final candidateArtistNorm =
+          SearchDeduplicator.normalizeArtist(track.artist);
+
+      if (currentBaseTitle.isNotEmpty &&
+          candidateBaseTitle == currentBaseTitle) {
+        if (candidateArtistNorm != currentArtistNorm) {
+          return;
+        }
+      }
+
       if (track.isYoutube) {
-        final rawT = (track is Track) ? (track.rawTitle ?? track.title) : track.title;
-        final rawA = (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
+        final rawT =
+            (track is Track) ? (track.rawTitle ?? track.title) : track.title;
+        final rawA =
+            (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
         final v = YouTubeVideo(
           id: track.id.replaceFirst('youtube_', ''),
           title: track.title,
@@ -774,7 +869,8 @@ class RecommendationService {
             duration: currentTrack.duration,
             viewCount: '',
           );
-          final relatedVideos = await _youtubeRepo.getRelatedTracks(seed, limit: 8);
+          final relatedVideos =
+              await _youtubeRepo.getRelatedTracks(seed, limit: 8);
           for (final v in relatedVideos) {
             if (isLegitimateSong(v)) {
               addQueueTrack(v.toTrack());
@@ -800,7 +896,8 @@ class RecommendationService {
 
       // 2. Blend genuine provider-backed trending tracks
       if (upcoming.length < limit) {
-        final chartResult = await _trendingService.getTrendingAndRecentReleases();
+        final chartResult =
+            await _trendingService.getTrendingAndRecentReleases();
         for (final chartTrack in chartResult.trendingTracks) {
           addQueueTrack(chartTrack);
           if (upcoming.length >= limit) break;
@@ -808,9 +905,12 @@ class RecommendationService {
       }
 
       // 3. Blend user's other selected artists
-      if (upcoming.length < limit && profile != null && profile.selectedArtists.isNotEmpty) {
+      if (upcoming.length < limit &&
+          profile != null &&
+          profile.selectedArtists.isNotEmpty) {
         for (final fav in profile.selectedArtists) {
-          if (fav.name.toLowerCase().trim() == currentTrack.artist.toLowerCase().trim()) {
+          if (fav.name.toLowerCase().trim() ==
+              currentTrack.artist.toLowerCase().trim()) {
             continue;
           }
           final favTracks = await getTracksForArtist(fav, limit: 2);
@@ -825,7 +925,8 @@ class RecommendationService {
       if (upcoming.length < limit) {
         final curated = DeezerArtistRepository.staticCuratedArtists;
         for (final artist in curated) {
-          final catalogTracks = await getTracksForArtist(artist.toSummary(), limit: 1);
+          final catalogTracks =
+              await getTracksForArtist(artist.toSummary(), limit: 1);
           for (final t in catalogTracks) {
             addQueueTrack(t);
           }
@@ -847,7 +948,8 @@ class RecommendationService {
 
     // Get chart ranks if available from cached trending
     final chartRanks = <String, int>{};
-    final cachedTrending = await _trendingService.getTrendingAndRecentReleases();
+    final cachedTrending =
+        await _trendingService.getTrendingAndRecentReleases();
     for (int i = 0; i < cachedTrending.trendingTracks.length; i++) {
       final t = cachedTrending.trendingTracks[i];
       chartRanks[_normalizeTrackId(t.id)] = i + 1;
