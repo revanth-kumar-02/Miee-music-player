@@ -305,6 +305,10 @@ class SearchRepository {
     }
   }
 
+  /// In-memory cache for live music suggestions (query -> suggestions).
+  final Map<String, List<MusicSuggestion>> _liveSuggestionsCache = {};
+  static const int _maxLiveCache = 50;
+
   /// Fetches Spotify-inspired music entity live suggestions (Artists, Songs, Albums, Playlists).
   Future<List<MusicSuggestion>> getLiveMusicSuggestions({
     required String query,
@@ -316,95 +320,117 @@ class SearchRepository {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return const [];
 
-    final suggestions = <MusicSuggestion>[];
-    final seenKeys = <String>{};
-
-    void addSuggestion(MusicSuggestion s) {
-      final key = '${s.type}_${s.id}';
-      final normTitle = '${s.type}_${s.title.toLowerCase().trim()}';
-      if (seenKeys.add(key) && seenKeys.add(normTitle)) {
-        suggestions.add(s);
-      }
+    final cacheKey = cleanQuery.toLowerCase();
+    if (_liveSuggestionsCache.containsKey(cacheKey)) {
+      return _liveSuggestionsCache[cacheKey]!;
     }
 
     final lowerQuery = cleanQuery.toLowerCase();
     final normQuery = lowerQuery.replaceAll(RegExp(r'[^a-z0-9]'), '');
 
     // 1. Local Library Instant Matches
+    final localArtistSuggestions = <MusicSuggestion>[];
     for (final artist in localArtists) {
       if (artist.name.toLowerCase().contains(lowerQuery)) {
-        addSuggestion(MusicSuggestion(
+        localArtistSuggestions.add(MusicSuggestion(
           id: artist.id,
           title: artist.name,
           subtitle: null,
           imageUrl: artist.artworkPath,
           type: SuggestionType.artist,
+          isOnline: false,
+          source: 'Local',
           entity: artist,
         ));
       }
     }
 
+    final localSongSuggestions = <MusicSuggestion>[];
     for (final song in localSongs) {
       if (song.title.toLowerCase().contains(lowerQuery) ||
           song.artist.toLowerCase().contains(lowerQuery)) {
-        addSuggestion(MusicSuggestion(
+        localSongSuggestions.add(MusicSuggestion(
           id: song.id,
           title: song.title,
           subtitle: song.artist,
           imageUrl: song.artworkPath,
           type: SuggestionType.song,
+          isOnline: false,
+          source: 'Local',
           entity: song,
         ));
       }
     }
 
+    final localAlbumSuggestions = <MusicSuggestion>[];
     for (final album in localAlbums) {
       if (album.title.toLowerCase().contains(lowerQuery) ||
           album.artist.toLowerCase().contains(lowerQuery)) {
-        addSuggestion(MusicSuggestion(
+        localAlbumSuggestions.add(MusicSuggestion(
           id: album.id,
           title: album.title,
           subtitle: album.artist,
           imageUrl: album.artworkPath,
           type: SuggestionType.album,
+          isOnline: false,
+          source: 'Local',
           entity: album,
         ));
       }
     }
 
+    final localPlaylistSuggestions = <MusicSuggestion>[];
     for (final playlist in localPlaylists) {
       if (playlist.name.toLowerCase().contains(lowerQuery)) {
-        addSuggestion(MusicSuggestion(
+        localPlaylistSuggestions.add(MusicSuggestion(
           id: playlist.id,
           title: playlist.name,
           subtitle: '${playlist.trackCount} tracks',
           imageUrl: null,
           type: SuggestionType.playlist,
+          isOnline: false,
+          source: 'Local',
           entity: playlist,
         ));
       }
     }
 
-    // 2. Fetch Online Candidates in Parallel
-    final results = await Future.wait([
-      searchArtists(cleanQuery).catchError((_) => <ArtistModel>[]),
-      searchYouTube(cleanQuery).catchError((_) => <YouTubeVideo>[]),
-      searchPlaylists(cleanQuery).catchError((_) => <OnlinePlaylist>[]),
-    ]);
+    // 2. Fetch Online Candidates in Parallel (fast search with timeouts)
+    List<ArtistModel> onlineArtists = const [];
+    List<YouTubeVideo> onlineVideos = const [];
+    List<OnlinePlaylist> onlinePlaylists = const [];
 
-    final onlineArtists = results[0] as List<ArtistModel>;
-    final onlineVideos = results[1] as List<YouTubeVideo>;
-    final onlinePlaylists = results[2] as List<OnlinePlaylist>;
+    try {
+      final results = await Future.wait([
+        searchArtists(cleanQuery).timeout(
+          const Duration(milliseconds: 2500),
+          onTimeout: () => <ArtistModel>[],
+        ).catchError((_) => <ArtistModel>[]),
+        youtubeRepository.search(cleanQuery).timeout(
+          const Duration(milliseconds: 3000),
+          onTimeout: () => <YouTubeVideo>[],
+        ).catchError((_) => <YouTubeVideo>[]),
+        searchPlaylists(cleanQuery).timeout(
+          const Duration(milliseconds: 2000),
+          onTimeout: () => <OnlinePlaylist>[],
+        ).catchError((_) => <OnlinePlaylist>[]),
+      ]);
 
-    // Fetch albums for top artist if available
+      onlineArtists = results[0] as List<ArtistModel>;
+      onlineVideos = results[1] as List<YouTubeVideo>;
+      onlinePlaylists = results[2] as List<OnlinePlaylist>;
+    } catch (_) {}
+
+    // Fetch albums for top artist if available and artist matches
     List<ArtistAlbum> onlineAlbums = const [];
     if (onlineArtists.isNotEmpty) {
       try {
-        onlineAlbums = await searchAlbums(cleanQuery, matchedArtists: onlineArtists.take(1).toList());
+        onlineAlbums = await searchAlbums(cleanQuery, matchedArtists: onlineArtists.take(1).toList())
+            .timeout(const Duration(milliseconds: 1500), onTimeout: () => <ArtistAlbum>[]);
       } catch (_) {}
     }
 
-    // 3. Determine Query Intent: Does query strongly match an artist or a song?
+    // 3. Determine Query Intent & Map Online Candidates
     final exactArtistMatch = onlineArtists.cast<ArtistModel?>().firstWhere(
       (a) => a != null && (a.name.toLowerCase() == lowerQuery ||
           a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '') == normQuery),
@@ -425,113 +451,127 @@ class SearchRepository {
             DeezerArtistRepository.findCuratedByName(topArtist.name) != null ||
             topArtist.fanCount >= 5000);
 
-    // 4. Assemble Spotify-style Live Suggestions
-    if (isArtistQuery) {
-      // Artist is #1
-      addSuggestion(MusicSuggestion(
+    final onlineArtistSuggestions = <MusicSuggestion>[];
+    if (topArtist != null) {
+      onlineArtistSuggestions.add(MusicSuggestion(
         id: topArtist.id,
         title: topArtist.name,
         subtitle: null,
         imageUrl: topArtist.imageUrl,
         type: SuggestionType.artist,
+        isOnline: true,
+        source: 'YouTube',
         entity: topArtist,
       ));
+    }
 
-      // Followed by top songs by or matching this artist
-      for (final v in onlineVideos.take(3)) {
-        addSuggestion(MusicSuggestion(
-          id: v.id,
-          title: v.canonicalTitle ?? v.title,
-          subtitle: v.canonicalArtist ?? v.channelTitle,
-          imageUrl: v.highResArtworkUrl ?? v.thumbnailUrl,
-          type: SuggestionType.song,
-          entity: v,
-        ));
+    final onlineSongSuggestions = <MusicSuggestion>[];
+    for (final v in onlineVideos.take(8)) {
+      onlineSongSuggestions.add(MusicSuggestion(
+        id: v.id,
+        title: v.canonicalTitle ?? v.title,
+        subtitle: v.canonicalArtist ?? v.channelTitle,
+        imageUrl: v.highResArtworkUrl ?? v.thumbnailUrl,
+        type: SuggestionType.song,
+        isOnline: true,
+        source: 'YouTube',
+        entity: v,
+      ));
+    }
+
+    final onlineAlbumSuggestions = <MusicSuggestion>[];
+    for (final alb in onlineAlbums.take(2)) {
+      onlineAlbumSuggestions.add(MusicSuggestion(
+        id: alb.id,
+        title: alb.title,
+        subtitle: alb.artistName,
+        imageUrl: alb.coverUrl,
+        type: SuggestionType.album,
+        isOnline: true,
+        source: 'YouTube',
+        entity: alb,
+      ));
+    }
+
+    final onlinePlaylistSuggestions = <MusicSuggestion>[];
+    for (final p in onlinePlaylists.take(1)) {
+      onlinePlaylistSuggestions.add(MusicSuggestion(
+        id: p.id,
+        title: p.title,
+        subtitle: p.author,
+        imageUrl: p.thumbnailUrl,
+        type: SuggestionType.playlist,
+        isOnline: true,
+        source: 'YouTube',
+        entity: p,
+      ));
+    }
+
+    // 4. Combined Assembly with Stable Source-Specific Keys
+    final suggestions = <MusicSuggestion>[];
+    final seenKeys = <String>{};
+
+    void addSuggestion(MusicSuggestion s) {
+      final key = '${s.sourceLabel}_${s.type.name}_${s.id}';
+      if (seenKeys.add(key)) {
+        suggestions.add(s);
+      }
+    }
+
+    // Priority A: Top Artist (if artist query intent)
+    if (isArtistQuery && onlineArtistSuggestions.isNotEmpty) {
+      addSuggestion(onlineArtistSuggestions.first);
+    } else if (localArtistSuggestions.isNotEmpty) {
+      addSuggestion(localArtistSuggestions.first);
+    }
+
+    // Priority B: Songs (Fairly merge Local and Online YouTube Music)
+    final localIter = localSongSuggestions.iterator;
+    final onlineIter = onlineSongSuggestions.iterator;
+
+    int localAdded = 0;
+    int onlineAdded = 0;
+    const maxSongs = 5;
+
+    while ((localAdded + onlineAdded) < maxSongs && suggestions.length < 5) {
+      bool advanced = false;
+
+      // Online YouTube song
+      if (onlineIter.moveNext()) {
+        addSuggestion(onlineIter.current);
+        onlineAdded++;
+        advanced = true;
       }
 
-      // Followed by 1 top album
-      for (final alb in onlineAlbums.take(1)) {
-        addSuggestion(MusicSuggestion(
-          id: alb.id,
-          title: alb.title,
-          subtitle: alb.artistName,
-          imageUrl: alb.coverUrl,
-          type: SuggestionType.album,
-          entity: alb,
-        ));
+      // Local song
+      if (localIter.moveNext()) {
+        addSuggestion(localIter.current);
+        localAdded++;
+        advanced = true;
       }
 
-      // Followed by 1 top playlist
-      for (final p in onlinePlaylists.take(1)) {
-        addSuggestion(MusicSuggestion(
-          id: p.id,
-          title: p.title,
-          subtitle: p.author,
-          imageUrl: p.thumbnailUrl,
-          type: SuggestionType.playlist,
-          entity: p,
-        ));
-      }
-    } else {
-      // Song or general query:
-      // 1-2 Top songs
-      for (final v in onlineVideos.take(2)) {
-        addSuggestion(MusicSuggestion(
-          id: v.id,
-          title: v.canonicalTitle ?? v.title,
-          subtitle: v.canonicalArtist ?? v.channelTitle,
-          imageUrl: v.highResArtworkUrl ?? v.thumbnailUrl,
-          type: SuggestionType.song,
-          entity: v,
-        ));
-      }
+      if (!advanced) break;
+    }
 
-      // 1 Top artist (if legitimate and verified)
-      if (topArtist != null) {
-        addSuggestion(MusicSuggestion(
-          id: topArtist.id,
-          title: topArtist.name,
-          subtitle: null,
-          imageUrl: topArtist.imageUrl,
-          type: SuggestionType.artist,
-          entity: topArtist,
-        ));
+    // If remaining slots and query was not primarily artist, add top artist
+    if (!isArtistQuery && suggestions.length < 5) {
+      if (onlineArtistSuggestions.isNotEmpty) {
+        addSuggestion(onlineArtistSuggestions.first);
+      } else if (localArtistSuggestions.isNotEmpty) {
+        addSuggestion(localArtistSuggestions.first);
       }
+    }
 
-      // Remaining songs up to 4 total songs
-      for (final v in onlineVideos.skip(2).take(2)) {
-        addSuggestion(MusicSuggestion(
-          id: v.id,
-          title: v.canonicalTitle ?? v.title,
-          subtitle: v.canonicalArtist ?? v.channelTitle,
-          imageUrl: v.highResArtworkUrl ?? v.thumbnailUrl,
-          type: SuggestionType.song,
-          entity: v,
-        ));
-      }
-
-      // 1 Album
-      for (final alb in onlineAlbums.take(1)) {
-        addSuggestion(MusicSuggestion(
-          id: alb.id,
-          title: alb.title,
-          subtitle: alb.artistName,
-          imageUrl: alb.coverUrl,
-          type: SuggestionType.album,
-          entity: alb,
-        ));
-      }
-
-      // 1 Playlist
-      for (final p in onlinePlaylists.take(1)) {
-        addSuggestion(MusicSuggestion(
-          id: p.id,
-          title: p.title,
-          subtitle: p.author,
-          imageUrl: p.thumbnailUrl,
-          type: SuggestionType.playlist,
-          entity: p,
-        ));
+    // Priority C: Albums / Playlists (1 slot if space)
+    if (suggestions.length < 6) {
+      if (localAlbumSuggestions.isNotEmpty) {
+        addSuggestion(localAlbumSuggestions.first);
+      } else if (onlineAlbumSuggestions.isNotEmpty) {
+        addSuggestion(onlineAlbumSuggestions.first);
+      } else if (localPlaylistSuggestions.isNotEmpty) {
+        addSuggestion(localPlaylistSuggestions.first);
+      } else if (onlinePlaylistSuggestions.isNotEmpty) {
+        addSuggestion(onlinePlaylistSuggestions.first);
       }
     }
 
@@ -547,6 +587,12 @@ class SearchRepository {
       type: SuggestionType.searchQuery,
       entity: cleanQuery,
     ));
+
+    // Cache the result
+    if (_liveSuggestionsCache.length >= _maxLiveCache) {
+      _liveSuggestionsCache.remove(_liveSuggestionsCache.keys.first);
+    }
+    _liveSuggestionsCache[cacheKey] = capped;
 
     return capped;
   }
@@ -571,6 +617,7 @@ class SearchRepository {
   }
 
   void dispose() {
+    _liveSuggestionsCache.clear();
     youtubeRepository.clearCache();
   }
 }

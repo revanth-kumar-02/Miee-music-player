@@ -277,9 +277,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         statusBarBrightness: Brightness.light,
       ),
       child: PopScope(
-        canPop: false,
+        canPop: context.canPop(),
         onPopInvokedWithResult: (didPop, result) {
-          if (!didPop) {
+          if (didPop) return;
+          if (context.canPop()) {
+            context.pop();
+          } else {
             SystemNavigator.pop();
           }
         },
@@ -301,16 +304,39 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Top Hero: Editorial Collage Image
-          SizedBox(
-            width: double.infinity,
-            height: heroHeight,
-            child: Image.asset(
-              'assets/images/auth/login_collage.png',
-              width: double.infinity,
-              height: heroHeight,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-            ),
+          Stack(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: heroHeight,
+                child: Image.asset(
+                  'assets/images/auth/login_collage.png',
+                  width: double.infinity,
+                  height: heroHeight,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+              if (Navigator.of(context).canPop())
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black.withValues(alpha: 0.35),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/home');
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
 
           // Main Form Section
@@ -667,7 +693,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             MieeGuestOutlineButton(
               onPressed: () {
                 ref.read(guestModeProvider.notifier).state = true;
-                context.go('/home');
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
               },
             ),
           ],

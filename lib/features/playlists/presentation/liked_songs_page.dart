@@ -9,6 +9,7 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/playback_state.dart' as pb;
 import '../../../core/audio/providers.dart';
 import '../../../shared/models/track.dart';
+import '../../artwork/presentation/miee_artwork_image.dart';
 import '../../library/providers/library_providers.dart';
 import 'widgets/add_to_playlist_sheet.dart';
 
@@ -448,47 +449,23 @@ class _LikedSongsPageState extends ConsumerState<LikedSongsPage> {
                           ),
 
                           // Artwork
-                          ClipRRect(
+                          MieeArtworkImage(
+                            musicItem: track,
+                            explicitUrl: track.imageUrl,
+                            width: 44,
+                            height: 44,
                             borderRadius: BorderRadius.circular(8),
-                            child: track.imageUrl.startsWith('http')
-                                ? Image.network(
-                                    track.imageUrl,
-                                    width: 44,
-                                    height: 44,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: 88,
-                                    cacheHeight: 88,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      width: 44,
-                                      height: 44,
-                                      color: AppColors.softClay,
-                                      child: const Icon(
-                                        Icons.music_note_rounded,
-                                        size: 22,
-                                        color: AppColors.cocoaPlum,
-                                      ),
-                                    ),
-                                  )
-                                : Image.file(
-                                    File(track.imageUrl.startsWith('file://')
-                                        ? Uri.parse(track.imageUrl).toFilePath()
-                                        : track.imageUrl),
-                                    width: 44,
-                                    height: 44,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: 88,
-                                    cacheHeight: 88,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      width: 44,
-                                      height: 44,
-                                      color: AppColors.softClay,
-                                      child: const Icon(
-                                        Icons.music_note_rounded,
-                                        size: 22,
-                                        color: AppColors.cocoaPlum,
-                                      ),
-                                    ),
-                                  ),
+                            fit: BoxFit.cover,
+                            errorWidget: Container(
+                              width: 44,
+                              height: 44,
+                              color: AppColors.softClay,
+                              child: const Icon(
+                                Icons.music_note_rounded,
+                                size: 22,
+                                color: AppColors.cocoaPlum,
+                              ),
+                            ),
                           ),
                           const SizedBox(width: 14),
 

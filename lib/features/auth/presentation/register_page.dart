@@ -162,14 +162,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         statusBarBrightness: Brightness.light,
       ),
       child: PopScope(
-        canPop: false,
+        canPop: context.canPop(),
         onPopInvokedWithResult: (didPop, result) {
-          if (!didPop) {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/login');
-            }
+          if (didPop) return;
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/login');
           }
         },
         child: Scaffold(
@@ -202,6 +201,25 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
               alignment: Alignment.center,
             ),
           ),
+          if (Navigator.of(context).canPop())
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: CircleAvatar(
+                  backgroundColor: Colors.black.withValues(alpha: 0.35),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/login');
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ),
 
           // Ivory Registration Panel with rounded top corners overlapping the image
           Padding(
@@ -600,7 +618,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             MieeGuestOutlineButton(
               onPressed: () {
                 ref.read(guestModeProvider.notifier).state = true;
-                context.go('/home');
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
               },
             ),
             const SizedBox(height: 20),

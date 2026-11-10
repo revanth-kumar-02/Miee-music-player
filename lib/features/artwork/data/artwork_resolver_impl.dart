@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../domain/artwork_query.dart';
+import '../domain/artwork_source.dart';
 import '../domain/resolved_artwork.dart';
 import 'artwork_cache.dart';
 import 'providers/cover_art_archive_provider.dart';
@@ -48,8 +49,8 @@ class ArtworkResolver {
         coverArtArchiveProvider = coverArtArchiveProvider ?? CoverArtArchiveProvider(),
         deezerProvider = deezerProvider ?? DeezerArtworkProvider(),
         fanartProvider = fanartProvider ?? const FanartArtworkProvider(),
-        itunesProvider = itunesProvider ?? ItunesArtworkProvider(),
-        youtubeFallbackProvider = youtubeFallbackProvider ?? YouTubeFallbackProvider();
+        itunesProvider = itunesProvider ?? const ItunesArtworkProvider(),
+        youtubeFallbackProvider = youtubeFallbackProvider ?? const YouTubeFallbackProvider();
 
   /// Resolves artwork for the given [query] following the deterministic priority chain.
   Future<ResolvedArtwork> resolve(ArtworkQuery query) {
@@ -72,14 +73,16 @@ class ArtworkResolver {
     final key = query.cacheKey;
 
     // 1. Check local embedded artwork first (Highest Priority - zero latency disk check)
-    try {
-      final localArtwork = await localProvider.resolve(query);
-      if (localArtwork != null) {
-        await cache.put(key, localArtwork);
-        return localArtwork;
+    if (!query.isYoutube) {
+      try {
+        final localArtwork = await localProvider.resolve(query);
+        if (localArtwork != null) {
+          await cache.put(key, localArtwork);
+          return localArtwork;
+        }
+      } catch (e) {
+        debugPrint('[ArtworkResolver] Local provider error: $e');
       }
-    } catch (e) {
-      debugPrint('[ArtworkResolver] Local provider error: $e');
     }
 
     // 2. Check persistent & memory cache
@@ -88,7 +91,53 @@ class ArtworkResolver {
       return cached;
     }
 
-    // Online resolution cascade wrapped in global timeout
+    // 3. Fast-path for YouTube Music tracks:
+    // If the query is an online YouTube track, resolve using verified high-res artwork or
+    // genuine YouTube thumbnails without blocking behind third-party rate limiters.
+    if (query.isYoutube) {
+      // Check if candidate already carries verified studio album artwork
+      if (query.fallbackThumbnailUrl != null &&
+          query.fallbackThumbnailUrl!.isNotEmpty &&
+          (query.fallbackThumbnailUrl!.contains('mzstatic.com') ||
+              query.fallbackThumbnailUrl!.contains('dzcdn.net'))) {
+        final studioArtwork = ResolvedArtwork(
+          imageUrl: query.fallbackThumbnailUrl!,
+          source: ArtworkSource.itunes,
+          confidence: 0.95,
+          attribution: 'Studio Album Cover',
+          resolvedAt: DateTime.now(),
+        );
+        await cache.put(key, studioArtwork);
+        return studioArtwork;
+      }
+
+      // Snappy iTunes catalog check (max 1500ms) to upgrade to studio 600x600 artwork
+      if (itunesProvider.isEnabled) {
+        try {
+          final itunesArtwork = await itunesProvider.resolve(query).timeout(
+            const Duration(milliseconds: 1500),
+            onTimeout: () => null,
+          );
+          if (itunesArtwork != null) {
+            await cache.put(key, itunesArtwork);
+            return itunesArtwork;
+          }
+        } catch (_) {}
+      }
+
+      // Immediately fall back to authentic YouTube thumbnail
+      try {
+        final ytFallback = await youtubeFallbackProvider.resolve(query);
+        if (ytFallback != null) {
+          await cache.put(key, ytFallback);
+          return ytFallback;
+        }
+      } catch (_) {}
+
+      return ResolvedArtwork.neutralFallback();
+    }
+
+    // Online resolution cascade wrapped in global timeout for local/standard tracks
     try {
       return await _executeOnlineCascade(query).timeout(
         timeout,

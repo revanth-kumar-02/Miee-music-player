@@ -142,7 +142,7 @@ void main() {
       fakeRepo.dispose();
     });
 
-    test('Guest mode allows protected music routes but redirects auth pages to /home', () {
+    test('Guest mode allows protected music routes and permits auth pages (/login and /register)', () {
       final fakeRepo = FakeAuthRepository(initialUser: null);
       final containerRef = ProviderContainer(
         overrides: [
@@ -155,8 +155,8 @@ void main() {
       final routerNotifier = containerRef.read(appRouterNotifierProvider);
 
       expect(routerNotifier.redirect(FakeBuildContext(), FakeGoRouterState('/home')), isNull);
-      expect(routerNotifier.redirect(FakeBuildContext(), FakeGoRouterState('/login')), equals('/home'));
-      expect(routerNotifier.redirect(FakeBuildContext(), FakeGoRouterState('/register')), equals('/home'));
+      expect(routerNotifier.redirect(FakeBuildContext(), FakeGoRouterState('/login')), isNull);
+      expect(routerNotifier.redirect(FakeBuildContext(), FakeGoRouterState('/register')), isNull);
 
       containerRef.dispose();
       fakeRepo.dispose();

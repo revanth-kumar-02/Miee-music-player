@@ -7,6 +7,7 @@ class AuthUser {
   final String? displayName;
   final String? photoUrl;
   final bool isEmailVerified;
+  final bool isAnonymous;
 
   const AuthUser({
     required this.uid,
@@ -14,6 +15,7 @@ class AuthUser {
     this.displayName,
     this.photoUrl,
     this.isEmailVerified = false,
+    this.isAnonymous = false,
   });
 
   factory AuthUser.fromSupabase(sb.User user) {
@@ -27,6 +29,7 @@ class AuthUser {
       displayName: displayName,
       photoUrl: photoUrl,
       isEmailVerified: user.emailConfirmedAt != null,
+      isAnonymous: user.isAnonymous,
     );
   }
 

@@ -7,6 +7,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/playback_state.dart';
 import '../../../../core/audio/providers.dart';
+import '../../../artwork/presentation/miee_artwork_image.dart';
 import '../../domain/youtube_model.dart';
 import 'youtube_options_menu.dart';
 
@@ -90,21 +91,18 @@ class YouTubeResultTile extends ConsumerWidget {
               Stack(
                 alignment: Alignment.center,
                 children: [
-                  ClipRRect(
+                  MieeArtworkImage(
+                    musicItem: video,
+                    explicitUrl: video.imageUrl,
+                    width: 80.0,
+                    height: 56.0,
                     borderRadius: AppRadius.radiusMd,
-                    child: Image.network(
-                      video.imageUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: Container(
                       width: 80.0,
                       height: 56.0,
-                      fit: BoxFit.cover,
-                      cacheWidth: 160,
-                      cacheHeight: 112,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 80.0,
-                        height: 56.0,
-                        color: AppColors.softClay,
-                        child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
-                      ),
+                      color: AppColors.softClay,
+                      child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
                     ),
                   ),
                   if (isPlaying)

@@ -1904,7 +1904,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     List<MusicSuggestion> suggestions,
     bool isLoading,
   ) {
-    if (suggestions.isEmpty && isLoading) {
+    final hasMusicEntities =
+        suggestions.any((s) => s.type != SuggestionType.searchQuery);
+
+    if (!hasMusicEntities && isLoading) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
         alignment: Alignment.center,
@@ -1972,14 +1975,29 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            'SUGGESTIONS',
-            style: GoogleFonts.geist(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: AppColors.mutedMauve,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'SUGGESTIONS',
+                style: GoogleFonts.geist(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: AppColors.mutedMauve,
+                ),
+              ),
+              if (isLoading)
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                  ),
+                ),
+            ],
           ),
         ),
         Container(
@@ -2186,6 +2204,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         } else if (suggestion.entity is MediaSong) {
           final song = suggestion.entity as MediaSong;
           ref.read(playerControllerProvider.notifier).selectTrack(song, [song]);
+        } else if (suggestion.entity is Track) {
+          final track = suggestion.entity as Track;
+          if (track.sourceProvider == 'youtube' || track.isYoutube) {
+            ref.read(playerControllerProvider.notifier).selectTrack(
+                  track,
+                  [track],
+                  playingFrom: 'Search: ${track.artist}',
+                );
+          } else {
+            ref.read(playerControllerProvider.notifier).selectTrack(track, [track]);
+          }
         }
         break;
 

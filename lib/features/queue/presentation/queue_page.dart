@@ -10,6 +10,7 @@ import '../../../core/audio/player_controller.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../artwork/presentation/miee_artwork_image.dart';
 import '../../playlists/presentation/widgets/add_to_playlist_sheet.dart';
 
 /// Miee Playing Queue screen.
@@ -54,33 +55,23 @@ class QueuePage extends ConsumerWidget {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12.0),
-                        child: hasValidCover && coverUrl.startsWith('http')
-                            ? Image.network(
-                                coverUrl,
-                                width: 256.0,
-                                height: 256.0,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  width: 256.0,
-                                  height: 256.0,
-                                  color: AppColors.surfaceContainerHigh,
-                                  child: const Icon(
-                                    Icons.music_note,
-                                    color: AppColors.onSurfaceVariant,
-                                    size: 64.0,
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                width: 256.0,
-                                height: 256.0,
-                                color: AppColors.surfaceContainerHigh,
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: AppColors.onSurfaceVariant,
-                                  size: 64.0,
-                                ),
-                              ),
+                        child: MieeArtworkImage(
+                          musicItem: currentTrack,
+                          explicitUrl: coverUrl,
+                          width: 256.0,
+                          height: 256.0,
+                          fit: BoxFit.cover,
+                          errorWidget: Container(
+                            width: 256.0,
+                            height: 256.0,
+                            color: AppColors.surfaceContainerHigh,
+                            child: const Icon(
+                              Icons.music_note,
+                              color: AppColors.onSurfaceVariant,
+                              size: 64.0,
+                            ),
+                          ),
+                        ),
                       ),
                       AppSpacing.heightLg,
                       Text(
@@ -249,6 +240,7 @@ class QueuePage extends ConsumerWidget {
                                 AppSpacing.widthSm,
                                 Expanded(
                                   child: SongTile(
+                                    musicItem: track,
                                     imageUrl: track.imageUrl,
                                     title: track.title,
                                     artist: track.artist,

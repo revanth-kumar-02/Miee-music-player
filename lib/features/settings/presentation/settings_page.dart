@@ -296,34 +296,49 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final profile = ref.watch(profileProvider);
     final cloudProfile = ref.watch(currentUserProfileProvider);
     final authUser = ref.watch(currentAuthUserProvider);
+    final isGuest = ref.watch(guestModeProvider);
 
-    final resolvedDisplayName = (cloudProfile?.displayName.trim().isNotEmpty == true &&
-            cloudProfile?.displayName != 'Miee Listener' &&
-            cloudProfile?.displayName != 'Miee User')
-        ? cloudProfile!.displayName
-        : (authUser?.displayName?.trim().isNotEmpty == true &&
-                authUser?.displayName != 'Miee Listener' &&
-                authUser?.displayName != 'Miee User')
-            ? authUser!.displayName!
-            : (profile.displayName.isNotEmpty &&
-                    profile.displayName != 'Miee User' &&
-                    profile.displayName != 'Miee Listener')
-                ? profile.displayName
-                : (authUser?.email.isNotEmpty == true
-                    ? authUser!.email.split('@').first
-                    : profile.displayName);
+    final isGuestSession = isGuest || authUser == null || authUser.isAnonymous || profile.isGuest;
 
-    final resolvedUsername = (profile.username != null && profile.username!.isNotEmpty)
-        ? profile.username!
-        : (resolvedDisplayName != 'Miee User' && resolvedDisplayName != 'Miee Listener')
-            ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
-            : null;
+    final String resolvedDisplayName;
+    final String? resolvedUsername;
+    final bool isUserAuthenticated;
+
+    if (isGuestSession) {
+      resolvedDisplayName = 'Guest';
+      resolvedUsername = null;
+      isUserAuthenticated = false;
+    } else {
+      isUserAuthenticated = true;
+      resolvedDisplayName = (cloudProfile?.displayName.trim().isNotEmpty == true &&
+              cloudProfile?.displayName != 'Miee Listener' &&
+              cloudProfile?.displayName != 'Miee User')
+          ? cloudProfile!.displayName
+          : (authUser.displayName != null &&
+                  authUser.displayName!.trim().isNotEmpty &&
+                  authUser.displayName != 'Miee Listener' &&
+                  authUser.displayName != 'Miee User')
+              ? authUser.displayName!
+              : (profile.displayName.isNotEmpty &&
+                      profile.displayName != 'Miee User' &&
+                      profile.displayName != 'Miee Listener')
+                  ? profile.displayName
+                  : (authUser.email.isNotEmpty
+                      ? authUser.email.split('@').first
+                      : 'Miee User');
+
+      resolvedUsername = (profile.username != null && profile.username!.isNotEmpty)
+          ? profile.username!
+          : (resolvedDisplayName != 'Miee User' && resolvedDisplayName != 'Miee Listener')
+              ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
+              : null;
+    }
 
     final resolvedAvatarUrl = (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
         ? profile.profilePicturePath
-        : (cloudProfile?.avatarUrl?.isNotEmpty == true
+        : (!isGuestSession && cloudProfile?.avatarUrl?.isNotEmpty == true
             ? cloudProfile!.avatarUrl
-            : authUser?.photoUrl);
+            : (!isGuestSession ? authUser.photoUrl : null));
 
     final selectedArtists = cloudProfile?.selectedArtists ?? [];
 
@@ -355,10 +370,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         avatarUrl: resolvedAvatarUrl,
                         displayName: resolvedDisplayName,
                         username: resolvedUsername,
-                        email: authUser?.email,
-                        isAuthenticated: authUser != null,
+                        email: isUserAuthenticated ? authUser?.email : null,
+                        isAuthenticated: isUserAuthenticated,
                       ),
-                      if (authUser == null) ...[
+                      if (!isUserAuthenticated) ...[
                         const Divider(height: 1, color: AppColors.oatBeige),
                         ListTile(
                           leading: const Icon(Icons.login_rounded, color: AppColors.cocoaPlum),
@@ -382,7 +397,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent),
                           ),
                           subtitle: Text(
-                            'Signed in as ${authUser.email}',
+                            'Signed in as ${authUser?.email}',
                             style: const TextStyle(color: AppColors.mutedMauve),
                           ),
                           onTap: () => _confirmSignOut(context),

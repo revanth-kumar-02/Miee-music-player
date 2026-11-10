@@ -674,7 +674,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
                     track.rawArtist!.isNotEmpty)
                 ? track.rawArtist!
                 : track.artist,
-            thumbnailUrl: track.imageUrl,
+            thumbnailUrl: (track.imageUrl.isNotEmpty && track.imageUrl.startsWith('http'))
+                ? track.imageUrl
+                : 'https://i.ytimg.com/vi/$candidateId/hqdefault.jpg',
             duration: track.duration,
             viewCount: '',
             rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
@@ -691,6 +693,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
           errorMessage: 'This video is not a recognized music track.',
         );
         return;
+      }
+
+      // Ensure active track carries the verified thumbnail if imageUrl was blank
+      if (track is Track && (track.imageUrl.isEmpty || !track.imageUrl.startsWith('http'))) {
+        track = (track as Track).copyWith(
+          imageUrl: candidate.thumbnailUrl,
+        );
       }
     }
 

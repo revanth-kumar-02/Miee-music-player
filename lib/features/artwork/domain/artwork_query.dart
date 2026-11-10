@@ -32,6 +32,9 @@ class ArtworkQuery {
   /// Original stream thumbnail URL (e.g. YouTube thumbnail) as last-resort fallback.
   final String? fallbackThumbnailUrl;
 
+  /// Source of the music track ('youtube', 'local', etc.).
+  final String? source;
+
   const ArtworkQuery({
     required this.id,
     required this.title,
@@ -42,10 +45,39 @@ class ArtworkQuery {
     this.localFilePath,
     this.localArtworkPath,
     this.fallbackThumbnailUrl,
+    this.source,
   });
 
+  /// Whether this query is for an online YouTube / streaming track.
+  bool get isYoutube {
+    if (source == 'youtube') return true;
+    if (id.startsWith('youtube_') || id.startsWith('wm_')) return true;
+    if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id)) return true;
+    if (fallbackThumbnailUrl != null) {
+      final u = fallbackThumbnailUrl!.toLowerCase();
+      if (u.contains('ytimg.com') || u.contains('youtube.com')) return true;
+    }
+    return false;
+  }
+
+  /// Extracts the 11-character YouTube video ID if available.
+  String? get youtubeVideoId {
+    if (id.startsWith('youtube_')) {
+      final clean = id.replaceFirst('youtube_', '').trim();
+      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(clean)) return clean;
+    }
+    if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id)) {
+      return id;
+    }
+    if (fallbackThumbnailUrl != null) {
+      final match = RegExp(r'\/vi\/([a-zA-Z0-9_-]{11})\/').firstMatch(fallbackThumbnailUrl!);
+      if (match != null) return match.group(1);
+    }
+    return null;
+  }
+
   /// Factory constructor to construct an [ArtworkQuery] seamlessly from any [MusicItem].
-  factory ArtworkQuery.fromMusicItem(MusicItem item, {String? album}) {
+  factory ArtworkQuery.fromMusicItem(MusicItem item, {String? album, String? explicitUrl}) {
     if (item is MediaSong) {
       return ArtworkQuery(
         id: item.id,
@@ -55,11 +87,18 @@ class ArtworkQuery {
         durationMs: item.durationMs,
         localFilePath: item.filePath,
         localArtworkPath: item.artworkPath,
-        fallbackThumbnailUrl: null,
+        fallbackThumbnailUrl: (explicitUrl != null && explicitUrl.isNotEmpty) ? explicitUrl : null,
+        source: 'local',
       );
     }
 
     if (item is YouTubeVideo) {
+      String? fallback = explicitUrl?.isNotEmpty == true
+          ? explicitUrl
+          : (item.highResArtworkUrl ?? (item.thumbnailUrl.isNotEmpty ? item.thumbnailUrl : null));
+      if (fallback == null || fallback.isEmpty) {
+        fallback = 'https://i.ytimg.com/vi/${item.id}/hqdefault.jpg';
+      }
       return ArtworkQuery(
         id: item.id,
         title: item.canonicalTitle ?? item.title,
@@ -68,11 +107,24 @@ class ArtworkQuery {
         durationMs: _parseDurationString(item.duration),
         localFilePath: null,
         localArtworkPath: null,
-        fallbackThumbnailUrl: item.highResArtworkUrl ?? item.thumbnailUrl,
+        fallbackThumbnailUrl: fallback,
+        source: 'youtube',
       );
     }
 
     if (item is Track) {
+      final isYt = item.isYoutube;
+      String? fallback = explicitUrl?.isNotEmpty == true
+          ? explicitUrl
+          : (item.imageUrl.isNotEmpty ? item.imageUrl : null);
+
+      if (isYt && (fallback == null || fallback.isEmpty || !fallback.startsWith('http'))) {
+        final vid = item.id.replaceFirst('youtube_', '').trim();
+        if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
+          fallback = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
+        }
+      }
+
       return ArtworkQuery(
         id: item.id,
         title: item.title,
@@ -80,23 +132,37 @@ class ArtworkQuery {
         album: album ?? item.albumName,
         durationMs: _parseDurationString(item.duration),
         localFilePath: item.localFilePath,
-        localArtworkPath: (item.localFilePath != null && !item.isYoutube) ? item.imageUrl : null,
-        fallbackThumbnailUrl: item.imageUrl.isNotEmpty ? item.imageUrl : null,
+        localArtworkPath: (item.localFilePath != null && !isYt) ? item.imageUrl : null,
+        fallbackThumbnailUrl: fallback,
+        source: isYt ? 'youtube' : 'local',
       );
     }
 
     // Generic fallback for any other MusicItem implementation
+    final isYt = item.isYoutube;
+    String? fallback = explicitUrl?.isNotEmpty == true
+        ? explicitUrl
+        : (item.imageUrl.isNotEmpty ? item.imageUrl : null);
+    if (isYt && (fallback == null || fallback.isEmpty)) {
+      final vid = item.id.replaceFirst('youtube_', '').trim();
+      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
+        fallback = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
+      }
+    }
+
     return ArtworkQuery(
       id: item.id,
       title: item.title,
       artist: item.artist,
       album: album,
-      localFilePath: item.isYoutube ? null : item.filePath,
-      fallbackThumbnailUrl: item.imageUrl.isNotEmpty ? item.imageUrl : null,
+      localFilePath: isYt ? null : item.filePath,
+      fallbackThumbnailUrl: fallback,
+      source: isYt ? 'youtube' : 'local',
     );
   }
 
   /// Normalized deterministic key used for caching and in-flight deduplication.
+  /// Uses stable, source-specific identifiers to prevent cross-source or cross-track pollution.
   String get cacheKey {
     if (isrc != null && isrc!.trim().isNotEmpty) {
       return 'isrc_${isrc!.trim().toUpperCase()}';
@@ -106,11 +172,27 @@ class ArtworkQuery {
     final normTitle = _normalize(title);
     final normAlbum = album != null ? _normalize(album!) : '';
 
+    if (isYoutube) {
+      final vid = youtubeVideoId ?? id.replaceFirst('youtube_', '').trim();
+      if (vid.isNotEmpty) {
+        return 'yt_${vid}_${normArtist}_$normTitle';
+      }
+      return 'yt_${normArtist}_$normTitle';
+    }
+
+    if (localArtworkPath != null && localArtworkPath!.isNotEmpty) {
+      return 'loc_${id}_${normArtist}_$normTitle';
+    }
+
+    if (localFilePath != null && localFilePath!.isNotEmpty) {
+      return 'loc_${id}_${normArtist}_$normTitle';
+    }
+
     if (normArtist.isNotEmpty && normTitle.isNotEmpty) {
       if (normAlbum.isNotEmpty) {
-        return '${normArtist}_${normTitle}_$normAlbum';
+        return 'track_${normArtist}_${normTitle}_$normAlbum';
       }
-      return '${normArtist}_$normTitle';
+      return 'track_${normArtist}_$normTitle';
     }
 
     return 'id_$id';
@@ -154,6 +236,5 @@ class ArtworkQuery {
   int get hashCode => cacheKey.hashCode;
 
   @override
-  String toString() => 'ArtworkQuery(title: "$title", artist: "$artist", album: "$album")';
+  String toString() => 'ArtworkQuery(id: "$id", title: "$title", artist: "$artist", isYoutube: $isYoutube)';
 }
-

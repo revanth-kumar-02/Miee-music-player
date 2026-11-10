@@ -82,6 +82,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
         title: a.name,
         imageUrl: a.artworkPath,
         type: SuggestionType.artist,
+        isOnline: false,
+        source: 'Local',
         entity: a,
       ));
     }
@@ -92,6 +94,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
         subtitle: s.artist,
         imageUrl: s.artworkPath,
         type: SuggestionType.song,
+        isOnline: false,
+        source: 'Local',
         entity: s,
       ));
     }
@@ -102,6 +106,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
         subtitle: alb.artist,
         imageUrl: alb.artworkPath,
         type: SuggestionType.album,
+        isOnline: false,
+        source: 'Local',
         entity: alb,
       ));
     }

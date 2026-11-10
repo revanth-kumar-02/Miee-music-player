@@ -44,12 +44,20 @@ class TrackHiveModel extends HiveObject {
       finalId = 'youtube_${track.id}';
     }
 
+    String resolvedImage = track.imageUrl;
+    if (track.isYoutube && (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
+      final vid = finalId.replaceFirst('youtube_', '').trim();
+      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
+        resolvedImage = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
+      }
+    }
+
     if (track is Track) {
       return TrackHiveModel(
         id: finalId,
         title: track.title,
         artist: track.artist,
-        imageUrl: track.imageUrl,
+        imageUrl: resolvedImage,
         duration: track.duration,
         filePath: track.filePath,
         albumName: track.albumName,
@@ -66,28 +74,39 @@ class TrackHiveModel extends HiveObject {
       id: finalId,
       title: track.title,
       artist: track.artist,
-      imageUrl: track.imageUrl,
+      imageUrl: resolvedImage,
       duration: track.duration,
       filePath: track.filePath,
     );
   }
 
   /// Converts back to the domain [Track] model.
-  Track toTrack() => Track(
-        id: id,
-        title: title,
-        artist: artist,
-        imageUrl: imageUrl,
-        duration: duration,
-        filePath: filePath,
-        albumName: albumName,
-        metadataProvider: metadataProvider,
-        metadataIdentifier: metadataIdentifier,
-        sourceProvider: sourceProvider,
-        sourceId: sourceId,
-        rawTitle: rawTitle,
-        rawArtist: rawArtist,
-      );
+  Track toTrack() {
+    String finalImage = imageUrl;
+    final isYt = id.startsWith('youtube_') || (filePath?.contains('youtube.com') ?? false);
+    if (isYt && (finalImage.isEmpty || !finalImage.startsWith('http'))) {
+      final vid = id.replaceFirst('youtube_', '').trim();
+      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
+        finalImage = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
+      }
+    }
+
+    return Track(
+      id: id,
+      title: title,
+      artist: artist,
+      imageUrl: finalImage,
+      duration: duration,
+      filePath: filePath,
+      albumName: albumName,
+      metadataProvider: metadataProvider,
+      metadataIdentifier: metadataIdentifier,
+      sourceProvider: sourceProvider,
+      sourceId: sourceId,
+      rawTitle: rawTitle,
+      rawArtist: rawArtist,
+    );
+  }
 }
 
 /// Manual [TypeAdapter] for [TrackHiveModel].

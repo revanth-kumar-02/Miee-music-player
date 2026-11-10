@@ -118,6 +118,17 @@ class YouTubeRepository {
             rethrow;
           }
         }
+
+        // Fallback to WebMusicDiscoverySource if Explode returned 0 candidates
+        if (results.isEmpty) {
+          try {
+            debugPrint(
+                'YouTubeRepository: Explode returned no results, falling back to WebMusicDiscoverySource for "$cleanQuery"');
+            results = await _webDiscoverySource.searchVideos(cleanQuery);
+          } catch (e) {
+            debugPrint('YouTubeRepository: WebMusicDiscoverySource fallback failed: $e');
+          }
+        }
       }
     }
 
@@ -236,9 +247,11 @@ class YouTubeRepository {
               id: relId,
               title: cleaned.title,
               channelTitle: cleaned.artist,
-              thumbnailUrl: rel.thumbnails.mediumResUrl.isNotEmpty
-                  ? rel.thumbnails.mediumResUrl
-                  : 'https://i.ytimg.com/vi/$relId/hqdefault.jpg',
+              thumbnailUrl: rel.thumbnails.highResUrl.isNotEmpty
+                  ? rel.thumbnails.highResUrl
+                  : (rel.thumbnails.mediumResUrl.isNotEmpty
+                      ? rel.thumbnails.mediumResUrl
+                      : 'https://i.ytimg.com/vi/$relId/hqdefault.jpg'),
               duration: durationStr,
               viewCount: _formatViewCount(rel.engagement.viewCount),
               rawTitle: rel.title,

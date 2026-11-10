@@ -42,12 +42,21 @@ class MieeArtworkImage extends ConsumerWidget {
 
     // Build the query
     final effectiveQuery = query ??
-        (musicItem != null ? ArtworkQuery.fromMusicItem(musicItem!) : null);
+        (musicItem != null
+            ? ArtworkQuery.fromMusicItem(musicItem!, explicitUrl: explicitUrl)
+            : (explicitUrl != null && explicitUrl!.isNotEmpty
+                ? ArtworkQuery(
+                    id: explicitUrl!,
+                    title: '',
+                    artist: '',
+                    fallbackThumbnailUrl: explicitUrl,
+                  )
+                : null));
 
-    // If explicitUrl is given and no query can be constructed, render directly
+    // If no query could be formed, try direct explicit URL or neutral fallback
     if (effectiveQuery == null) {
       if (explicitUrl != null && explicitUrl!.isNotEmpty) {
-        return _renderDirectImage(context, explicitUrl!, effectiveBorderRadius);
+        return _renderDirectImage(context, explicitUrl!, effectiveBorderRadius, null);
       }
       return _buildNeutralFallback(context, effectiveBorderRadius);
     }
@@ -64,24 +73,26 @@ class MieeArtworkImage extends ConsumerWidget {
         );
       },
       loading: () {
-        // While resolving, display the fallback thumbnail if available or neutral placeholder
-        if (effectiveQuery.fallbackThumbnailUrl != null &&
-            effectiveQuery.fallbackThumbnailUrl!.isNotEmpty) {
+        // While resolving, display the fallback thumbnail if available immediately
+        final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
+        if (immediateImage != null && immediateImage.isNotEmpty) {
           return _renderDirectImage(
             context,
-            effectiveQuery.fallbackThumbnailUrl!,
+            immediateImage,
             effectiveBorderRadius,
+            effectiveQuery,
           );
         }
         return placeholder ?? _buildPlaceholder(context, effectiveBorderRadius);
       },
       error: (_, __) {
-        if (effectiveQuery.fallbackThumbnailUrl != null &&
-            effectiveQuery.fallbackThumbnailUrl!.isNotEmpty) {
+        final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
+        if (immediateImage != null && immediateImage.isNotEmpty) {
           return _renderDirectImage(
             context,
-            effectiveQuery.fallbackThumbnailUrl!,
+            immediateImage,
             effectiveBorderRadius,
+            effectiveQuery,
           );
         }
         return errorWidget ?? _buildNeutralFallback(context, effectiveBorderRadius);
@@ -104,18 +115,24 @@ class MieeArtworkImage extends ConsumerWidget {
           context,
           effectiveQuery.fallbackThumbnailUrl!,
           radius,
+          effectiveQuery,
         );
       }
       if (explicitUrl != null && explicitUrl!.isNotEmpty) {
-        return _renderDirectImage(context, explicitUrl!, radius);
+        return _renderDirectImage(context, explicitUrl!, radius, effectiveQuery);
       }
       return _buildNeutralFallback(context, radius);
     }
 
-    return _renderDirectImage(context, artwork.imageUrl, radius);
+    return _renderDirectImage(context, artwork.imageUrl, radius, effectiveQuery);
   }
 
-  Widget _renderDirectImage(BuildContext context, String pathOrUrl, BorderRadius radius) {
+  Widget _renderDirectImage(
+    BuildContext context,
+    String pathOrUrl,
+    BorderRadius radius,
+    ArtworkQuery? query,
+  ) {
     final isNetwork = pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
     final isAsset = pathOrUrl.startsWith('assets/');
 
@@ -127,6 +144,36 @@ class MieeArtworkImage extends ConsumerWidget {
         height: height,
         fit: fit,
         errorBuilder: (context, error, stackTrace) {
+          // If a maxres or sd thumbnail failed (e.g. HTTP 404), seamlessly retry with hqdefault
+          if (pathOrUrl.contains('maxresdefault.jpg') || pathOrUrl.contains('sddefault.jpg')) {
+            final fallbackYt = pathOrUrl
+                .replaceAll('maxresdefault.jpg', 'hqdefault.jpg')
+                .replaceAll('sddefault.jpg', 'hqdefault.jpg');
+            return Image.network(
+              fallbackYt,
+              width: width,
+              height: height,
+              fit: fit,
+              errorBuilder: (_, __, ___) {
+                return errorWidget ?? _buildNeutralFallback(context, radius);
+              },
+            );
+          }
+
+          // If query has a fallback thumbnail that differs from the failed path
+          final secondary = query?.fallbackThumbnailUrl;
+          if (secondary != null && secondary.isNotEmpty && secondary != pathOrUrl) {
+            return Image.network(
+              secondary,
+              width: width,
+              height: height,
+              fit: fit,
+              errorBuilder: (_, __, ___) {
+                return errorWidget ?? _buildNeutralFallback(context, radius);
+              },
+            );
+          }
+
           return errorWidget ?? _buildNeutralFallback(context, radius);
         },
       );
@@ -209,4 +256,3 @@ class MieeArtworkImage extends ConsumerWidget {
     );
   }
 }
-

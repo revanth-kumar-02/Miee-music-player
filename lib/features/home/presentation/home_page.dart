@@ -1011,17 +1011,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                           width: 1.0,
                         ),
                       ),
-                      child: ClipRRect(
+                      child: MieeArtworkImage(
+                        musicItem: track,
+                        explicitUrl: track.imageUrl,
                         borderRadius: BorderRadius.circular(14),
-                        child: Image.network(
-                          track.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(
-                              Icons.music_note_rounded,
-                              size: 44,
-                              color: AppColors.cocoaPlum,
-                            ),
+                        fit: BoxFit.cover,
+                        errorWidget: const Center(
+                          child: Icon(
+                            Icons.music_note_rounded,
+                            size: 44,
+                            color: AppColors.cocoaPlum,
                           ),
                         ),
                       ),
@@ -1355,19 +1354,18 @@ class _HomePageState extends ConsumerState<HomePage> {
                       children: [
                         Stack(
                           children: [
-                            ClipRRect(
+                            MieeArtworkImage(
+                              musicItem: track,
+                              explicitUrl: track.imageUrl,
+                              width: 144,
+                              height: 144,
                               borderRadius: BorderRadius.circular(14),
-                              child: Image.network(
-                                track.imageUrl,
+                              fit: BoxFit.cover,
+                              errorWidget: Container(
                                 width: 144,
                                 height: 144,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  width: 144,
-                                  height: 144,
-                                  color: AppColors.softClay,
-                                  child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
-                                ),
+                                color: AppColors.softClay,
+                                child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
                               ),
                             ),
                             if (isPlaying)
@@ -1454,19 +1452,18 @@ class _HomePageState extends ConsumerState<HomePage> {
               children: [
                 Stack(
                   children: [
-                    ClipRRect(
+                    MieeArtworkImage(
+                      musicItem: track,
+                      explicitUrl: track.imageUrl,
+                      width: 144,
+                      height: 144,
                       borderRadius: BorderRadius.circular(14),
-                      child: Image.network(
-                        track.imageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: Container(
                         width: 144,
                         height: 144,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 144,
-                          height: 144,
-                          color: AppColors.softClay,
-                          child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
-                        ),
+                        color: AppColors.softClay,
+                        child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
                       ),
                     ),
                     Positioned(
@@ -1603,22 +1600,21 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                   const SizedBox(width: 8),
                 ],
-                ClipRRect(
+                MieeArtworkImage(
+                  musicItem: track,
+                  explicitUrl: track.imageUrl,
+                  width: 52,
+                  height: 52,
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    track.imageUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: Container(
                     width: 52,
                     height: 52,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 52,
-                      height: 52,
-                      color: AppColors.softClay,
-                      child: const Icon(
-                        Icons.music_note_rounded,
-                        color: AppColors.cocoaPlum,
-                        size: 24,
-                      ),
+                    color: AppColors.softClay,
+                    child: const Icon(
+                      Icons.music_note_rounded,
+                      color: AppColors.cocoaPlum,
+                      size: 24,
                     ),
                   ),
                 ),
@@ -2013,6 +2009,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       isSameTrackId(s.loadingTrackId, track.id)),
                 );
                 return SongTile(
+                  musicItem: track,
                   title: track.title,
                   artist: track.artist,
                   duration: track.duration,

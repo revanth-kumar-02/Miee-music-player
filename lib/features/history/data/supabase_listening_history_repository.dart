@@ -100,7 +100,7 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
         trackId: entry.track.id,
         title: entry.track.title,
         artist: entry.track.artist,
-        imageUrl: entry.track.imageUrl,
+        imageUrl: entry.track.toTrack().imageUrl,
         source: entry.track.id.startsWith('youtube_') ? 'youtube' : 'local',
         timestamp: entry.startTime,
         durationSec: parsedDurationSec > 0 ? parsedDurationSec : 180,

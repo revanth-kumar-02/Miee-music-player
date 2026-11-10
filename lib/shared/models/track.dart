@@ -104,11 +104,28 @@ class Track implements MusicItem {
     String? sourceProvider,
     String? sourceId,
   }) {
+    String resolvedImage = (imageUrl != null && imageUrl.isNotEmpty)
+        ? imageUrl
+        : this.imageUrl;
+
+    final targetId = id ?? this.id;
+    final isYt = targetId.startsWith('youtube_') ||
+        (sourceProvider == 'youtube') ||
+        (filePath?.contains('youtube.com') ?? false) ||
+        (localFilePath?.contains('youtube.com') ?? false);
+
+    if (isYt && (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
+      final cleanId = (sourceId ?? targetId).replaceFirst('youtube_', '').trim();
+      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanId)) {
+        resolvedImage = 'https://i.ytimg.com/vi/$cleanId/hqdefault.jpg';
+      }
+    }
+
     return Track(
       id: id ?? this.id,
       title: title ?? this.title,
       artist: artist ?? this.artist,
-      imageUrl: imageUrl ?? this.imageUrl,
+      imageUrl: resolvedImage,
       duration: duration ?? this.duration,
       filePath: filePath ?? localFilePath,
       progress: progress ?? this.progress,

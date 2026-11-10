@@ -17,6 +17,7 @@ class ProfileController extends StateNotifier<ProfileModel> {
 
   ProfileController(this._repository, this._ref, ProfileModel initialProfile) : super(initialProfile) {
     _ref.listen<UserProfile?>(currentUserProfileProvider, (previous, next) {
+      if (state.isGuest) return;
       if (next != null &&
           next.displayName.trim().isNotEmpty &&
           next.displayName != 'Miee Listener' &&
@@ -31,57 +32,45 @@ class ProfileController extends StateNotifier<ProfileModel> {
       }
     });
 
-    _ref.listen<AuthUser?>(currentAuthUserProvider, (previous, next) {
-      if (next != null &&
-          next.displayName != null &&
-          next.displayName!.trim().isNotEmpty &&
-          next.displayName != 'Miee Listener' &&
-          next.displayName != 'Miee User' &&
-          state.displayName != next.displayName) {
-        updateProfile(
-          displayName: next.displayName!,
-          username: next.displayName!.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
-          favoriteGenre: state.favoriteGenre,
-          favoriteArtist: state.favoriteArtist,
+    _ref.listen<AuthUser?>(currentAuthUserProvider, (previous, next) async {
+      if (next == null) {
+        final isGuest = _ref.read(guestModeProvider);
+        if (isGuest || !state.isGuest) {
+          final guestProf = await _repository.getProfile(isGuest: true);
+          state = guestProf;
+        }
+      } else {
+        final userProf = await _repository.getProfile(userId: next.uid, isGuest: false);
+        final displayName = (next.displayName != null &&
+                next.displayName!.trim().isNotEmpty &&
+                next.displayName != 'Miee Listener' &&
+                next.displayName != 'Miee User')
+            ? next.displayName!.trim()
+            : userProf.displayName;
+        state = userProf.copyWith(
+          userId: next.uid,
+          isGuest: false,
+          displayName: displayName,
+          username: userProf.username ?? displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+          profilePicturePath: userProf.profilePicturePath ?? next.photoUrl,
         );
+        await _repository.saveProfile(state);
+      }
+    });
+
+    _ref.listen<bool>(guestModeProvider, (previous, next) async {
+      if (next) {
+        final authUser = _ref.read(currentAuthUserProvider);
+        if (authUser == null) {
+          final guestProf = await _repository.getProfile(isGuest: true);
+          state = guestProf;
+        }
       }
     });
   }
 
-  Future<void> _recordLastOpened() async {
-    // final updated = state.copyWith(lastOpened: DateTime.now());
-    // await _repository.saveProfile(updated);
-    // state = updated;
-    // await _queueProfileUpdate(updated);
-  }
-
   Future<void> _queueProfileUpdate(ProfileModel profile) async {
-    // final op = OfflineOperation(
-    //   id: 'profile_upd_${DateTime.now().millisecondsSinceEpoch}',
-    //   type: 'profile_update',
-    //   payload: {
-    //     'displayName': profile.displayName,
-    //     'username': profile.username,
-    //     'profilePicturePath': profile.profilePicturePath,
-    //     'favoriteGenre': profile.favoriteGenre,
-    //     'favoriteArtist': profile.favoriteArtist,
-    //     'createdDate': profile.createdDate.toIso8601String(),
-    //     'lastOpened': profile.lastOpened.toIso8601String(),
-    //     'themeMode': profile.themeMode,
-    //     'playbackSpeed': profile.playbackSpeed,
-    //     'preferredSource': profile.preferredSource,
-    //     'defaultShuffle': profile.defaultShuffle,
-    //     'defaultRepeat': profile.defaultRepeat,
-    //     'backgroundPlayback': profile.backgroundPlayback,
-    //     'mediaNotification': profile.mediaNotification,
-    //     'lockScreenControls': profile.lockScreenControls,
-    //     'gaplessPlayback': profile.gaplessPlayback,
-    //     'crossfade': profile.crossfade,
-    //     'lastScanTime': profile.lastScanTime,
-    //   },
-    //   timestamp: DateTime.now(),
-    // );
-    // await _ref.read(syncManagerProvider).queueOperation(op);
+    // Offline queue hook if cloud sync is enabled
   }
 
   Future<void> updateProfile({
@@ -92,8 +81,9 @@ class ProfileController extends StateNotifier<ProfileModel> {
     required String favoriteArtist,
   }) async {
     final updated = state.copyWith(
-      displayName: displayName,
-      username: username,
+      displayName: state.isGuest ? 'Guest' : displayName,
+      username: state.isGuest ? null : username,
+      clearUsername: state.isGuest,
       profilePicturePath: profilePicturePath,
       favoriteGenre: favoriteGenre,
       favoriteArtist: favoriteArtist,
@@ -190,7 +180,7 @@ class ProfileController extends StateNotifier<ProfileModel> {
 
 /// Provider for the ProfileRepository.
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  final box = Hive.box(HiveBoxes.profile);
+  final box = Hive.box<dynamic>(HiveBoxes.profile);
   return HiveProfileRepository(box);
 });
 
@@ -198,74 +188,105 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 final profileProvider = StateNotifierProvider<ProfileController, ProfileModel>((ref) {
   debugPrint('STARTUP: profileProvider creating controller');
   final repo = ref.watch(profileRepositoryProvider);
-  final box = Hive.box(HiveBoxes.profile);
-  
-  final data = box.get('active_profile');
+  final isGuest = ref.watch(guestModeProvider);
   final authUser = ref.read(currentAuthUserProvider);
-  final candidateAuthName = (authUser?.displayName?.trim().isNotEmpty == true &&
-          authUser?.displayName != 'Miee Listener' &&
-          authUser?.displayName != 'Miee User')
-      ? authUser!.displayName!.trim()
-      : null;
 
   ProfileModel initialProfile;
-  if (data == null || data is! Map) {
-    initialProfile = ProfileModel.defaultProfile();
-    if (candidateAuthName != null) {
+  if (isGuest || authUser == null) {
+    final box = Hive.box<dynamic>(HiveBoxes.profile);
+    final data = box.get('guest_profile');
+    if (data is Map) {
       initialProfile = ProfileModel(
-        displayName: candidateAuthName,
-        username: candidateAuthName.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
-        favoriteGenre: initialProfile.favoriteGenre,
-        favoriteArtist: initialProfile.favoriteArtist,
-        createdDate: initialProfile.createdDate,
-        lastOpened: initialProfile.lastOpened,
-        playbackSpeed: initialProfile.playbackSpeed,
-        preferredSource: initialProfile.preferredSource,
-        defaultShuffle: initialProfile.defaultShuffle,
-        defaultRepeat: initialProfile.defaultRepeat,
-        resumePlayback: initialProfile.resumePlayback,
-        backgroundPlayback: initialProfile.backgroundPlayback,
-        mediaNotification: initialProfile.mediaNotification,
-        lockScreenControls: initialProfile.lockScreenControls,
-        gaplessPlayback: initialProfile.gaplessPlayback,
-        crossfade: initialProfile.crossfade,
+        displayName: 'Guest',
+        username: null,
+        userId: null,
+        isGuest: true,
+        profilePicturePath: data['profilePicturePath'] as String?,
+        favoriteGenre: data['favoriteGenre'] as String? ?? 'Acoustic',
+        favoriteArtist: data['favoriteArtist'] as String? ?? 'Unknown Artist',
+        createdDate: DateTime.tryParse(data['createdDate'] as String? ?? '') ?? DateTime.now(),
+        lastOpened: DateTime.tryParse(data['lastOpened'] as String? ?? '') ?? DateTime.now(),
+        playbackSpeed: (data['playbackSpeed'] as num? ?? 1.0).toDouble(),
+        preferredSource: data['preferredSource'] as String? ?? 'preferLocal',
+        defaultShuffle: data['defaultShuffle'] as bool? ?? false,
+        defaultRepeat: data['defaultRepeat'] as String? ?? 'off',
+        resumePlayback: data['resumePlayback'] as bool? ?? true,
+        backgroundPlayback: data['backgroundPlayback'] as bool? ?? true,
+        mediaNotification: data['mediaNotification'] == 'true' || data['mediaNotification'] == true,
+        lockScreenControls: data['lockScreenControls'] as bool? ?? true,
+        gaplessPlayback: data['gaplessPlayback'] as bool? ?? true,
+        crossfade: data['crossfade'] as bool? ?? false,
+        lastScanTime: data['lastScanTime'] as String?,
       );
+    } else {
+      initialProfile = ProfileModel.guestProfile();
     }
   } else {
-    final Map<dynamic, dynamic> map = data;
-    final savedName = map['displayName'] as String?;
-    final effectiveDisplayName = (savedName != null &&
-            savedName.isNotEmpty &&
-            savedName != 'Miee User' &&
-            savedName != 'Miee Listener')
-        ? savedName
-        : (candidateAuthName ?? 'Miee User');
+    final box = Hive.box<dynamic>(HiveBoxes.profile);
+    final data = box.get('profile_${authUser.uid}') ?? box.get('active_profile');
+    final candidateAuthName = (authUser.displayName?.trim().isNotEmpty == true &&
+            authUser.displayName != 'Miee Listener' &&
+            authUser.displayName != 'Miee User')
+        ? authUser.displayName!.trim()
+        : null;
 
-    initialProfile = ProfileModel(
-      displayName: effectiveDisplayName,
-      username: map['username'] as String? ??
-          (candidateAuthName != null
-              ? candidateAuthName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
-              : null),
-      profilePicturePath: map['profilePicturePath'] as String?,
-      favoriteGenre: map['favoriteGenre'] as String? ?? 'Acoustic',
-      favoriteArtist: map['favoriteArtist'] as String? ?? 'Unknown Artist',
-      createdDate: DateTime.tryParse(map['createdDate'] as String? ?? '') ?? DateTime.now(),
-      lastOpened: DateTime.tryParse(map['lastOpened'] as String? ?? '') ?? DateTime.now(),
-      playbackSpeed: (map['playbackSpeed'] as num? ?? 1.0).toDouble(),
-      preferredSource: map['preferredSource'] as String? ?? 'preferLocal',
-      defaultShuffle: map['defaultShuffle'] as bool? ?? false,
-      defaultRepeat: map['defaultRepeat'] as String? ?? 'off',
-      resumePlayback: map['resumePlayback'] as bool? ?? true,
-      backgroundPlayback: map['backgroundPlayback'] as bool? ?? true,
-      mediaNotification: map['mediaNotification'] == 'true' || map['mediaNotification'] == true,
-      lockScreenControls: map['lockScreenControls'] as bool? ?? true,
-      gaplessPlayback: map['gaplessPlayback'] as bool? ?? true,
-      crossfade: map['crossfade'] as bool? ?? false,
-      lastScanTime: map['lastScanTime'] as String?,
-    );
+    if (data is Map) {
+      final savedName = data['displayName'] as String?;
+      final effectiveDisplayName = (savedName != null &&
+              savedName.isNotEmpty &&
+              savedName != 'Miee User' &&
+              savedName != 'Miee Listener')
+          ? savedName
+          : (candidateAuthName ?? 'Miee User');
+
+      initialProfile = ProfileModel(
+        displayName: effectiveDisplayName,
+        username: data['username'] as String? ??
+            (candidateAuthName?.toLowerCase().replaceAll(RegExp(r'\s+'), '_')),
+        userId: authUser.uid,
+        isGuest: false,
+        profilePicturePath: (data['profilePicturePath'] as String?) ?? authUser.photoUrl,
+        favoriteGenre: data['favoriteGenre'] as String? ?? 'Acoustic',
+        favoriteArtist: data['favoriteArtist'] as String? ?? 'Unknown Artist',
+        createdDate: DateTime.tryParse(data['createdDate'] as String? ?? '') ?? DateTime.now(),
+        lastOpened: DateTime.tryParse(data['lastOpened'] as String? ?? '') ?? DateTime.now(),
+        playbackSpeed: (data['playbackSpeed'] as num? ?? 1.0).toDouble(),
+        preferredSource: data['preferredSource'] as String? ?? 'preferLocal',
+        defaultShuffle: data['defaultShuffle'] as bool? ?? false,
+        defaultRepeat: data['defaultRepeat'] as String? ?? 'off',
+        resumePlayback: data['resumePlayback'] as bool? ?? true,
+        backgroundPlayback: data['backgroundPlayback'] as bool? ?? true,
+        mediaNotification: data['mediaNotification'] == 'true' || data['mediaNotification'] == true,
+        lockScreenControls: data['lockScreenControls'] as bool? ?? true,
+        gaplessPlayback: data['gaplessPlayback'] as bool? ?? true,
+        crossfade: data['crossfade'] as bool? ?? false,
+        lastScanTime: data['lastScanTime'] as String?,
+      );
+    } else {
+      initialProfile = ProfileModel(
+        displayName: candidateAuthName ?? 'Miee User',
+        username: candidateAuthName?.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
+        userId: authUser.uid,
+        isGuest: false,
+        profilePicturePath: authUser.photoUrl,
+        favoriteGenre: 'Acoustic',
+        favoriteArtist: 'Unknown Artist',
+        createdDate: DateTime.now(),
+        lastOpened: DateTime.now(),
+        playbackSpeed: 1.0,
+        preferredSource: 'preferLocal',
+        defaultShuffle: false,
+        defaultRepeat: 'off',
+        resumePlayback: true,
+        backgroundPlayback: true,
+        mediaNotification: true,
+        lockScreenControls: true,
+        gaplessPlayback: true,
+        crossfade: false,
+      );
+    }
   }
 
-  debugPrint('STARTUP: profileProvider initialProfile loaded (displayName: ${initialProfile.displayName})');
+  debugPrint('STARTUP: profileProvider initialProfile loaded (displayName: ${initialProfile.displayName}, isGuest: ${initialProfile.isGuest})');
   return ProfileController(repo, ref, initialProfile);
 });

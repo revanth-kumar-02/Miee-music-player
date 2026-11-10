@@ -2,6 +2,8 @@ class ProfileModel {
   final String displayName;
   final String? username;
   final String? profilePicturePath;
+  final String? userId;
+  final bool isGuest;
   final String favoriteGenre;
   final String favoriteArtist;
   final DateTime createdDate;
@@ -24,6 +26,8 @@ class ProfileModel {
     required this.displayName,
     this.username,
     this.profilePicturePath,
+    this.userId,
+    this.isGuest = false,
     required this.favoriteGenre,
     required this.favoriteArtist,
     required this.createdDate,
@@ -62,11 +66,39 @@ class ProfileModel {
     );
   }
 
+  factory ProfileModel.guestProfile() {
+    final now = DateTime.now();
+    return ProfileModel(
+      displayName: 'Guest',
+      username: null,
+      userId: null,
+      isGuest: true,
+      favoriteGenre: 'Acoustic',
+      favoriteArtist: 'Unknown Artist',
+      createdDate: now,
+      lastOpened: now,
+      playbackSpeed: 1.0,
+      preferredSource: 'preferLocal',
+      defaultShuffle: false,
+      defaultRepeat: 'off',
+      resumePlayback: true,
+      backgroundPlayback: true,
+      mediaNotification: true,
+      lockScreenControls: true,
+      gaplessPlayback: true,
+      crossfade: false,
+    );
+  }
+
   ProfileModel copyWith({
     String? displayName,
     String? username,
+    bool clearUsername = false,
     String? profilePicturePath,
     bool clearProfilePicture = false,
+    String? userId,
+    bool clearUserId = false,
+    bool? isGuest,
     String? favoriteGenre,
     String? favoriteArtist,
     DateTime? createdDate,
@@ -85,8 +117,10 @@ class ProfileModel {
   }) {
     return ProfileModel(
       displayName: displayName ?? this.displayName,
-      username: username ?? this.username,
+      username: clearUsername ? null : (username ?? this.username),
       profilePicturePath: clearProfilePicture ? null : (profilePicturePath ?? this.profilePicturePath),
+      userId: clearUserId ? null : (userId ?? this.userId),
+      isGuest: isGuest ?? this.isGuest,
       favoriteGenre: favoriteGenre ?? this.favoriteGenre,
       favoriteArtist: favoriteArtist ?? this.favoriteArtist,
       createdDate: createdDate ?? this.createdDate,

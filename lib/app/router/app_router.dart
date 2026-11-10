@@ -55,10 +55,9 @@ class AppRouterNotifier extends ChangeNotifier {
     // 1. Allow splash screen to execute its entry branding
     if (isGoingToSplash) return null;
 
-    // 2. Allow guest mode access
+    // 2. Allow guest mode access (guests can also navigate to /login or /register)
     final isGuest = _ref.read(guestModeProvider);
     if (isGuest) {
-      if (isGoingToLogin || isGoingToRegister) return '/home';
       return null;
     }
 

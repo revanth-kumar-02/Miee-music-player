@@ -316,11 +316,16 @@ class DailyMixService {
     for (final event in history) {
       final normId = _normalizeTrackId(event.trackId);
       if (mostPlayedIds.contains(normId)) {
+        final img = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
+            ? event.imageUrl!
+            : (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(normId)
+                ? 'https://i.ytimg.com/vi/$normId/hqdefault.jpg'
+                : '');
         pool1.add(Track(
           id: event.trackId,
           title: event.title,
           artist: event.artist,
-          imageUrl: event.imageUrl ?? '',
+          imageUrl: img,
           duration: '3:00',
         ));
       }
@@ -328,11 +333,17 @@ class DailyMixService {
 
     // Priority 1C: History tracks
     for (final event in history) {
+      final normId = _normalizeTrackId(event.trackId);
+      final img = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
+          ? event.imageUrl!
+          : (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(normId)
+              ? 'https://i.ytimg.com/vi/$normId/hqdefault.jpg'
+              : '');
       pool1.add(Track(
         id: event.trackId,
         title: event.title,
         artist: event.artist,
-        imageUrl: event.imageUrl ?? '',
+        imageUrl: img,
         duration: '3:00',
       ));
     }

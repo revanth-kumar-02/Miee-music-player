@@ -79,17 +79,23 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveImageUrl = imageUrl;
+    final effectiveMusicItem = musicItem;
+    final rawUrl = imageUrl;
+    final effectiveImageUrl = (rawUrl != null && rawUrl.isNotEmpty)
+        ? rawUrl
+        : effectiveMusicItem?.imageUrl;
     final isCurrent = isActive ?? isPlaying;
 
     Widget leadingWidget;
-    if ((effectiveImageUrl != null && effectiveImageUrl.isNotEmpty) || musicItem != null) {
-      final artworkQuery = ArtworkQuery(
-        id: '${artist}_$title',
-        title: title,
-        artist: artist,
-        fallbackThumbnailUrl: effectiveImageUrl,
-      );
+    if ((effectiveImageUrl != null && effectiveImageUrl.isNotEmpty) || effectiveMusicItem != null) {
+      final artworkQuery = effectiveMusicItem != null
+          ? ArtworkQuery.fromMusicItem(effectiveMusicItem, explicitUrl: effectiveImageUrl)
+          : ArtworkQuery(
+              id: '${artist}_$title',
+              title: title,
+              artist: artist,
+              fallbackThumbnailUrl: effectiveImageUrl,
+            );
 
       leadingWidget = ClipRRect(
         borderRadius: BorderRadius.circular(8.0),
@@ -97,7 +103,7 @@ class SongTile extends StatelessWidget {
           alignment: Alignment.center,
           children: [
             MieeArtworkImage(
-              musicItem: musicItem,
+              musicItem: effectiveMusicItem,
               query: artworkQuery,
               explicitUrl: effectiveImageUrl,
               width: 48.0,

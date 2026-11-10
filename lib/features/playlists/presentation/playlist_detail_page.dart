@@ -253,6 +253,7 @@ class _PlaylistDetailView extends ConsumerWidget {
                           children: [
                             Expanded(
                               child: SongTile(
+                                musicItem: track,
                                 title: track.title,
                                 artist: track.artist,
                                 duration: track.duration,
