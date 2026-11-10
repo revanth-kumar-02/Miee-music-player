@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_nordic_card_bg"
+    android:padding="0dp">
+
+    <!-- Album Artwork Covering the Widget -->
+    <ImageView
+        android:id="@+id/widget_art_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_widget_album_placeholder"
+        android:contentDescription="Album Art" />
+
+    <!-- Gradient / Shadow Overlay at bottom corner for button contrast -->
+    <View
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:background="#15000000" />
+
+    <!-- Prominent Round Floating Play/Pause Action Button -->
+    <ImageButton
+        android:id="@+id/widget_btn_play_pause"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/widget_play_btn_white"
+        android:elevation="4dp"
+        android:src="@drawable/ic_widget_play_cobalt"
+        android:scaleType="centerInside"
+        android:contentDescription="Play/Pause" />
+
+</RelativeLayout>
+

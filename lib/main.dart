@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'app/app.dart';
 import 'core/audio/audio_handler.dart';
@@ -14,6 +15,20 @@ Future<void> main() async {
 
   await HiveService.init();
   await SupabaseConfig.initialize();
+
+  // On Android 13+ (API 33+), request POST_NOTIFICATIONS runtime permission
+  // so the OS system media player card and foreground service notification are visible.
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    try {
+      final status = await Permission.notification.status;
+      if (!status.isGranted) {
+        debugPrint('[Startup] Requesting notification permission for system media controls');
+        await Permission.notification.request();
+      }
+    } catch (e) {
+      debugPrint('[Startup] Notification permission request error: $e');
+    }
+  }
 
   // On Web, native AudioService foreground services and Android notification
   // configurations are not applicable; use direct MieeAudioHandler.
@@ -32,10 +47,7 @@ Future<void> main() async {
   }
 
   // AudioService.init() starts the Android foreground service and returns the
-  // fully registered handler. The handler constructor is intentionally kept
-  // minimal (no AudioSession calls) to avoid the circular deadlock where
-  // AudioSession.instance waits for audio focus from the same service that
-  // AudioService.init() is still in the process of starting.
+  // fully registered handler.
   final MieeAudioHandler audioHandler;
   try {
     audioHandler = await AudioService.init<MieeAudioHandler>(
@@ -43,15 +55,18 @@ Future<void> main() async {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.miee.music.channel.audio',
         androidNotificationChannelName: 'Miee Music',
+        androidNotificationChannelDescription: 'Miee playback controls and system media player',
         androidNotificationIcon: 'drawable/ic_notification',
-        // ongoing=true: notification cannot be dismissed by the user while
-        // audio is active. Requires stopForegroundOnPause=true per audio_service
-        // constraint (otherwise the combination is a compile-time assertion error).
-        androidNotificationOngoing: true,
-        // stopForegroundOnPause=true: foreground service is demoted when paused
-        // (Android 12+ requires this), but the process remains alive so playback
-        // can resume immediately. The notification stays visible in the shade.
-        androidStopForegroundOnPause: true,
+        // androidNotificationOngoing: false allows user to swipe away notification
+        // when paused or finished, and allows androidStopForegroundOnPause: false.
+        androidNotificationOngoing: false,
+        // androidStopForegroundOnPause: false keeps the foreground service alive
+        // during pauses, track transitions, and background execution so Android OS
+        // does not kill the process or freeze playback when switching to other apps.
+        androidStopForegroundOnPause: false,
+        androidNotificationClickStartsActivity: true,
+        notificationColor: Color(0xFF244A91), // Nordic Cobalt
+        preloadArtwork: true,
       ),
     );
 

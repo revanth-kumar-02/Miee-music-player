@@ -4,6 +4,8 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../shared/models/music_item.dart';
+import '../../shared/models/track.dart';
+import '../../features/media/domain/models.dart';
 import '../../features/youtube/data/web_music_discovery_source.dart';
 import 'youtube_audio_service.dart';
 import 'playback_diagnostics.dart';
@@ -225,12 +227,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       switch (event.type) {
         case AudioInterruptionType.duck:
           if (_player.playing) {
-            _player.setVolume((_player.volume * 0.5).clamp(0.1, 1.0));
+            _player.setVolume((_player.volume * 0.3).clamp(0.1, 1.0));
           }
           break;
         case AudioInterruptionType.pause:
           // Transient interruption (e.g. incoming phone call).
-          // ONLY mark to resume if Miee was actively playing right now!
           if (_player.playing) {
             debugPrint(
               '[BackgroundAudio] Audio interruption began while playing — pausing with resume intent',
@@ -248,16 +249,22 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           }
           break;
         case AudioInterruptionType.unknown:
-          // Permanent loss of audio focus (e.g. another media app like Spotify/YouTube/Instagram started playing).
-          // Never resume after permanent loss, but record position so manual resume works!
-          debugPrint(
-            '[BackgroundAudio] Permanent audio focus loss — pausing without auto-resume',
-          );
-          _playInterrupted = false;
-          if (_player.position > Duration.zero) {
-            _lastValidPosition = _player.position;
+          // Audio focus loss:
+          // When switching to another application or when the device plays notification sounds,
+          // Android can fire AudioManager.AUDIOFOCUS_LOSS or transient loss.
+          // If Miee was actively playing and the user did not click pause, allow auto-resume!
+          if (_player.playing) {
+            debugPrint(
+              '[BackgroundAudio] Audio focus loss (unknown) while playing — pausing with resume capability',
+            );
+            _playInterrupted = true;
+            if (_player.position > Duration.zero) {
+              _lastValidPosition = _player.position;
+            }
+            _player.pause();
+          } else {
+            _playInterrupted = false;
           }
-          _player.pause();
           break;
       }
     } else {
@@ -270,7 +277,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           _playInterrupted = false;
           break;
         case AudioInterruptionType.pause:
-          if (_playInterrupted) {
+        case AudioInterruptionType.unknown:
+          if (_playInterrupted && !_userExplicitlyPaused) {
             debugPrint(
               '[BackgroundAudio] Audio interruption ended — resuming prior playing state',
             );
@@ -282,12 +290,6 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             );
             _playInterrupted = false;
           }
-          break;
-        case AudioInterruptionType.unknown:
-          debugPrint(
-            '[BackgroundAudio] Permanent interruption ended — staying paused',
-          );
-          _playInterrupted = false;
           break;
       }
     }
@@ -466,10 +468,41 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         break;
     }
 
+    final isShuffle = _player.shuffleModeEnabled;
+    AudioServiceRepeatMode repeatMode;
+    switch (_player.loopMode) {
+      case LoopMode.one:
+        repeatMode = AudioServiceRepeatMode.one;
+        break;
+      case LoopMode.all:
+        repeatMode = AudioServiceRepeatMode.all;
+        break;
+      case LoopMode.off:
+        repeatMode = AudioServiceRepeatMode.none;
+        break;
+    }
+    final shuffleMode = isShuffle
+        ? AudioServiceShuffleMode.all
+        : AudioServiceShuffleMode.none;
+
     final controls = [
       MediaControl.skipToPrevious,
       if (isPlaying) MediaControl.pause else MediaControl.play,
       MediaControl.skipToNext,
+      MediaControl(
+        androidIcon: 'drawable/ic_widget_shuffle',
+        label: isShuffle ? 'Shuffle On' : 'Shuffle Off',
+        action: MediaAction.custom,
+        customAction: const CustomMediaAction(name: 'toggleShuffle'),
+      ),
+      MediaControl(
+        androidIcon: 'drawable/ic_widget_repeat',
+        label: repeatMode == AudioServiceRepeatMode.one
+            ? 'Repeat One'
+            : (repeatMode == AudioServiceRepeatMode.all ? 'Repeat All' : 'Repeat Off'),
+        action: MediaAction.custom,
+        customAction: const CustomMediaAction(name: 'cycleRepeat'),
+      ),
     ];
 
     const systemActions = {
@@ -478,6 +511,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       MediaAction.seekBackward,
       MediaAction.setRepeatMode,
       MediaAction.setShuffleMode,
+      MediaAction.play,
+      MediaAction.pause,
+      MediaAction.skipToNext,
+      MediaAction.skipToPrevious,
+      MediaAction.stop,
     };
 
     playbackState.add(
@@ -493,6 +531,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,
         queueIndex: _currentIndex,
+        repeatMode: repeatMode,
+        shuffleMode: shuffleMode,
       ),
     );
   }
@@ -1137,11 +1177,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   MediaItem _trackToMediaItem(MusicItem track) {
     Uri? artUri;
-    if (track.imageUrl.isNotEmpty) {
-      if (track.imageUrl.startsWith('http')) {
-        artUri = Uri.parse(track.imageUrl);
+    String rawImg = track.imageUrl.trim();
+    if (rawImg.isEmpty && track.isYoutube) {
+      final vid = _extractYouTubeVideoId(track.id);
+      if (vid.isNotEmpty && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
+        rawImg = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
+      }
+    }
+    if (rawImg.isNotEmpty) {
+      if (rawImg.startsWith('http://') || rawImg.startsWith('https://')) {
+        artUri = Uri.parse(rawImg);
       } else {
-        artUri = Uri.file(track.imageUrl);
+        artUri = Uri.file(rawImg);
       }
     }
     Duration? parsedDuration;
@@ -1158,14 +1205,47 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         parsedDuration = Duration(hours: h, minutes: m, seconds: s);
       }
     }
+    String albumTitle = 'Miee Music';
+    if (track is Track && track.albumName != null && track.albumName!.isNotEmpty) {
+      albumTitle = track.albumName!;
+    } else if (track is MediaSong && track.album.isNotEmpty) {
+      albumTitle = track.album;
+    }
+
     return MediaItem(
       id: track.id,
       title: track.title,
       artist: track.artist,
+      album: albumTitle,
       duration: parsedDuration,
       artUri: artUri,
       extras: {'filePath': track.filePath},
     );
+  }
+
+  @override
+  Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
+    debugPrint('[AudioHandler] customAction received from system: $name');
+    switch (name) {
+      case 'toggleShuffle':
+        final current = _player.shuffleModeEnabled;
+        await setShuffleMode(current ? AudioServiceShuffleMode.none : AudioServiceShuffleMode.all);
+        break;
+      case 'cycleRepeat':
+        final current = _player.loopMode;
+        AudioServiceRepeatMode nextMode;
+        if (current == LoopMode.off) {
+          nextMode = AudioServiceRepeatMode.all;
+        } else if (current == LoopMode.all) {
+          nextMode = AudioServiceRepeatMode.one;
+        } else {
+          nextMode = AudioServiceRepeatMode.none;
+        }
+        await setRepeatMode(nextMode);
+        break;
+      default:
+        await super.customAction(name, extras);
+    }
   }
 
   // ---------------------------------------------------------------------------

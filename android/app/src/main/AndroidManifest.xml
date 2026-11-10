@@ -55,17 +55,92 @@
             </intent-filter>
         </receiver>
 
-        <!-- Miee 4x1 Compact Homescreen Widget -->
+        <!-- ============================================================= -->
+        <!-- Miee Nordic Cobalt Homescreen Widget Collection (7 Widgets)   -->
+        <!-- ============================================================= -->
+
+        <!-- 1. Mini Artwork (2x2) -->
         <receiver
-            android:name=".widget.MieeCompactWidgetProvider"
+            android:name=".widget.MiniArtworkWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.miee.widget.UPDATE_STATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/widget_compact_player_info" />
+                android:resource="@xml/widget_mini_artwork_info" />
+        </receiver>
+
+        <!-- 2. Now Playing Compact (4x2) -->
+        <receiver
+            android:name=".widget.NowPlayingCompactWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_now_playing_compact_info" />
+        </receiver>
+
+        <!-- 3. Now Playing Expanded (4x3) -->
+        <receiver
+            android:name=".widget.NowPlayingExpandedWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_now_playing_expanded_info" />
+        </receiver>
+
+        <!-- 4. Now Playing Tall (3.5x4) -->
+        <receiver
+            android:name=".widget.NowPlayingTallWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_now_playing_tall_info" />
+        </receiver>
+
+        <!-- 5. Recently Played (4x2) -->
+        <receiver
+            android:name=".widget.RecentlyPlayedWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_recently_played_info" />
+        </receiver>
+
+        <!-- 6. Favourites (4x2) -->
+        <receiver
+            android:name=".widget.FavouritesWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_favourites_info" />
+        </receiver>
+
+        <!-- 7. Playlists (4x2) -->
+        <receiver
+            android:name=".widget.PlaylistsWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_playlists_info" />
         </receiver>
 
         <!-- Miee Music Drop Background Receiving Service and Actions Receiver -->

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_nordic_card_tall_bg"
+    android:padding="0dp">
+
+    <!-- Bottom Mountain Waves Graphic Backdrop -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_alignParentBottom="true"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_mountain_waves"
+        android:contentDescription="Mountain Waves" />
+
+    <!-- Main Container with Padding -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp">
+
+        <!-- Top Artwork Card Container with Soundwave Icon -->
+        <FrameLayout
+            android:id="@+id/widget_hero_frame"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:layout_alignParentTop="true">
+
+            <ImageView
+                android:id="@+id/widget_art_image"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:background="@drawable/widget_art_rounded_bg"
+                android:src="@drawable/ic_widget_album_placeholder"
+                android:contentDescription="Album Art" />
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="10dp"
+                android:src="@drawable/ic_widget_wave"
+                android:contentDescription="Sound Wave" />
+        </FrameLayout>
+
+        <!-- Track Title & Artist Centered -->
+        <LinearLayout
+            android:id="@+id/widget_info_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/widget_hero_frame"
+            android:layout_marginTop="14dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="The Night We Met"
+                android:textColor="@color/nordic_text_primary"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_artist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="Lord Huron"
+                android:textColor="@color/nordic_text_secondary"
+                android:textSize="14sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <!-- Controls Row: Prev, Play/Pause, Next -->
+        <LinearLayout
+            android:id="@+id/widget_controls_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/widget_info_layout"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/widget_btn_prev"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_widget_prev"
+                android:scaleType="centerInside"
+                android:contentDescription="Previous" />
+
+            <ImageButton
+                android:id="@+id/widget_btn_play_pause"
+                android:layout_width="54dp"
+                android:layout_height="54dp"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:background="@drawable/widget_play_btn_cobalt"
+                android:elevation="4dp"
+                android:src="@drawable/ic_widget_pause"
+                android:scaleType="centerInside"
+                android:contentDescription="Play/Pause" />
+
+            <ImageButton
+                android:id="@+id/widget_btn_next"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_widget_next"
+                android:scaleType="centerInside"
+                android:contentDescription="Next" />
+        </LinearLayout>
+
+        <!-- Bottom Actions: Heart (left), 3-Dots (right) -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="4dp">
+
+            <ImageButton
+                android:id="@+id/widget_btn_favorite"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_alignParentStart="true"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_widget_heart"
+                android:scaleType="centerInside"
+                android:contentDescription="Favorite" />
+
+            <ImageButton
+                android:id="@+id/widget_btn_overflow"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_alignParentEnd="true"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_widget_dots"
+                android:scaleType="centerInside"
+                android:contentDescription="Options" />
+        </RelativeLayout>
+
+    </RelativeLayout>
+</RelativeLayout>
+

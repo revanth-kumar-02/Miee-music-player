@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_nordic_card_bg"
+    android:padding="14dp">
+
+    <!-- Left Album Artwork -->
+    <ImageView
+        android:id="@+id/widget_art_image"
+        android:layout_width="92dp"
+        android:layout_height="92dp"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:scaleType="centerCrop"
+        android:background="@drawable/widget_art_rounded_bg"
+        android:src="@drawable/ic_widget_album_placeholder"
+        android:contentDescription="Album Art" />
+
+    <!-- Top Right: Favorite Button -->
+    <ImageButton
+        android:id="@+id/widget_btn_favorite"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="2dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_widget_heart"
+        android:scaleType="centerInside"
+        android:contentDescription="Favorite" />
+
+    <!-- Info Column (Title & Artist) -->
+    <LinearLayout
+        android:id="@+id/widget_info_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/widget_art_image"
+        android:layout_toStartOf="@id/widget_btn_favorite"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="6dp"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="The Night We Met"
+            android:textColor="@color/nordic_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_artist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="Lord Huron"
+            android:textColor="@color/nordic_text_secondary"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Controls Row (Prev, Play/Pause, Next) -->
+    <LinearLayout
+        android:id="@+id/widget_controls_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/widget_art_image"
+        android:layout_below="@id/widget_info_layout"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/widget_btn_prev"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_widget_prev"
+            android:scaleType="centerInside"
+            android:contentDescription="Previous" />
+
+        <ImageButton
+            android:id="@+id/widget_btn_play_pause"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/widget_play_btn_cobalt"
+            android:elevation="3dp"
+            android:src="@drawable/ic_widget_pause"
+            android:scaleType="centerInside"
+            android:contentDescription="Play/Pause" />
+
+        <ImageButton
+            android:id="@+id/widget_btn_next"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_widget_next"
+            android:scaleType="centerInside"
+            android:contentDescription="Next" />
+    </LinearLayout>
+
+    <!-- Bottom Progress Bar -->
+    <ProgressBar
+        android:id="@+id/widget_progress_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp"
+        android:layout_marginBottom="2dp"
+        android:max="100"
+        android:progress="42"
+        android:progressDrawable="@drawable/widget_progress_track" />
+
+</RelativeLayout>
+

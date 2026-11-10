@@ -7,6 +7,7 @@ import android.nfc.tech.Ndef
 import android.os.Bundle
 import com.example.miee.audio.AudioOutputManager
 import com.example.miee.musicdrop.MusicDropManager
+import com.example.miee.widget.MieeWidgetManager
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -15,6 +16,8 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : AudioServiceActivity() {
     private var musicDropManager: MusicDropManager? = null
     private var audioOutputManager: AudioOutputManager? = null
+    private var widgetChannel: MethodChannel? = null
+    private var pendingIntentToHandle: Intent? = null
     private var nfcAdapter: NfcAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +59,52 @@ class MainActivity : AudioServiceActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             AudioOutputManager.CHANNEL_NAME
         ).setMethodCallHandler(audioManager)
+
+        val wChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.example.miee/widget"
+        )
+        wChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "updateNowPlaying" -> {
+                    val title = call.argument<String>("title")
+                    val artist = call.argument<String>("artist")
+                    val artPath = call.argument<String>("artworkPath")
+                    val artUrl = call.argument<String>("artworkUrl")
+                    val isPlaying = call.argument<Boolean>("isPlaying") ?: false
+                    val isFav = call.argument<Boolean>("isFavorited") ?: false
+                    val progress = call.argument<Double>("progress") ?: 0.0
+                    val positionMs = (call.argument<Number>("positionMs")?.toLong()) ?: 0L
+                    val durationMs = (call.argument<Number>("durationMs")?.toLong()) ?: 0L
+                    MieeWidgetManager.updateNowPlaying(
+                        this, title, artist, artPath, artUrl, isPlaying, isFav, progress, positionMs, durationMs
+                    )
+                    result.success(true)
+                }
+                "updateRecentlyPlayed" -> {
+                    val json = call.argument<String>("itemsJson") ?: "[]"
+                    MieeWidgetManager.updateRecentlyPlayed(this, json)
+                    result.success(true)
+                }
+                "updateFavourites" -> {
+                    val json = call.argument<String>("itemsJson") ?: "[]"
+                    MieeWidgetManager.updateFavourites(this, json)
+                    result.success(true)
+                }
+                "updatePlaylists" -> {
+                    val json = call.argument<String>("itemsJson") ?: "[]"
+                    MieeWidgetManager.updatePlaylists(this, json)
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        widgetChannel = wChannel
+
+        pendingIntentToHandle?.let {
+            handleIntent(it)
+            pendingIntentToHandle = null
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -66,6 +115,30 @@ class MainActivity : AudioServiceActivity() {
 
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
+
+        if (widgetChannel == null) {
+            pendingIntentToHandle = intent
+        } else {
+            if (intent.getBooleanExtra(MieeWidgetManager.ACTION_PLAY_TRACK, false)) {
+                val trackId = intent.getStringExtra(MieeWidgetManager.EXTRA_TRACK_ID)
+                if (!trackId.isNullOrBlank()) {
+                    widgetChannel?.invokeMethod("onPlayTrack", trackId)
+                }
+            } else if (intent.getBooleanExtra(MieeWidgetManager.ACTION_OPEN_PLAYLIST, false)) {
+                val playlistId = intent.getStringExtra(MieeWidgetManager.EXTRA_PLAYLIST_ID)
+                if (!playlistId.isNullOrBlank()) {
+                    widgetChannel?.invokeMethod("onOpenPlaylist", playlistId)
+                }
+            } else if (intent.getBooleanExtra(MieeWidgetManager.ACTION_NAVIGATE, false)) {
+                val route = intent.getStringExtra(MieeWidgetManager.EXTRA_ROUTE)
+                if (!route.isNullOrBlank()) {
+                    widgetChannel?.invokeMethod("onNavigate", route)
+                }
+            } else if (intent.getBooleanExtra(MieeWidgetManager.ACTION_TOGGLE_FAVORITE, false)) {
+                widgetChannel?.invokeMethod("onToggleFavorite", null)
+            }
+        }
+
         if (intent.getBooleanExtra("open_music_drop", false)) {
             val transferId = intent.getStringExtra("transfer_id")
             musicDropManager?.notifyOpenDropRequested(transferId)

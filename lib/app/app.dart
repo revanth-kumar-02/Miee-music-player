@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/widget/miee_widget_sync_service.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -48,6 +49,7 @@ class _MieeAppState extends ConsumerState<MieeApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     debugPrint('STARTUP: MieeApp.build() entered');
     final router = ref.watch(appRouterProvider);
+    ref.read(widgetSyncServiceProvider).attachRouter(router);
     return MaterialApp.router(
       title: 'Miee Music Player',
       debugShowCheckedModeBanner: false,

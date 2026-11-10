@@ -697,7 +697,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
       // Ensure active track carries the verified thumbnail if imageUrl was blank
       if (track is Track && (track.imageUrl.isEmpty || !track.imageUrl.startsWith('http'))) {
-        track = (track as Track).copyWith(
+        track = track.copyWith(
           imageUrl: candidate.thumbnailUrl,
         );
       }

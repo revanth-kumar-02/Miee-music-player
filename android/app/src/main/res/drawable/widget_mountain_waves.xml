@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="80dp"
+    android:viewportWidth="400"
+    android:viewportHeight="80">
+
+    <!-- Distant mountain ridge -->
+    <path
+        android:fillColor="#4D78A9E8"
+        android:pathData="M 0,80 L 0,48 L 45,28 L 90,44 L 140,22 L 200,48 L 260,18 L 315,40 L 365,12 L 400,28 L 400,80 Z" />
+
+    <!-- Midground mountain ridge -->
+    <path
+        android:fillColor="#803565B8"
+        android:pathData="M 0,80 L 0,55 L 60,35 L 120,52 L 185,32 L 240,58 L 305,25 L 355,48 L 400,34 L 400,80 Z" />
+
+    <!-- Snow cap highlights -->
+    <path
+        android:fillColor="#E6F2FC"
+        android:pathData="M 140,22 L 132,29 L 148,29 Z
+                          M 260,18 L 250,27 L 270,27 Z
+                          M 365,12 L 355,22 L 375,22 Z
+                          M 305,25 L 297,33 L 313,33 Z" />
+
+    <!-- Foreground smooth mountain wave -->
+    <path
+        android:fillColor="#244A91"
+        android:pathData="M 0,80 L 0,62 C 40,54 80,66 120,58 C 160,50 200,64 250,52 C 300,40 350,56 400,46 L 400,80 Z" />
+
+    <!-- Deep foreground wave -->
+    <path
+        android:fillColor="#1B3873"
+        android:pathData="M 0,80 L 0,68 C 60,62 120,72 180,64 C 240,56 320,70 400,60 L 400,80 Z" />
+
+</vector>
+
