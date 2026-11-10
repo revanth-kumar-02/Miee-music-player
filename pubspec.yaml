@@ -56,10 +56,10 @@ flutter_launcher_icons:
   ios: true
   image_path: assets/logo/miee_launcher_1024.png
   min_sdk_android: 21
-  adaptive_icon_background: "#FAF2E4"
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: assets/logo/miee_adaptive_foreground.png
   web:
     generate: true
     image_path: assets/logo/miee_launcher_1024.png
-    background_color: "#FAF2E4"
-    theme_color: "#FAF2E4"
+    background_color: "#FFFFFF"
+    theme_color: "#FFFFFF"
