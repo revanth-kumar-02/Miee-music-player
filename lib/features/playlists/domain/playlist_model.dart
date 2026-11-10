@@ -37,6 +37,11 @@ class PlaylistModel {
           final minutes = int.tryParse(parts[0]) ?? 0;
           final seconds = int.tryParse(parts[1]) ?? 0;
           return sum + (minutes * 60 + seconds) * 1000;
+        } else if (parts.length == 3) {
+          final hours = int.tryParse(parts[0]) ?? 0;
+          final minutes = int.tryParse(parts[1]) ?? 0;
+          final seconds = int.tryParse(parts[2]) ?? 0;
+          return sum + (hours * 3600 + minutes * 60 + seconds) * 1000;
         }
         return sum;
       });
@@ -55,10 +60,12 @@ class PlaylistModel {
   /// Prefers the first track that possesses valid artwork.
   MusicItem? get artworkTrack {
     if (tracks.isEmpty) return null;
-    return tracks.firstWhere(
-      (t) => (t.imageUrl.trim().isNotEmpty),
-      orElse: () => tracks.first,
-    );
+    for (final t in tracks) {
+      if (t.imageUrl.trim().isNotEmpty) {
+        return t;
+      }
+    }
+    return tracks.firstOrNull;
   }
 
   /// Effective cover image URL/path for display, following the priority chain:

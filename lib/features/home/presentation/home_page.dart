@@ -1795,59 +1795,77 @@ class _HomePageState extends ConsumerState<HomePage> {
     required List<ListeningEvent> cloudHistory,
     required List<MediaSong> localSongs,
   }) {
-    // 1. Check local Hive recently played entries (sorted newest first)
-    if (recentEntries.isNotEmpty) {
-      final newest = recentEntries.first.track.toTrack();
-      if (!newest.isYoutube) {
-        final localMatch = localSongs.where((s) {
-          if (s.id == newest.id) return true;
-          if (s.filePath.isNotEmpty && s.filePath == newest.filePath) return true;
-          return s.id == newest.id.replaceFirst('youtube_', '');
-        }).firstOrNull;
-        if (localMatch != null) return localMatch;
-      } else {
-        if (newest.imageUrl.isEmpty || !newest.imageUrl.startsWith('http')) {
-          final vid = newest.id.replaceFirst('youtube_', '');
-          return Track(
-            id: newest.id,
-            title: newest.title,
-            artist: newest.artist,
-            imageUrl: 'https://i.ytimg.com/vi/$vid/hqdefault.jpg',
-            duration: newest.duration,
-            filePath: newest.filePath,
-          );
+    try {
+      // 1. Check local Hive recently played entries (sorted newest first)
+      if (recentEntries.isNotEmpty) {
+        final sorted = List<HistoryEntry>.from(recentEntries)
+          ..sort((a, b) => (b.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(a.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+
+        for (final entry in sorted) {
+          try {
+            if (entry.track == null) continue;
+            final newest = entry.track.toTrack();
+            if (!newest.isYoutube) {
+              final localMatch = localSongs.where((s) {
+                if (s.id == newest.id) return true;
+                if (s.filePath.isNotEmpty && s.filePath == newest.filePath) return true;
+                return s.id == newest.id.replaceFirst('youtube_', '');
+              }).firstOrNull;
+              if (localMatch != null) return localMatch;
+            } else {
+              if (newest.imageUrl.isEmpty || !newest.imageUrl.startsWith('http')) {
+                final vid = newest.id.replaceFirst('youtube_', '');
+                return Track(
+                  id: newest.id,
+                  title: newest.title,
+                  artist: newest.artist,
+                  imageUrl: 'https://i.ytimg.com/vi/$vid/hqdefault.jpg',
+                  duration: newest.duration,
+                  filePath: newest.filePath,
+                );
+              }
+            }
+            return newest;
+          } catch (_) {}
         }
       }
-      return newest;
-    }
 
-    // 2. Check cloud listening history
-    if (cloudHistory.isNotEmpty) {
-      final event = cloudHistory.first;
-      final localMatch = localSongs.where((s) {
-        if (s.id == event.trackId) return true;
-        return s.id == event.trackId.replaceFirst('youtube_', '');
-      }).firstOrNull;
-      if (localMatch != null) return localMatch;
+      // 2. Check cloud listening history
+      if (cloudHistory.isNotEmpty) {
+        final sortedCloud = List<ListeningEvent>.from(cloudHistory)
+          ..sort((a, b) => (b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0)));
 
-      final m = event.durationSec ~/ 60;
-      final s = event.durationSec % 60;
-      final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
-      final vid = event.trackId.replaceFirst('youtube_', '');
-      final resolvedArt = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
-          ? event.imageUrl!
-          : (isYoutube ? 'https://i.ytimg.com/vi/$vid/hqdefault.jpg' : '');
+        for (final event in sortedCloud) {
+          try {
+            final localMatch = localSongs.where((s) {
+              if (s.id == event.trackId) return true;
+              return s.id == event.trackId.replaceFirst('youtube_', '');
+            }).firstOrNull;
+            if (localMatch != null) return localMatch;
 
-      return Track(
-        id: event.trackId.startsWith('youtube_')
-            ? event.trackId
-            : 'youtube_${event.trackId}',
-        title: event.title,
-        artist: event.artist,
-        imageUrl: resolvedArt,
-        duration: '$m:${s.toString().padLeft(2, '0')}',
-      );
-    }
+            final m = event.durationSec ~/ 60;
+            final s = event.durationSec % 60;
+            final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
+            final vid = event.trackId.replaceFirst('youtube_', '');
+            final resolvedArt = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
+                ? event.imageUrl!
+                : (isYoutube ? 'https://i.ytimg.com/vi/$vid/hqdefault.jpg' : '');
+
+            return Track(
+              id: event.trackId.startsWith('youtube_')
+                  ? event.trackId
+                  : 'youtube_${event.trackId}',
+              title: event.title,
+              artist: event.artist,
+              imageUrl: resolvedArt,
+              duration: '$m:${s.toString().padLeft(2, '0')}',
+            );
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
 
     // 3. Fallback to first available local track
     return localSongs.firstOrNull;
@@ -1864,98 +1882,107 @@ class _HomePageState extends ConsumerState<HomePage> {
     final resolved = <Track>[];
     final seenTrackIds = <String>{};
 
-    // 1. Process local Hive recently played entries (reactive, immediate, offline-ready)
-    if (recentEntries.isNotEmpty) {
-      final sorted = List<HistoryEntry>.from(recentEntries)
-        ..sort((a, b) => b.playedAt.compareTo(a.playedAt));
+    try {
+      // 1. Process local Hive recently played entries (reactive, immediate, offline-ready)
+      if (recentEntries.isNotEmpty) {
+        final sorted = List<HistoryEntry>.from(recentEntries)
+          ..sort((a, b) => (b.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(a.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
 
-      for (final entry in sorted) {
-        if (resolved.length >= limit) break;
-        final rawTrack = entry.track.toTrack();
-        final normId = rawTrack.id.replaceFirst('youtube_', '');
-        if (seenTrackIds.contains(rawTrack.id) || seenTrackIds.contains(normId)) {
-          continue;
+        for (final entry in sorted) {
+          if (resolved.length >= limit) break;
+          try {
+            if (entry.track == null) continue;
+            final rawTrack = entry.track.toTrack();
+            final normId = rawTrack.id.replaceFirst('youtube_', '');
+            if (seenTrackIds.contains(rawTrack.id) || seenTrackIds.contains(normId)) {
+              continue;
+            }
+            seenTrackIds.add(rawTrack.id);
+            seenTrackIds.add(normId);
+
+            String resolvedImageUrl = rawTrack.imageUrl;
+
+            if (!rawTrack.isYoutube) {
+              final localMatch = localSongs.where((s) {
+                if (s.id == rawTrack.id || s.id == normId) return true;
+                if (s.filePath.isNotEmpty && s.filePath == rawTrack.filePath) return true;
+                return s.title.trim().toLowerCase() == rawTrack.title.trim().toLowerCase() &&
+                    s.artist.trim().toLowerCase() == rawTrack.artist.trim().toLowerCase();
+              }).firstOrNull;
+
+              if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
+                resolvedImageUrl = localMatch.artworkPath;
+              }
+            } else {
+              if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
+                resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
+              }
+            }
+
+            resolved.add(Track(
+              id: rawTrack.id,
+              title: rawTrack.title,
+              artist: rawTrack.artist,
+              imageUrl: resolvedImageUrl,
+              duration: rawTrack.duration,
+              filePath: rawTrack.filePath,
+            ));
+          } catch (_) {}
         }
-        seenTrackIds.add(rawTrack.id);
-        seenTrackIds.add(normId);
-
-        String resolvedImageUrl = rawTrack.imageUrl;
-
-        if (!rawTrack.isYoutube) {
-          final localMatch = localSongs.where((s) {
-            if (s.id == rawTrack.id || s.id == normId) return true;
-            if (s.filePath.isNotEmpty && s.filePath == rawTrack.filePath) return true;
-            return s.title.trim().toLowerCase() == rawTrack.title.trim().toLowerCase() &&
-                s.artist.trim().toLowerCase() == rawTrack.artist.trim().toLowerCase();
-          }).firstOrNull;
-
-          if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
-            resolvedImageUrl = localMatch.artworkPath;
-          }
-        } else {
-          if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
-            resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
-          }
-        }
-
-        resolved.add(Track(
-          id: rawTrack.id,
-          title: rawTrack.title,
-          artist: rawTrack.artist,
-          imageUrl: resolvedImageUrl,
-          duration: rawTrack.duration,
-          filePath: rawTrack.filePath,
-        ));
       }
-    }
 
-    // 2. Process cloud listening history if we haven't reached the limit
-    if (resolved.length < limit && cloudHistory.isNotEmpty) {
-      final sortedCloud = List<ListeningEvent>.from(cloudHistory)
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      // 2. Process cloud listening history if we haven't reached the limit
+      if (resolved.length < limit && cloudHistory.isNotEmpty) {
+        final sortedCloud = List<ListeningEvent>.from(cloudHistory)
+          ..sort((a, b) => (b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0)));
 
-      for (final event in sortedCloud) {
-        if (resolved.length >= limit) break;
-        final normId = event.trackId.replaceFirst('youtube_', '');
-        if (seenTrackIds.contains(event.trackId) || seenTrackIds.contains(normId)) {
-          continue;
+        for (final event in sortedCloud) {
+          if (resolved.length >= limit) break;
+          try {
+            final normId = event.trackId.replaceFirst('youtube_', '');
+            if (seenTrackIds.contains(event.trackId) || seenTrackIds.contains(normId)) {
+              continue;
+            }
+            seenTrackIds.add(event.trackId);
+            seenTrackIds.add(normId);
+
+            final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
+            String resolvedImageUrl = event.imageUrl ?? '';
+
+            if (isYoutube) {
+              if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
+                resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
+              }
+            } else {
+              final localMatch = localSongs.where((s) {
+                if (s.id == event.trackId || s.id == normId) return true;
+                return s.title.trim().toLowerCase() == event.title.trim().toLowerCase() &&
+                    s.artist.trim().toLowerCase() == event.artist.trim().toLowerCase();
+              }).firstOrNull;
+              if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
+                resolvedImageUrl = localMatch.artworkPath;
+              }
+            }
+
+            final m = event.durationSec ~/ 60;
+            final s = event.durationSec % 60;
+            final dur = '$m:${s.toString().padLeft(2, '0')}';
+
+            resolved.add(Track(
+              id: isYoutube && !event.trackId.startsWith('youtube_')
+                  ? 'youtube_${event.trackId}'
+                  : event.trackId,
+              title: event.title,
+              artist: event.artist,
+              imageUrl: resolvedImageUrl,
+              duration: dur,
+            ));
+          } catch (_) {}
         }
-        seenTrackIds.add(event.trackId);
-        seenTrackIds.add(normId);
-
-        final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
-        String resolvedImageUrl = event.imageUrl ?? '';
-
-        if (isYoutube) {
-          if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
-            resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
-          }
-        } else {
-          final localMatch = localSongs.where((s) {
-            if (s.id == event.trackId || s.id == normId) return true;
-            return s.title.trim().toLowerCase() == event.title.trim().toLowerCase() &&
-                s.artist.trim().toLowerCase() == event.artist.trim().toLowerCase();
-          }).firstOrNull;
-          if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
-            resolvedImageUrl = localMatch.artworkPath;
-          }
-        }
-
-        final m = event.durationSec ~/ 60;
-        final s = event.durationSec % 60;
-        final dur = '$m:${s.toString().padLeft(2, '0')}';
-
-        resolved.add(Track(
-          id: isYoutube && !event.trackId.startsWith('youtube_')
-              ? 'youtube_${event.trackId}'
-              : event.trackId,
-          title: event.title,
-          artist: event.artist,
-          imageUrl: resolvedImageUrl,
-          duration: dur,
-        ));
       }
-    }
+    } catch (_) {}
 
     return resolved;
   }
@@ -2035,7 +2062,15 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     // 3. If recent entries exist, use the recent history queue
     if (recentEntries.isNotEmpty) {
-      return recentEntries.map((e) => e.track.toTrack()).toList();
+      final list = <MusicItem>[];
+      for (final e in recentEntries) {
+        try {
+          if (e.track != null) {
+            list.add(e.track.toTrack());
+          }
+        } catch (_) {}
+      }
+      if (list.isNotEmpty) return list;
     }
 
     // 4. Standalone track
@@ -2286,6 +2321,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildCoverImage(String rawUrl) {
+    if (rawUrl.trim().isEmpty) {
+      return const Center(
+        child: Icon(
+          Icons.queue_music_rounded,
+          size: 44,
+          color: AppColors.cocoaPlum,
+        ),
+      );
+    }
     if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
       return Image.network(
         rawUrl,
