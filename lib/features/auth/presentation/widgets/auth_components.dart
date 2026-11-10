@@ -6,16 +6,16 @@ import '../../../../shared/widgets/miee_brand_mark.dart';
 
 /// Nordic Cobalt & Warm Ivory Authentication Design Tokens.
 abstract class MieeAuthTheme {
-  /// Warm Ivory / Cream Substrate Canvas: `#FAF8F5`
-  static const Color background = Color(0xFFFAF8F5);
+  /// Warm Ivory / Cream Substrate Canvas: `#FCF3EE` (seamlessly blends with `login_collage.png`)
+  static const Color background = Color(0xFFFCF3EE);
 
-  /// Panel Surface: `#FAF8F5`
-  static const Color panelSurface = Color(0xFFFAF8F5);
+  /// Panel Surface: `#FCF4EF` (warm ivory registration sheet)
+  static const Color panelSurface = Color(0xFFFCF4EF);
 
-  /// Signature Nordic Cobalt Blue: `#0047FF`
-  static const Color cobaltBlue = Color(0xFF0047FF);
-  static const Color primaryButton = Color(0xFF0047FF);
-  static const Color primaryButtonDisabled = Color(0x660047FF);
+  /// Signature Nordic Cobalt Blue: `#0038BA`
+  static const Color cobaltBlue = Color(0xFF0038BA);
+  static const Color primaryButton = Color(0xFF0038BA);
+  static const Color primaryButtonDisabled = Color(0x660038BA);
 
   /// Deep Charcoal Text: `#111111`
   static const Color textPrimary = Color(0xFF111111);
@@ -26,20 +26,20 @@ abstract class MieeAuthTheme {
   /// Muted Text / Placeholder: `#8B8580`
   static const Color textMuted = Color(0xFF8B8580);
 
-  /// Field Fill: `#FBF8F5`
-  static const Color fieldFill = Color(0xFFFBF8F5);
+  /// Field Fill: `#FEF6F2`
+  static const Color fieldFill = Color(0xFFFEF6F2);
 
-  /// Subtle Field Hairline Border: `#E8E0D8`
-  static const Color fieldBorder = Color(0xFFE8E0D8);
+  /// Subtle Field Hairline Border: `#EADBCE`
+  static const Color fieldBorder = Color(0xFFEADBCE);
 
-  /// Focused Field Border: `#0047FF`
-  static const Color fieldFocusedBorder = Color(0xFF0047FF);
+  /// Focused Field Border: `#0038BA`
+  static const Color fieldFocusedBorder = Color(0xFF0038BA);
 
   /// Field Leading Icon: `#5A524E`
   static const Color fieldIcon = Color(0xFF5A524E);
 
-  /// Guest Button Border: `#E2DBD3`
-  static const Color guestBorder = Color(0xFFE2DBD3);
+  /// Guest Button Border: `#DFD5CC`
+  static const Color guestBorder = Color(0xFFDFD5CC);
 
   /// Dynamic Password Requirement Success: `#16A34A`
   static const Color successGreen = Color(0xFF16A34A);
