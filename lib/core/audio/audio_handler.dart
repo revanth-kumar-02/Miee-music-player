@@ -548,6 +548,58 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     }
 
+    // Handle track completion — advance to next track (or repeat in LoopMode.one).
+    // NOTE: PlayerController must NOT also handle completed, as that causes double-skip or race.
+    if (playerState.processingState == ProcessingState.completed) {
+      _cancelBufferingWatchdog();
+      final completedTrackId =
+          (_currentIndex >= 0 && _currentIndex < _queue.length)
+              ? _queue[_currentIndex].id
+              : 'none';
+      if (_isRoomListener) {
+        debugPrint('[Queue] Room listener reached track completion; waiting for host update.');
+        _pushPlaybackState(playerState: playerState);
+        return;
+      }
+      if (_player.loopMode == LoopMode.one) {
+        _logDiagnosticTransition(
+          'LOOP_ONE_REPEAT',
+          playerState: playerState,
+          extra: 'completedTrackId=$completedTrackId,index=$_currentIndex',
+        );
+        debugPrint('[Queue] LoopMode.one active at completion; repeating current track');
+        _lastValidPosition = Duration.zero;
+        unawaited(() async {
+          try {
+            await _player.seek(Duration.zero);
+            if (!_userExplicitlyPaused) {
+              await _player.play();
+            }
+          } catch (e) {
+            debugPrint('[Queue] LoopMode.one repeat failed: $e');
+          }
+        }());
+        return;
+      }
+      if (_lastHandledCompletionToken == _activeLoadToken) {
+        _logDiagnosticTransition(
+          'COMPLETION_DUPLICATE_IGNORED',
+          playerState: playerState,
+          extra: 'completedTrackId=$completedTrackId,index=$_currentIndex,alreadyHandled=true',
+        );
+        return;
+      }
+      _lastHandledCompletionToken = _activeLoadToken;
+      _logDiagnosticTransition(
+        'TRACK_COMPLETED',
+        playerState: playerState,
+        extra: 'completedTrackId=$completedTrackId,indexBefore=$_currentIndex,alreadyHandled=false',
+      );
+      debugPrint('[Queue] Track completed at index $_currentIndex, advancing queue');
+      unawaited(skipToNext(fromCompletion: true));
+      return;
+    }
+
     _pushPlaybackState(playerState: playerState);
 
     // Record confirmed playing latency metric
@@ -567,31 +619,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     } else {
       _cancelBufferingWatchdog();
     }
-
-    // Handle track completion — advance to next track.
-    // NOTE: PlayerController must NOT also handle completed, as that causes double-skip.
-    if (playerState.processingState == ProcessingState.completed) {
-      _cancelBufferingWatchdog();
-      if (_isRoomListener) {
-        debugPrint('[Queue] Room listener reached track completion; waiting for host update.');
-        return;
-      }
-      if (_player.loopMode == LoopMode.one) {
-        debugPrint('[Queue] LoopMode.one active at completion; repeating current track');
-        return;
-      }
-      if (_lastHandledCompletionToken == _activeLoadToken) {
-        _logDiagnosticTransition('COMPLETION_DUPLICATE_IGNORED');
-        return;
-      }
-      _lastHandledCompletionToken = _activeLoadToken;
-      debugPrint('[Queue] Track completed at index $_currentIndex, advancing queue');
-      unawaited(skipToNext(fromCompletion: true));
-    }
   }
 
   void _onPositionChanged(Duration position) {
-    if (_isLoadingTrack || _isRecovering) {
+    if (_isLoadingTrack ||
+        _isRecovering ||
+        _player.processingState == ProcessingState.completed) {
       return;
     }
     if (position > Duration.zero) {
@@ -748,7 +781,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _currentIndex = startIndex.clamp(0, tracks.length - 1);
     queue.add(_queue.map(_trackToMediaItem).toList());
     debugPrint('[Queue] Loaded ${tracks.length} tracks, starting at index $_currentIndex (initialPos=${initialPosition?.inSeconds}s)');
-    await _loadCurrentTrack(initialPosition: initialPosition);
+    await _loadCurrentTrack(initialPosition: initialPosition, reason: 'loadQueue');
   }
 
   Future<void> appendTrack(MusicItem track) async {
@@ -817,7 +850,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   // Core track loading
   // ---------------------------------------------------------------------------
 
-  Future<bool> _loadCurrentTrack({Duration? initialPosition}) async {
+  Future<bool> _loadCurrentTrack({
+    Duration? initialPosition,
+    String reason = 'unspecified',
+  }) async {
     _cancelBufferingWatchdog();
     if (_queue.isEmpty || _currentIndex < 0) return false;
 
@@ -825,7 +861,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _lastHandledCompletionToken = -1;
     final track = _queue[_currentIndex];
     _preloader.markPlayingTrack(track);
-    debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id}, token=$token, initialPos=${initialPosition?.inSeconds}s)');
+    _logDiagnosticTransition(
+      'LOAD_CURRENT_TRACK',
+      extra: 'reason=$reason,trackId=${track.id},index=$_currentIndex,initialPosMs=${initialPosition?.inMilliseconds}',
+    );
+    debugPrint('[Playback] Loading track: "${track.title}" by "${track.artist}" (id=${track.id}, token=$token, reason=$reason, initialPos=${initialPosition?.inSeconds}s)');
 
     // 1. Clear stale pause intent for the newly requested track load, fade out prior audio,
     // and invalidate loaded track identity so the previous track transitions cleanly.
@@ -833,14 +873,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     final wasPlaying = _player.playing || playbackState.value.playing;
     _isLoadingTrack = true;
     try {
-      final isSameTrack = (_loadedAudioTrackId != null && isSameTrackId(_loadedAudioTrackId, track.id)) ||
-          (_lastTrackId != null && isSameTrackId(_lastTrackId, track.id));
       _lastTrackId = track.id;
       _loadedAudioTrackId = null;
 
       if (initialPosition != null && initialPosition > Duration.zero) {
         _lastValidPosition = initialPosition;
-      } else if (!isSameTrack) {
+      } else {
         _lastValidPosition = Duration.zero;
       }
 
@@ -940,7 +978,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           );
           _logDiagnosticTransition(
             'SOURCE_SET_PRELOAD_FILE',
-            extra: 'initialPosMs=${initialPosition?.inMilliseconds}',
+            extra: 'fromPreloadCache=true,preloadState=fullyCached,initialPosMs=${initialPosition?.inMilliseconds}',
           );
           await _player.setAudioSource(
             AudioSource.file(prepared.cachedFilePath!),
@@ -967,6 +1005,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           prepared.streamUrl != null &&
           prepared.streamUrl!.isNotEmpty) {
         debugPrint('[PreloadDiag] Consuming streamReady URL for "${track.title}" (client=${prepared.clientName})');
+        _logDiagnosticTransition(
+          'PRELOAD_STREAM_CONSUMED',
+          extra: 'fromPreloadCache=true,preloadState=streamReady,trackId=${track.id}',
+        );
         PlaybackDiagnostics().recordPlayerLoadStart(track.id);
         try {
           await _setAudioSourceUrl(
@@ -1222,7 +1264,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
               );
               _logDiagnosticTransition(
                 'SOURCE_SET_PRELOAD_FILE',
-                extra: 'initialPosMs=${initialPosition?.inMilliseconds}',
+                extra: 'fromPreloadCache=true,preloadState=fullyCached,initialPosMs=${initialPosition?.inMilliseconds}',
               );
               await _player.setAudioSource(
                 AudioSource.file(prepared.cachedFilePath!),
@@ -1665,7 +1707,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         '[Playback] play() unblocking: active track "${current.title}" (${current.id}) '
         'is not prepared in player (loaded: $_loadedAudioTrackId) — reloading from lastValidPosition: ${_lastValidPosition.inSeconds}s',
       );
-      final loaded = await _loadCurrentTrack(initialPosition: _lastValidPosition);
+      final loaded = await _loadCurrentTrack(
+        initialPosition: _lastValidPosition,
+        reason: 'play_reload',
+      );
       if (!loaded) {
         debugPrint('[Playback] play() aborted: track load failed or superseded');
         return;
@@ -1789,7 +1834,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Future<void> _loadAndPlayCurrentTrack(String callerLabel) async {
     try {
-      final loaded = await _loadCurrentTrack();
+      final loaded = await _loadCurrentTrack(reason: callerLabel);
       if (loaded) {
         await play();
       } else {
@@ -1830,11 +1875,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         unawaited(onQueueApproachingEnd?.call());
       }
 
+      final indexBefore = _currentIndex;
       if (_currentIndex < _queue.length - 1) {
         _currentIndex++;
+        final nextTrack = _queue[_currentIndex];
+        _logDiagnosticTransition(
+          'SKIP_TO_NEXT',
+          extra: 'fromCompletion=$fromCompletion,indexBefore=$indexBefore,indexAfter=$_currentIndex,nextTrackId=${nextTrack.id}',
+        );
         debugPrint('[Queue] skipToNext → index $_currentIndex');
         await _preloader.prioritizeImmediatePlayback(
-          () => _loadAndPlayCurrentTrack('skipToNext'),
+          () => _loadAndPlayCurrentTrack(fromCompletion ? 'completion_skipToNext' : 'manual_skipToNext'),
         );
       } else if (!_isRoomListener && onQueueApproachingEnd != null) {
         // At the end of queue: await dynamic expansion before giving up
@@ -1846,9 +1897,14 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         }
         if (_currentIndex < _queue.length - 1) {
           _currentIndex++;
+          final nextTrack = _queue[_currentIndex];
+          _logDiagnosticTransition(
+            'SKIP_TO_NEXT',
+            extra: 'fromCompletion=$fromCompletion,indexBefore=$indexBefore,indexAfter=$_currentIndex,nextTrackId=${nextTrack.id},expanded=true',
+          );
           debugPrint('[Queue] skipToNext: queue expanded successfully → advancing to index $_currentIndex');
           await _preloader.prioritizeImmediatePlayback(
-            () => _loadAndPlayCurrentTrack('skipToNext expanded'),
+            () => _loadAndPlayCurrentTrack(fromCompletion ? 'completion_skipToNext_expanded' : 'manual_skipToNext_expanded'),
           );
           return;
         }
@@ -1856,22 +1912,44 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         // If repeat all is on, wrap around; otherwise stop
         if (_player.loopMode == LoopMode.all && _queue.isNotEmpty) {
           _currentIndex = 0;
+          final nextTrack = _queue[_currentIndex];
+          _logDiagnosticTransition(
+            'SKIP_TO_NEXT',
+            extra: 'fromCompletion=$fromCompletion,indexBefore=$indexBefore,indexAfter=0,nextTrackId=${nextTrack.id},wrap=true',
+          );
           debugPrint('[Queue] skipToNext: LoopMode.all wrap-around → index 0');
           await _preloader.prioritizeImmediatePlayback(
-            () => _loadAndPlayCurrentTrack('skipToNext wrap'),
+            () => _loadAndPlayCurrentTrack(fromCompletion ? 'completion_skipToNext_wrap' : 'manual_skipToNext_wrap'),
           );
         } else {
+          _logDiagnosticTransition(
+            'SKIP_TO_NEXT_QUEUE_END',
+            extra: 'fromCompletion=$fromCompletion,indexBefore=$indexBefore,indexAfter=$_currentIndex,nextTrackId=none',
+          );
           debugPrint('[Queue] skipToNext: no further tracks available, stopping');
+          _loadedAudioTrackId = null;
+          _lastValidPosition = Duration.zero;
           await _player.stop();
         }
       } else if (_player.loopMode == LoopMode.all && _queue.isNotEmpty) {
         _currentIndex = 0;
+        final nextTrack = _queue[_currentIndex];
+        _logDiagnosticTransition(
+          'SKIP_TO_NEXT',
+          extra: 'fromCompletion=$fromCompletion,indexBefore=$indexBefore,indexAfter=0,nextTrackId=${nextTrack.id},wrap=true',
+        );
         debugPrint('[Queue] skipToNext: LoopMode.all wrap-around → index 0');
         await _preloader.prioritizeImmediatePlayback(
-          () => _loadAndPlayCurrentTrack('skipToNext wrap'),
+          () => _loadAndPlayCurrentTrack(fromCompletion ? 'completion_skipToNext_wrap' : 'manual_skipToNext_wrap'),
         );
       } else {
+        _logDiagnosticTransition(
+          'SKIP_TO_NEXT_QUEUE_END',
+          extra: 'fromCompletion=$fromCompletion,indexBefore=$indexBefore,indexAfter=$_currentIndex,nextTrackId=none',
+        );
         debugPrint('[Queue] skipToNext: already at last track, stopping');
+        _loadedAudioTrackId = null;
+        _lastValidPosition = Duration.zero;
         await _player.stop();
       }
     } finally {

@@ -117,6 +117,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
           repeatMode: repeat,
           position: Duration(milliseconds: snapshot.positionMs),
         );
+        final serviceRepeat = repeat == RepeatMode.one
+            ? AudioServiceRepeatMode.one
+            : (repeat == RepeatMode.all
+                ? AudioServiceRepeatMode.all
+                : AudioServiceRepeatMode.none);
+        unawaited(_handler.setRepeatMode(serviceRepeat));
       } else {
         _queueManager.setQueue([]);
         state = PlaybackState.initial();
@@ -259,21 +265,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
       _analyticsTracker.onPlaybackStatusChanged(status, state.currentTrack);
 
       // ── Completion handling ───────────────────────────────────────────────
-      // IMPORTANT: MieeAudioHandler.skipToNext() is already called by the
-      // handler on completed. PlayerController must NOT call next() here.
-      //
-      // The ONLY thing PlayerController handles on completed is RepeatMode.one:
-      // seek to start and re-play the same track without involving the handler's
-      // skip logic.
-      if (status == PlaybackStatus.completed) {
-        if (state.repeatMode == RepeatMode.one) {
-          debugLog('[Playback] RepeatMode.one — seeking to start');
-          seek(Duration.zero);
-          play();
-        }
-        // RepeatMode.all and RepeatMode.off are handled entirely in
-        // MieeAudioHandler.skipToNext() — do NOT duplicate here.
-      }
+      // IMPORTANT: MieeAudioHandler owns ProcessingState.completed for all
+      // repeat modes (off, all, and one) and advances/repeats internally.
+      // PlayerController must NOT also call next() or seek()+play() here,
+      // as that races with in-flight handler transitions and can reload the
+      // completed track from 0:00.
     });
   }
 
@@ -893,6 +889,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
         : (_handler.lastValidPosition > Duration.zero
             ? _handler.lastValidPosition
             : null);
+
+    if (_handler.isLoadingTrack) {
+      await _handler.play();
+      return;
+    }
 
     if ((state.status == PlaybackStatus.idle ||
             state.status == PlaybackStatus.error) &&
