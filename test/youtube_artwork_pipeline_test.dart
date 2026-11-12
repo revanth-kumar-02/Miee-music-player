@@ -371,7 +371,7 @@ void main() {
 
       expect(results[0].imageUrl, equals(results[1].imageUrl));
       expect(results[1].imageUrl, equals(results[2].imageUrl));
-      expect(results[0].imageUrl, equals('https://img.youtube.com/vi/7wtfhZwyrcc/hqdefault.jpg'));
+      expect(results[0].imageUrl, equals('https://i.ytimg.com/vi/7wtfhZwyrcc/hqdefault.jpg'));
     });
   });
 }

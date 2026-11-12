@@ -891,14 +891,13 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     if (rawPath == null || rawPath.trim().isEmpty) return fallback;
     final clean = rawPath.trim();
     if (clean.startsWith('http://') || clean.startsWith('https://')) {
-      return Image.network(
-        clean,
+      return MieeArtworkImage(
+        explicitUrl: clean,
         width: width,
         height: height,
         fit: fit,
-        cacheWidth: cacheWidth,
-        cacheHeight: cacheHeight,
-        errorBuilder: (_, __, ___) => fallback,
+        borderRadius: BorderRadius.zero,
+        errorWidget: fallback,
       );
     }
     if (clean.startsWith('assets/')) {

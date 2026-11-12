@@ -140,7 +140,7 @@ class WebMusicDiscoverySource {
           final artist = item['artist'] as String? ?? '';
           final durationStr = item['duration'] as String? ?? '3:30';
           final thumb = item['thumbnailUrl'] as String? ??
-              'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+              'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
 
           final cleaned = YouTubeMetadataCleaner.clean(
             rawTitle: title,
@@ -187,7 +187,7 @@ class WebMusicDiscoverySource {
             '';
         final highResArt = art100.isNotEmpty
             ? art100.replaceAll('100x100bb', '600x600bb')
-            : 'https://i.ytimg.com/vi/placeholder/hqdefault.jpg';
+            : '';
 
         final cleaned = YouTubeMetadataCleaner.clean(
           rawTitle: trackName,

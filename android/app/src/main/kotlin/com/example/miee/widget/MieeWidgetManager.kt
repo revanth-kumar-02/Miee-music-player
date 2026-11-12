@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.*
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -15,19 +16,22 @@ import android.widget.RemoteViews
 import com.example.miee.MainActivity
 import com.example.miee.R
 import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
+import java.util.Collections
 import java.util.concurrent.Executors
 
 object MieeWidgetManager {
     private const val PREFS_NAME = "miee_widget_prefs"
+    private const val KEY_TRACK_ID = "now_playing_track_id"
     private const val KEY_TITLE = "now_playing_title"
     private const val KEY_ARTIST = "now_playing_artist"
     private const val KEY_ART_PATH = "now_playing_art_path"
     private const val KEY_ART_URL = "now_playing_art_url"
+    private const val KEY_AUDIO_PATH = "now_playing_audio_path"
     private const val KEY_IS_PLAYING = "now_playing_is_playing"
     private const val KEY_IS_FAV = "now_playing_is_fav"
     private const val KEY_PROGRESS = "now_playing_progress"
@@ -37,6 +41,11 @@ object MieeWidgetManager {
     private const val KEY_FAV_JSON = "fav_tracks_json"
     private const val KEY_PLAYLIST_JSON = "playlists_json"
 
+    private const val MAX_CACHE_FILES = 40
+    private const val MAX_CACHE_BYTES = 15L * 1024L * 1024L
+    private const val WIDGET_ART_USER_AGENT =
+        "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+
     const val ACTION_PLAY_TRACK = "com.example.miee.widget.PLAY_TRACK"
     const val ACTION_OPEN_PLAYLIST = "com.example.miee.widget.OPEN_PLAYLIST"
     const val ACTION_NAVIGATE = "com.example.miee.widget.NAVIGATE"
@@ -45,8 +54,9 @@ object MieeWidgetManager {
     const val EXTRA_PLAYLIST_ID = "extra_playlist_id"
     const val EXTRA_ROUTE = "extra_route"
 
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newFixedThreadPool(2)
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val inFlightArtKeys = Collections.synchronizedSet(mutableSetOf<String>())
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -54,21 +64,30 @@ object MieeWidgetManager {
 
     fun updateNowPlaying(
         context: Context,
+        trackId: String?,
         title: String?,
         artist: String?,
         artPath: String?,
         artUrl: String?,
+        audioFilePath: String?,
         isPlaying: Boolean,
         isFav: Boolean,
         progress: Double,
         positionMs: Long,
         durationMs: Long
     ) {
+        val safeTrackId = trackId ?: ""
+        val safeArtPath = artPath ?: ""
+        val safeArtUrl = artUrl ?: ""
+        val safeAudioPath = audioFilePath ?: ""
+
         val editor = getPrefs(context).edit()
+        editor.putString(KEY_TRACK_ID, safeTrackId)
         editor.putString(KEY_TITLE, title ?: "Miee Music")
         editor.putString(KEY_ARTIST, artist ?: "Ready to play")
-        editor.putString(KEY_ART_PATH, artPath ?: "")
-        editor.putString(KEY_ART_URL, artUrl ?: "")
+        editor.putString(KEY_ART_PATH, safeArtPath)
+        editor.putString(KEY_ART_URL, safeArtUrl)
+        editor.putString(KEY_AUDIO_PATH, safeAudioPath)
         editor.putBoolean(KEY_IS_PLAYING, isPlaying)
         editor.putBoolean(KEY_IS_FAV, isFav)
         editor.putFloat(KEY_PROGRESS, progress.toFloat())
@@ -76,29 +95,61 @@ object MieeWidgetManager {
         editor.putLong(KEY_DURATION_MS, durationMs)
         editor.apply()
 
-        // Cache artwork in background if URL is provided
-        if (!artUrl.isNullOrBlank() && artPath.isNullOrBlank()) {
-            cacheArtworkUrl(context, artUrl) {
-                updateAllWidgets(context)
+        // Immediately render with any already-available local or cached bitmap.
+        updateNowPlayingWidgets(context)
+
+        val hasLocalArtFile = safeArtPath.isNotBlank() && File(safeArtPath).let { it.exists() && it.length() > 0 }
+
+        if (!hasLocalArtFile && safeAudioPath.isNotBlank()) {
+            val extractedFile = getExtractedLocalArtFile(context, safeTrackId, safeAudioPath)
+            if (!extractedFile.exists() || extractedFile.length() == 0L) {
+                extractEmbeddedArtwork(context, safeTrackId, safeAudioPath) {
+                    val currentTrack = getPrefs(context).getString(KEY_TRACK_ID, "") ?: ""
+                    if (currentTrack == safeTrackId) {
+                        updateNowPlayingWidgets(context)
+                    }
+                }
             }
-        } else {
-            updateAllWidgets(context)
+        }
+
+        if (safeArtUrl.isNotBlank() && !hasLocalArtFile) {
+            val cachedFile = getCachedArtFile(context, safeTrackId, safeArtUrl)
+            if (!cachedFile.exists() || cachedFile.length() == 0L) {
+                cacheArtworkUrl(context, safeTrackId, safeArtUrl) {
+                    val prefs = getPrefs(context)
+                    val currentTrack = prefs.getString(KEY_TRACK_ID, "") ?: ""
+                    val currentUrl = prefs.getString(KEY_ART_URL, "") ?: ""
+                    if (currentTrack == safeTrackId && currentUrl == safeArtUrl) {
+                        updateNowPlayingWidgets(context)
+                    }
+                }
+            }
         }
     }
 
     fun updateRecentlyPlayed(context: Context, itemsJson: String) {
         getPrefs(context).edit().putString(KEY_RECENT_JSON, itemsJson).apply()
         updateWidgetsOfClass(context, RecentlyPlayedWidgetProvider::class.java)
+        prefetchItemsArtwork(context, itemsJson, RecentlyPlayedWidgetProvider::class.java)
     }
 
     fun updateFavourites(context: Context, itemsJson: String) {
         getPrefs(context).edit().putString(KEY_FAV_JSON, itemsJson).apply()
         updateWidgetsOfClass(context, FavouritesWidgetProvider::class.java)
+        prefetchItemsArtwork(context, itemsJson, FavouritesWidgetProvider::class.java)
     }
 
     fun updatePlaylists(context: Context, itemsJson: String) {
         getPrefs(context).edit().putString(KEY_PLAYLIST_JSON, itemsJson).apply()
         updateWidgetsOfClass(context, PlaylistsWidgetProvider::class.java)
+        prefetchItemsArtwork(context, itemsJson, PlaylistsWidgetProvider::class.java)
+    }
+
+    private fun updateNowPlayingWidgets(context: Context) {
+        updateWidgetsOfClass(context, MiniArtworkWidgetProvider::class.java)
+        updateWidgetsOfClass(context, NowPlayingCompactWidgetProvider::class.java)
+        updateWidgetsOfClass(context, NowPlayingExpandedWidgetProvider::class.java)
+        updateWidgetsOfClass(context, NowPlayingTallWidgetProvider::class.java)
     }
 
     fun updateAllWidgets(context: Context) {
@@ -132,11 +183,13 @@ object MieeWidgetManager {
         val views = RemoteViews(context.packageName, R.layout.widget_mini_artwork)
         val prefs = getPrefs(context)
         val isPlaying = prefs.getBoolean(KEY_IS_PLAYING, false)
+        val trackId = prefs.getString(KEY_TRACK_ID, "") ?: ""
         val artPath = prefs.getString(KEY_ART_PATH, "") ?: ""
         val artUrl = prefs.getString(KEY_ART_URL, "") ?: ""
+        val audioPath = prefs.getString(KEY_AUDIO_PATH, "") ?: ""
 
         // Artwork
-        val bmp = loadArtworkBitmap(context, artPath, artUrl, 28f)
+        val bmp = loadArtworkBitmap(context, trackId, artPath, artUrl, audioPath, 28f, 320)
         if (bmp != null) {
             views.setImageViewBitmap(R.id.widget_art_image, bmp)
         } else {
@@ -166,14 +219,16 @@ object MieeWidgetManager {
         val isPlaying = prefs.getBoolean(KEY_IS_PLAYING, false)
         val isFav = prefs.getBoolean(KEY_IS_FAV, false)
         val progress = (prefs.getFloat(KEY_PROGRESS, 0.42f) * 100).toInt()
+        val trackId = prefs.getString(KEY_TRACK_ID, "") ?: ""
         val artPath = prefs.getString(KEY_ART_PATH, "") ?: ""
         val artUrl = prefs.getString(KEY_ART_URL, "") ?: ""
+        val audioPath = prefs.getString(KEY_AUDIO_PATH, "") ?: ""
 
         views.setTextViewText(R.id.widget_title, title)
         views.setTextViewText(R.id.widget_artist, artist)
         views.setProgressBar(R.id.widget_progress_bar, 100, progress.coerceIn(0, 100), false)
 
-        val bmp = loadArtworkBitmap(context, artPath, artUrl, 16f)
+        val bmp = loadArtworkBitmap(context, trackId, artPath, artUrl, audioPath, 16f, 320)
         if (bmp != null) {
             views.setImageViewBitmap(R.id.widget_art_image, bmp)
         } else {
@@ -219,8 +274,10 @@ object MieeWidgetManager {
         val progress = (prefs.getFloat(KEY_PROGRESS, 0.42f) * 100).toInt()
         val posMs = prefs.getLong(KEY_POSITION_MS, 134000L) // 2:14
         val durMs = prefs.getLong(KEY_DURATION_MS, 208000L) // 3:28
+        val trackId = prefs.getString(KEY_TRACK_ID, "") ?: ""
         val artPath = prefs.getString(KEY_ART_PATH, "") ?: ""
         val artUrl = prefs.getString(KEY_ART_URL, "") ?: ""
+        val audioPath = prefs.getString(KEY_AUDIO_PATH, "") ?: ""
 
         views.setTextViewText(R.id.widget_title, title)
         views.setTextViewText(R.id.widget_artist, artist)
@@ -228,7 +285,7 @@ object MieeWidgetManager {
         views.setTextViewText(R.id.widget_time_current, formatDuration(posMs))
         views.setTextViewText(R.id.widget_time_total, formatDuration(durMs))
 
-        val bmp = loadArtworkBitmap(context, artPath, artUrl, 16f)
+        val bmp = loadArtworkBitmap(context, trackId, artPath, artUrl, audioPath, 16f, 320)
         if (bmp != null) {
             views.setImageViewBitmap(R.id.widget_art_image, bmp)
         } else {
@@ -283,13 +340,15 @@ object MieeWidgetManager {
         val artist = prefs.getString(KEY_ARTIST, "Lord Huron")
         val isPlaying = prefs.getBoolean(KEY_IS_PLAYING, false)
         val isFav = prefs.getBoolean(KEY_IS_FAV, false)
+        val trackId = prefs.getString(KEY_TRACK_ID, "") ?: ""
         val artPath = prefs.getString(KEY_ART_PATH, "") ?: ""
         val artUrl = prefs.getString(KEY_ART_URL, "") ?: ""
+        val audioPath = prefs.getString(KEY_AUDIO_PATH, "") ?: ""
 
         views.setTextViewText(R.id.widget_title, title)
         views.setTextViewText(R.id.widget_artist, artist)
 
-        val bmp = loadArtworkBitmap(context, artPath, artUrl, 18f)
+        val bmp = loadArtworkBitmap(context, trackId, artPath, artUrl, audioPath, 18f, 320)
         if (bmp != null) {
             views.setImageViewBitmap(R.id.widget_art_image, bmp)
         } else {
@@ -352,6 +411,7 @@ object MieeWidgetManager {
             var trackId = ""
             var artPath = ""
             var artUrl = ""
+            var audioPath = ""
 
             if (itemsArray != null && i < itemsArray.length()) {
                 val obj = itemsArray.optJSONObject(i)
@@ -360,11 +420,12 @@ object MieeWidgetManager {
                     trackId = obj.optString("trackId", "")
                     artPath = obj.optString("artworkPath", "")
                     artUrl = obj.optString("artworkUrl", "")
+                    audioPath = obj.optString("audioFilePath", "")
                 }
             }
 
             views.setTextViewText(itemTitles[i], title)
-            val bmp = loadArtworkBitmap(context, artPath, artUrl, 14f)
+            val bmp = loadArtworkBitmap(context, trackId, artPath, artUrl, audioPath, 14f, 160)
             if (bmp != null) {
                 views.setImageViewBitmap(itemArts[i], bmp)
             } else {
@@ -406,6 +467,7 @@ object MieeWidgetManager {
             var trackId = ""
             var artPath = ""
             var artUrl = ""
+            var audioPath = ""
 
             if (itemsArray != null && i < itemsArray.length()) {
                 val obj = itemsArray.optJSONObject(i)
@@ -414,11 +476,12 @@ object MieeWidgetManager {
                     trackId = obj.optString("trackId", "")
                     artPath = obj.optString("artworkPath", "")
                     artUrl = obj.optString("artworkUrl", "")
+                    audioPath = obj.optString("audioFilePath", "")
                 }
             }
 
             views.setTextViewText(itemTitles[i], title)
-            val bmp = loadArtworkBitmap(context, artPath, artUrl, 14f)
+            val bmp = loadArtworkBitmap(context, trackId, artPath, artUrl, audioPath, 14f, 160)
             if (bmp != null) {
                 views.setImageViewBitmap(itemArts[i], bmp)
             } else {
@@ -466,6 +529,7 @@ object MieeWidgetManager {
             var playlistId = ""
             var artPath = ""
             var artUrl = ""
+            var audioPath = ""
 
             if (itemsArray != null && i < itemsArray.length()) {
                 val obj = itemsArray.optJSONObject(i)
@@ -476,13 +540,14 @@ object MieeWidgetManager {
                     playlistId = obj.optString("playlistId", "")
                     artPath = obj.optString("artworkPath", "")
                     artUrl = obj.optString("artworkUrl", "")
+                    audioPath = obj.optString("audioFilePath", "")
                 }
             }
 
             views.setTextViewText(titles[i], title)
             views.setTextViewText(counts[i], countStr)
 
-            val bmp = loadArtworkBitmap(context, artPath, artUrl, 14f)
+            val bmp = loadArtworkBitmap(context, playlistId, artPath, artUrl, audioPath, 14f, 160)
             if (bmp != null) {
                 views.setImageViewBitmap(arts[i], bmp)
             } else {
@@ -509,30 +574,38 @@ object MieeWidgetManager {
     // --- Helpers: Bitmap Loading & Caching ---
     private fun loadArtworkBitmap(
         context: Context,
+        trackId: String?,
         path: String?,
         url: String?,
-        cornerRadiusDp: Float
+        audioFilePath: String?,
+        cornerRadiusDp: Float,
+        maxDim: Int
     ): Bitmap? {
         try {
             var raw: Bitmap? = null
             if (!path.isNullOrBlank()) {
                 val file = File(path)
                 if (file.exists() && file.length() > 0) {
-                    raw = BitmapFactory.decodeFile(file.absolutePath)
+                    raw = decodeSampledBitmapFromFile(file.absolutePath, maxDim)
+                }
+            }
+
+            if (raw == null && !audioFilePath.isNullOrBlank()) {
+                val extracted = getExtractedLocalArtFile(context, trackId, audioFilePath)
+                if (extracted.exists() && extracted.length() > 0) {
+                    raw = decodeSampledBitmapFromFile(extracted.absolutePath, maxDim)
                 }
             }
 
             if (raw == null && !url.isNullOrBlank()) {
-                val cachedFile = getCachedArtFile(context, url)
+                val cachedFile = getCachedArtFile(context, trackId, url)
                 if (cachedFile.exists() && cachedFile.length() > 0) {
-                    raw = BitmapFactory.decodeFile(cachedFile.absolutePath)
+                    raw = decodeSampledBitmapFromFile(cachedFile.absolutePath, maxDim)
                 }
             }
 
             if (raw == null) return null
 
-            // Scale down to max 320x320 to respect Android Binder IPC limits
-            val maxDim = 320
             val scaled = if (raw.width > maxDim || raw.height > maxDim) {
                 val ratio = minOf(maxDim.toFloat() / raw.width, maxDim.toFloat() / raw.height)
                 val targetW = (raw.width * ratio).toInt().coerceAtLeast(1)
@@ -542,10 +615,32 @@ object MieeWidgetManager {
                 raw
             }
 
-            return getRoundedBitmap(context, scaled, cornerRadiusDp)
+            val rounded = getRoundedBitmap(context, scaled, cornerRadiusDp)
+            if (scaled !== raw && !raw.isRecycled) raw.recycle()
+            if (rounded !== scaled && !scaled.isRecycled) scaled.recycle()
+            return rounded
         } catch (_: Exception) {
             return null
         }
+    }
+
+    private fun decodeSampledBitmapFromFile(filePath: String, maxDim: Int): Bitmap? {
+        val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(filePath, boundsOpts)
+        if (boundsOpts.outWidth <= 0 || boundsOpts.outHeight <= 0) return null
+
+        var inSampleSize = 1
+        val halfH = boundsOpts.outHeight / 2
+        val halfW = boundsOpts.outWidth / 2
+        while ((halfH / inSampleSize) >= maxDim && (halfW / inSampleSize) >= maxDim) {
+            inSampleSize *= 2
+        }
+
+        val decodeOpts = BitmapFactory.Options().apply {
+            this.inSampleSize = inSampleSize
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return BitmapFactory.decodeFile(filePath, decodeOpts)
     }
 
     private fun getRoundedBitmap(context: Context, src: Bitmap, cornerRadiusDp: Float): Bitmap {
@@ -561,32 +656,202 @@ object MieeWidgetManager {
         return output
     }
 
-    private fun getCachedArtFile(context: Context, url: String): File {
-        val dir = File(context.cacheDir, "widget_art")
+    private fun getWidgetArtDir(context: Context): File {
+        val dir = File(context.filesDir, "widget_art")
         if (!dir.exists()) dir.mkdirs()
-        val safeName = "art_" + url.hashCode() + ".jpg"
-        return File(dir, safeName)
+        return dir
     }
 
-    private fun cacheArtworkUrl(context: Context, urlStr: String, onComplete: () -> Unit) {
+    private fun sha256Hex(input: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest(input.toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }.take(32)
+    }
+
+    private fun getCachedArtFile(context: Context, trackId: String?, url: String): File {
+        val key = "${trackId.orEmpty()}|$url"
+        return File(getWidgetArtDir(context), "art_${sha256Hex(key)}.img")
+    }
+
+    private fun getExtractedLocalArtFile(context: Context, trackId: String?, audioFilePath: String): File {
+        val key = "local|${trackId.orEmpty()}|$audioFilePath"
+        return File(getWidgetArtDir(context), "loc_${sha256Hex(key)}.img")
+    }
+
+    private fun cacheArtworkUrl(
+        context: Context,
+        trackId: String?,
+        urlStr: String,
+        onComplete: () -> Unit
+    ) {
+        val cachedFile = getCachedArtFile(context, trackId, urlStr)
+        val lockKey = cachedFile.name
+        if (!inFlightArtKeys.add(lockKey)) return
+
         executor.execute {
             try {
-                val cachedFile = getCachedArtFile(context, urlStr)
                 if (!cachedFile.exists() || cachedFile.length() == 0L) {
-                    val url = URL(urlStr)
-                    val conn = url.openConnection() as HttpURLConnection
-                    conn.connectTimeout = 5000
-                    conn.readTimeout = 5000
-                    conn.doInput = true
-                    conn.connect()
-                    conn.inputStream.use { input ->
-                        FileOutputStream(cachedFile).use { output ->
-                            input.copyTo(output)
+                    val partFile = File(cachedFile.parentFile, "${cachedFile.name}.part")
+                    if (partFile.exists()) partFile.delete()
+                    val downloaded = downloadUrlToPartFile(urlStr, partFile)
+                    if (downloaded && isValidImageFile(partFile)) {
+                        if (cachedFile.exists()) cachedFile.delete()
+                        if (!partFile.renameTo(cachedFile)) {
+                            partFile.copyTo(cachedFile, overwrite = true)
+                            partFile.delete()
+                        }
+                        pruneWidgetArtCache(context)
+                    } else {
+                        partFile.delete()
+                    }
+                }
+                if (cachedFile.exists() && cachedFile.length() > 0L) {
+                    mainHandler.post { onComplete() }
+                }
+            } catch (_: Exception) {
+            } finally {
+                inFlightArtKeys.remove(lockKey)
+            }
+        }
+    }
+
+    private fun extractEmbeddedArtwork(
+        context: Context,
+        trackId: String?,
+        audioFilePath: String,
+        onComplete: () -> Unit
+    ) {
+        val outFile = getExtractedLocalArtFile(context, trackId, audioFilePath)
+        val lockKey = outFile.name
+        if (!inFlightArtKeys.add(lockKey)) return
+
+        executor.execute {
+            val retriever = MediaMetadataRetriever()
+            try {
+                if (!outFile.exists() || outFile.length() == 0L) {
+                    val audioFile = File(audioFilePath)
+                    if (audioFile.exists() && audioFile.length() > 0L) {
+                        retriever.setDataSource(audioFile.absolutePath)
+                        val bytes = retriever.embeddedPicture
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val partFile = File(outFile.parentFile, "${outFile.name}.part")
+                            FileOutputStream(partFile).use { it.write(bytes) }
+                            if (isValidImageFile(partFile)) {
+                                if (outFile.exists()) outFile.delete()
+                                if (!partFile.renameTo(outFile)) {
+                                    partFile.copyTo(outFile, overwrite = true)
+                                    partFile.delete()
+                                }
+                                pruneWidgetArtCache(context)
+                            } else {
+                                partFile.delete()
+                            }
                         }
                     }
                 }
-                mainHandler.post { onComplete() }
-            } catch (_: Exception) {}
+                if (outFile.exists() && outFile.length() > 0L) {
+                    mainHandler.post { onComplete() }
+                }
+            } catch (_: Exception) {
+            } finally {
+                try {
+                    retriever.release()
+                } catch (_: Exception) {}
+                inFlightArtKeys.remove(lockKey)
+            }
+        }
+    }
+
+    private fun prefetchItemsArtwork(context: Context, itemsJson: String, providerCls: Class<*>) {
+        if (itemsJson.isBlank()) return
+        val itemsArray = try {
+            JSONArray(itemsJson)
+        } catch (_: Exception) {
+            return
+        }
+        for (i in 0 until itemsArray.length()) {
+            val obj = itemsArray.optJSONObject(i) ?: continue
+            val itemKey = obj.optString("trackId", obj.optString("playlistId", ""))
+            val artPath = obj.optString("artworkPath", "")
+            val artUrl = obj.optString("artworkUrl", "")
+            val audioPath = obj.optString("audioFilePath", "")
+
+            val hasLocalArt = artPath.isNotBlank() && File(artPath).let { it.exists() && it.length() > 0L }
+            if (hasLocalArt) continue
+
+            if (audioPath.isNotBlank()) {
+                val extracted = getExtractedLocalArtFile(context, itemKey, audioPath)
+                if (!extracted.exists() || extracted.length() == 0L) {
+                    extractEmbeddedArtwork(context, itemKey, audioPath) {
+                        updateWidgetsOfClass(context, providerCls)
+                    }
+                }
+            }
+            if (artUrl.isNotBlank()) {
+                val cached = getCachedArtFile(context, itemKey, artUrl)
+                if (!cached.exists() || cached.length() == 0L) {
+                    cacheArtworkUrl(context, itemKey, artUrl) {
+                        updateWidgetsOfClass(context, providerCls)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun downloadUrlToPartFile(urlStr: String, partFile: File): Boolean {
+        var currentUrl = urlStr
+        for (hop in 0 until 5) {
+            val conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 6000
+                readTimeout = 8000
+                instanceFollowRedirects = true
+                doInput = true
+                setRequestProperty("User-Agent", WIDGET_ART_USER_AGENT)
+            }
+            try {
+                conn.connect()
+                val code = conn.responseCode
+                if (code in 300..399) {
+                    val location = conn.getHeaderField("Location")
+                    if (location.isNullOrBlank()) return false
+                    currentUrl = URL(URL(currentUrl), location).toString()
+                    continue
+                }
+                if (code !in 200..299) return false
+                conn.inputStream.use { input ->
+                    FileOutputStream(partFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                return partFile.exists() && partFile.length() > 0L
+            } finally {
+                conn.disconnect()
+            }
+        }
+        return false
+    }
+
+    private fun isValidImageFile(file: File): Boolean {
+        if (!file.exists() || file.length() <= 0L) return false
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, opts)
+        return opts.outWidth > 0 && opts.outHeight > 0
+    }
+
+    private fun pruneWidgetArtCache(context: Context) {
+        val dir = getWidgetArtDir(context)
+        val files = dir.listFiles()?.filter { !it.name.endsWith(".part") } ?: return
+        var totalBytes = files.sumOf { it.length() }
+        if (files.size <= MAX_CACHE_FILES && totalBytes <= MAX_CACHE_BYTES) return
+
+        val sorted = files.sortedBy { it.lastModified() }
+        var remainingCount = files.size
+        for (f in sorted) {
+            if (remainingCount <= MAX_CACHE_FILES && totalBytes <= MAX_CACHE_BYTES) break
+            val len = f.length()
+            if (f.delete()) {
+                remainingCount--
+                totalBytes -= len
+            }
         }
     }
 

@@ -76,8 +76,28 @@ class ArtworkQuery {
     return null;
   }
 
+  /// Sanitizes a candidate fallback thumbnail URL, rejecting bogus placeholders.
+  static String? _sanitizeFallbackUrl(String? raw) {
+    if (raw == null) return null;
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('/vi/placeholder/')) return null;
+    if (lower.startsWith('http://img.youtube.com/') ||
+        lower.startsWith('https://img.youtube.com/')) {
+      return trimmed
+          .replaceFirst(RegExp(r'^http://img\.youtube\.com/', caseSensitive: false), 'https://i.ytimg.com/')
+          .replaceFirst(RegExp(r'^https://img\.youtube\.com/', caseSensitive: false), 'https://i.ytimg.com/');
+    }
+    if (lower.startsWith('http://i.ytimg.com/')) {
+      return trimmed.replaceFirst(RegExp(r'^http://', caseSensitive: false), 'https://');
+    }
+    return trimmed;
+  }
+
   /// Factory constructor to construct an [ArtworkQuery] seamlessly from any [MusicItem].
   factory ArtworkQuery.fromMusicItem(MusicItem item, {String? album, String? explicitUrl}) {
+    final cleanExplicit = _sanitizeFallbackUrl(explicitUrl);
     if (item is MediaSong) {
       return ArtworkQuery(
         id: item.id,
@@ -87,15 +107,15 @@ class ArtworkQuery {
         durationMs: item.durationMs,
         localFilePath: item.filePath,
         localArtworkPath: item.artworkPath,
-        fallbackThumbnailUrl: (explicitUrl != null && explicitUrl.isNotEmpty) ? explicitUrl : null,
+        fallbackThumbnailUrl: cleanExplicit,
         source: 'local',
       );
     }
 
     if (item is YouTubeVideo) {
-      String? fallback = explicitUrl?.isNotEmpty == true
-          ? explicitUrl
-          : (item.highResArtworkUrl ?? (item.thumbnailUrl.isNotEmpty ? item.thumbnailUrl : null));
+      String? fallback = cleanExplicit ??
+          _sanitizeFallbackUrl(item.highResArtworkUrl) ??
+          _sanitizeFallbackUrl(item.thumbnailUrl);
       if (fallback == null || fallback.isEmpty) {
         fallback = 'https://i.ytimg.com/vi/${item.id}/hqdefault.jpg';
       }
@@ -114,12 +134,10 @@ class ArtworkQuery {
 
     if (item is Track) {
       final isYt = item.isYoutube;
-      String? fallback = explicitUrl?.isNotEmpty == true
-          ? explicitUrl
-          : (item.imageUrl.isNotEmpty ? item.imageUrl : null);
+      String? fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.imageUrl);
 
       if (isYt && (fallback == null || fallback.isEmpty || !fallback.startsWith('http'))) {
-        final vid = item.id.replaceFirst('youtube_', '').trim();
+        final vid = (item.sourceId ?? item.id).replaceFirst('youtube_', '').trim();
         if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
           fallback = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
         }
@@ -140,9 +158,7 @@ class ArtworkQuery {
 
     // Generic fallback for any other MusicItem implementation
     final isYt = item.isYoutube;
-    String? fallback = explicitUrl?.isNotEmpty == true
-        ? explicitUrl
-        : (item.imageUrl.isNotEmpty ? item.imageUrl : null);
+    String? fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.imageUrl);
     if (isYt && (fallback == null || fallback.isEmpty)) {
       final vid = item.id.replaceFirst('youtube_', '').trim();
       if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
@@ -203,8 +219,11 @@ class ArtworkQuery {
         .toLowerCase()
         .replaceAll(RegExp(r'\([^)]*\)'), '') // remove parenthesized content
         .replaceAll(RegExp(r'\[[^\]]*\]'), '') // remove bracketed content
-        .replaceAll(RegExp(r'(\b[a-z])\.\s*'), r'$1') // collapse initials: 'a. r.' -> 'ar ', 'a.r.' -> 'ar'
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), '') // remove remaining punctuation
+        .replaceAllMapped(
+          RegExp(r'\b([a-z])\.\s*([a-z])\.\s*'),
+          (m) => '${m[1]}${m[2]} ',
+        ) // collapse paired initials: 'a. r.' -> 'ar '
+        .replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\s]', unicode: true), '') // preserve Unicode letters, marks & digits
         .replaceAll(RegExp(r'\s+'), ' ') // collapse whitespace
         .trim();
   }

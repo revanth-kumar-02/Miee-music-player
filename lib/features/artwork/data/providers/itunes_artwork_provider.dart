@@ -29,7 +29,10 @@ class ItunesArtworkProvider implements ArtworkProvider {
   int get priority => 1;
 
   @override
-  Future<ResolvedArtwork?> resolve(ArtworkQuery query) async {
+  Future<ResolvedArtwork?> resolve(
+    ArtworkQuery query, {
+    bool forceRefresh = false,
+  }) async {
     if (!isEnabled) {
       return null;
     }
@@ -45,6 +48,7 @@ class ItunesArtworkProvider implements ArtworkProvider {
         rawArtist: query.artist,
         durationStr: durationStr,
         album: query.album,
+        forceRefresh: forceRefresh,
       );
 
       if (match.isConfident &&

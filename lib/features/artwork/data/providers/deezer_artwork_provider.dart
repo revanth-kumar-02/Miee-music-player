@@ -40,13 +40,47 @@ class DeezerArtworkProvider implements ArtworkProvider {
     if (!isEnabled) return null;
 
     final title = query.title.trim();
-    final artist = query.artist.trim();
-    if (title.isEmpty || artist.isEmpty) return null;
+    final isrc = query.isrc?.trim();
+    if (title.isEmpty && (isrc == null || isrc.isEmpty)) return null;
 
     try {
+      // Direct ISRC lookup when available for exact catalog matching
+      if (isrc != null && isrc.isNotEmpty) {
+        final isrcResp = await dio.get<dynamic>(
+          'https://api.deezer.com/2.0/track/isrc:${Uri.encodeComponent(isrc)}',
+        );
+        if (isrcResp.statusCode == 200 && isrcResp.data != null) {
+          final Map<String, dynamic> isrcData = isrcResp.data is String
+              ? jsonDecode(isrcResp.data as String) as Map<String, dynamic>
+              : Map<String, dynamic>.from(isrcResp.data as Map);
+          if (isrcData['error'] == null) {
+            final albumObj = isrcData['album'] as Map<String, dynamic>?;
+            final coverUrl = (albumObj?['cover_xl'] as String?) ??
+                (albumObj?['cover_big'] as String?) ??
+                (albumObj?['cover_medium'] as String?);
+            if (coverUrl != null && coverUrl.isNotEmpty) {
+              return ResolvedArtwork(
+                imageUrl: coverUrl,
+                source: ArtworkSource.deezer,
+                confidence: 1.0,
+                attribution: 'Deezer',
+                width: 1000,
+                height: 1000,
+                resolvedAt: DateTime.now(),
+              );
+            }
+          }
+        }
+      }
+
+      if (title.isEmpty) return null;
+
       final cleanTitle = ArtworkMatchValidator.normalize(title);
-      final cleanArtist = ArtworkMatchValidator.normalize(artist);
+      final cleanArtist = ArtworkMatchValidator.isMissingArtist(query.artist)
+          ? ''
+          : ArtworkMatchValidator.normalize(query.artist);
       final searchQuery = '$cleanArtist $cleanTitle'.trim();
+      if (searchQuery.isEmpty) return null;
 
       final response = await dio.get<dynamic>(
         'https://api.deezer.com/search',
@@ -63,6 +97,10 @@ class DeezerArtworkProvider implements ArtworkProvider {
       final Map<String, dynamic> responseData = response.data is String
           ? jsonDecode(response.data as String) as Map<String, dynamic>
           : Map<String, dynamic>.from(response.data as Map);
+
+      if (responseData['error'] != null) {
+        return null;
+      }
 
       final dataList = responseData['data'] as List<dynamic>?;
       if (dataList == null || dataList.isEmpty) {

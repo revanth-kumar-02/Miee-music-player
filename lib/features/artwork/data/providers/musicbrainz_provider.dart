@@ -46,9 +46,9 @@ class MusicBrainzProvider {
   /// Searches MusicBrainz for the track and returns the best matching release MBID.
   Future<MusicBrainzMatch?> findReleaseMatch(ArtworkQuery query) async {
     final title = query.title.trim();
-    final artist = query.artist.trim();
+    final hasIsrc = query.isrc != null && query.isrc!.trim().isNotEmpty;
 
-    if (title.isEmpty || artist.isEmpty) {
+    if (title.isEmpty && !hasIsrc) {
       return null;
     }
 
@@ -128,7 +128,10 @@ class MusicBrainzProvider {
 
   String _buildLuceneQuery(ArtworkQuery query) {
     final cleanTitle = _escapeLucene(ArtworkMatchValidator.normalize(query.title));
-    final cleanArtist = _escapeLucene(ArtworkMatchValidator.normalize(query.artist));
+    final missingArtist = ArtworkMatchValidator.isMissingArtist(query.artist);
+    final cleanArtist = missingArtist
+        ? ''
+        : _escapeLucene(ArtworkMatchValidator.normalize(query.artist));
 
     if (query.isrc != null && query.isrc!.isNotEmpty) {
       return 'isrc:${_escapeLucene(query.isrc!)}';
@@ -136,10 +139,16 @@ class MusicBrainzProvider {
 
     if (query.album != null && query.album!.isNotEmpty) {
       final cleanAlbum = _escapeLucene(ArtworkMatchValidator.normalize(query.album!));
-      return 'recording:"$cleanTitle" AND artist:"$cleanArtist" AND release:"$cleanAlbum"';
+      if (cleanArtist.isNotEmpty) {
+        return 'recording:"$cleanTitle" AND artist:"$cleanArtist" AND release:"$cleanAlbum"';
+      }
+      return 'recording:"$cleanTitle" AND release:"$cleanAlbum"';
     }
 
-    return 'recording:"$cleanTitle" AND artist:"$cleanArtist"';
+    if (cleanArtist.isNotEmpty) {
+      return 'recording:"$cleanTitle" AND artist:"$cleanArtist"';
+    }
+    return 'recording:"$cleanTitle"';
   }
 
   String _escapeLucene(String text) {

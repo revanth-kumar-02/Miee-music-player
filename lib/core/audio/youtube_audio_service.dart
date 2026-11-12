@@ -58,14 +58,42 @@ const YoutubeApiClient kAndroidSdklessClient = YoutubeApiClient({
 }, 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cache entry
+// Resolved stream & cache entry
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Represents a resolved YouTube audio stream alongside the exact client identity
+/// and `User-Agent` header required when fetching media bytes from `googlevideo.com`.
+class ResolvedYouTubeStream {
+  final String url;
+  final String userAgent;
+  final String clientName;
+
+  const ResolvedYouTubeStream({
+    required this.url,
+    required this.userAgent,
+    required this.clientName,
+  });
+
+  Map<String, String> get headers => {'User-Agent': userAgent};
+}
 
 class _CachedStream {
   final String url;
+  final String userAgent;
+  final String clientName;
   final DateTime expiresAt;
-  const _CachedStream({required this.url, required this.expiresAt});
+  const _CachedStream({
+    required this.url,
+    required this.userAgent,
+    required this.clientName,
+    required this.expiresAt,
+  });
   bool get isExpired => DateTime.now().isAfter(expiresAt);
+  ResolvedYouTubeStream toResolved() => ResolvedYouTubeStream(
+        url: url,
+        userAgent: userAgent,
+        clientName: clientName,
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,11 +119,27 @@ class YouTubeAudioService {
 
   // ── Cache & in-flight deduplication ───────────────────────────────────────
   final Map<String, _CachedStream> _urlCache = {};
-  final Map<String, Future<String?>> _inFlight = {};
+  final Map<String, Future<ResolvedYouTubeStream?>> _inFlight = {};
   final Map<String, YouTubeVideo> _queryCandidateCache = {};
 
   // ── youtube_explode_dart client ───────────────────────────────────────────
   YoutubeExplode _yt = YoutubeExplode();
+
+  @visibleForTesting
+  Future<StreamManifest?> Function(
+    String videoId,
+    List<YoutubeApiClient>? ytClients,
+  )? manifestFetcherForTesting;
+
+  @visibleForTesting
+  Future<bool> Function(String url, String userAgent)?
+      fallbackReadabilityValidatorForTesting;
+
+  @visibleForTesting
+  void resetTestingHooks() {
+    manifestFetcherForTesting = null;
+    fallbackReadabilityValidatorForTesting = null;
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Public API
@@ -110,13 +154,29 @@ class YouTubeAudioService {
   }
 
   @visibleForTesting
-  void cacheUrlForTesting(String videoId, String url) => _cacheUrl(videoId, url);
+  void cacheUrlForTesting(
+    String videoId,
+    String url, {
+    String userAgent = kYouTubeVisionOsUserAgent,
+    String clientName = 'VISIONOS',
+  }) =>
+      _cacheUrl(videoId, url, userAgent: userAgent, clientName: clientName);
 
-  /// Returns an audio-only stream URL for [videoIdOrUrl].
+  /// Infers the appropriate `User-Agent` when only a raw stream URL is available.
+  static String inferUserAgentForUrl(String url) {
+    final uri = Uri.tryParse(url);
+    final client = uri?.queryParameters['c']?.toUpperCase();
+    if (client == 'ANDROID') {
+      return kYouTubeAndroidUserAgent;
+    }
+    return kYouTubeVisionOsUserAgent;
+  }
+
+  /// Resolves an audio-only stream together with its matching `User-Agent`.
   ///
   /// Serves from cache if valid; deduplicates concurrent calls for the same ID.
   /// Pass [forceRefresh]=true to bypass cache (e.g. after a playback error).
-  Future<String?> getAudioStreamUrl(
+  Future<ResolvedYouTubeStream?> getAudioStream(
     String videoIdOrUrl, {
     bool forceRefresh = false,
     String? title,
@@ -132,13 +192,13 @@ class YouTubeAudioService {
     if (!forceRefresh && _urlCache.containsKey(videoId)) {
       final cached = _urlCache[videoId]!;
       if (!cached.isExpired && isUrlValid(cached.url)) {
-        debugPrint('[StreamCache] HIT for $videoId');
+        debugPrint('[StreamCache] HIT for $videoId (client=${cached.clientName})');
         PlaybackDiagnostics().recordStreamResolutionEnd(
           videoId,
           fromCache: true,
           success: true,
         );
-        return Future.value(cached.url);
+        return Future.value(cached.toResolved());
       }
       debugPrint('[StreamCache] EXPIRED for $videoId, evicting');
       _urlCache.remove(videoId);
@@ -156,19 +216,38 @@ class YouTubeAudioService {
         debugPrint('[YouTubeAudioService] Overall stream resolution timed out for $videoId');
         return null;
       },
-    ).then((url) {
+    ).then((resolved) {
       PlaybackDiagnostics().recordStreamResolutionEnd(
         videoId,
         fromCache: false,
-        success: url != null && url.isNotEmpty,
+        success: resolved != null && resolved.url.isNotEmpty,
       );
-      return url;
+      return resolved;
     }).whenComplete(() {
       _inFlight.remove(videoId);
     });
 
     _inFlight[videoId] = future;
     return future;
+  }
+
+  /// Returns an audio-only stream URL for [videoIdOrUrl].
+  ///
+  /// Kept for backward compatibility; prefer [getAudioStream] to preserve client
+  /// `User-Agent` matching on fallback streams.
+  Future<String?> getAudioStreamUrl(
+    String videoIdOrUrl, {
+    bool forceRefresh = false,
+    String? title,
+    String? artist,
+  }) async {
+    final resolved = await getAudioStream(
+      videoIdOrUrl,
+      forceRefresh: forceRefresh,
+      title: title,
+      artist: artist,
+    );
+    return resolved?.url;
   }
 
   /// Predictively preheats and caches the stream URL for [videoIdOrUrl] in the background.
@@ -356,7 +435,84 @@ class YouTubeAudioService {
   // Core stream resolution
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<String?> _resolveStream(
+  Future<StreamManifest?> _fetchManifest(
+    String videoId,
+    List<YoutubeApiClient>? ytClients,
+    Duration timeout,
+  ) async {
+    if (manifestFetcherForTesting != null) {
+      return manifestFetcherForTesting!(videoId, ytClients).timeout(timeout);
+    }
+    return _yt.videos.streamsClient
+        .getManifest(videoId, ytClients: ytClients)
+        .timeout(timeout);
+  }
+
+  Future<bool> _validateFallbackStreamUrl(
+    String url, {
+    required String userAgent,
+    required String clientName,
+  }) async {
+    if (!isUrlValid(url)) return false;
+    if (fallbackReadabilityValidatorForTesting != null) {
+      return fallbackReadabilityValidatorForTesting!(url, userAgent);
+    }
+    if (kIsWeb) return true;
+    try {
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+        followRedirects: false,
+        validateStatus: (_) => true,
+      ));
+      var currentUrl = url;
+      for (var hop = 0; hop < 5; hop++) {
+        final res = await dio.get<ResponseBody>(
+          currentUrl,
+          options: Options(
+            responseType: ResponseType.stream,
+            headers: {
+              'User-Agent': userAgent,
+              'Range': 'bytes=0-1023',
+            },
+          ),
+        );
+        final status = res.statusCode ?? 0;
+        final location = res.headers.value('location');
+        await res.data?.stream
+            .listen((_) {}, onError: (_) {}, cancelOnError: true)
+            .cancel();
+        if ((status == 301 ||
+                status == 302 ||
+                status == 303 ||
+                status == 307 ||
+                status == 308) &&
+            location != null &&
+            location.isNotEmpty) {
+          currentUrl = Uri.parse(currentUrl).resolve(location).toString();
+          continue;
+        }
+        if (status == 403 || status == 410 || status < 200 || status >= 400) {
+          debugPrint(
+            '[YouTubeAudioService] Rejected $clientName fallback stream: HTTP $status',
+          );
+          return false;
+        }
+        return status == 200 || status == 206;
+      }
+      debugPrint(
+        '[YouTubeAudioService] Rejected $clientName fallback stream: too many redirects',
+      );
+      return false;
+    } catch (e) {
+      debugPrint(
+        '[YouTubeAudioService] $clientName fallback readability check failed: $e',
+      );
+      return false;
+    }
+  }
+
+  Future<ResolvedYouTubeStream?> _resolveStream(
     String videoId, {
     String? title,
     String? artist,
@@ -390,9 +546,14 @@ class YouTubeAudioService {
                 : Map<String, dynamic>.from(res.data as Map);
             final streamUrl = data['streamUrl'] as String?;
             if (streamUrl != null && streamUrl.isNotEmpty) {
+              final ua = inferUserAgentForUrl(streamUrl);
               debugPrint('[YouTubeAudioService] Resolved stream via web proxy ($baseUrl) for $videoId');
-              _cacheUrl(videoId, streamUrl);
-              return streamUrl;
+              _cacheUrl(videoId, streamUrl, userAgent: ua, clientName: 'WEB_PROXY');
+              return ResolvedYouTubeStream(
+                url: streamUrl,
+                userAgent: ua,
+                clientName: 'WEB_PROXY',
+              );
             }
           }
         } catch (e) {
@@ -403,45 +564,92 @@ class YouTubeAudioService {
 
     // Primary attempt: VISIONOS client (exempt from GVS PoToken 1MB cap / 403 errors)
     try {
-      final manifest = await _yt.videos.streamsClient.getManifest(
+      final manifest = await _fetchManifest(
         videoId,
-        ytClients: [kVisionOsClient],
-      ).timeout(const Duration(seconds: 12));
-      final streamUrl = _selectBestAudioUrl(manifest);
+        [kVisionOsClient],
+        const Duration(seconds: 12),
+      );
+      final streamUrl = manifest != null ? _selectBestAudioUrl(manifest) : null;
       if (streamUrl != null && streamUrl.isNotEmpty) {
         debugPrint('[YouTubeAudioService] Resolved stream via VISIONOS for $videoId');
-        _cacheUrl(videoId, streamUrl);
-        return streamUrl;
+        _cacheUrl(
+          videoId,
+          streamUrl,
+          userAgent: kYouTubeVisionOsUserAgent,
+          clientName: 'VISIONOS',
+        );
+        return ResolvedYouTubeStream(
+          url: streamUrl,
+          userAgent: kYouTubeVisionOsUserAgent,
+          clientName: 'VISIONOS',
+        );
       }
     } catch (e) {
       debugPrint('[YouTubeAudioService] VISIONOS attempt failed for $videoId: $e');
     }
 
-    // Fallback attempt 1: androidSdkless client
+    // Fallback attempt 1: androidSdkless client (must pass byte-range readability check)
     try {
-      final manifest = await _yt.videos.streamsClient.getManifest(
+      final manifest = await _fetchManifest(
         videoId,
-        ytClients: [kAndroidSdklessClient],
-      ).timeout(const Duration(seconds: 7));
-      final streamUrl = _selectBestAudioUrl(manifest);
+        [kAndroidSdklessClient],
+        const Duration(seconds: 7),
+      );
+      final streamUrl = manifest != null ? _selectBestAudioUrl(manifest) : null;
       if (streamUrl != null && streamUrl.isNotEmpty) {
-        debugPrint('[YouTubeAudioService] Resolved stream via androidSdkless for $videoId');
-        _cacheUrl(videoId, streamUrl);
-        return streamUrl;
+        final readable = await _validateFallbackStreamUrl(
+          streamUrl,
+          userAgent: kYouTubeAndroidUserAgent,
+          clientName: 'ANDROID_SDKLESS',
+        );
+        if (readable) {
+          debugPrint('[YouTubeAudioService] Resolved readable stream via androidSdkless for $videoId');
+          _cacheUrl(
+            videoId,
+            streamUrl,
+            userAgent: kYouTubeAndroidUserAgent,
+            clientName: 'ANDROID_SDKLESS',
+          );
+          return ResolvedYouTubeStream(
+            url: streamUrl,
+            userAgent: kYouTubeAndroidUserAgent,
+            clientName: 'ANDROID_SDKLESS',
+          );
+        }
       }
     } catch (e) {
       debugPrint('[YouTubeAudioService] androidSdkless attempt failed for $videoId: $e');
     }
 
-    // Fallback attempt 2: default getManifest client chain
+    // Fallback attempt 2: default getManifest client chain (must pass byte-range readability check)
     try {
-      final manifest = await _yt.videos.streamsClient.getManifest(videoId)
-          .timeout(const Duration(seconds: 7));
-      final streamUrl = _selectBestAudioUrl(manifest);
+      final manifest = await _fetchManifest(
+        videoId,
+        null,
+        const Duration(seconds: 7),
+      );
+      final streamUrl = manifest != null ? _selectBestAudioUrl(manifest) : null;
       if (streamUrl != null && streamUrl.isNotEmpty) {
-        debugPrint('[YouTubeAudioService] Resolved stream via default manifest for $videoId');
-        _cacheUrl(videoId, streamUrl);
-        return streamUrl;
+        const fallbackUa = kYouTubeAndroidUserAgent;
+        final readable = await _validateFallbackStreamUrl(
+          streamUrl,
+          userAgent: fallbackUa,
+          clientName: 'DEFAULT_MANIFEST',
+        );
+        if (readable) {
+          debugPrint('[YouTubeAudioService] Resolved readable stream via default manifest for $videoId');
+          _cacheUrl(
+            videoId,
+            streamUrl,
+            userAgent: fallbackUa,
+            clientName: 'DEFAULT_MANIFEST',
+          );
+          return ResolvedYouTubeStream(
+            url: streamUrl,
+            userAgent: fallbackUa,
+            clientName: 'DEFAULT_MANIFEST',
+          );
+        }
       }
     } catch (e) {
       debugPrint('[YouTubeAudioService] Default getManifest failed for $videoId: $e');
@@ -469,7 +677,12 @@ class YouTubeAudioService {
     return url.isNotEmpty ? url : null;
   }
 
-  void _cacheUrl(String videoId, String url) {
+  void _cacheUrl(
+    String videoId,
+    String url, {
+    String userAgent = kYouTubeVisionOsUserAgent,
+    String clientName = 'VISIONOS',
+  }) {
     if (_urlCache.length >= _maxCacheSize) {
       final oldest = _urlCache.keys.first;
       _urlCache.remove(oldest);
@@ -492,9 +705,14 @@ class YouTubeAudioService {
       }
     } catch (_) {}
 
-    _urlCache[videoId] = _CachedStream(url: url, expiresAt: expiresAt);
+    _urlCache[videoId] = _CachedStream(
+      url: url,
+      userAgent: userAgent,
+      clientName: clientName,
+      expiresAt: expiresAt,
+    );
     debugPrint(
-      '[StreamCache] STORED $videoId (TTL: ~1hr | expires: ${expiresAt.toIso8601String()} | cache size: ${_urlCache.length})',
+      '[StreamCache] STORED $videoId (client=$clientName | TTL: ~1hr | expires: ${expiresAt.toIso8601String()} | cache size: ${_urlCache.length})',
     );
   }
 

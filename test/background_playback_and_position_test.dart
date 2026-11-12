@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
-import 'package:audio_service/audio_service.dart';
 import 'package:Miee/core/audio/audio_handler.dart';
 import 'package:Miee/shared/models/track.dart';
 
@@ -11,6 +10,7 @@ class MockAudioPlayer extends AudioPlayer {
   Duration _pos = Duration.zero;
   Duration? _dur = const Duration(minutes: 4);
   Duration? lastSeekPosition;
+  Duration? lastInitialPosition;
   bool playCalled = false;
   bool pauseCalled = false;
 
@@ -91,6 +91,7 @@ class MockAudioPlayer extends AudioPlayer {
   @override
   Future<Duration?> setAudioSource(AudioSource source,
       {bool preload = true, int? initialIndex, Duration? initialPosition}) async {
+    lastInitialPosition = initialPosition;
     if (initialPosition != null) {
       _pos = initialPosition;
     }
@@ -99,7 +100,7 @@ class MockAudioPlayer extends AudioPlayer {
 
   @override
   Future<Duration?> setFilePath(String path,
-      {Duration? initialPosition, int? initialIndex, bool preload = true}) async {
+      {Duration? initialPosition, bool preload = true, dynamic tag}) async {
     if (initialPosition != null) {
       _pos = initialPosition;
     }
@@ -252,7 +253,11 @@ void main() {
       await pumpEventQueue();
 
       expect(handler.lastValidPosition, equals(const Duration(seconds: 77)));
-      expect(mockPlayer.lastSeekPosition, equals(const Duration(seconds: 77)));
+      expect(mockPlayer.position, equals(const Duration(seconds: 77)));
+      expect(
+        mockPlayer.lastSeekPosition ?? mockPlayer.lastInitialPosition,
+        equals(const Duration(seconds: 77)),
+      );
     });
 
     test('Scenario G: Queue Advancement in Background — preserves buffering state without service demotion', () async {

@@ -21,6 +21,9 @@ class ResolvedArtwork {
   /// Indicates whether the artwork refers to a local file on device storage.
   final bool isLocal;
 
+  /// Validated local disk cache file path for remote artwork (when downloaded).
+  final String? localCachedPath;
+
   /// MusicBrainz Release MBID if resolved via MB / Cover Art Archive.
   final String? mbid;
 
@@ -35,9 +38,36 @@ class ResolvedArtwork {
     this.width,
     this.height,
     this.isLocal = false,
+    this.localCachedPath,
     this.mbid,
     this.resolvedAt,
   });
+
+  ResolvedArtwork copyWith({
+    String? imageUrl,
+    ArtworkSource? source,
+    double? confidence,
+    String? attribution,
+    int? width,
+    int? height,
+    bool? isLocal,
+    String? localCachedPath,
+    String? mbid,
+    DateTime? resolvedAt,
+  }) {
+    return ResolvedArtwork(
+      imageUrl: imageUrl ?? this.imageUrl,
+      source: source ?? this.source,
+      confidence: confidence ?? this.confidence,
+      attribution: attribution ?? this.attribution,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      isLocal: isLocal ?? this.isLocal,
+      localCachedPath: localCachedPath ?? this.localCachedPath,
+      mbid: mbid ?? this.mbid,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+    );
+  }
 
   /// Convenient factory for neutral fallback when resolution fails across all providers.
   factory ResolvedArtwork.neutralFallback({String? fallbackUrl}) {
@@ -61,6 +91,7 @@ class ResolvedArtwork {
         'width': width,
         'height': height,
         'isLocal': isLocal,
+        'localCachedPath': localCachedPath,
         'mbid': mbid,
         'resolvedAt': resolvedAt?.millisecondsSinceEpoch,
       };
@@ -77,6 +108,7 @@ class ResolvedArtwork {
       width: json['width'] as int?,
       height: json['height'] as int?,
       isLocal: json['isLocal'] as bool? ?? false,
+      localCachedPath: json['localCachedPath'] as String?,
       mbid: json['mbid'] as String?,
       resolvedAt: json['resolvedAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch(json['resolvedAt'] as int)

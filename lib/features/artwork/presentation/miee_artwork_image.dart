@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/models/music_item.dart';
+import '../data/artwork_cache.dart';
 import '../domain/artwork_query.dart';
 import '../domain/resolved_artwork.dart';
 import 'artwork_providers.dart';
@@ -75,7 +76,9 @@ class MieeArtworkImage extends ConsumerWidget {
       loading: () {
         // While resolving, display the fallback thumbnail if available immediately
         final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
-        if (immediateImage != null && immediateImage.isNotEmpty) {
+        if (immediateImage != null &&
+            immediateImage.isNotEmpty &&
+            !immediateImage.contains('/vi/placeholder/')) {
           return _renderDirectImage(
             context,
             immediateImage,
@@ -87,7 +90,9 @@ class MieeArtworkImage extends ConsumerWidget {
       },
       error: (_, __) {
         final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
-        if (immediateImage != null && immediateImage.isNotEmpty) {
+        if (immediateImage != null &&
+            immediateImage.isNotEmpty &&
+            !immediateImage.contains('/vi/placeholder/')) {
           return _renderDirectImage(
             context,
             immediateImage,
@@ -110,7 +115,8 @@ class MieeArtworkImage extends ConsumerWidget {
       // Prioritize the track's authentic stream thumbnail or explicit URL
       // over the neutral icon whenever available
       if (effectiveQuery.fallbackThumbnailUrl != null &&
-          effectiveQuery.fallbackThumbnailUrl!.isNotEmpty) {
+          effectiveQuery.fallbackThumbnailUrl!.isNotEmpty &&
+          !effectiveQuery.fallbackThumbnailUrl!.contains('/vi/placeholder/')) {
         return _renderDirectImage(
           context,
           effectiveQuery.fallbackThumbnailUrl!,
@@ -118,10 +124,21 @@ class MieeArtworkImage extends ConsumerWidget {
           effectiveQuery,
         );
       }
-      if (explicitUrl != null && explicitUrl!.isNotEmpty) {
+      if (explicitUrl != null &&
+          explicitUrl!.isNotEmpty &&
+          !explicitUrl!.contains('/vi/placeholder/')) {
         return _renderDirectImage(context, explicitUrl!, radius, effectiveQuery);
       }
       return _buildNeutralFallback(context, radius);
+    }
+
+    if (ArtworkCache.hasValidLocalFile(artwork.localCachedPath)) {
+      return _renderDirectImage(
+        context,
+        artwork.localCachedPath!,
+        radius,
+        effectiveQuery,
+      );
     }
 
     return _renderDirectImage(context, artwork.imageUrl, radius, effectiveQuery);
@@ -143,6 +160,7 @@ class MieeArtworkImage extends ConsumerWidget {
         width: width,
         height: height,
         fit: fit,
+        gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) {
           // If a maxres or sd thumbnail failed (e.g. HTTP 404), seamlessly retry with hqdefault
           if (pathOrUrl.contains('maxresdefault.jpg') || pathOrUrl.contains('sddefault.jpg')) {
@@ -154,6 +172,7 @@ class MieeArtworkImage extends ConsumerWidget {
               width: width,
               height: height,
               fit: fit,
+              gaplessPlayback: true,
               errorBuilder: (_, __, ___) {
                 return errorWidget ?? _buildNeutralFallback(context, radius);
               },
@@ -162,12 +181,16 @@ class MieeArtworkImage extends ConsumerWidget {
 
           // If query has a fallback thumbnail that differs from the failed path
           final secondary = query?.fallbackThumbnailUrl;
-          if (secondary != null && secondary.isNotEmpty && secondary != pathOrUrl) {
+          if (secondary != null &&
+              secondary.isNotEmpty &&
+              secondary != pathOrUrl &&
+              !secondary.contains('/vi/placeholder/')) {
             return Image.network(
               secondary,
               width: width,
               height: height,
               fit: fit,
+              gaplessPlayback: true,
               errorBuilder: (_, __, ___) {
                 return errorWidget ?? _buildNeutralFallback(context, radius);
               },
@@ -183,6 +206,7 @@ class MieeArtworkImage extends ConsumerWidget {
         width: width,
         height: height,
         fit: fit,
+        gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) {
           return errorWidget ?? _buildNeutralFallback(context, radius);
         },
@@ -203,6 +227,7 @@ class MieeArtworkImage extends ConsumerWidget {
         width: width,
         height: height,
         fit: fit,
+        gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) {
           return errorWidget ?? _buildNeutralFallback(context, radius);
         },

@@ -13,6 +13,7 @@ import '../../../core/audio/providers.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../shared/models/music_item.dart';
+import '../../artwork/presentation/miee_artwork_image.dart';
 import '../domain/playlist_model.dart';
 import '../providers/playlist_providers.dart';
 import 'widgets/add_songs_to_playlist_sheet.dart';
@@ -316,12 +317,12 @@ class _PlaylistDetailView extends ConsumerWidget {
     if (hasArtwork) {
       if (artworkUrl.startsWith('http')) {
         return SizedBox.expand(
-          child: Image.network(
-            artworkUrl,
+          child: MieeArtworkImage(
+            musicItem: playlist.tracks.isNotEmpty ? playlist.tracks.first : null,
+            explicitUrl: artworkUrl,
             fit: BoxFit.cover,
-            cacheWidth: 600,
-            cacheHeight: 600,
-            errorBuilder: (_, __, ___) => _defaultArtwork(),
+            borderRadius: BorderRadius.zero,
+            errorWidget: _defaultArtwork(),
           ),
         );
       } else {

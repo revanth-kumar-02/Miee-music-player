@@ -1,3 +1,4 @@
+import 'library_filter_policy.dart';
 import 'models.dart';
 
 /// Repository interface responsible for checking/requesting storage permissions,
@@ -23,4 +24,10 @@ abstract class MediaRepository {
 
   /// Organize discovered songs into parent folders.
   Future<List<MediaFolder>> getFolders({bool forceRefresh = false});
+
+  /// Read persisted user folder inclusion/exclusion preferences.
+  Future<LibraryFolderPreferences> getFolderPreferences();
+
+  /// Persist updated folder preferences and invalidate cached library scans.
+  Future<void> saveFolderPreferences(LibraryFolderPreferences preferences);
 }

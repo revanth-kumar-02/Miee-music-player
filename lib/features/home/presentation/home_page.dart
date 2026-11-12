@@ -2099,12 +2099,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
 
     if (hasHttpArt) {
-      artworkWidget = Image.network(
-        imageUrl,
+      artworkWidget = MieeArtworkImage(
+        explicitUrl: imageUrl,
         width: 54,
         height: 54,
+        borderRadius: BorderRadius.zero,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
+        errorWidget: Container(
           width: 54,
           height: 54,
           color: AppColors.softClay,
@@ -2328,12 +2329,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
     if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-      return Image.network(
-        rawUrl,
+      return MieeArtworkImage(
+        explicitUrl: rawUrl,
         fit: BoxFit.cover,
-        cacheWidth: 300,
-        cacheHeight: 300,
-        errorBuilder: (_, __, ___) => const Center(
+        borderRadius: BorderRadius.zero,
+        errorWidget: const Center(
           child: Icon(
             Icons.queue_music_rounded,
             size: 44,

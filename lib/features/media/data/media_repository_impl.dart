@@ -6,12 +6,15 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:hive/hive.dart';
 import '../../../core/storage/hive_boxes.dart';
+import '../domain/library_filter_policy.dart';
 import '../domain/media_repository.dart';
 import '../domain/models.dart';
 
 /// Concrete implementation of [MediaRepository] utilizing `on_audio_query`.
 class MediaRepositoryImpl implements MediaRepository {
+  static const String _kFolderPrefsKey = 'library_folder_preferences';
   final OnAudioQuery _audioQuery = OnAudioQuery();
+  final AudioLibraryFilter _filter = const AudioLibraryFilter();
 
   // In-memory cache lists to satisfy "Load once. Refresh only when requested."
   List<MediaSong>? _cachedSongs;
@@ -178,6 +181,7 @@ class MediaRepositoryImpl implements MediaRepository {
         return _cachedSongs!;
       }
 
+      final prefs = await getFolderPreferences();
       final box = Hive.box(HiveBoxes.preferences);
       final cachedData = box.get('scanned_songs');
       if (cachedData is List) {
@@ -188,8 +192,16 @@ class MediaRepositoryImpl implements MediaRepository {
             final castedMap = Map<String, dynamic>.from(item);
             final song = MediaSong.fromJson(castedMap);
             
-            // Check and exclude unknown/empty/whitespace-only artists
+            // Check and exclude unknown/empty/whitespace-only artists and excluded folders
             if (_isUnknownArtist(song.artist)) {
+              continue;
+            }
+            if (!_filter.shouldIncludeAudio(
+              filePath: song.filePath,
+              durationMs: song.durationMs,
+              artist: song.artist,
+              preferences: prefs,
+            )) {
               continue;
             }
 
@@ -249,20 +261,30 @@ class MediaRepositoryImpl implements MediaRepository {
       ignoreCase: true,
     );
 
+    final prefs = await getFolderPreferences();
     final List<MediaSong> songs = [];
     final Set<String> seenPaths = {};
 
     for (final song in rawSongs) {
-      // Exclude notification/alarm sounds, and enforce the 30-second limit
-      if (song.isNotification == true || song.isAlarm == true) continue;
-      if (song.duration != null && song.duration! < 30000) continue;
-
       final path = song.data;
-      if (path == null || path.isEmpty) continue;
+      if (path.isEmpty) continue;
       if (!seenPaths.add(path)) continue; // skip duplicates
 
       // Validate and exclude unknown artists globally
       if (_isUnknownArtist(song.artist)) continue;
+
+      if (!_filter.shouldIncludeAudio(
+        filePath: path,
+        isMusic: song.isMusic,
+        isNotification: song.isNotification,
+        isAlarm: song.isAlarm,
+        isRingtone: song.isRingtone,
+        durationMs: song.duration,
+        artist: song.artist,
+        preferences: prefs,
+      )) {
+        continue;
+      }
 
       final title = song.title.isEmpty ? 'Unknown Title' : song.title;
       final artistName = song.artist!;
@@ -552,5 +574,32 @@ class MediaRepositoryImpl implements MediaRepository {
 
     _cachedFolders = folders;
     return folders;
+  }
+
+  @override
+  Future<LibraryFolderPreferences> getFolderPreferences() async {
+    try {
+      final box = Hive.box<dynamic>(HiveBoxes.preferences);
+      final raw = box.get(_kFolderPrefsKey);
+      if (raw is Map) {
+        return LibraryFolderPreferences.fromJson(raw);
+      }
+    } catch (_) {}
+    return const LibraryFolderPreferences();
+  }
+
+  @override
+  Future<void> saveFolderPreferences(
+      LibraryFolderPreferences preferences) async {
+    _cachedSongs = null;
+    _cachedAlbums = null;
+    _cachedArtists = null;
+    _cachedGenres = null;
+    _cachedFolders = null;
+    try {
+      final box = Hive.box<dynamic>(HiveBoxes.preferences);
+      await box.put(_kFolderPrefsKey, preferences.toJson());
+      await box.delete('scanned_songs');
+    } catch (_) {}
   }
 }

@@ -719,8 +719,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
       } else if (_handler.isPlaying) {
         await _handler.fadeOutAndPause(
             duration: const Duration(milliseconds: 180));
-      } else {
-        await _handler.pause();
       }
     } catch (_) {}
 
@@ -1034,6 +1032,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
       _queueManager.disableShuffle();
     }
     state = state.copyWith(isShuffleEnabled: isShuffle);
+    await _handler.syncQueueOrder(
+      _queueManager.queue,
+      _queueManager.currentIndex,
+    );
     await _handler.setShuffleMode(
       isShuffle ? AudioServiceShuffleMode.all : AudioServiceShuffleMode.none,
     );
@@ -1098,6 +1100,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   void clearQueue() {
     _queueManager.clear();
+    unawaited(_handler.syncQueueOrder(const [], -1));
     try {
       _ref.read(queueStateRepositoryProvider).clear();
     } catch (_) {}

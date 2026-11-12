@@ -25,6 +25,19 @@ class ArtworkMatchValidator {
     'sped up',
   ];
 
+  /// Returns `true` when [artist] represents missing or placeholder metadata.
+  static bool isMissingArtist(String? artist) {
+    if (artist == null) return true;
+    final norm = normalize(artist);
+    if (norm.isEmpty) return true;
+    return norm == 'unknown' ||
+        norm == 'unknown artist' ||
+        norm == 'various' ||
+        norm == 'various artists' ||
+        norm == 'none' ||
+        norm == 'na';
+  }
+
   /// Validates whether a candidate track/album matches the target [query].
   ///
   /// Returns a confidence score between 0.0 and 1.0, or 0.0 if the match is rejected.
@@ -48,6 +61,10 @@ class ArtworkMatchValidator {
 
     final qTitleNorm = normalize(query.title);
     final cTitleNorm = normalize(candidateTitle);
+    if (qTitleNorm.isEmpty || cTitleNorm.isEmpty) {
+      return 0.0;
+    }
+
     final qArtistNorm = normalize(query.artist);
     final cArtistNorm = normalize(candidateArtist);
 
@@ -57,40 +74,7 @@ class ArtworkMatchValidator {
       return 0.0;
     }
 
-    // 3. Artist Matching:
-    // Check if primary artists match
-    final artistMatches = _matchArtist(qArtistNorm, cArtistNorm);
-    if (!artistMatches) {
-      return 0.0; // Strictly reject different artists even if song titles match!
-    }
-
-    // 4. Title Matching
-    final titleSimilarity = _calculateSimilarity(qTitleNorm, cTitleNorm);
-    if (titleSimilarity < 0.75) {
-      return 0.0;
-    }
-
-    // 5. Calculate final confidence
-    double confidence = 0.85;
-
-    // Boost if album matches
-    if (query.album != null &&
-        query.album!.trim().isNotEmpty &&
-        candidateAlbum != null &&
-        candidateAlbum.trim().isNotEmpty) {
-      final qAlbumNorm = normalize(query.album!);
-      final cAlbumNorm = normalize(candidateAlbum);
-      if (_calculateSimilarity(qAlbumNorm, cAlbumNorm) > 0.80) {
-        confidence = 0.95;
-      }
-    }
-
-    // Adjust for title similarity nuance
-    if (titleSimilarity > 0.95 && confidence < 0.95 && query.album == null) {
-      confidence = 0.90;
-    }
-
-    // Optional duration check if available (within 10 seconds difference)
+    // 3. Optional duration check if available (within 15 seconds difference)
     if (query.durationMs != null && candidateDurationMs != null) {
       final diff = (query.durationMs! - candidateDurationMs).abs();
       if (diff > 15000) {
@@ -99,11 +83,69 @@ class ArtworkMatchValidator {
       }
     }
 
+    // 4. Artist Matching (with controlled fallback when query artist is missing/unknown)
+    final missingQueryArtist = isMissingArtist(query.artist);
+    if (!missingQueryArtist) {
+      final artistMatches = _matchArtist(qArtistNorm, cArtistNorm);
+      if (!artistMatches) {
+        return 0.0; // Strictly reject different artists even if song titles match!
+      }
+    }
+
+    // 5. Title Matching
+    final titleSimilarity = _calculateSimilarity(qTitleNorm, cTitleNorm);
+    final minTitleSim = missingQueryArtist ? 0.85 : 0.75;
+    if (titleSimilarity < minTitleSim) {
+      return 0.0;
+    }
+
+    // Check album similarity if both are available
+    double albumSimilarity = 0.0;
+    final hasAlbum = query.album != null &&
+        query.album!.trim().isNotEmpty &&
+        candidateAlbum != null &&
+        candidateAlbum.trim().isNotEmpty;
+    if (hasAlbum) {
+      albumSimilarity = _calculateSimilarity(
+        normalize(query.album!),
+        normalize(candidateAlbum),
+      );
+    }
+
+    if (missingQueryArtist) {
+      // Without artist metadata, require either matching album or matching duration
+      // or an exact normalized title match to avoid unrelated false positives.
+      final hasDurationMatch = query.durationMs != null && candidateDurationMs != null;
+      if (albumSimilarity > 0.80) {
+        return 0.85;
+      }
+      if (titleSimilarity >= 0.95 && hasDurationMatch) {
+        return 0.80;
+      }
+      if (titleSimilarity >= 0.98) {
+        return 0.76;
+      }
+      return 0.0;
+    }
+
+    // 6. Calculate final confidence when artist matches
+    double confidence = 0.85;
+
+    // Boost if album matches
+    if (albumSimilarity > 0.80) {
+      confidence = 0.95;
+    }
+
+    // Adjust for title similarity nuance
+    if (titleSimilarity > 0.95 && confidence < 0.95 && query.album == null) {
+      confidence = 0.90;
+    }
+
     return confidence;
   }
 
   /// Normalizes a string by lowercasing, stripping punctuation, extra spaces,
-  /// and common release metadata words.
+  /// and common release metadata words while preserving Unicode scripts.
   static String normalize(String text) {
     var s = text.toLowerCase();
     // Remove content inside parenthesis or brackets
@@ -111,21 +153,30 @@ class ArtworkMatchValidator {
     s = s.replaceAll(RegExp(r'\[[^\]]*\]'), ' ');
     // Remove common featuring indicators
     s = s.replaceAll(RegExp(r'\b(feat|ft|featuring|with)\b.*'), ' ');
-    // Keep only alphanumeric characters and spaces
-    s = s.replaceAll(RegExp(r'[^a-z0-9\s]'), ' ');
+    // Collapse paired initials like "a. r. rahman" -> "ar rahman"
+    s = s.replaceAllMapped(
+      RegExp(r'\b([a-z])\.\s*([a-z])\.\s*'),
+      (m) => '${m[1]}${m[2]} ',
+    );
+    // Keep Unicode letters, combining marks (Indic vowels), digits, and spaces
+    s = s.replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\s]', unicode: true), ' ');
     // Collapse spaces
     s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
     return s;
   }
 
-  /// Checks if versions are compatible (e.g. neither has un-shared version tags).
+  /// Checks if versions are compatible using word-boundary matching.
   bool _isVersionCompatible(String titleA, String titleB) {
     final lowerA = titleA.toLowerCase();
     final lowerB = titleB.toLowerCase();
 
     for (final tag in _versionTags) {
-      final hasA = lowerA.contains(tag);
-      final hasB = lowerB.contains(tag);
+      final pattern = RegExp(
+        '(^|[^\\p{L}\\p{N}])${RegExp.escape(tag)}([^\\p{L}\\p{N}]|\$)',
+        unicode: true,
+      );
+      final hasA = pattern.hasMatch(lowerA);
+      final hasB = pattern.hasMatch(lowerB);
 
       // If one is a remix/live/acoustic and the other is not, they are NOT compatible
       if (hasA != hasB) {

@@ -67,17 +67,19 @@ class MainActivity : AudioServiceActivity() {
         wChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "updateNowPlaying" -> {
+                    val trackId = call.argument<String>("trackId")
                     val title = call.argument<String>("title")
                     val artist = call.argument<String>("artist")
                     val artPath = call.argument<String>("artworkPath")
                     val artUrl = call.argument<String>("artworkUrl")
+                    val audioFilePath = call.argument<String>("audioFilePath")
                     val isPlaying = call.argument<Boolean>("isPlaying") ?: false
                     val isFav = call.argument<Boolean>("isFavorited") ?: false
                     val progress = call.argument<Double>("progress") ?: 0.0
                     val positionMs = (call.argument<Number>("positionMs")?.toLong()) ?: 0L
                     val durationMs = (call.argument<Number>("durationMs")?.toLong()) ?: 0L
                     MieeWidgetManager.updateNowPlaying(
-                        this, title, artist, artPath, artUrl, isPlaying, isFav, progress, positionMs, durationMs
+                        this, trackId, title, artist, artPath, artUrl, audioFilePath, isPlaying, isFav, progress, positionMs, durationMs
                     )
                     result.success(true)
                 }

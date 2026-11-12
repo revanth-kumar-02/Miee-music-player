@@ -79,12 +79,16 @@ class ItunesMetadataService {
 
   /// Performs raw iTunes Search API query with parameters:
   /// `term`, `entity=song`, `media=music`, `limit`.
-  Future<List<ItunesSong>> searchSongs(String term, {int limit = 10}) async {
+  Future<List<ItunesSong>> searchSongs(
+    String term, {
+    int limit = 10,
+    bool forceRefresh = false,
+  }) async {
     final cleanTerm = term.trim();
     if (cleanTerm.isEmpty) return const [];
 
     final cacheKey = '${cleanTerm.toLowerCase()}_$limit';
-    if (_termSearchCache.containsKey(cacheKey)) {
+    if (!forceRefresh && _termSearchCache.containsKey(cacheKey)) {
       return _termSearchCache[cacheKey]!;
     }
 
@@ -144,13 +148,14 @@ class ItunesMetadataService {
     required String rawArtist,
     String? durationStr,
     String? album,
+    bool forceRefresh = false,
   }) async {
     final cacheKey = _buildMatchCacheKey(rawTitle, rawArtist, durationStr, album);
-    if (_matchCache.containsKey(cacheKey)) {
+    if (!forceRefresh && _matchCache.containsKey(cacheKey)) {
       return _matchCache[cacheKey]!;
     }
 
-    if (_inFlightMatches.containsKey(cacheKey)) {
+    if (!forceRefresh && _inFlightMatches.containsKey(cacheKey)) {
       return _inFlightMatches[cacheKey]!;
     }
 
@@ -159,6 +164,7 @@ class ItunesMetadataService {
       rawArtist: rawArtist,
       durationStr: durationStr,
       album: album,
+      forceRefresh: forceRefresh,
     ).whenComplete(() {
       _inFlightMatches.remove(cacheKey);
     });
@@ -179,6 +185,7 @@ class ItunesMetadataService {
     required String rawArtist,
     String? durationStr,
     String? album,
+    bool forceRefresh = false,
   }) async {
     // 1. Initial cleanup using universal YouTube metadata cleaner
     final cleaned = YouTubeMetadataCleaner.clean(
@@ -204,11 +211,11 @@ class ItunesMetadataService {
     }
 
     // 4. Query iTunes
-    var candidates = await searchSongs(primaryTerm, limit: 8);
+    var candidates = await searchSongs(primaryTerm, limit: 8, forceRefresh: forceRefresh);
 
     // If no candidates and term had both title & artist, try title alone
     if (candidates.isEmpty && primaryTerm != queryTitle && queryTitle.isNotEmpty) {
-      candidates = await searchSongs(queryTitle, limit: 6);
+      candidates = await searchSongs(queryTitle, limit: 6, forceRefresh: forceRefresh);
     }
 
     if (candidates.isEmpty) {
@@ -280,14 +287,18 @@ class ItunesMetadataService {
     }
 
     // 3. Artist Matching
+    final missingArtist = ArtworkMatchValidator.isMissingArtist(queryArtist);
     final artistSim = _calculateArtistSimilarity(normQueryArtist, normCandArtist);
-    if (artistSim < 0.60) {
+    if (!missingArtist && artistSim < 0.60) {
       // Check if candidate artist appears in the query title (common in movie/soundtrack tracks)
       final candInTitle = normQueryTitle.contains(normCandArtist) ||
           normCandArtist.split(' ').any((t) => t.length > 3 && normQueryTitle.contains(t));
       if (!candInTitle) {
         return (score: 0.0, reason: 'Artist mismatch ("$normQueryArtist" vs "$normCandArtist")');
       }
+    }
+    if (missingArtist && titleSim < 0.85) {
+      return (score: 0.0, reason: 'Missing artist requires high title similarity (${titleSim.toStringAsFixed(2)})');
     }
 
     // 4. Duration Check
@@ -423,8 +434,12 @@ class ItunesMetadataService {
     final cLower = candidateTitle.toLowerCase();
 
     for (final tag in _specializedVersionTags) {
-      final qHas = qLower.contains(tag);
-      final cHas = cLower.contains(tag);
+      final pattern = RegExp(
+        '(^|[^\\p{L}\\p{N}])${RegExp.escape(tag)}([^\\p{L}\\p{N}]|\$)',
+        unicode: true,
+      );
+      final qHas = pattern.hasMatch(qLower);
+      final cHas = pattern.hasMatch(cLower);
       if (qHas != cHas) {
         return false;
       }

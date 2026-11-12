@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/media_repository_impl.dart';
+import '../domain/library_filter_policy.dart';
 import '../domain/media_repository.dart';
 import '../domain/models.dart';
 
@@ -110,6 +111,41 @@ class MediaLibraryService extends StateNotifier<MediaLibraryState> {
         errorMessage: 'An error occurred during scan: $e',
       );
     }
+  }
+
+  Future<LibraryFolderPreferences> getFolderPreferences() =>
+      _repository.getFolderPreferences();
+
+  Future<void> updateFolderPreferences(
+      LibraryFolderPreferences preferences) async {
+    await _repository.saveFolderPreferences(preferences);
+    await scanDevice(forceRefresh: true);
+  }
+
+  Future<void> includeFolder(String folderPath) async {
+    final normalized =
+        LibraryFolderPreferences.normalizeFolderPath(folderPath);
+    if (normalized.isEmpty) return;
+    final current = await _repository.getFolderPreferences();
+    final updated = current.copyWith(
+      includedFolders: {...current.includedFolders, normalized},
+      excludedFolders:
+          current.excludedFolders.where((f) => f != normalized).toSet(),
+    );
+    await updateFolderPreferences(updated);
+  }
+
+  Future<void> excludeFolder(String folderPath) async {
+    final normalized =
+        LibraryFolderPreferences.normalizeFolderPath(folderPath);
+    if (normalized.isEmpty) return;
+    final current = await _repository.getFolderPreferences();
+    final updated = current.copyWith(
+      excludedFolders: {...current.excludedFolders, normalized},
+      includedFolders:
+          current.includedFolders.where((f) => f != normalized).toSet(),
+    );
+    await updateFolderPreferences(updated);
   }
 }
 
