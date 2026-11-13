@@ -1,19 +1,22 @@
 import 'indic_transliterator.dart';
+import 'lyrics_title_normalizer.dart';
 
 /// Represents a targeted query candidate for lyrics providers (such as LRCLIB).
 class SearchCandidate {
   final String trackName;
   final String artistName;
+  final String? albumName;
   final String description;
 
   const SearchCandidate({
     required this.trackName,
     this.artistName = '',
+    this.albumName,
     required this.description,
   });
 
   @override
-  String toString() => '$description: "$trackName" (artist: "$artistName")';
+  String toString() => '$description: "$trackName" (artist: "$artistName", album: "$albumName")';
 
   @override
   bool operator ==(Object other) =>
@@ -21,20 +24,24 @@ class SearchCandidate {
       other is SearchCandidate &&
           runtimeType == other.runtimeType &&
           trackName.toLowerCase() == other.trackName.toLowerCase() &&
-          artistName.toLowerCase() == other.artistName.toLowerCase();
+          artistName.toLowerCase() == other.artistName.toLowerCase() &&
+          (albumName ?? '').toLowerCase() == (other.albumName ?? '').toLowerCase();
 
   @override
-  int get hashCode => trackName.toLowerCase().hashCode ^ artistName.toLowerCase().hashCode;
+  int get hashCode =>
+      trackName.toLowerCase().hashCode ^
+      artistName.toLowerCase().hashCode ^
+      (albumName ?? '').toLowerCase().hashCode;
 }
 
-/// Universal, language-aware query candidate builder for song lyrics.
+/// Universal, multi-stage language-aware query candidate builder for song lyrics.
 ///
-/// Handles:
-/// - English, Tamil, Telugu, Malayalam, Hindi, Kannada, and other multilingual tracks.
-/// - Bilingual parentheses (e.g. "Kannaana Kanney (கண்ணான கண்ணே)").
-/// - Delimited clauses (e.g. "Arabic Kuthu - Video Song | Beast | Sun TV").
-/// - Uploader channels and record labels filtering (e.g. "Sony Music South", "Sun TV").
-/// - Phonetic Indic transliteration fallbacks for native script titles.
+/// Implements the structured multi-stage matching sequence:
+/// 1. Exact original title + artist.
+/// 2. Normalized title + artist (stripping resolution tags like 8K/4K/HD, video tags, etc.).
+/// 3. Normalized title + album + artist.
+/// 4. Alternative title variants (e.g. parenthetical titles, multi-clause titles).
+/// 5. Clean title only / Transliterated title fallbacks.
 class LyricsSearchQueryBuilder {
   static const _channelKeywords = [
     'sony music',
@@ -61,22 +68,27 @@ class LyricsSearchQueryBuilder {
   static List<SearchCandidate> buildCandidates({
     required String title,
     required String artist,
+    String? album,
     String? rawTitle,
   }) {
     final candidates = <SearchCandidate>[];
     final seen = <String>{};
 
-    void addCandidate(String t, String a, String desc) {
-      final cleanT = _normalizeWhitespace(_stripInvisibleChars(t));
-      final cleanA = _normalizeWhitespace(_stripInvisibleChars(a));
+    void addCandidate(String t, String a, String desc, {String? alb}) {
+      final cleanT = LyricsTitleNormalizer.normalizeWhitespace(LyricsTitleNormalizer.stripInvisibleChars(t));
+      final cleanA = LyricsTitleNormalizer.normalizeWhitespace(LyricsTitleNormalizer.stripInvisibleChars(a));
+      final cleanAlb = alb != null
+          ? LyricsTitleNormalizer.normalizeWhitespace(LyricsTitleNormalizer.stripInvisibleChars(alb))
+          : null;
       if (cleanT.isEmpty) return;
 
-      final key = '${cleanT.toLowerCase()}|${cleanA.toLowerCase()}';
+      final key = '${cleanT.toLowerCase()}|${cleanA.toLowerCase()}|${(cleanAlb ?? '').toLowerCase()}';
       if (!seen.add(key)) return;
 
       candidates.add(SearchCandidate(
         trackName: cleanT,
         artistName: cleanA,
+        albumName: cleanAlb?.isNotEmpty == true ? cleanAlb : null,
         description: desc,
       ));
     }
@@ -84,87 +96,72 @@ class LyricsSearchQueryBuilder {
     // Determine if artist is a known record label or uploader channel
     final isChannel = _isRecordLabelOrChannel(artist);
     final cleanArtist = isChannel ? '' : _cleanArtistName(artist);
+    final cleanAlbum = album?.trim().isNotEmpty == true ? album!.trim() : null;
 
-    // 1. Check for bilingual or alternate title inside parentheses: e.g. "Song (பாடல்)" or "பாடல் (Song)"
-    String outerTitle = title;
-    final parenTitles = <String>[];
-
-    final parenRegex = RegExp(r'\(([^)]+)\)|\[([^\]]+)\]');
-    final matches = parenRegex.allMatches(title);
-    for (final m in matches) {
-      final inside = (m.group(1) ?? m.group(2) ?? '').trim();
-      if (inside.isNotEmpty && !_isVideoNoise(inside)) {
-        // If it starts with 'From "' or 'from "', extract movie context
-        final fromMatch = RegExp(r'^(?:from\s+["\x27]?)([^"\x27\)]+)', caseSensitive: false).firstMatch(inside);
-        if (fromMatch == null) {
-          parenTitles.add(_stripVideoNoise(inside));
-        }
-      }
-    }
-
-    // Strip bracketed text to get clean outer title
-    outerTitle = outerTitle.replaceAll(parenRegex, ' ');
-    outerTitle = _stripVideoNoise(outerTitle);
-
-    // 2. Check for multi-clause title (e.g. "Song - Video | Movie | Singer")
-    String? firstClause;
-    if (outerTitle.contains('|') || outerTitle.contains('•') || outerTitle.contains('//') || outerTitle.contains(' - ') || outerTitle.contains(' – ')) {
-      final clauses = outerTitle
-          .split(RegExp(r'(\||•|\/\/|\s+[-–—]\s+)'))
-          .map(_stripVideoNoise)
-          .where((s) => s.isNotEmpty && !_isVideoNoise(s))
-          .toList();
-
-      if (clauses.isNotEmpty) {
-        firstClause = clauses.first;
-      }
-    }
-
-    final primarySongTitle = (firstClause != null && firstClause.isNotEmpty)
-        ? firstClause
-        : (outerTitle.isNotEmpty ? outerTitle : _stripVideoNoise(title));
-
-    // Priority 1: Primary song title with verified artist
+    // Stage 1: Exact original title + artist
+    final rawTrimmedTitle = LyricsTitleNormalizer.normalizeWhitespace(title);
     if (cleanArtist.isNotEmpty) {
-      addCandidate(primarySongTitle, cleanArtist, 'Primary (title + artist)');
+      addCandidate(rawTrimmedTitle, cleanArtist, 'Stage 1: Exact original title + artist');
     }
 
-    // Priority 2: Primary song title alone (crucial for YouTube tracks where artist tag is a channel/label)
-    addCandidate(primarySongTitle, '', 'Clean title only');
-
-    // Priority 3: Parenthetical alternate title (e.g. Romanized version of native title or vice-versa)
-    for (final alt in parenTitles) {
-      if (cleanArtist.isNotEmpty) {
-        addCandidate(alt, cleanArtist, 'Parenthetical title + artist');
-      }
-      addCandidate(alt, '', 'Parenthetical title only');
+    // Stage 2: Normalized title + artist
+    final normalizedTitle = LyricsTitleNormalizer.normalize(title);
+    if (cleanArtist.isNotEmpty && normalizedTitle.toLowerCase() != rawTrimmedTitle.toLowerCase()) {
+      addCandidate(normalizedTitle, cleanArtist, 'Stage 2: Normalized title + artist');
     }
 
-    // Priority 4: If title is in native Indic script (Tamil, Telugu, Malayalam, Hindi, Kannada, etc.),
-    // generate phonetic transliterated Latin title (LRCLIB indexes Indian tracks primarily by Latin names)
-    if (IndicTransliterator.hasIndicScript(primarySongTitle)) {
-      final transliterated = IndicTransliterator.transliterate(primarySongTitle);
-      if (transliterated.isNotEmpty && transliterated != primarySongTitle) {
+    // Stage 3: Normalized title + album + artist
+    if (cleanAlbum != null && cleanAlbum.isNotEmpty && cleanArtist.isNotEmpty) {
+      addCandidate(
+        normalizedTitle,
+        cleanArtist,
+        'Stage 3: Normalized title + album + artist',
+        alb: cleanAlbum,
+      );
+    }
+
+    // Stage 4: Alternative title variants (parenthetical, clauses)
+    final variants = LyricsTitleNormalizer.extractVariants(title);
+    for (final variant in variants) {
+      if (variant.toLowerCase() != normalizedTitle.toLowerCase() &&
+          variant.toLowerCase() != rawTrimmedTitle.toLowerCase()) {
         if (cleanArtist.isNotEmpty) {
-          addCandidate(transliterated, cleanArtist, 'Transliterated title + artist');
+          addCandidate(variant, cleanArtist, 'Stage 4: Alternative title variant + artist');
         }
-        addCandidate(transliterated, '', 'Transliterated title only');
+        addCandidate(variant, '', 'Stage 4: Alternative title variant only');
       }
     }
 
-    // Priority 5: If rawTitle was provided and differs meaningfully from current title
+    // Stage 5: Indic transliteration fallbacks (LRCLIB indexes Indian tracks primarily by Latin names)
+    if (IndicTransliterator.hasIndicScript(normalizedTitle)) {
+      final transliterated = IndicTransliterator.transliterate(normalizedTitle);
+      if (transliterated.isNotEmpty && transliterated.toLowerCase() != normalizedTitle.toLowerCase()) {
+        if (cleanArtist.isNotEmpty) {
+          addCandidate(transliterated, cleanArtist, 'Stage 5: Transliterated title + artist');
+        }
+        addCandidate(transliterated, '', 'Stage 5: Transliterated title only');
+      }
+    }
+
+    // Stage 6: Clean title only (crucial when artist is a channel or uploader)
+    addCandidate(normalizedTitle, '', 'Stage 6: Normalized title only');
+
+    // Stage 7: Raw title candidate if provided
     if (rawTitle != null && rawTitle.trim().isNotEmpty && rawTitle != title) {
-      final cleanRaw = _stripVideoNoise(rawTitle.replaceAll(parenRegex, ' '));
-      if (cleanRaw.isNotEmpty && cleanRaw != primarySongTitle) {
-        addCandidate(cleanRaw, cleanArtist, 'Raw title candidate');
+      final normRaw = LyricsTitleNormalizer.normalize(rawTitle);
+      if (normRaw.isNotEmpty && normRaw.toLowerCase() != normalizedTitle.toLowerCase()) {
+        if (cleanArtist.isNotEmpty) {
+          addCandidate(normRaw, cleanArtist, 'Stage 7: Raw title + artist');
+        }
+        addCandidate(normRaw, '', 'Stage 7: Raw title only');
       }
     }
 
-    return candidates.take(6).toList();
+    return candidates.take(8).toList();
   }
 
   static String _cleanArtistName(String artist) {
-    var a = _stripInvisibleChars(artist);
+    var a = LyricsTitleNormalizer.stripInvisibleChars(artist);
     a = a.replaceAll(RegExp(r'\b(topic|vevo|official)\b', caseSensitive: false), '');
     a = a.replaceAll(RegExp(r'\s+'), ' ').trim();
     return a;
@@ -173,36 +170,5 @@ class LyricsSearchQueryBuilder {
   static bool _isRecordLabelOrChannel(String artist) {
     final lower = artist.toLowerCase();
     return _channelKeywords.any((kw) => lower.contains(kw));
-  }
-
-  static bool _isVideoNoise(String s) {
-    final lower = s.toLowerCase();
-    return RegExp(
-      r'\b(official\s+music\s+video|official\s+video|official\s+audio|official|music\s+video|video|audio|lyric\s+video|lyrics|lyrical|visualizer|mv|hd|4k|4k\s+uhd|remastered|full\s+song|video\s+song|audio\s+song|full\s+video|teaser|trailer|promo)\b',
-      caseSensitive: false,
-    ).hasMatch(lower);
-  }
-
-  static String _stripVideoNoise(String title) {
-    var t = _stripInvisibleChars(title);
-    t = t.replaceAll(
-      RegExp(
-        r'\b(official\s+music\s+video|official\s+video|official\s+audio|music\s+video|lyric\s+video|lyrics|lyrical|visualizer|mv|hd|4k|4k\s+uhd|remastered|full\s+song|video\s+song|audio\s+song|full\s+video\s+song|full\s+video)\b',
-        caseSensitive: false,
-      ),
-      '',
-    );
-    // Strip trailing/leading punctuation, hyphens, and delimiters
-    t = t.replaceAll(RegExp(r'^[\s\-\–\—\|\:\/\•]+|[\s\-\–\—\|\:\/\•]+$'), '');
-    t = _normalizeWhitespace(t);
-    return t;
-  }
-
-  static String _stripInvisibleChars(String s) {
-    return s.replaceAll(RegExp(r'[\u200B-\u200D\uFEFF]'), '');
-  }
-
-  static String _normalizeWhitespace(String s) {
-    return s.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }

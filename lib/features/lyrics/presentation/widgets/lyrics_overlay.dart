@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,7 +85,7 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
     return lyricsAsync.when(
       data: (lyricsData) {
         if (lyricsData.isEmpty) {
-          return _buildEmptyState("No lyrics available for this song.");
+          return _buildEmptyState('No lyrics available for this song.');
         }
 
         final isSynced = lyricsData.isSynced;
@@ -168,7 +167,7 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.info_outline,
                             size: 13,
                             color: AppColors.mutedMauve,
@@ -257,8 +256,24 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => _buildEmptyState("Failed to load lyrics: $err"),
+      loading: () => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(height: 16.0),
+            Text(
+              'Searching lyrics...',
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.mutedMauve),
+            ),
+          ],
+        ),
+      ),
+      error: (err, _) => _buildErrorState(err),
     );
   }
 
@@ -268,14 +283,25 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.music_off_outlined,
+            Icons.lyrics_outlined,
             size: 48.0,
-            color: AppColors.onSurfaceVariant.withValues(alpha: 0.3),
+            color: AppColors.onSurfaceVariant.withValues(alpha: 0.35),
           ),
-          const SizedBox(height: 12.0),
+          const SizedBox(height: 14.0),
           Text(
             message,
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant),
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6.0),
+          Text(
+            'We checked multiple title variants and providers',
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.mutedMauve,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16.0),
@@ -283,6 +309,68 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
             onPressed: widget.onClose,
             child: const Text('Back to Player'),
           )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object err) {
+    final isNetwork = err.toString().toLowerCase().contains('socket') ||
+        err.toString().toLowerCase().contains('connect') ||
+        err.toString().toLowerCase().contains('timeout') ||
+        err.toString().toLowerCase().contains('network');
+
+    final title = isNetwork
+        ? 'Network Connection Issue'
+        : 'Lyrics Service Temporarily Unavailable';
+    final subtitle = isNetwork
+        ? 'Please check your internet connection and try again.'
+        : 'Could not connect to the lyrics service right now.';
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isNetwork ? Icons.wifi_off_outlined : Icons.cloud_off_outlined,
+            size: 48.0,
+            color: AppColors.onSurfaceVariant.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 14.0),
+          Text(
+            title,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Text(
+              subtitle,
+              style: AppTypography.labelSmall.copyWith(color: AppColors.mutedMauve),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16.0),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              OutlinedButton(
+                onPressed: () {
+                  ref.invalidate(lyricsProvider(widget.track));
+                },
+                child: const Text('Retry'),
+              ),
+              const SizedBox(width: 12.0),
+              TextButton(
+                onPressed: widget.onClose,
+                child: const Text('Back to Player'),
+              ),
+            ],
+          ),
         ],
       ),
     );

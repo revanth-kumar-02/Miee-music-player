@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'indic_transliterator.dart';
+import 'lyrics_title_normalizer.dart';
 
 /// Rigorous candidate validator to prevent false positives and verify that
 /// returned lyrics legitimately correspond to the active track.
@@ -133,12 +134,14 @@ class LyricsValidator {
   }
 
   static String _cleanTitle(String s) {
-    var str = s.toLowerCase();
+    // Run through LyricsTitleNormalizer first to strip resolution tags and video noise
+    final normalized = LyricsTitleNormalizer.normalize(s);
+    var str = normalized.toLowerCase();
     // Strip invisible characters
-    str = str.replaceAll(RegExp(r'[\u200B-\u200D\uFEFF]'), '');
+    str = LyricsTitleNormalizer.stripInvisibleChars(str);
     // Replace punctuation with space
     str = str.replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\s]', unicode: true), ' ');
-    str = str.replaceAll(RegExp(r'\s+'), ' ').trim();
+    str = LyricsTitleNormalizer.normalizeWhitespace(str);
     return str;
   }
 
@@ -149,7 +152,7 @@ class LyricsValidator {
     }
     // Strip "from <movie>"
     str = str.replaceAll(RegExp(r'\bfrom\s+[a-z0-9\s]+', caseSensitive: false), ' ');
-    str = str.replaceAll(RegExp(r'\s+'), ' ').trim();
+    str = LyricsTitleNormalizer.normalizeWhitespace(str);
     return str;
   }
 
