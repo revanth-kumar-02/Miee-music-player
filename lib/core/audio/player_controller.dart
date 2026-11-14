@@ -679,12 +679,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
                       verifiedCandidate.rawTitle ?? verifiedCandidate.title,
                   rawArtist: verifiedCandidate.rawChannelTitle ??
                       verifiedCandidate.channelTitle,
-                  duration:
-                      (track.duration.isNotEmpty && track.duration != '3:30')
-                          ? track.duration
-                          : (verifiedCandidate.duration.isNotEmpty
-                              ? verifiedCandidate.duration
-                              : track.duration),
+                  duration: (track.duration.isNotEmpty &&
+                          track.duration != '3:30' &&
+                          track.duration != '03:30' &&
+                          track.duration != '0:00' &&
+                          track.duration != '00:00')
+                      ? track.duration
+                      : (verifiedCandidate.duration.isNotEmpty
+                          ? verifiedCandidate.duration
+                          : track.duration),
                   imageUrl: (track.imageUrl.isNotEmpty &&
                           !track.imageUrl.contains('default'))
                       ? track.imageUrl
