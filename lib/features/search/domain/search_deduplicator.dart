@@ -31,6 +31,11 @@ enum EditType {
   promoTeaser, // promo, teaser, trailer, preview, promo video, glimpse
   documentaryMaking, // documentary, making of, behind the scenes, interview
   nonMusicEntertainment, // comedy clips, podcasts, talk shows, vlogs, reactions, gaming, sketches
+  karaokeVersion, // karaoke, backing track, sing along
+  coverSong, // covers, tributes, fan vocal versions
+  livePerformance, // live concert, tour, MTV live, acoustic live
+  instrumentalVersion, // instrumental, BGM, piano cover
+  unrequestedRemix, // unrequested remixes, club mixes
 }
 
 /// Configuration for view-count ranking, edit filtering, and candidate pruning.
@@ -71,6 +76,7 @@ class QueryIntent {
   final bool wantsAcoustic;
   final bool wantsCover;
   final bool wantsInstrumental;
+  final bool wantsKaraoke;
   final bool wantsMashup;
   final bool wantsAudioModified;
   final bool wantsPromo;
@@ -89,6 +95,7 @@ class QueryIntent {
     this.wantsAcoustic = false,
     this.wantsCover = false,
     this.wantsInstrumental = false,
+    this.wantsKaraoke = false,
     this.wantsMashup = false,
     this.wantsAudioModified = false,
     this.wantsPromo = false,
@@ -100,56 +107,67 @@ class QueryIntent {
       return const QueryIntent(normalizedQuery: '');
     }
     final q = rawQuery.toLowerCase();
+    bool hasWord(String w) => RegExp(r'\b' + RegExp.escape(w) + r'\b', caseSensitive: false).hasMatch(q);
+
+    final wantsKaraoke = hasWord('karaoke') || q.contains('sing along') || q.contains('backing track');
+    final wantsInstrumental = hasWord('instrumental') || hasWord('bgm') || wantsKaraoke;
+
     return QueryIntent(
       normalizedQuery: q,
-      wants4kEdit: q.contains('4k') || q.contains('edit'),
+      wants4kEdit: q.contains('4k') && (hasWord('edit') || hasWord('status') || hasWord('video')),
       wantsFanEdit: q.contains('fan edit') ||
           q.contains('edit audio') ||
-          q.contains('amv') ||
-          q.contains('edit'),
-      wantsSlowed: q.contains('slowed') ||
-          q.contains('reverb') ||
+          hasWord('amv') ||
+          (hasWord('edit') && !hasWord('radio edit')),
+      wantsSlowed: hasWord('slowed') ||
+          hasWord('reverb') ||
           q.contains('slow down') ||
-          q.contains('slow') ||
-          q.contains('reverse'),
+          hasWord('reverse'),
       wantsSpedUp: q.contains('sped up') ||
           q.contains('speed up') ||
-          q.contains('nightcore') ||
-          q.contains('speedup'),
-      wantsStatus: q.contains('status') ||
-          q.contains('shorts') ||
-          q.contains('short') ||
-          q.contains('reels'),
-      wantsCompilation: q.contains('jukebox') ||
+          hasWord('nightcore') ||
+          hasWord('speedup'),
+      wantsStatus: hasWord('status') ||
+          hasWord('shorts') ||
+          hasWord('short') ||
+          hasWord('reels'),
+      wantsCompilation: hasWord('jukebox') ||
           q.contains('non stop') ||
-          q.contains('nonstop') ||
-          q.contains('mix') ||
-          q.contains('compilation'),
-      wantsRemix: q.contains('remix') ||
+          hasWord('nonstop') ||
+          hasWord('compilation') ||
+          q.contains('all songs') ||
+          q.contains('full album'),
+      wantsRemix: hasWord('remix') ||
           q.contains('club mix') ||
-          q.contains('vip mix'),
-      wantsLive:
-          q.contains('live') || q.contains('concert') || q.contains('tour'),
-      wantsAcoustic: q.contains('acoustic') || q.contains('unplugged'),
-      wantsCover: q.contains('cover') || q.contains('tribute'),
-      wantsInstrumental: q.contains('instrumental') || q.contains('karaoke'),
-      wantsMashup: q.contains('mashup') ||
-          q.contains('crossover') ||
+          q.contains('vip mix') ||
+          q.contains('dance mix'),
+      wantsLive: hasWord('live') ||
+          hasWord('concert') ||
+          hasWord('tour') ||
+          q.contains('unplugged') ||
+          q.contains('mtv live'),
+      wantsAcoustic: hasWord('acoustic') || q.contains('unplugged'),
+      wantsCover: hasWord('cover') || hasWord('tribute'),
+      wantsInstrumental: wantsInstrumental,
+      wantsKaraoke: wantsKaraoke,
+      wantsMashup: hasWord('mashup') ||
+          hasWord('crossover') ||
           q.contains(' x ') ||
           q.contains(' vs ') ||
-          q.contains('remake'),
-      wantsAudioModified: q.contains('bass') ||
-          q.contains('8d') ||
-          q.contains('boosted') ||
-          q.contains('atmos'),
-      wantsPromo: q.contains('promo') ||
-          q.contains('teaser') ||
-          q.contains('trailer') ||
-          q.contains('preview'),
-      wantsDocumentary: q.contains('documentary') ||
+          hasWord('remake'),
+      wantsAudioModified: hasWord('bass') ||
+          hasWord('8d') ||
+          hasWord('boosted') ||
+          hasWord('atmos'),
+      wantsPromo: hasWord('promo') ||
+          hasWord('teaser') ||
+          hasWord('trailer') ||
+          hasWord('preview') ||
+          hasWord('glimpse'),
+      wantsDocumentary: hasWord('documentary') ||
           q.contains('making of') ||
-          q.contains('interview') ||
-          q.contains('bts'),
+          hasWord('interview') ||
+          hasWord('bts'),
     );
   }
 }
@@ -919,6 +937,23 @@ class SearchDeduplicator {
   static bool _isVerifiedArtist(String rawChannel) {
     if (_isOfficialMusicLabel(rawChannel)) return true;
     final lower = rawChannel.toLowerCase().trim();
+
+    // Fan and derivative indicators disqualify official status
+    const fanIndicators = [
+      'fan', 'editz', 'edits', 'status', 'reels', 'shorts', 'update', 'updates',
+      'army', 'club', 'cover', 'tribute', 'lyrics', 'zone', 'vibes', 'creation',
+      'beatz', 'beats', 'mashup', 'remix', 'world', 'hub', 'unplugged', 'scene',
+    ];
+    for (final fi in fanIndicators) {
+      if (RegExp(r'\b' + RegExp.escape(fi) + r'\b').hasMatch(lower)) {
+        return false;
+      }
+    }
+
+    if (lower.endsWith(' - topic') || lower.endsWith(' topic') || lower.endsWith('vevo')) {
+      return true;
+    }
+
     final verified = [
       'dhanush',
       'anirudh ravichander',
@@ -950,13 +985,18 @@ class SearchDeduplicator {
       'adele',
       'billie eilish',
       'sanjay subrahmanyan',
+      'eagles',
+      'alan walker',
+      'she & him',
+      'she and him',
     ];
     for (final a in verified) {
       if (lower == a ||
-          lower.startsWith('$a ') ||
-          lower.endsWith(' $a') ||
           lower == '$a official' ||
-          lower.contains('$a vevo')) {
+          lower == '$a - official' ||
+          lower == 'official $a' ||
+          lower.contains('$a vevo') ||
+          lower == '$a - topic') {
         return true;
       }
     }
@@ -982,10 +1022,16 @@ class SearchDeduplicator {
         lower.contains('satyam') ||
         lower.contains('universal music') ||
         lower.contains('warner music') ||
+        lower.contains('warner records') ||
         lower.contains('atlantic records') ||
         lower.contains('columbia records') ||
         lower.contains('def jam') ||
         lower.contains('interscope') ||
+        lower.contains('republic records') ||
+        lower.contains('rca records') ||
+        lower.contains('capitol records') ||
+        lower.contains('epic records') ||
+        lower.contains('divo') ||
         lower.contains('sun tv') ||
         lower.contains('sun pictures') ||
         lower.contains('sun gemini') ||
@@ -1191,6 +1237,80 @@ class SearchDeduplicator {
     final channelLower =
         (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
     final collapsedTitle = rawTitle.replaceAll(RegExp(r'\s+'), '');
+    final versionInfo = _extractVersion(rawTitle, video.title);
+
+    // 0a. Karaoke detection (unless explicitly requested)
+    if (!intent.wantsKaraoke && !intent.wantsInstrumental) {
+      if (rawTitle.contains('karaoke') ||
+          rawTitle.contains('backing track') ||
+          rawTitle.contains('sing along') ||
+          collapsedTitle.contains('karaoke') ||
+          RegExp(r'[\(\[\{\|\-]\s*karaoke\b', caseSensitive: false).hasMatch(rawTitle) ||
+          channelLower.contains('karaoke')) {
+        return EditType.karaokeVersion;
+      }
+    }
+
+    // 0b. Cover detection (unless explicitly requested)
+    if (!intent.wantsCover) {
+      if (versionInfo.type == VersionType.cover ||
+          rawTitle.contains(' cover') ||
+          rawTitle.contains('(cover') ||
+          rawTitle.contains('[cover') ||
+          rawTitle.contains('cover by') ||
+          rawTitle.contains('acoustic cover') ||
+          rawTitle.contains('piano cover') ||
+          rawTitle.contains('guitar cover') ||
+          rawTitle.contains('tribute') ||
+          RegExp(r'[\(\[\{\|\-]\s*cover(\s+by)?\b', caseSensitive: false).hasMatch(rawTitle) ||
+          (channelLower.contains('cover') && !_isOfficialMusicLabel(channelLower))) {
+        return EditType.coverSong;
+      }
+    }
+
+    // 0c. Live performance detection (unless explicitly requested)
+    if (!intent.wantsLive) {
+      if (versionInfo.type == VersionType.live ||
+          rawTitle.contains('live at') ||
+          rawTitle.contains('live in') ||
+          rawTitle.contains('live on') ||
+          rawTitle.contains('live from') ||
+          rawTitle.contains('live concert') ||
+          rawTitle.contains('live performance') ||
+          rawTitle.contains('(live)') ||
+          rawTitle.contains('[live]') ||
+          RegExp(r'[\(\[\{\|\-]\s*live(\s+[^\)\]\}]+)?\s*[\)\]\}]', caseSensitive: false).hasMatch(rawTitle)) {
+        return EditType.livePerformance;
+      }
+    }
+
+    // 0d. Instrumental / BGM detection (unless explicitly requested)
+    if (!intent.wantsInstrumental && !intent.wantsKaraoke) {
+      if (versionInfo.type == VersionType.instrumental ||
+          rawTitle.contains('instrumental') ||
+          rawTitle.contains('(instrumental)') ||
+          rawTitle.contains('[instrumental]') ||
+          rawTitle.contains('bgm') ||
+          rawTitle.contains('(bgm)') ||
+          rawTitle.contains('[bgm]') ||
+          RegExp(r'[\(\[\{\|\-]\s*(instrumental|bgm)\b', caseSensitive: false).hasMatch(rawTitle)) {
+        return EditType.instrumentalVersion;
+      }
+    }
+
+    // 0e. Unrequested Remix detection (unless explicitly requested)
+    if (!intent.wantsRemix) {
+      if (versionInfo.type == VersionType.remix ||
+          rawTitle.contains(' remix') ||
+          rawTitle.contains('(remix') ||
+          rawTitle.contains('[remix') ||
+          rawTitle.contains('club mix') ||
+          rawTitle.contains('vip mix') ||
+          rawTitle.contains('dance mix') ||
+          RegExp(r'[\(\[\{\|\-]\s*remix\b', caseSensitive: false).hasMatch(rawTitle)) {
+        return EditType.unrequestedRemix;
+      }
+    }
 
     // 1. 4K edit / status check
     if (!intent.wants4kEdit) {
@@ -1497,14 +1617,16 @@ class SearchDeduplicator {
 
     final cleanTitle = _sanitizeText(video.title);
     final rawTitle = _sanitizeText(video.rawTitle ?? video.title);
-    final channel = _sanitizeText(video.rawChannelTitle ?? video.channelTitle);
-    final allText = '$cleanTitle $rawTitle $channel';
+    final channel = _normalizeArtist(video.channelTitle.isNotEmpty ? video.channelTitle : (video.rawChannelTitle ?? ''));
+    final rawChannel = _sanitizeText(video.rawChannelTitle ?? video.channelTitle);
+    final allText = '$cleanTitle $rawTitle $channel $rawChannel';
 
-    // 1. Exact match to query (including phonetic variants like radhima / radhimaa)
     final pQuery = _phoneticCollapse(normQuery);
     final pClean = _phoneticCollapse(cleanTitle);
     final pRaw = _phoneticCollapse(rawTitle);
+    final pChannel = _phoneticCollapse(channel);
 
+    // 1. Exact match to query on title
     if (cleanTitle == normQuery ||
         rawTitle == normQuery ||
         pClean == pQuery ||
@@ -1512,7 +1634,18 @@ class SearchDeduplicator {
       return 1.0;
     }
 
-    // 2. Title contains query phrase or query phrase contains title
+    // 2. Exact match to query on artist / channel (e.g. searching "She & Him", "Anirudh", "Coldplay")
+    if (channel == normQuery ||
+        pChannel == pQuery ||
+        rawChannel == normQuery ||
+        rawChannel.startsWith('$normQuery ') ||
+        rawChannel.endsWith(' $normQuery') ||
+        rawChannel.contains('${normQuery}vevo') ||
+        rawChannel.contains('$normQuery - topic')) {
+      return 0.95; // High relevance: song is by the queried artist!
+    }
+
+    // 3. Title contains query phrase or query phrase contains title
     if (cleanTitle.contains(normQuery) ||
         rawTitle.contains(normQuery) ||
         pClean.contains(pQuery) ||
@@ -1523,31 +1656,69 @@ class SearchDeduplicator {
       return 0.90;
     }
 
-    // 3. Token overlap
+    // 4. Token overlap with Stopword / Unrelated Artist suppression
     final qTokens = normQuery.split(' ').where((s) => s.isNotEmpty).toList();
     if (qTokens.isEmpty) return 1.0;
 
+    const stopWords = {
+      'she', 'he', 'him', 'her', 'it', 'they', 'them', 'me', 'my', 'you', 'your',
+      'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'up', 'about',
+      'a', 'an', 'the', 'and', 'or', 'but', 'is', 'am', 'are', 'was', 'were',
+      'be', 'been', 'being', 'song', 'songs', 'music', 'video', 'audio', 'track',
+    };
+
+    int nonStopTokensInQuery = 0;
+    int nonStopTokensMatched = 0;
     int titleTokensMatched = 0;
     int allTokensMatched = 0;
 
     for (final token in qTokens) {
       final pToken = _phoneticCollapse(token);
-      if (cleanTitle.contains(token) ||
+      final isStop = stopWords.contains(token);
+      if (!isStop) nonStopTokensInQuery++;
+
+      final inTitle = cleanTitle.contains(token) ||
           rawTitle.contains(token) ||
           pClean.contains(pToken) ||
-          pRaw.contains(pToken)) {
+          pRaw.contains(pToken);
+
+      final inAll = inTitle ||
+          allText.contains(token) ||
+          _phoneticCollapse(allText).contains(pToken);
+
+      if (inTitle) {
         titleTokensMatched++;
+        if (!isStop) nonStopTokensMatched++;
       }
-      if (allText.contains(token) ||
-          _phoneticCollapse(allText).contains(pToken)) {
+      if (inAll) {
         allTokensMatched++;
+        if (!isStop && !inTitle) nonStopTokensMatched++;
+      }
+    }
+
+    // If query has non-stopwords and none of them matched, relevance is near zero
+    if (nonStopTokensInQuery > 0 && nonStopTokensMatched == 0) {
+      return 0.05;
+    }
+
+    // If query consisted ONLY of stopwords (e.g. "She & Him"),
+    // but the candidate's channel does NOT match and its title merely matched isolated words:
+    if (nonStopTokensInQuery == 0) {
+      final channelMatches = channel.contains(pQuery) || pChannel.contains(pQuery);
+      if (!channelMatches && titleTokensMatched < qTokens.length) {
+        return 0.10; // Unrelated artist merely having the word "she" or "him"
       }
     }
 
     final titleRatio = titleTokensMatched / qTokens.length;
     final allRatio = allTokensMatched / qTokens.length;
 
-    // Weighted composite
+    // If candidate's artist matches at least part of the query, give higher artist weight
+    final artistMatched = channel.contains(pQuery) || pQuery.contains(channel);
+    if (artistMatched) {
+      return (allRatio * 0.70) + (titleRatio * 0.30);
+    }
+
     return (titleRatio * 0.75) + (allRatio * 0.25);
   }
 
@@ -1562,17 +1733,17 @@ class SearchDeduplicator {
     final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
     final channel = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
     final lang = MusicLanguageService.detectLanguage(rawTitle, artist: channel);
+    final intent = QueryIntent.fromQuery(query);
 
-    final isOfficialChannel = channel.contains('- topic') ||
-        channel.endsWith('topic') ||
-        channel.contains('vevo') ||
-        _isOfficialMusicLabel(channel) ||
-        _isVerifiedArtist(channel);
+    final isTopicChannel = channel.contains('- topic') || channel.endsWith('topic');
+    final isVevoChannel = channel.contains('vevo');
+    final isMajorLabel = _isOfficialMusicLabel(channel);
+    final isVerifiedArtistChannel = _isVerifiedArtist(channel);
+    final isOfficialChannel = isTopicChannel || isVevoChannel || isMajorLabel || isVerifiedArtistChannel;
 
     final isAlternateLanguage =
         lang != 'Unknown' && !query.toLowerCase().contains(lang.toLowerCase());
 
-    // If relevance is low, but it is an official release in another language (e.g. Telugu version)
     if (relevance < 0.25) {
       if (isOfficialChannel && isAlternateLanguage) {
         // Retain legitimate official multilingual version with baseline
@@ -1584,66 +1755,82 @@ class SearchDeduplicator {
     double score = relevance * 1000.0;
 
     // 1. Official channel bonus
-    if (channel.contains('- topic') || channel.endsWith('topic')) {
-      score += 250; // Official YouTube Music delivery
-    } else if (channel.contains('vevo')) {
-      score += 200; // Official VEVO
-    } else if (_isOfficialMusicLabel(channel)) {
-      score +=
-          220; // Official major music label (Think Music, Sony, T-Series, etc.)
-    } else if (_isVerifiedArtist(channel)) {
-      score +=
-          210; // Verified artist / composer channel (e.g. Dhanush, Anirudh)
-    } else if (channel.contains('official')) {
-      score += 80;
+    if (isTopicChannel) {
+      score += 350; // Official YouTube Music delivery (highest audio fidelity)
+    } else if (isVevoChannel) {
+      score += 320; // Official VEVO
+    } else if (isMajorLabel) {
+      score += 300; // Official major music label (Sony, T-Series, Think Music, etc.)
+    } else if (isVerifiedArtistChannel) {
+      score += 280; // Verified artist / composer official channel
+    } else if (channel.contains('official') && !channel.contains('fan')) {
+      score += 100;
     }
 
     // 2. Title upload signals (hierarchical ranking)
-    // Rank 1: Official original song / official music video
-    if (rawTitle.contains('official music video') ||
+    // Rank 1: Official original audio recording
+    if (rawTitle.contains('official audio')) {
+      score += 250;
+    } else if (rawTitle.contains('official music video') ||
         rawTitle.contains('official video') ||
         rawTitle.contains('(music video)') ||
         rawTitle.contains('[music video]') ||
         rawTitle.contains('music video') ||
         rawTitle.contains('video song')) {
-      score += 180;
-    } else if (rawTitle.contains('official audio')) {
-      score += 150; // Rank 2: Official audio
+      score += 220; // Rank 2: Official music video
     } else if (rawTitle.contains('official lyric video') ||
         rawTitle.contains('official visualizer') ||
         (rawTitle.contains('lyrical') && isOfficialChannel)) {
-      score += 130; // Rank 2: Official lyrical release
+      score += 180; // Rank 3: Official lyrical release
     } else if (rawTitle.contains('full video')) {
-      score += 100;
+      score += 120;
     } else if (rawTitle.contains('audio')) {
-      score += 30;
+      score += 40;
     }
 
-    // Rank 3: Official releases in other languages (Telugu, Hindi, etc.)
+    // Rank 4: Official releases in other languages (Telugu, Hindi, etc.)
     if (isOfficialChannel && isAlternateLanguage) {
       score += 220;
     }
 
-    // Rank 4: Legitimate version indicators (Remixes, acoustic, unplugged)
-    if (rawTitle.contains('remix') ||
-        rawTitle.contains('acoustic') ||
-        rawTitle.contains('unplugged')) {
-      score += 70;
+    // 3. Version type query alignment
+    final versionInfo = _extractVersion(rawTitle, video.title);
+    if (intent.wantsLive && (versionInfo.type == VersionType.live || rawTitle.contains('live'))) {
+      score += 600;
+    } else if (!intent.wantsLive && (versionInfo.type == VersionType.live || rawTitle.contains('live at') || rawTitle.contains('live in') || rawTitle.contains('concert'))) {
+      score -= 500;
     }
 
-    // 3. View count signal (logarithmic & relative)
+    if (intent.wantsRemix && (versionInfo.type == VersionType.remix || rawTitle.contains('remix'))) {
+      score += 600;
+    } else if (!intent.wantsRemix && (versionInfo.type == VersionType.remix || rawTitle.contains('remix'))) {
+      score -= 400;
+    }
+
+    if (intent.wantsCover && (versionInfo.type == VersionType.cover || rawTitle.contains('cover'))) {
+      score += 600;
+    } else if (!intent.wantsCover && (versionInfo.type == VersionType.cover || rawTitle.contains('cover'))) {
+      score -= 500;
+    }
+
+    if (intent.wantsInstrumental && (versionInfo.type == VersionType.instrumental || rawTitle.contains('instrumental') || rawTitle.contains('karaoke'))) {
+      score += 600;
+    } else if (!intent.wantsInstrumental && (versionInfo.type == VersionType.instrumental || rawTitle.contains('instrumental') || rawTitle.contains('karaoke'))) {
+      score -= 500;
+    }
+
+    if (intent.wants4kEdit && (rawTitle.contains('4k') || rawTitle.contains('edit'))) {
+      score += 600;
+    }
+
+    // 4. View count signal (strictly subordinate logarithmic tie-breaker)
     final views = parseViewCount(video);
     if (views != null && views > 0) {
-      final logScore = (math.log(views + 1) / math.ln10) * 14.0;
+      final logScore = (math.log(views + 1) / math.ln10) * 4.0;
       score += logScore;
-
-      if (maxViewsInResultSet > 0) {
-        final ratio = views / maxViewsInResultSet;
-        score += ratio * 55.0;
-      }
     }
 
-    // 4. Duration sanity
+    // 5. Duration sanity
     final durSec = _parseDurationSeconds(video.duration);
     if (durSec > 0) {
       if (durSec >= 75 && durSec <= 480) {
@@ -1655,28 +1842,30 @@ class SearchDeduplicator {
       }
     }
 
-    // Demote unofficial info, edit, status channels
+    // 6. Demote unofficial info, edit, status channels
     if (!isOfficialChannel) {
       if (channel.contains('info') ||
           channel.contains('editz') ||
           channel.contains('edits') ||
-          channel.contains('status')) {
+          channel.contains('status') ||
+          channel.contains('fan') ||
+          channel.contains('army') ||
+          channel.contains('vibes')) {
         score -= 400.0;
       }
     }
 
-    // 5. Derivative edit demotion
-    final intent = QueryIntent.fromQuery(query);
+    // 7. Derivative edit demotion
     final editType = detectEditType(video, intent);
     if (editType != EditType.none) {
-      score -= 400.0;
+      score -= 450.0;
     }
 
-    // 6. Fan lyric-only upload demotion compared to official
+    // 8. Fan lyric-only upload demotion compared to official
     if (rawTitle.contains('lyrics') &&
         !rawTitle.contains('official') &&
         !isOfficialChannel) {
-      score -= 100.0;
+      score -= 150.0;
     }
 
     return score;

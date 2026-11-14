@@ -243,6 +243,11 @@ class SearchNotifier extends StateNotifier<SearchState> {
             fromCache: fromCache,
             success: true,
           );
+          SearchDiagnostics().recordFirstResultRendered(reqId);
+          SearchDiagnostics().recordResultsDelivered(
+            reqId,
+            totalResults: youtube.length,
+          );
           state = state.copyWith(
             youtubeResults: youtube,
             isYouTubeLoading: false,

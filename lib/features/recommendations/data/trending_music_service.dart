@@ -209,7 +209,7 @@ class TrendingMusicService {
         imageUrl: imageUrl.isNotEmpty
             ? imageUrl
             : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop',
-        duration: '3:30',
+        duration: '',
         filePath: null, // Full stream resolved on demand; never force 30s preview
         rawTitle: title,
         rawArtist: artist,

@@ -151,5 +151,60 @@ void main() {
       expect(handler.mediaItem.value!.duration, equals(const Duration(minutes: 3, seconds: 45)),
           reason: 'Track B duration must not retain Track A 5:36 duration');
     });
+
+    test('6. Formatted placeholder variations (" 3:30 ", "03:30") are rejected from MediaItem.duration', () {
+      final handler = MieeAudioHandler();
+
+      final variants = [' 3:30 ', '03:30', '03:30 ', ' 03:30', '3:30\n', '0:00', '00:00'];
+      for (final v in variants) {
+        final track = Track(
+          id: 'test_variant_$v',
+          title: 'Kadhal En Kadhal',
+          artist: 'Dhanush',
+          duration: v,
+          imageUrl: '',
+          filePath: '',
+        );
+        final item = handler.trackToMediaItemForTesting(track);
+        expect(item.duration, isNull,
+            reason: 'Variant "$v" must be identified as placeholder and rejected');
+      }
+    });
+
+    test('7. Resolved container ground truth updates mediaItem even if mediaItem initially held old track', () {
+      final handler = MieeAudioHandler();
+
+      // Initial mediaItem points to old track
+      final oldItem = MediaItem(
+        id: 'old_track',
+        title: 'Old Song',
+        artist: 'Old Artist',
+        duration: const Duration(minutes: 3, seconds: 30),
+      );
+      handler.mediaItem.add(oldItem);
+
+      // Now set up active queue with new track
+      final newTrack = Track(
+        id: 'new_track_yt',
+        title: 'Kadhal En Kadhal - 8K',
+        artist: 'Dhanush',
+        duration: '',
+        imageUrl: '',
+        filePath: '',
+      );
+      handler.setQueueForTesting([newTrack], currentIndex: 0);
+
+      // Ground truth duration resolves (5:36)
+      handler.onDurationChangedForTesting(const Duration(minutes: 5, seconds: 36));
+
+      // MediaItem must now be updated with the active track (Kadhal En Kadhal - 8K) and 5:36!
+      final updated = handler.mediaItem.value;
+      expect(updated, isNotNull);
+      expect(updated!.id, equals('new_track_yt'));
+      expect(updated.title, equals('Kadhal En Kadhal - 8K'));
+      expect(updated.artist, equals('Dhanush'));
+      expect(updated.duration, equals(const Duration(minutes: 5, seconds: 36)),
+          reason: 'MediaItem must rebind to active track and real 5:36 duration');
+    });
   });
 }

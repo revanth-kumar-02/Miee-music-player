@@ -628,7 +628,7 @@ class RoomController extends StateNotifier<RoomState> {
         title: msg.trackTitle ?? 'Suggested Song',
         channelTitle: msg.trackArtist ?? 'Artist',
         thumbnailUrl: msg.trackImageUrl ?? '',
-        duration: '3:30',
+        duration: '',
         viewCount: '',
       );
     } else {
@@ -637,7 +637,7 @@ class RoomController extends StateNotifier<RoomState> {
         title: msg.trackTitle ?? 'Suggested Song',
         artist: msg.trackArtist ?? 'Artist',
         imageUrl: msg.trackImageUrl ?? '',
-        duration: '3:30',
+        duration: '',
       );
     }
   }

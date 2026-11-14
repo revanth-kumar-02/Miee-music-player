@@ -29,10 +29,10 @@ class SearchRepository {
   final ArtistRepository artistRepository;
   final ItunesMetadataService itunesMetadataService;
 
-  static const Duration _cacheTtl = Duration(minutes: 5);
-  static const int _maxCacheEntries = 50;
+  static const Duration _cacheTtl = Duration(minutes: 10);
+  static const int _maxCacheEntries = 100;
 
-  /// In-memory LRU cache for online search results with 5-minute TTL.
+  /// In-memory LRU cache for online search results with 10-minute TTL.
   final Map<String, _CachedSearchResults> _searchCache = {};
 
   /// In-flight deduplication to avoid redundant parallel network requests.
@@ -163,34 +163,9 @@ class SearchRepository {
     bool enrichSynchronously = false,
   }) async {
     final rawVideos = await youtubeRepository.search(clean);
-    List<YouTubeVideo> candidateList = rawVideos;
-
-    final lower = clean.toLowerCase();
-    final hasMusicWord = lower.contains('song') ||
-        lower.contains('songs') ||
-        lower.contains('audio') ||
-        lower.contains('music') ||
-        lower.contains('track') ||
-        lower.contains('soundtrack') ||
-        lower.contains('album') ||
-        lower.contains('ost');
-
-    // If query is a bare title or artist name (e.g. "Amaran", "Anirudh", "Vijay")
-    // and raw results yielded fewer than 15 validated songs, supplement with "$clean songs"
-    // to discover genuine music releases that YouTube's general video search demotes
-    if (!hasMusicWord && rawVideos.length < 15) {
-      try {
-        final songVideos = await youtubeRepository.search('$clean songs');
-        if (songVideos.isNotEmpty) {
-          final existingIds = rawVideos.map((v) => v.id).toSet();
-          final fresh = songVideos.where((v) => !existingIds.contains(v.id)).toList();
-          candidateList = [...rawVideos, ...fresh];
-        }
-      } catch (_) {}
-    }
 
     final ranked = SearchDeduplicator.deduplicateAndRank(
-      candidateList,
+      rawVideos,
       query: clean,
       config: config ?? const SearchRankingConfig(filterDerivativeEdits: true),
     );

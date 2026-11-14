@@ -138,7 +138,7 @@ class WebMusicDiscoverySource {
 
           final title = item['title'] as String? ?? '';
           final artist = item['artist'] as String? ?? '';
-          final durationStr = item['duration'] as String? ?? '3:30';
+          final durationStr = item['duration'] as String? ?? '';
           final thumb = item['thumbnailUrl'] as String? ??
               'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
 

@@ -798,7 +798,16 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         extra: 'newDurationMs=${duration.inMilliseconds}',
       );
       final current = mediaItem.value;
-      if (current != null) {
+      if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+        final activeTrack = _queue[_currentIndex];
+        if (current == null || current.id != activeTrack.id) {
+          debugPrint('[Playback] Duration resolved for active track "${activeTrack.title}": ${duration.inSeconds}s (was: ${current?.id})');
+          mediaItem.add(_trackToMediaItem(activeTrack, overrideDuration: duration));
+        } else if (current.duration != duration) {
+          debugPrint('[Playback] Duration resolved: ${duration.inSeconds}s (was: ${current.duration?.inSeconds}s)');
+          mediaItem.add(current.copyWith(duration: duration));
+        }
+      } else if (current != null) {
         debugPrint('[Playback] Duration resolved: ${duration.inSeconds}s (was: ${current.duration?.inSeconds}s)');
         if (current.duration != duration) {
           mediaItem.add(current.copyWith(duration: duration));
@@ -902,13 +911,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     // Ensure mediaItem duration is strictly synchronized with active player duration
     final activeDur = _player.duration;
     final currentItem = mediaItem.value;
-    if (activeDur != null &&
-        activeDur > Duration.zero &&
-        currentItem != null &&
-        currentItem.duration != activeDur) {
-      debugPrint(
-          '[Playback] Resynchronizing mediaItem duration in _pushPlaybackState: ${activeDur.inSeconds}s (was: ${currentItem.duration?.inSeconds}s)');
-      mediaItem.add(currentItem.copyWith(duration: activeDur));
+    if (activeDur != null && activeDur > Duration.zero) {
+      if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+        final activeTrack = _queue[_currentIndex];
+        if (currentItem == null || currentItem.id != activeTrack.id) {
+          debugPrint(
+              '[Playback] Updating mediaItem for active track in _pushPlaybackState: "${activeTrack.title}" (${activeDur.inSeconds}s)');
+          mediaItem.add(_trackToMediaItem(activeTrack, overrideDuration: activeDur));
+        } else if (currentItem.duration != activeDur) {
+          debugPrint(
+              '[Playback] Resynchronizing mediaItem duration in _pushPlaybackState: ${activeDur.inSeconds}s (was: ${currentItem.duration?.inSeconds}s)');
+          mediaItem.add(currentItem.copyWith(duration: activeDur));
+        }
+      } else if (currentItem != null && currentItem.duration != activeDur) {
+        mediaItem.add(currentItem.copyWith(duration: activeDur));
+      }
     }
 
     playbackState.add(
@@ -1821,31 +1838,43 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         _player.duration! > Duration.zero) {
       effectiveDuration = _player.duration;
     }
-    // 3. Genuine duration from track (excluding the placeholder '3:30', '03:30', '0:00', or '00:00')
-    else if (track.duration.isNotEmpty &&
-        track.duration != '3:30' &&
-        track.duration != '03:30' &&
-        track.duration != '0:00' &&
-        track.duration != '00:00') {
-      final parts = track.duration.split(':');
-      if (parts.length == 2) {
-        final m = int.tryParse(parts[0]) ?? 0;
-        final s = int.tryParse(parts[1]) ?? 0;
-        effectiveDuration = Duration(minutes: m, seconds: s);
-      } else if (parts.length == 3) {
-        final h = int.tryParse(parts[0]) ?? 0;
-        final m = int.tryParse(parts[1]) ?? 0;
-        final s = int.tryParse(parts[2]) ?? 0;
-        effectiveDuration = Duration(hours: h, minutes: m, seconds: s);
-      }
-    }
-    // 4. Fallback to active player duration if this is the current queue track
+    // 3. Fallback to active player duration if this is the current queue track
     else if (_player.duration != null &&
         _player.duration! > Duration.zero &&
         _currentIndex >= 0 &&
         _currentIndex < _queue.length &&
         _queue[_currentIndex].id == track.id) {
       effectiveDuration = _player.duration;
+    }
+    // 4. Genuine duration from track (excluding any placeholder '3:30', '03:30', '0:00', or '00:00')
+    else if (track.duration.trim().isNotEmpty) {
+      final rawDur = track.duration.trim();
+      final isPlaceholder = rawDur == '3:30' ||
+          rawDur == '03:30' ||
+          rawDur == '0:00' ||
+          rawDur == '00:00' ||
+          rawDur == '00:00:00' ||
+          rawDur.startsWith('3:30') ||
+          rawDur.startsWith('03:30');
+      if (!isPlaceholder) {
+        final parts = rawDur.split(':');
+        Duration? parsed;
+        if (parts.length == 2) {
+          final m = int.tryParse(parts[0]);
+          final s = int.tryParse(parts[1]);
+          if (m != null && s != null) parsed = Duration(minutes: m, seconds: s);
+        } else if (parts.length == 3) {
+          final h = int.tryParse(parts[0]);
+          final m = int.tryParse(parts[1]);
+          final s = int.tryParse(parts[2]);
+          if (h != null && m != null && s != null) parsed = Duration(hours: h, minutes: m, seconds: s);
+        }
+        if (parsed != null &&
+            parsed > Duration.zero &&
+            parsed != const Duration(minutes: 3, seconds: 30)) {
+          effectiveDuration = parsed;
+        }
+      }
     }
     // Note: If track duration is a placeholder or unknown, effectiveDuration remains null
     // until player ground truth is resolved. This prevents Android notification progress

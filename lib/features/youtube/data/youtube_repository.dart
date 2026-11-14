@@ -236,7 +236,7 @@ class YouTubeRepository {
 
             final durationStr = rel.duration != null
                 ? '${rel.duration!.inMinutes}:${(rel.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
-                : '3:30';
+                : '';
 
             final cleaned = YouTubeMetadataCleaner.clean(
               rawTitle: rel.title,
@@ -356,26 +356,6 @@ class YouTubeRepository {
             candidateVideos.add(candidate);
           }
         }
-
-        // Fetch additional candidates if early results contain mostly edits or fewer than 20 candidates
-        if (candidateVideos.length < 20 ||
-            SearchDeduplicator.hasHighEditRatio(candidateVideos, cleanQuery)) {
-          try {
-            final nextPage = await searchList.nextPage();
-            if (nextPage != null && nextPage.isNotEmpty) {
-              _activeSearchLists[cleanQuery] = nextPage;
-              for (final video in nextPage) {
-                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
-                  continue;
-                final candidate = _processVideo(video, cleanQuery);
-                if (MusicResultClassifier.isValidMusicTrack(candidate,
-                    query: cleanQuery)) {
-                  candidateVideos.add(candidate);
-                }
-              }
-            }
-          } catch (_) {}
-        }
       } else {
         // Page > 1 continuation:
         if (_activeSearchLists.containsKey(cleanQuery)) {
@@ -430,7 +410,7 @@ class YouTubeRepository {
 
     final durationStr = video.duration != null
         ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
-        : '3:30';
+        : '';
 
     final rawViews = video.engagement.viewCount;
     final viewCountStr = _formatViewCount(rawViews);
@@ -563,7 +543,7 @@ class YouTubeRepository {
 
       // Details metadata
       final detail = detailsMap[videoId];
-      String durationStr = '3:30';
+      String durationStr = '';
       String viewCountStr = '';
       int? viewsRaw;
 
@@ -665,14 +645,11 @@ class YouTubeRepository {
   Future<List<String>> getSuggestions(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return const [];
-    final yt = yte.YoutubeExplode();
     try {
-      return await yt.search.getQuerySuggestions(cleanQuery);
+      return await _yt.search.getQuerySuggestions(cleanQuery);
     } catch (e) {
       debugPrint('YouTubeRepository: Failed to fetch query suggestions: $e');
       return const [];
-    } finally {
-      yt.close();
     }
   }
 
@@ -729,9 +706,8 @@ class YouTubeRepository {
 
     // 2. Secondary: YoutubeExplode on native platforms
     if (candidates.isEmpty && !kIsWeb) {
-      final yt = yte.YoutubeExplode();
       try {
-        final searchResults = await yt.search.searchContent(
+        final searchResults = await _yt.search.searchContent(
           cleanQuery,
           filter: yte.TypeFilters.channel,
         );
@@ -761,8 +737,6 @@ class YouTubeRepository {
       } catch (e) {
         debugPrint(
             'YouTubeRepository: YoutubeExplode searchChannels error: $e');
-      } finally {
-        yt.close();
       }
     }
 
@@ -870,9 +844,8 @@ class YouTubeRepository {
     final playlists = <OnlinePlaylist>[];
 
     if (!kIsWeb) {
-      final yt = yte.YoutubeExplode();
       try {
-        final searchResults = await yt.search.searchContent(
+        final searchResults = await _yt.search.searchContent(
           cleanQuery,
           filter: yte.TypeFilters.playlist,
         );
@@ -896,8 +869,6 @@ class YouTubeRepository {
         }
       } catch (e) {
         debugPrint('YouTubeRepository: searchPlaylists error: $e');
-      } finally {
-        yt.close();
       }
     }
 

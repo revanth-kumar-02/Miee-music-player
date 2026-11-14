@@ -3,6 +3,7 @@ import 'package:Miee/features/search/domain/search_deduplicator.dart';
 import 'package:Miee/features/search/domain/search_state.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/features/media/domain/models.dart';
+import 'package:Miee/features/youtube/domain/music_result_classifier.dart';
 
 void main() {
   group('Miee — Song Search Quality & View-Count Filtering Specification Tests', () {

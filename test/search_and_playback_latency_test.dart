@@ -200,9 +200,9 @@ void main() {
 
       final results = await Future.wait([future1, future2]);
       expect(results[0].length, equals(results[1].length));
-      // With raw search + supplement, 1 query takes 2 calls to youtubeRepository.search.
-      // Two simultaneous calls must NOT trigger 4 calls.
-      expect(mockYt.searchCalls, equals(2),
+      // With single-batch search optimization, 1 query makes exactly 1 network search.
+      // Two simultaneous in-flight calls must share the future and make exactly 1 call, not 2.
+      expect(mockYt.searchCalls, equals(1),
           reason: 'Concurrent in-flight searches for identical query must share a single future');
     });
   });
@@ -239,8 +239,8 @@ void main() {
       expect(state.query, equals('kadhal'));
       expect(state.youtubeResults.isNotEmpty, isTrue);
       expect(state.youtubeResults.first.title.contains('kadhal'), isTrue);
-      // Earlier keystrokes were cancelled; only final debounced query fires live suggestions (1 call) + main search (2 calls)
-      expect(mockYt.searchCalls, equals(3),
+      // Earlier keystrokes were cancelled; only final debounced query fires live suggestions (1 call) + main search (1 call)
+      expect(mockYt.searchCalls, equals(2),
           reason: 'Only the final debounced query should execute network search');
 
       container.dispose();

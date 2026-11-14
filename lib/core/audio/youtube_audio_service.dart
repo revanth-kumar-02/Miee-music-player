@@ -372,7 +372,7 @@ class YouTubeAudioService {
                     title: title,
                     channelTitle: artist,
                     thumbnailUrl: '',
-                    duration: '3:30',
+                    duration: '',
                     viewCount: '',
                     rawTitle: title,
                     rawChannelTitle: artist,
@@ -404,7 +404,7 @@ class YouTubeAudioService {
             thumbnailUrl: video.thumbnails.highResUrl,
             duration: video.duration != null
                 ? '${video.duration!.inMinutes}:${(video.duration!.inSeconds % 60).toString().padLeft(2, '0')}'
-                : '3:30',
+                : '',
             viewCount: '',
             rawTitle: video.title,
             rawChannelTitle: video.author,
