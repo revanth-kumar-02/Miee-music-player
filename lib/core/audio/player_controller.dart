@@ -187,6 +187,29 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _durationSub = _handler.durationStream.listen((dur) {
       if (dur != null && dur > Duration.zero) {
         state = state.copyWith(duration: dur);
+        // Also ensure currentTrack model has the updated duration string
+        if (state.currentTrack != null) {
+          final formatted =
+              '${dur.inMinutes}:${(dur.inSeconds % 60).toString().padLeft(2, '0')}';
+          final curr = state.currentTrack!;
+          if (curr.duration != formatted) {
+            if (curr is Track) {
+              final updated = curr.copyWith(duration: formatted);
+              state = state.copyWith(currentTrack: updated);
+              final idx = _queueManager.currentIndex;
+              if (idx >= 0 && idx < _queueManager.queue.length) {
+                _queueManager.replaceTrackAt(idx, updated);
+              }
+            } else if (curr is YouTubeVideo) {
+              final updated = curr.copyWith(duration: formatted);
+              state = state.copyWith(currentTrack: updated);
+              final idx = _queueManager.currentIndex;
+              if (idx >= 0 && idx < _queueManager.queue.length) {
+                _queueManager.replaceTrackAt(idx, updated);
+              }
+            }
+          }
+        }
       }
     });
 
@@ -214,10 +237,29 @@ class PlayerController extends StateNotifier<PlaybackState> {
             (t) => t.id == mediaItem.id || _normalizeTrackId(t.id) == targetId);
         if (index >= 0) {
           _queueManager.setIndex(index);
-          state = state.copyWith(currentTrack: queueList[index]);
+          var track = queueList[index];
+          if (mediaItem.duration != null && mediaItem.duration! > Duration.zero) {
+            final formatted =
+                '${mediaItem.duration!.inMinutes}:${(mediaItem.duration!.inSeconds % 60).toString().padLeft(2, '0')}';
+            if (track.duration != formatted) {
+              if (track is Track) {
+                track = track.copyWith(duration: formatted);
+                _queueManager.replaceTrackAt(index, track);
+              } else if (track is YouTubeVideo) {
+                track = track.copyWith(duration: formatted);
+                _queueManager.replaceTrackAt(index, track);
+              }
+            }
+          }
+          state = state.copyWith(
+            currentTrack: track,
+            duration: (mediaItem.duration != null && mediaItem.duration! > Duration.zero)
+                ? mediaItem.duration
+                : state.duration,
+          );
           _persistQueueSnapshot();
-          _recordRecentlyPlayed(queueList[index]);
-          _analyticsTracker.onTrackChanged(queueList[index]);
+          _recordRecentlyPlayed(track);
+          _analyticsTracker.onTrackChanged(track);
           unawaited(expandQueueIfNeeded());
         }
       }
@@ -707,17 +749,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
       isYoutube: track.isYoutube,
     );
 
-    // Smoothly fade out active audio so Song A fades out cleanly (<180ms)
-    // while Song B is resolving over the network, without tearing down the foreground service.
-    try {
-      if (kIsWeb) {
-        await _handler.pause();
-      } else if (_handler.isPlaying) {
-        await _handler.fadeOutAndPause(
-            duration: const Duration(milliseconds: 180));
-      }
-    } catch (_) {}
-
     final isOnline = track.isYoutube || kIsWeb;
     final isSameTrack = state.currentTrack != null &&
         isSameTrackId(state.currentTrack!.id, track.id);
@@ -728,7 +759,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
                 ? _handler.lastValidPosition
                 : Duration.zero));
 
-    // 1. Immediately update UI state with selected track and loading status
+    // 1. Immediately update UI state with selected track and loading status for instant feedback (<15ms)
     state = state.copyWith(
       status: PlaybackStatus.loading,
       currentTrack: track,
@@ -740,8 +771,21 @@ class PlayerController extends StateNotifier<PlaybackState> {
     );
     PlaybackDiagnostics().recordSelectedTrackUpdated(track.id);
 
+    // 2. Concurrently fade out active audio with a snappy 60ms duration while resolving source in parallel
+    final fadeOutFuture = () async {
+      try {
+        if (kIsWeb) {
+          await _handler.pause();
+        } else if (_handler.isPlaying) {
+          await _handler.fadeOutAndPause(
+              duration: const Duration(milliseconds: 60));
+        }
+      } catch (_) {}
+    }();
+
     try {
       final resolvedTrack = await _resolveSource(track);
+      await fadeOutFuture;
       if (token != _playRequestToken) {
         debugLog(
             '[Playback] Superseded by newer track selection (token $token vs $_playRequestToken)');
@@ -858,6 +902,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   MediaSong? _findLocalVersion(String title, String artist) {
     try {
       final localSongs = _ref.read(songsProvider);
+      if (localSongs.isEmpty) return null;
       final cleanTitle = title.trim().toLowerCase();
       final cleanArtist = artist.trim().toLowerCase();
       for (final song in localSongs) {

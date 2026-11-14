@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../shared/models/music_item.dart';
 import '../../shared/models/track.dart';
 import '../../features/media/domain/models.dart';
+import '../../features/youtube/domain/youtube_model.dart';
 import '../../features/youtube/data/web_music_discovery_source.dart';
 import 'youtube_audio_service.dart';
 import 'playback_diagnostics.dart';
@@ -659,16 +660,34 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   void _onDurationChanged(Duration? duration) {
-    if (duration != null) {
+    if (duration != null && duration > Duration.zero) {
       _logDiagnosticTransition(
         'DURATION_CHANGED',
         extra: 'newDurationMs=${duration.inMilliseconds}',
       );
-    }
-    final current = mediaItem.value;
-    if (current != null && duration != null) {
-      debugPrint('[Playback] Duration resolved: ${duration.inSeconds}s');
-      mediaItem.add(current.copyWith(duration: duration));
+      final current = mediaItem.value;
+      if (current != null) {
+        debugPrint('[Playback] Duration resolved: ${duration.inSeconds}s (was: ${current.duration?.inSeconds}s)');
+        if (current.duration != duration) {
+          mediaItem.add(current.copyWith(duration: duration));
+        }
+      } else if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+        mediaItem.add(_trackToMediaItem(_queue[_currentIndex], overrideDuration: duration));
+      }
+
+      // Synchronize active track in _queue with the real ground-truth duration
+      if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+        final currentTrack = _queue[_currentIndex];
+        final formatted = '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+        if (currentTrack.duration != formatted) {
+          if (currentTrack is Track) {
+            _queue[_currentIndex] = currentTrack.copyWith(duration: formatted);
+          } else if (currentTrack is YouTubeVideo) {
+            _queue[_currentIndex] = currentTrack.copyWith(duration: formatted);
+          }
+        }
+      }
+      _pushPlaybackState();
     }
   }
 
@@ -746,6 +765,18 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       MediaAction.skipToPrevious,
       MediaAction.stop,
     };
+
+    // Ensure mediaItem duration is strictly synchronized with active player duration
+    final activeDur = _player.duration;
+    final currentItem = mediaItem.value;
+    if (activeDur != null &&
+        activeDur > Duration.zero &&
+        currentItem != null &&
+        currentItem.duration != activeDur) {
+      debugPrint(
+          '[Playback] Resynchronizing mediaItem duration in _pushPlaybackState: ${activeDur.inSeconds}s (was: ${currentItem.duration?.inSeconds}s)');
+      mediaItem.add(currentItem.copyWith(duration: activeDur));
+    }
 
     playbackState.add(
       PlaybackState(
@@ -931,9 +962,23 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         _loadedAudioTrackId = track.id;
         _isLoadingTrack = false;
 
-        // 3. ONLY commit mediaItem after audio source has been prepared and verified successfully!
-        mediaItem.add(_trackToMediaItem(track));
+        // 3. Commit mediaItem with verified ground-truth player duration (preventing placeholder overwrites)
+        final activeDur = (_player.duration != null && _player.duration! > Duration.zero)
+            ? _player.duration
+            : null;
+        final item = _trackToMediaItem(track, overrideDuration: activeDur);
+        mediaItem.add(item);
+        if (activeDur != null && activeDur > Duration.zero) {
+          final formatted =
+              '${activeDur.inMinutes}:${(activeDur.inSeconds % 60).toString().padLeft(2, '0')}';
+          if (track is Track) {
+            _queue[_currentIndex] = track.copyWith(duration: formatted);
+          } else if (track is YouTubeVideo) {
+            _queue[_currentIndex] = track.copyWith(duration: formatted);
+          }
+        }
         _syncRollingPreload();
+        _pushPlaybackState();
         return true;
       } catch (e, stack) {
         if (token != _activeLoadToken) {
@@ -1615,7 +1660,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     return id;
   }
 
-  MediaItem _trackToMediaItem(MusicItem track) {
+  MediaItem _trackToMediaItem(MusicItem track, {Duration? overrideDuration}) {
     Uri? artUri;
     String rawImg = track.imageUrl.trim();
     if (rawImg.isEmpty && track.isYoutube) {
@@ -1631,20 +1676,52 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         artUri = Uri.file(rawImg);
       }
     }
-    Duration? parsedDuration;
-    if (track.duration.isNotEmpty) {
+
+    Duration? effectiveDuration;
+    // 1. Explicit caller override (e.g. freshly resolved from player/stream)
+    if (overrideDuration != null && overrideDuration > Duration.zero) {
+      effectiveDuration = overrideDuration;
+    }
+    // 2. Active player container duration if this track is currently loaded
+    else if (_loadedAudioTrackId == track.id &&
+        _player.duration != null &&
+        _player.duration! > Duration.zero) {
+      effectiveDuration = _player.duration;
+    }
+    // 3. Genuine duration from track (excluding the placeholder '3:30' or '0:00')
+    else if (track.duration.isNotEmpty &&
+        track.duration != '3:30' &&
+        track.duration != '0:00') {
       final parts = track.duration.split(':');
       if (parts.length == 2) {
         final m = int.tryParse(parts[0]) ?? 0;
         final s = int.tryParse(parts[1]) ?? 0;
-        parsedDuration = Duration(minutes: m, seconds: s);
+        effectiveDuration = Duration(minutes: m, seconds: s);
       } else if (parts.length == 3) {
         final h = int.tryParse(parts[0]) ?? 0;
         final m = int.tryParse(parts[1]) ?? 0;
         final s = int.tryParse(parts[2]) ?? 0;
-        parsedDuration = Duration(hours: h, minutes: m, seconds: s);
+        effectiveDuration = Duration(hours: h, minutes: m, seconds: s);
       }
     }
+    // 4. Fallback to active player duration if this is the current queue track
+    else if (_player.duration != null &&
+        _player.duration! > Duration.zero &&
+        _currentIndex >= 0 &&
+        _currentIndex < _queue.length &&
+        _queue[_currentIndex].id == track.id) {
+      effectiveDuration = _player.duration;
+    }
+    // 5. Final fallback to parsed string
+    else if (track.duration.isNotEmpty) {
+      final parts = track.duration.split(':');
+      if (parts.length == 2) {
+        final m = int.tryParse(parts[0]) ?? 0;
+        final s = int.tryParse(parts[1]) ?? 0;
+        effectiveDuration = Duration(minutes: m, seconds: s);
+      }
+    }
+
     String albumTitle = 'Miee Music';
     if (track is Track && track.albumName != null && track.albumName!.isNotEmpty) {
       albumTitle = track.albumName!;
@@ -1657,7 +1734,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       title: track.title,
       artist: track.artist,
       album: albumTitle,
-      duration: parsedDuration,
+      duration: effectiveDuration,
       artUri: artUri,
       extras: {'filePath': track.filePath},
     );
@@ -1783,6 +1860,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       _lastHandledCompletionToken = -1;
     }
     await _player.seek(position);
+    _pushPlaybackState();
     debugPrint('[Playback] seek(${position.inSeconds}s)');
   }
 
@@ -2065,6 +2143,14 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       _currentIndex = index;
     }
   }
+
+  @visibleForTesting
+  MediaItem trackToMediaItemForTesting(MusicItem track, {Duration? overrideDuration}) =>
+      _trackToMediaItem(track, overrideDuration: overrideDuration);
+
+  @visibleForTesting
+  void onDurationChangedForTesting(Duration? duration) =>
+      _onDurationChanged(duration);
 
   @override
   Future<void> onTaskRemoved() async {

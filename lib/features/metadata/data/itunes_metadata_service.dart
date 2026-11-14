@@ -20,7 +20,7 @@ class ItunesMetadataService {
   static final ItunesMetadataService _instance = ItunesMetadataService._internal();
   factory ItunesMetadataService({Dio? dio}) {
     if (dio != null) {
-      return ItunesMetadataService._withDio(dio);
+      return ItunesMetadataService.withDio(dio);
     }
     return _instance;
   }
@@ -37,7 +37,7 @@ class ItunesMetadataService {
           ),
         );
 
-  ItunesMetadataService._withDio(Dio dio) : _dio = dio;
+  ItunesMetadataService.withDio(Dio dio) : _dio = dio;
 
   final Dio _dio;
 

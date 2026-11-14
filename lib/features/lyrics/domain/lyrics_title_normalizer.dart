@@ -149,3 +149,4 @@ class LyricsTitleNormalizer {
     return s.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }
+

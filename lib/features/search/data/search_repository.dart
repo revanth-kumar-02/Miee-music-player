@@ -12,6 +12,15 @@ import '../../youtube/data/youtube_repository.dart';
 import '../../metadata/data/itunes_metadata_service.dart';
 import 'local_search_service.dart';
 
+class _CachedSearchResults {
+  final List<YouTubeVideo> results;
+  final DateTime timestamp;
+
+  const _CachedSearchResults(this.results, this.timestamp);
+
+  bool isExpired(Duration ttl) => DateTime.now().difference(timestamp) > ttl;
+}
+
 /// Central search repository orchestrating local fuzzy matches, YouTube API queries,
 /// online artist discovery, suggestions, and persistent search history in Hive.
 class SearchRepository {
@@ -19,6 +28,15 @@ class SearchRepository {
   final YouTubeRepository youtubeRepository;
   final ArtistRepository artistRepository;
   final ItunesMetadataService itunesMetadataService;
+
+  static const Duration _cacheTtl = Duration(minutes: 5);
+  static const int _maxCacheEntries = 50;
+
+  /// In-memory LRU cache for online search results with 5-minute TTL.
+  final Map<String, _CachedSearchResults> _searchCache = {};
+
+  /// In-flight deduplication to avoid redundant parallel network requests.
+  final Map<String, Future<List<YouTubeVideo>>> _inFlightYouTubeSearches = {};
 
   SearchRepository({
     LocalSearchService? localSearch,
@@ -29,6 +47,21 @@ class SearchRepository {
         youtubeRepository = youtubeRepository ?? YouTubeRepository(),
         artistRepository = artistRepository ?? DeezerArtistRepository(),
         itunesMetadataService = itunesMetadataService ?? ItunesMetadataService();
+
+  /// Checks if valid unexpired search results are cached for [query].
+  bool isCached(String query) {
+    final clean = query.trim().toLowerCase();
+    final cached = _searchCache[clean];
+    return cached != null && !cached.isExpired(_cacheTtl);
+  }
+
+  /// Updates or overwrites cached results for [query] (e.g. after background enrichment).
+  void updateCachedResults(String query, List<YouTubeVideo> results) {
+    final key = query.trim().toLowerCase();
+    if (key.isNotEmpty && results.isNotEmpty) {
+      _cacheResults(key, results);
+    }
+  }
 
   static const String _prefKey = 'youtube_search_history';
   static const int _maxHistory = 10;
@@ -77,11 +110,58 @@ class SearchRepository {
     await _box.delete(_prefKey);
   }
 
-  /// Performs online YouTube query and applies canonical-song deduplication and ranking.
-  Future<List<YouTubeVideo>> searchYouTube(String query, {SearchRankingConfig? config}) async {
+  /// Performs online YouTube query with caching, in-flight deduplication, and canonical-song ranking.
+  ///
+  /// Emits ranked results immediately (<800ms) without blocking on external iTunes metadata
+  /// enrichment, enabling instantaneous UI rendering and interactive tap responsiveness.
+  Future<List<YouTubeVideo>> searchYouTube(
+    String query, {
+    SearchRankingConfig? config,
+    bool enrichSynchronously = false,
+  }) async {
     final clean = query.trim();
     if (clean.isEmpty) return const [];
+    final cacheKey = clean.toLowerCase();
 
+    // 1. Check in-memory cache
+    if (_searchCache.containsKey(cacheKey)) {
+      final cached = _searchCache[cacheKey]!;
+      if (!cached.isExpired(_cacheTtl)) {
+        return cached.results;
+      }
+      _searchCache.remove(cacheKey);
+    }
+
+    // 2. Prevent duplicate in-flight requests for identical queries
+    if (_inFlightYouTubeSearches.containsKey(cacheKey)) {
+      return await _inFlightYouTubeSearches[cacheKey]!;
+    }
+
+    final searchFuture = _executeYouTubeSearch(clean, config: config, enrichSynchronously: enrichSynchronously);
+    _inFlightYouTubeSearches[cacheKey] = searchFuture;
+
+    try {
+      final results = await searchFuture;
+      _cacheResults(cacheKey, results);
+      return results;
+    } finally {
+      _inFlightYouTubeSearches.remove(cacheKey); // ignore: unawaited_futures
+    }
+  }
+
+  void _cacheResults(String key, List<YouTubeVideo> results) {
+    if (_searchCache.length >= _maxCacheEntries) {
+      final oldestKey = _searchCache.keys.first;
+      _searchCache.remove(oldestKey);
+    }
+    _searchCache[key] = _CachedSearchResults(results, DateTime.now());
+  }
+
+  Future<List<YouTubeVideo>> _executeYouTubeSearch(
+    String clean, {
+    SearchRankingConfig? config,
+    bool enrichSynchronously = false,
+  }) async {
     final rawVideos = await youtubeRepository.search(clean);
     List<YouTubeVideo> candidateList = rawVideos;
 
@@ -115,13 +195,22 @@ class SearchRepository {
       config: config ?? const SearchRankingConfig(filterDerivativeEdits: true),
     );
 
-    // Enrich top results with canonical iTunes metadata (studio title, artist, album, and 600x600 artwork)
+    if (enrichSynchronously) {
+      return await enrichYouTubeResults(ranked);
+    }
+
+    return ranked;
+  }
+
+  /// Asynchronously enriches top YouTube results with studio iTunes metadata and 600x600 artwork.
+  Future<List<YouTubeVideo>> enrichYouTubeResults(List<YouTubeVideo> videos) async {
+    if (videos.isEmpty) return videos;
     try {
-      final topToEnrich = ranked.take(15).toList();
+      final topToEnrich = videos.take(15).toList();
       final enrichedTop = await itunesMetadataService.enrichYouTubeResults(topToEnrich);
-      return [...enrichedTop, ...ranked.skip(15)];
+      return [...enrichedTop, ...videos.skip(15)];
     } catch (_) {
-      return ranked;
+      return videos;
     }
   }
 
@@ -617,6 +706,8 @@ class SearchRepository {
   }
 
   void dispose() {
+    _searchCache.clear();
+    _inFlightYouTubeSearches.clear();
     _liveSuggestionsCache.clear();
     youtubeRepository.clearCache();
   }

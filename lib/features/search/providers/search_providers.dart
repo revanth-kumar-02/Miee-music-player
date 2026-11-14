@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../media/providers/media_providers.dart';
 import '../data/search_repository.dart';
 import '../domain/search_state.dart';
+import '../domain/search_diagnostics.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../youtube/domain/youtube_model.dart';
@@ -67,6 +68,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
     }
 
     final currentReqId = ++_searchRequestId;
+    SearchDiagnostics().recordInput(query: query, reqId: currentReqId);
 
     // Fast local scan for instant feedback while typing
     final library = _ref.read(mediaLibraryServiceProvider);
@@ -137,8 +139,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
       errorMessage: null,
     );
 
-    // Live music-first suggestions (debounced 200ms)
-    _suggestionDebounceTimer = Timer(const Duration(milliseconds: 200), () async {
+    // Live music-first suggestions (debounced 120ms)
+    _suggestionDebounceTimer = Timer(const Duration(milliseconds: 120), () async {
       if (currentReqId != _searchRequestId) return;
       try {
         final liveMusic = await _repo.getLiveMusicSuggestions(
@@ -161,8 +163,10 @@ class SearchNotifier extends StateNotifier<SearchState> {
       }
     });
 
-    // Main search debounce (350ms)
-    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+    // Main search debounce (250ms for snappy response)
+    _debounceTimer = Timer(const Duration(milliseconds: 250), () {
+      if (currentReqId != _searchRequestId) return;
+      SearchDiagnostics().recordDebounceComplete(currentReqId);
       _runSearch(trimmed, currentReqId);
     });
   }
@@ -180,6 +184,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
     }
 
     final currentReqId = ++_searchRequestId;
+    SearchDiagnostics().recordInput(query: query, reqId: currentReqId);
+    SearchDiagnostics().recordDebounceComplete(currentReqId);
 
     state = state.copyWith(
       query: query,
@@ -205,7 +211,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
   }
 
   Future<void> _runSearch(String query, int reqId) async {
-    // 1. Run Local Database Search (In-memory, instant)
+    // 1. Run Local Database Search (In-memory, instant <10ms)
+    SearchDiagnostics().recordLocalQueryStart(reqId);
     final library = _ref.read(mediaLibraryServiceProvider);
     final songs = _repo.localSearch.searchSongs(library.songs, query);
     final albums = _repo.localSearch.searchAlbums(library.albums, query);
@@ -213,6 +220,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
     final playlists = _repo.localSearch.searchPlaylists(library.playlists, query);
 
     if (reqId == _searchRequestId) {
+      SearchDiagnostics().recordLocalQueryEnd(reqId, resultCount: songs.length);
       state = state.copyWith(
         localSongs: songs,
         localAlbums: albums,
@@ -222,73 +230,119 @@ class SearchNotifier extends StateNotifier<SearchState> {
       );
     }
 
-    // 2. Concurrently run Online Artists + Albums search
-    try {
-      final artists = await _repo.searchArtists(query);
-      if (reqId == _searchRequestId) {
-        state = state.copyWith(
-          onlineArtists: artists,
-          isArtistsLoading: false,
-        );
+    // 2. Concurrently run independent online tasks without blocking YouTube song results
+    final ytTask = () async {
+      SearchDiagnostics().recordYouTubeRequestStart(reqId);
+      final fromCache = _repo.isCached(query);
+      try {
+        final youtube = await _repo.searchYouTube(query);
+        if (reqId == _searchRequestId) {
+          SearchDiagnostics().recordYouTubeRequestEnd(
+            reqId,
+            resultCount: youtube.length,
+            fromCache: fromCache,
+            success: true,
+          );
+          state = state.copyWith(
+            youtubeResults: youtube,
+            isYouTubeLoading: false,
+            errorMessage: null,
+          );
+          _enrichArtistsFromSongs(query, youtube, reqId);
+          _enrichYouTubeMetadataProgressively(query, youtube, reqId);
+        }
+      } catch (e) {
+        if (reqId == _searchRequestId) {
+          SearchDiagnostics().recordYouTubeRequestEnd(
+            reqId,
+            resultCount: 0,
+            fromCache: false,
+            success: false,
+          );
+          final errStr = e.toString().toLowerCase();
+          final message = (errStr.contains('socketexception') ||
+                  errStr.contains('failed host lookup') ||
+                  errStr.contains('network') ||
+                  errStr.contains('connection refused') ||
+                  errStr.contains('connection timed out') ||
+                  errStr.contains('clientexception'))
+              ? 'No internet connection. Please check your network and try again.'
+              : e.toString().replaceFirst('Exception: ', '');
+          state = state.copyWith(
+            youtubeResults: const [],
+            isYouTubeLoading: false,
+            errorMessage: message,
+          );
+        }
       }
+    }();
 
-      // If artist matches exist, fetch albums
-      final onlineAlbums = await _repo.searchAlbums(query, matchedArtists: artists);
-      if (reqId == _searchRequestId) {
-        state = state.copyWith(
-          onlineAlbums: onlineAlbums,
-        );
-      }
-    } catch (_) {
-      if (reqId == _searchRequestId) {
-        state = state.copyWith(isArtistsLoading: false);
-      }
-    }
+    final artistsTask = () async {
+      try {
+        final onlineArtists = await _repo.searchArtists(query);
+        if (reqId == _searchRequestId) {
+          state = state.copyWith(
+            onlineArtists: onlineArtists,
+            isArtistsLoading: false,
+          );
+        }
 
-    // 3. Run YouTube Song Search (Network API)
-    try {
-      final youtube = await _repo.searchYouTube(query);
-      if (reqId == _searchRequestId) {
-        state = state.copyWith(
-          youtubeResults: youtube,
-          isYouTubeLoading: false,
-          errorMessage: null,
-        );
-        _enrichArtistsFromSongs(query, youtube, reqId);
+        final onlineAlbums = await _repo.searchAlbums(query, matchedArtists: onlineArtists);
+        if (reqId == _searchRequestId) {
+          state = state.copyWith(
+            onlineAlbums: onlineAlbums,
+          );
+        }
+      } catch (_) {
+        if (reqId == _searchRequestId) {
+          state = state.copyWith(isArtistsLoading: false);
+        }
       }
-    } catch (e) {
-      if (reqId == _searchRequestId) {
-        final errStr = e.toString().toLowerCase();
-        final message = (errStr.contains('socketexception') ||
-                errStr.contains('failed host lookup') ||
-                errStr.contains('network') ||
-                errStr.contains('connection refused') ||
-                errStr.contains('connection timed out') ||
-                errStr.contains('clientexception'))
-            ? 'No internet connection. Please check your network and try again.'
-            : e.toString().replaceFirst('Exception: ', '');
-        state = state.copyWith(
-          youtubeResults: const [],
-          isYouTubeLoading: false,
-          errorMessage: message,
-        );
-      }
-    }
+    }();
 
-    // 4. Run Online Playlists Search
+    final playlistsTask = () async {
+      try {
+        final playlists = await _repo.searchPlaylists(query);
+        if (reqId == _searchRequestId) {
+          state = state.copyWith(
+            onlinePlaylists: playlists,
+            isPlaylistsLoading: false,
+          );
+        }
+      } catch (_) {
+        if (reqId == _searchRequestId) {
+          state = state.copyWith(isPlaylistsLoading: false);
+        }
+      }
+    }();
+
+    await Future.wait([ytTask, artistsTask, playlistsTask]);
+  }
+
+  /// Progressively enriches displayed YouTube results with iTunes artwork & album
+  /// in the background without blocking the user interface.
+  void _enrichYouTubeMetadataProgressively(
+    String query,
+    List<YouTubeVideo> rawResults,
+    int reqId,
+  ) async {
+    if (reqId != _searchRequestId || rawResults.isEmpty) return;
+    final stopwatch = Stopwatch()..start();
     try {
-      final playlists = await _repo.searchPlaylists(query);
+      final enriched = await _repo.enrichYouTubeResults(rawResults);
+      stopwatch.stop();
       if (reqId == _searchRequestId) {
-        state = state.copyWith(
-          onlinePlaylists: playlists,
-          isPlaylistsLoading: false,
+        final enrichedCount =
+            enriched.where((v) => v.albumName != null && v.albumName!.isNotEmpty).length;
+        SearchDiagnostics().recordEnrichmentEnd(
+          reqId,
+          durationMs: stopwatch.elapsedMilliseconds,
+          enrichedCount: enrichedCount,
         );
+        _repo.updateCachedResults(query, enriched);
+        state = state.copyWith(youtubeResults: enriched);
       }
-    } catch (_) {
-      if (reqId == _searchRequestId) {
-        state = state.copyWith(isPlaylistsLoading: false);
-      }
-    }
+    } catch (_) {}
   }
 
   /// Automatically resolves and displays verified artists from top song results
