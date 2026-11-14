@@ -13,6 +13,7 @@ import 'playback_diagnostics.dart';
 import 'playback_state.dart' show isSameTrackId;
 import 'preloading/next_track_preloader.dart';
 import 'preloading/preload_models.dart';
+import '../../features/sleep_timer/domain/sleep_timer_state.dart';
 
 /// Duration for fast-forward and rewind operations.
 const _kSkipDuration = Duration(seconds: 10);
@@ -185,6 +186,122 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   final StreamController<String> _errorController =
       StreamController<String>.broadcast();
   Stream<String> get errorStream => _errorController.stream;
+
+  // ── Sleep Timer Engine ─────────────────────────────────────────────────────
+  Timer? _sleepTimer;
+  Timer? _sleepTicker;
+  DateTime? _sleepTargetEndTime;
+  Duration? _sleepTotalDuration;
+  bool _sleepStopAfterCurrentTrack = false;
+  SleepTimerState _sleepTimerState = const SleepTimerState.inactive();
+  final StreamController<SleepTimerState> _sleepTimerStateController =
+      StreamController<SleepTimerState>.broadcast();
+
+  SleepTimerState get sleepTimerState => _sleepTimerState;
+  Stream<SleepTimerState> get sleepTimerStateStream =>
+      _sleepTimerStateController.stream;
+
+  void startSleepTimer(Duration duration) {
+    cancelSleepTimer();
+
+    if (duration <= Duration.zero) return;
+
+    final target = DateTime.now().add(duration);
+    _sleepTargetEndTime = target;
+    _sleepTotalDuration = duration;
+    _sleepStopAfterCurrentTrack = false;
+
+    _updateSleepTimerState(
+      SleepTimerState(
+        mode: SleepTimerMode.countdown,
+        totalDuration: duration,
+        targetEndTime: target,
+        remainingDuration: duration,
+      ),
+    );
+
+    // Primary deadline-based timer ensuring exact background execution
+    _sleepTimer = Timer(duration, () {
+      _onSleepTimerExpired();
+    });
+
+    // 1-second ticker for smooth UI countdown updates
+    _sleepTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_sleepTargetEndTime == null) {
+        timer.cancel();
+        return;
+      }
+      final now = DateTime.now();
+      final diff = _sleepTargetEndTime!.difference(now);
+      if (diff <= Duration.zero) {
+        timer.cancel();
+        _onSleepTimerExpired();
+      } else {
+        _updateSleepTimerState(
+          SleepTimerState(
+            mode: SleepTimerMode.countdown,
+            totalDuration: _sleepTotalDuration,
+            targetEndTime: _sleepTargetEndTime,
+            remainingDuration: diff,
+          ),
+        );
+      }
+    });
+
+    debugPrint('[SleepTimer] Started ${duration.inMinutes}m countdown, target: $target');
+  }
+
+  void startSleepTimerEndOfTrack() {
+    cancelSleepTimer();
+
+    _sleepStopAfterCurrentTrack = true;
+    _updateSleepTimerState(const SleepTimerState.endOfTrack());
+    debugPrint('[SleepTimer] Stop after current track armed');
+  }
+
+  void cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepTicker?.cancel();
+    _sleepTicker = null;
+    _sleepTargetEndTime = null;
+    _sleepTotalDuration = null;
+    _sleepStopAfterCurrentTrack = false;
+
+    if (_sleepTimerState.isActive) {
+      _updateSleepTimerState(const SleepTimerState.cancelled());
+      debugPrint('[SleepTimer] Timer cancelled');
+    }
+  }
+
+  Future<void> _onSleepTimerExpired() async {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepTicker?.cancel();
+    _sleepTicker = null;
+    _sleepTargetEndTime = null;
+    _sleepTotalDuration = null;
+    _sleepStopAfterCurrentTrack = false;
+
+    _updateSleepTimerState(const SleepTimerState.expired());
+    debugPrint('[SleepTimer] Countdown timer expired: stopping playback safely.');
+    _logDiagnosticTransition(
+      'SLEEP_TIMER_EXPIRED',
+      extra: 'currentIndex=$_currentIndex',
+    );
+    try {
+      await pause();
+    } catch (e) {
+      debugPrint('[SleepTimer] Error pausing on timer expiration: $e');
+    }
+  }
+
+  void _updateSleepTimerState(SleepTimerState state) {
+    _sleepTimerState = state;
+    if (!_sleepTimerStateController.isClosed) {
+      _sleepTimerStateController.add(state);
+    }
+  }
 
   // Stream subscriptions
   StreamSubscription<PlayerState>? _playerStateSub;
@@ -557,6 +674,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           (_currentIndex >= 0 && _currentIndex < _queue.length)
               ? _queue[_currentIndex].id
               : 'none';
+
+      // ── SLEEP TIMER: STOP AFTER CURRENT TRACK ──
+      if (_sleepStopAfterCurrentTrack) {
+        _sleepStopAfterCurrentTrack = false;
+        _updateSleepTimerState(const SleepTimerState.expired());
+        debugPrint('[SleepTimer] Stop after current track ($completedTrackId) executed. Halting playback.');
+        _logDiagnosticTransition(
+          'SLEEP_TIMER_STOP_AFTER_TRACK',
+          playerState: playerState,
+          extra: 'completedTrackId=$completedTrackId,currentIndex=$_currentIndex',
+        );
+        unawaited(pause());
+        return;
+      }
+
       if (_isRoomListener) {
         debugPrint('[Queue] Room listener reached track completion; waiting for host update.');
         _pushPlaybackState(playerState: playerState);
@@ -685,6 +817,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           } else if (currentTrack is YouTubeVideo) {
             _queue[_currentIndex] = currentTrack.copyWith(duration: formatted);
           }
+          queue.add(_queue.map(_trackToMediaItem).toList());
         }
       }
       _pushPlaybackState();
@@ -1688,10 +1821,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         _player.duration! > Duration.zero) {
       effectiveDuration = _player.duration;
     }
-    // 3. Genuine duration from track (excluding the placeholder '3:30' or '0:00')
+    // 3. Genuine duration from track (excluding the placeholder '3:30', '03:30', '0:00', or '00:00')
     else if (track.duration.isNotEmpty &&
         track.duration != '3:30' &&
-        track.duration != '0:00') {
+        track.duration != '03:30' &&
+        track.duration != '0:00' &&
+        track.duration != '00:00') {
       final parts = track.duration.split(':');
       if (parts.length == 2) {
         final m = int.tryParse(parts[0]) ?? 0;
@@ -1712,15 +1847,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         _queue[_currentIndex].id == track.id) {
       effectiveDuration = _player.duration;
     }
-    // 5. Final fallback to parsed string
-    else if (track.duration.isNotEmpty) {
-      final parts = track.duration.split(':');
-      if (parts.length == 2) {
-        final m = int.tryParse(parts[0]) ?? 0;
-        final s = int.tryParse(parts[1]) ?? 0;
-        effectiveDuration = Duration(minutes: m, seconds: s);
-      }
-    }
+    // Note: If track duration is a placeholder or unknown, effectiveDuration remains null
+    // until player ground truth is resolved. This prevents Android notification progress
+    // from prematurely locking to 3:30.
 
     String albumTitle = 'Miee Music';
     if (track is Track && track.albumName != null && track.albumName!.isNotEmpty) {
@@ -2152,6 +2281,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   void onDurationChangedForTesting(Duration? duration) =>
       _onDurationChanged(duration);
 
+  @visibleForTesting
+  void onPlayerStateChangedForTesting(PlayerState state) =>
+      _onPlayerStateChanged(state);
+
+  @visibleForTesting
+  bool get stopAfterCurrentTrackForTesting => _sleepStopAfterCurrentTrack;
+
+  @visibleForTesting
+  Future<void> triggerSleepTimerExpirationForTesting() =>
+      _onSleepTimerExpired();
+
   @override
   Future<void> onTaskRemoved() async {
     _logDiagnosticTransition('ON_TASK_REMOVED_STOP', includeStack: true);
@@ -2160,6 +2300,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Future<void> disposeHandler() async {
     _cancelBufferingWatchdog();
+    _sleepTimer?.cancel();
+    _sleepTicker?.cancel();
+    await _sleepTimerStateController.close();
     await _preloader.dispose();
     await _playerStateSub?.cancel();
     await _positionSub?.cancel();

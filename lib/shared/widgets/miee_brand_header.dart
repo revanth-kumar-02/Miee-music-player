@@ -124,10 +124,17 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPop = automaticallyImplyLeading && Navigator.of(context).canPop();
+    String location = '';
+    try {
+      location = GoRouterState.of(context).matchedLocation;
+    } catch (_) {}
+    final isHome = location == '/home' || location == '/';
+    final hasBackStack = context.canPop();
+    final showBackButton = automaticallyImplyLeading &&
+        (hasBackStack || (!isHome && title != null && title!.trim().isNotEmpty));
 
     Widget? effectiveLeading = leading;
-    if (effectiveLeading == null && canPop) {
+    if (effectiveLeading == null && showBackButton) {
       effectiveLeading = IconButton(
         icon: const Icon(
           Icons.arrow_back,
@@ -136,7 +143,13 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
         ),
         splashRadius: 20,
         tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-        onPressed: () => Navigator.of(context).maybePop(),
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/home');
+          }
+        },
       );
     }
 
@@ -237,8 +250,10 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
               size: 30.0,
               onTap: () {
                 try {
+                  context.push('/settings');
+                } catch (_) {
                   context.go('/settings');
-                } catch (_) {}
+                }
               },
             ),
           ),

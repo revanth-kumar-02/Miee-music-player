@@ -179,15 +179,31 @@ class _ActiveRoomPageState extends ConsumerState<ActiveRoomPage> {
         ? playerState.status == PlaybackStatus.playing
         : playbackState?.playbackStatus == 'playing';
 
-    return Scaffold(
-      backgroundColor: AppColors.vanillaCream,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28, color: AppColors.cocoaPlum),
-          onPressed: () => context.pop(),
-        ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/rooms');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.vanillaCream,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28, color: AppColors.cocoaPlum),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/rooms');
+              }
+            },
+          ),
         title: Column(
           children: [
             Text(
@@ -511,8 +527,9 @@ class _ActiveRoomPageState extends ConsumerState<ActiveRoomPage> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTabPill({
     required int index,

@@ -95,16 +95,32 @@ class ProfilePage extends ConsumerWidget {
 
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    return Scaffold(
-      extendBody: true,
-      appBar: AppHeader(
-        title: 'Profile',
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-          splashRadius: 20.0,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        extendBody: true,
+        appBar: AppHeader(
+          title: 'Profile',
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+            splashRadius: 20.0,
+          ),
         ),
-      ),
       body: SafeArea(
         top: false,
         bottom: false,
@@ -323,8 +339,9 @@ class ProfilePage extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Align(

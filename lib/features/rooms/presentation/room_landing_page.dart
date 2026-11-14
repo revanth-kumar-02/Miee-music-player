@@ -26,7 +26,13 @@ class RoomLandingPage extends ConsumerWidget {
             ? IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: AppColors.cocoaPlum),
-                onPressed: () => context.pop(),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
               )
             : null,
         title: Text(

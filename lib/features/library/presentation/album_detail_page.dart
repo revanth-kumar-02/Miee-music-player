@@ -27,7 +27,13 @@ class AlbumDetailPage extends ConsumerWidget {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
           ),
         ),
         body: const EmptyState(
@@ -58,20 +64,36 @@ class AlbumDetailPage extends ConsumerWidget {
     );
     final playerController = ref.read(playerControllerProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 280.0,
-            pinned: true,
-            backgroundColor: AppColors.background,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-              onPressed: () => context.pop(),
-              splashRadius: 20.0,
-            ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 280.0,
+              pinned: true,
+              backgroundColor: AppColors.background,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
+                splashRadius: 20.0,
+              ),
             flexibleSpace: FlexibleSpaceBar(
               background: album.artworkPath.isNotEmpty
                   ? Image.file(
@@ -209,6 +231,7 @@ class AlbumDetailPage extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -37,6 +37,25 @@ void main() {
           reason: 'MediaItem duration must be 5:36 and not the 3:30 placeholder');
     });
 
+    test('1b. Unresolved 3:30 placeholder does not leak into MediaItem.duration', () {
+      final handler = MieeAudioHandler();
+
+      final dummyTrack = Track(
+        id: 'youtube_video_placeholder',
+        title: 'Kadhal En Kadhal - 8K',
+        artist: 'Dhanush',
+        duration: '3:30',
+        imageUrl: '',
+        filePath: '',
+      );
+
+      // Convert without overrideDuration or loaded player
+      final mediaItem = handler.trackToMediaItemForTesting(dummyTrack);
+
+      expect(mediaItem.duration, isNull,
+          reason: 'Dummy 3:30 placeholder must NEVER become MediaItem.duration');
+    });
+
     test('2. Real duration is preserved when track has explicit duration like 5:36', () {
       final handler = MieeAudioHandler();
 

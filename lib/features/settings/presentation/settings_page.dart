@@ -20,6 +20,8 @@ import '../../profile/data/profile_image_service.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../legal/presentation/legal_document_page.dart';
 import '../../about/presentation/miee_dedication_page.dart';
+import '../../sleep_timer/providers/sleep_timer_provider.dart';
+import '../../sleep_timer/presentation/sleep_timer_sheet.dart';
 import 'settings_controller.dart';
 
 /// Cleaned and unified Settings screen organized strictly into seven categories:
@@ -283,6 +285,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsControllerProvider);
     final settingsNotifier = ref.read(settingsControllerProvider.notifier);
+    final sleepTimerState = ref.watch(sleepTimerProvider);
 
     final localSongs = ref.watch(songsProvider);
     final localAlbums = ref.watch(albumsProvider);
@@ -342,12 +345,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     final selectedArtists = cloudProfile?.selectedArtists ?? [];
 
-    return Scaffold(
-      extendBody: true,
-      backgroundColor: AppColors.vanillaCream,
-      appBar: const AppHeader(
-        title: 'Settings',
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        extendBody: true,
+        backgroundColor: AppColors.vanillaCream,
+        appBar: AppHeader(
+          title: 'Settings',
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.cocoaPlum),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
+        ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -650,6 +674,51 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         value: settings.resumePlayback,
                         onChanged: (val) => settingsNotifier.updateResumePlayback(val),
                       ),
+                      const Divider(height: 1, color: AppColors.oatBeige),
+                      ListTile(
+                        leading: const Icon(Icons.bedtime_outlined, color: AppColors.cocoaPlum),
+                        title: const Text(
+                          'Sleep Timer',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
+                        ),
+                        subtitle: Text(
+                          sleepTimerState.statusDescription,
+                          style: TextStyle(
+                            color: sleepTimerState.isActive
+                                ? AppColors.dustyRose
+                                : AppColors.mutedMauve,
+                            fontWeight: sleepTimerState.isActive
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (sleepTimerState.isActive)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.dustyRose.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  sleepTimerState.isCountdown
+                                      ? sleepTimerState.formattedRemainingTime
+                                      : '1 Song',
+                                  style: const TextStyle(
+                                    color: AppColors.dustyRose,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
+                          ],
+                        ),
+                        onTap: () => SleepTimerSheet.show(context),
+                      ),
                     ],
                   ),
 
@@ -878,8 +947,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ── REUSABLE UI BUILDERS ───────────────────────────────────────────────────
 

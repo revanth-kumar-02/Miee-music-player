@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme/app_colors.dart';
@@ -120,18 +121,34 @@ class _LegalDocumentPageState extends State<LegalDocumentPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.vanillaCream,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/settings');
+        }
+      },
+      child: Scaffold(
         backgroundColor: AppColors.vanillaCream,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.cocoaPlum),
-          tooltip: 'Back',
-          onPressed: () => Navigator.pop(context),
-        ),
+        appBar: AppBar(
+          backgroundColor: AppColors.vanillaCream,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: false,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.cocoaPlum),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/settings');
+              }
+            },
+          ),
         title: const Text(
           'Legal & Release Info',
           style: TextStyle(
@@ -195,8 +212,9 @@ class _LegalDocumentPageState extends State<LegalDocumentPage>
           _buildAboutView(),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ── 1 & 2. DOCUMENT SECTION VIEW ──────────────────────────────────────────
 

@@ -96,18 +96,34 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
         break;
     }
 
-    return Scaffold(
-      extendBody: true,
-      backgroundColor: AppColors.background,
-      appBar: AppHeader(
-        title: 'Local Songs',
-        isScrolled: _isScrolled,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-          splashRadius: 20.0,
-        ),
-        actions: [
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        extendBody: true,
+        backgroundColor: AppColors.background,
+        appBar: AppHeader(
+          title: 'Local Songs',
+          isScrolled: _isScrolled,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+            splashRadius: 20.0,
+          ),
+          actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref
@@ -375,6 +391,7 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
                 ],
               ),
             ),
+      ),
     );
   }
 }

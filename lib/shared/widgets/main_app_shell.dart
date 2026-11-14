@@ -168,50 +168,62 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
           isRoomsRoute ||
           isQueueRoute ||
           !hasTrack;
+      final isHomeTab = (location == '/home' || location == '/');
 
-      return Scaffold(
-        backgroundColor: AppColors.vanillaCream,
-        body: Stack(
-          children: [
-            Positioned.fill(child: widget.child),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 4,
-              left: 0,
-              right: 0,
-              child: const IncomingDropBanner(),
-            ),
-            // Floating MiniPlayer (Hidden on full Now Playing, Settings, all Room screens, and Queue)
-            if (!hideMiniPlayer)
+      return PopScope(
+        canPop: isHomeTab,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/home');
+          }
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.vanillaCream,
+          body: Stack(
+            children: [
+              Positioned.fill(child: widget.child),
               Positioned(
-                left: AppSpacing.sm,
-                right: AppSpacing.sm,
-                bottom: (hideBottomNav ? 12.0 : 88.0) +
-                    MediaQuery.of(context).padding.bottom,
-                child: _MobileMiniPlayerHost(shellState: this),
-              ),
-            // Bottom Navigation
-            if (!hideBottomNav)
-              Positioned(
+                top: MediaQuery.of(context).padding.top + 4,
                 left: 0,
                 right: 0,
-                bottom: 0,
-                child: BottomNavigation(
-                  currentIndex: _getNavIndex(location),
-                  isPlaying: ref.watch(playerControllerProvider
-                      .select((s) => s.status == pb.PlaybackStatus.playing)),
-                  onCenterPlayTap: () => context.push('/player'),
-                  onCenterPlayLongPress: () {
-                    final playbackState = ref.read(playerControllerProvider);
-                    if (playbackState.currentTrack != null) {
-                      ref.read(playerControllerProvider.notifier).togglePlayPause();
-                    } else {
-                      context.push('/player');
-                    }
-                  },
-                  onTap: (index) => _handleNavigation(context, index),
-                ),
+                child: const IncomingDropBanner(),
               ),
-          ],
+              // Floating MiniPlayer (Hidden on full Now Playing, Settings, all Room screens, and Queue)
+              if (!hideMiniPlayer)
+                Positioned(
+                  left: AppSpacing.sm,
+                  right: AppSpacing.sm,
+                  bottom: (hideBottomNav ? 12.0 : 88.0) +
+                      MediaQuery.of(context).padding.bottom,
+                  child: _MobileMiniPlayerHost(shellState: this),
+                ),
+              // Bottom Navigation
+              if (!hideBottomNav)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: BottomNavigation(
+                    currentIndex: _getNavIndex(location),
+                    isPlaying: ref.watch(playerControllerProvider
+                        .select((s) => s.status == pb.PlaybackStatus.playing)),
+                    onCenterPlayTap: () => context.push('/player'),
+                    onCenterPlayLongPress: () {
+                      final playbackState = ref.read(playerControllerProvider);
+                      if (playbackState.currentTrack != null) {
+                        ref.read(playerControllerProvider.notifier).togglePlayPause();
+                      } else {
+                        context.push('/player');
+                      }
+                    },
+                    onTap: (index) => _handleNavigation(context, index),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
     }

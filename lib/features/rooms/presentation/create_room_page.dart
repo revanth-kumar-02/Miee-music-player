@@ -99,15 +99,31 @@ class _CreateRoomPageState extends ConsumerState<CreateRoomPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.vanillaCream,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.cocoaPlum),
-          onPressed: () => context.pop(),
-        ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/rooms');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.vanillaCream,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.cocoaPlum),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/rooms');
+              }
+            },
+          ),
         title: Text(
           'Create Room',
           style: GoogleFonts.playfairDisplay(
@@ -395,6 +411,7 @@ class _CreateRoomPageState extends ConsumerState<CreateRoomPage> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -379,21 +379,37 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     );
     final playerController = ref.read(playerControllerProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // 1. Flexible Portrait Header
-          SliverAppBar(
-            expandedHeight: 280.0,
-            pinned: true,
-            backgroundColor: AppColors.background,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-              onPressed: () => context.pop(),
-              splashRadius: 20.0,
-            ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // 1. Flexible Portrait Header
+            SliverAppBar(
+              expandedHeight: 280.0,
+              pinned: true,
+              backgroundColor: AppColors.background,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
+                splashRadius: 20.0,
+              ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -749,8 +765,9 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFallbackHeader() {
     return Container(

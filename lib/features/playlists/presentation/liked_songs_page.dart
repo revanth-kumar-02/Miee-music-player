@@ -48,34 +48,44 @@ class _LikedSongsPageState extends ConsumerState<LikedSongsPage> {
           t.artist.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      backgroundColor: AppColors.vanillaCream,
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal: isDesktop ? 28.0 : AppSpacing.marginMobile,
-          vertical: 16.0,
-        ),
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Top Header Row with Back Button ──
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    color: AppColors.cocoaPlum,
-                    size: 24,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.vanillaCream,
+        body: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isDesktop ? 28.0 : AppSpacing.marginMobile,
+            vertical: 16.0,
+          ),
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Top Header Row with Back Button ──
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: AppColors.cocoaPlum,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
                   ),
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go('/playlists');
-                    }
-                  },
-                ),
                 const SizedBox(width: 8),
                 Text(
                   'Liked Songs',
@@ -548,6 +558,7 @@ class _LikedSongsPageState extends ConsumerState<LikedSongsPage> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

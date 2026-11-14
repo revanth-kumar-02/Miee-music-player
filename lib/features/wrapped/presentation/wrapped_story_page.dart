@@ -416,7 +416,13 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
                               icon: const Icon(Icons.close_rounded, size: 22, color: Color(0xFF3A252B)),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
-                              onPressed: () => Navigator.of(context).pop(),
+                              onPressed: () {
+                                if (context.canPop()) {
+                                  context.pop();
+                                } else {
+                                  context.go('/home');
+                                }
+                              },
                             ),
                           ],
                         ),
@@ -1113,7 +1119,11 @@ class _WrappedStoryPageState extends ConsumerState<WrappedStoryPage>
                 if (summary.topTracks.isNotEmpty) {
                   _playTop5Playlist(summary.topTracks);
                 } else {
-                  Navigator.of(context).pop();
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
                 }
               },
               child: Container(

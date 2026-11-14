@@ -100,29 +100,45 @@ class PlayerPage extends ConsumerWidget {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.chalkWhite,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-              // ── 1. Top Header Bar (Reference Screen 4) ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.chevron_left_rounded,
-                      size: 32,
-                      color: AppColors.denseObsidian,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.chalkWhite,
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                // ── 1. Top Header Bar (Reference Screen 4) ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.chevron_left_rounded,
+                        size: 32,
+                        color: AppColors.denseObsidian,
+                      ),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/home');
+                        }
+                      },
                     ),
-                    onPressed: () => context.pop(),
-                  ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -485,7 +501,8 @@ class PlayerPage extends ConsumerWidget {
       ),
     ),
   ),
-);
+),
+    );
   }
 
   static String _formatFanCount(int count) {

@@ -953,7 +953,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                   ),
                 ),
-                onTap: () => context.go('/liked-songs'),
+                onTap: () {
+                  try {
+                    context.push('/liked-songs');
+                  } catch (_) {
+                    context.go('/liked-songs');
+                  }
+                },
               ),
               const SizedBox(width: 16),
 

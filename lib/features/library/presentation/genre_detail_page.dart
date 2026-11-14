@@ -47,7 +47,13 @@ class GenreDetailPage extends ConsumerWidget {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
           ),
         ),
         body: const EmptyState(
@@ -64,15 +70,31 @@ class GenreDetailPage extends ConsumerWidget {
     );
     final playerController = ref.read(playerControllerProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        elevation: 0.0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-          onPressed: () => context.pop(),
-        ),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0.0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            },
+          ),
         title: Text(
           genre.name,
           style: AppTypography.headlineMedium.copyWith(
@@ -199,6 +221,7 @@ class GenreDetailPage extends ConsumerWidget {
           icon: Icons.error_outline,
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

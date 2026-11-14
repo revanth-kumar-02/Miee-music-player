@@ -36,7 +36,13 @@ class PlaylistDetailPage extends ConsumerWidget {
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/playlists');
+              }
+            },
           ),
         ),
         body: const EmptyState(
@@ -62,21 +68,37 @@ class _PlaylistDetailView extends ConsumerWidget {
     );
     final controller = ref.read(playlistControllerProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // ── Sliver App Bar with artwork ─────────────────────────────────────
-          SliverAppBar(
-            expandedHeight: 280.0,
-            pinned: true,
-            backgroundColor: AppColors.background,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-              onPressed: () => context.pop(),
-              splashRadius: 20.0,
-            ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/playlists');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // ── Sliver App Bar with artwork ─────────────────────────────────────
+            SliverAppBar(
+              expandedHeight: 280.0,
+              pinned: true,
+              backgroundColor: AppColors.background,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/playlists');
+                  }
+                },
+                splashRadius: 20.0,
+              ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.playlist_add, color: AppColors.onSurface),
@@ -307,8 +329,9 @@ class _PlaylistDetailView extends ConsumerWidget {
           const SliverToBoxAdapter(child: SizedBox(height: 80.0)),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildArtwork(PlaylistModel playlist) {
     final artworkUrl = playlist.effectiveCoverUrl;

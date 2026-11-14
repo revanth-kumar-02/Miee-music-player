@@ -40,8 +40,18 @@ class QueuePage extends ConsumerWidget {
     final coverUrl = currentTrack?.imageUrl;
     final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty;
 
-    return Scaffold(
-      body: Stack(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        body: Stack(
         children: [
           // 1. Simulated Dimmed Now Playing Backing Layer
           Positioned.fill(
@@ -97,7 +107,13 @@ class QueuePage extends ConsumerWidget {
           // Dark Dim Overlay with Close Gesture
           Positioned.fill(
             child: GestureDetector(
-              onTap: () => context.pop(),
+              onTap: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
+              },
               child: Container(
                 color: Colors.black.withOpacity(0.55),
               ),
@@ -177,7 +193,13 @@ class QueuePage extends ConsumerWidget {
                                   IconButton(
                                     icon: const Icon(Icons.close),
                                     color: AppColors.onSurface,
-                                    onPressed: () => context.pop(),
+                                    onPressed: () {
+                                      if (context.canPop()) {
+                                        context.pop();
+                                      } else {
+                                        context.go('/home');
+                                      }
+                                    },
                                     splashRadius: 20.0,
                                   ),
                                 ],
@@ -324,8 +346,9 @@ class QueuePage extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildNowPlayingHeader(
     BuildContext context,
