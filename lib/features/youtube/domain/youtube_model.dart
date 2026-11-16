@@ -140,6 +140,8 @@ class YouTubeVideo implements MusicItem {
       metadataIdentifier: metadataIdentifier,
       sourceProvider: 'youtube',
       sourceId: id,
+      rawViewCount: rawViewCount,
+      viewCount: viewCount,
     );
   }
 }

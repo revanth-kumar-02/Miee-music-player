@@ -775,13 +775,19 @@ class PlayerController extends StateNotifier<PlaybackState> {
                 ? track.imageUrl
                 : 'https://i.ytimg.com/vi/$candidateId/hqdefault.jpg',
             duration: track.duration,
-            viewCount: '',
+            viewCount: (track is Track && track.viewCount != null)
+                ? track.viewCount!
+                : '',
+            rawViewCount: (track is Track) ? track.rawViewCount : null,
             rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
             rawChannelTitle:
                 (track is Track) ? (track.rawArtist ?? rawA) : rawA,
           );
-      if (!MusicResultClassifier.isValidIndividualSong(candidate,
-          query: '$rawT $rawA'.trim())) {
+      final isApprovedMusic = MusicResultClassifier.isValidIndividualSong(candidate,
+              query: '$rawT $rawA'.trim()) ||
+          MusicResultClassifier.isValidMusicTrack(candidate,
+              query: '$rawT $rawA'.trim());
+      if (!isApprovedMusic) {
         debugLog(
             '[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
         state = state.copyWith(

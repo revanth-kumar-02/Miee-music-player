@@ -950,16 +950,69 @@ class SearchDeduplicator {
       }
     }
 
-    if (lower.endsWith(' - topic') || lower.endsWith(' topic') || lower.endsWith('vevo')) {
+    if (lower.endsWith(' - topic') ||
+        lower.endsWith(' topic') ||
+        lower.contains('vevo') ||
+        lower.endsWith(' official') ||
+        lower.endsWith(' - official')) {
       return true;
     }
 
     final verified = [
+      'kendrick lamar',
+      'kendrick lamar, sza',
+      'sza',
+      'lana del rey',
+      'rihanna',
+      'beyonce',
+      'travis scott',
+      'post malone',
+      'kanye west',
+      'bruno mars',
+      'billie eilish',
+      'adele',
+      'eminem',
+      'lady gaga',
+      'justin bieber',
+      'katy perry',
+      'shakira',
+      'selena gomez',
+      'ariana grande',
+      'shawn mendes',
+      'olivia rodrigo',
+      'sabrina carpenter',
+      'charli xcx',
+      'harry styles',
+      'maroon 5',
+      'linkin park',
+      'imagine dragons',
+      'queen',
+      'the beatles',
+      'nirvana',
+      'michael jackson',
+      'david bowie',
+      'radiohead',
+      'frank ocean',
+      'tyler, the creator',
+      'tyler the creator',
+      'j. cole',
+      'j cole',
+      '21 savage',
+      'metro boomin',
+      'future',
+      'lil nas x',
+      'doja cat',
+      'cardi b',
+      'nicki minaj',
+      'megan thee stallion',
+      'mac miller',
+      'juice wrld',
       'dhanush',
       'anirudh ravichander',
       'anirudh',
       'a.r. rahman',
       'ar rahman',
+      'a. r. rahman',
       'sai abhyankkar',
       'yuvan shankar raja',
       'yuvan',
@@ -974,6 +1027,14 @@ class SearchDeduplicator {
       'karthik',
       'shreya ghoshal',
       'arijit singh',
+      'armaan malik',
+      'darshan raval',
+      'diljit dosanjh',
+      'satinder sartaaj',
+      's. p. balasubrahmanyam',
+      'spb',
+      'k. j. yesudas',
+      'chithra',
       'coldplay',
       'ed sheeran',
       'dua lipa',
@@ -981,9 +1042,6 @@ class SearchDeduplicator {
       'the weeknd',
       'bts',
       'drake',
-      'eminem',
-      'adele',
-      'billie eilish',
       'sanjay subrahmanyan',
       'eagles',
       'alan walker',
@@ -992,11 +1050,14 @@ class SearchDeduplicator {
     ];
     for (final a in verified) {
       if (lower == a ||
+          lower.startsWith('$a ') ||
+          lower.endsWith(' $a') ||
           lower == '$a official' ||
           lower == '$a - official' ||
           lower == 'official $a' ||
           lower.contains('$a vevo') ||
-          lower == '$a - topic') {
+          lower.contains('$a - topic') ||
+          lower.contains('$a topic')) {
         return true;
       }
     }
@@ -1604,6 +1665,14 @@ class SearchDeduplicator {
       }
     }
 
+    // 11. Movie scenes and film clips (e.g. "[BLACK PANTHER] (2018) All The Stars Scene")
+    if (RegExp(r'[\(\[\{\|\-]?\s*\b(scene|scenes|film\s+clip|movie\s+clip)\b',
+            caseSensitive: false)
+        .hasMatch(rawTitle) &&
+        !intent.normalizedQuery.contains('scene')) {
+      return EditType.nonMusicEntertainment;
+    }
+
     return EditType.none;
   }
 
@@ -1677,14 +1746,17 @@ class SearchDeduplicator {
       final isStop = stopWords.contains(token);
       if (!isStop) nonStopTokensInQuery++;
 
-      final inTitle = cleanTitle.contains(token) ||
-          rawTitle.contains(token) ||
-          pClean.contains(pToken) ||
-          pRaw.contains(pToken);
+      final wordPattern = RegExp(r'\b' + RegExp.escape(token) + r'\b');
+      final pWordPattern = RegExp(r'\b' + RegExp.escape(pToken) + r'\b');
+
+      final inTitle = wordPattern.hasMatch(cleanTitle) ||
+          wordPattern.hasMatch(rawTitle) ||
+          pWordPattern.hasMatch(pClean) ||
+          pWordPattern.hasMatch(pRaw);
 
       final inAll = inTitle ||
-          allText.contains(token) ||
-          _phoneticCollapse(allText).contains(pToken);
+          wordPattern.hasMatch(allText) ||
+          pWordPattern.hasMatch(_phoneticCollapse(allText));
 
       if (inTitle) {
         titleTokensMatched++;
@@ -1713,13 +1785,19 @@ class SearchDeduplicator {
     final titleRatio = titleTokensMatched / qTokens.length;
     final allRatio = allTokensMatched / qTokens.length;
 
+    // Title token divergence check: penalize titles with extra / divergent words when query is multi-word
+    final cleanWords = cleanTitle.split(' ').where((s) => s.isNotEmpty).toList();
+    final titleCoverage = cleanWords.isNotEmpty
+        ? (titleTokensMatched / cleanWords.length).clamp(0.0, 1.0)
+        : 1.0;
+
     // If candidate's artist matches at least part of the query, give higher artist weight
     final artistMatched = channel.contains(pQuery) || pQuery.contains(channel);
     if (artistMatched) {
-      return (allRatio * 0.70) + (titleRatio * 0.30);
+      return (allRatio * 0.60) + (titleRatio * 0.25) + (titleCoverage * 0.15);
     }
 
-    return (titleRatio * 0.75) + (allRatio * 0.25);
+    return (titleRatio * 0.55) + (titleCoverage * 0.30) + (allRatio * 0.15);
   }
 
   /// Calculates global candidate score combining query relevance, official channel signals,
@@ -1738,7 +1816,8 @@ class SearchDeduplicator {
     final isTopicChannel = channel.contains('- topic') || channel.endsWith('topic');
     final isVevoChannel = channel.contains('vevo');
     final isMajorLabel = _isOfficialMusicLabel(channel);
-    final isVerifiedArtistChannel = _isVerifiedArtist(channel);
+    final isVerifiedArtistChannel = _isVerifiedArtist(channel) ||
+        (video.canonicalArtist != null && _isVerifiedArtist(video.canonicalArtist!.toLowerCase()));
     final isOfficialChannel = isTopicChannel || isVevoChannel || isMajorLabel || isVerifiedArtistChannel;
 
     final isAlternateLanguage =
@@ -1753,6 +1832,24 @@ class SearchDeduplicator {
     }
 
     double score = relevance * 1000.0;
+
+    // Exact Title Match Bonus (+350 points) vs Divergent Title Penalty
+    final cleanTitle = _sanitizeText(video.title);
+    final rawTitleClean = _sanitizeText(video.rawTitle ?? video.title);
+    final normQuery = _sanitizeText(query);
+    final pClean = _phoneticCollapse(cleanTitle);
+    final pRaw = _phoneticCollapse(rawTitleClean);
+    final pQuery = _phoneticCollapse(normQuery);
+    final isExactTitle = cleanTitle == normQuery ||
+        pClean == pQuery ||
+        rawTitleClean == normQuery ||
+        pRaw == pQuery;
+    if (isExactTitle) {
+      score += 350;
+    } else if (normQuery.split(' ').length >= 2) {
+      // Divergent multi-word title: penalize so different songs don't leapfrog exact title matches
+      score -= 100;
+    }
 
     // 1. Official channel bonus
     if (isTopicChannel) {
@@ -1795,27 +1892,53 @@ class SearchDeduplicator {
 
     // 3. Version type query alignment
     final versionInfo = _extractVersion(rawTitle, video.title);
-    if (intent.wantsLive && (versionInfo.type == VersionType.live || rawTitle.contains('live'))) {
-      score += 600;
-    } else if (!intent.wantsLive && (versionInfo.type == VersionType.live || rawTitle.contains('live at') || rawTitle.contains('live in') || rawTitle.contains('concert'))) {
+    final isLiveTrack = versionInfo.type == VersionType.live ||
+        rawTitle.contains('live at') ||
+        rawTitle.contains('live in') ||
+        rawTitle.contains('concert') ||
+        rawTitle.contains('live');
+    if (intent.wantsLive) {
+      if (isLiveTrack) {
+        score += 600;
+      } else {
+        score -= 500;
+      }
+    } else if (isLiveTrack) {
       score -= 500;
     }
 
-    if (intent.wantsRemix && (versionInfo.type == VersionType.remix || rawTitle.contains('remix'))) {
-      score += 600;
-    } else if (!intent.wantsRemix && (versionInfo.type == VersionType.remix || rawTitle.contains('remix'))) {
+    final isRemixTrack = versionInfo.type == VersionType.remix || rawTitle.contains('remix');
+    if (intent.wantsRemix) {
+      if (isRemixTrack) {
+        score += 600;
+      } else {
+        score -= 500;
+      }
+    } else if (isRemixTrack) {
       score -= 400;
     }
 
-    if (intent.wantsCover && (versionInfo.type == VersionType.cover || rawTitle.contains('cover'))) {
-      score += 600;
-    } else if (!intent.wantsCover && (versionInfo.type == VersionType.cover || rawTitle.contains('cover'))) {
+    final isCoverTrack = versionInfo.type == VersionType.cover || rawTitle.contains('cover');
+    if (intent.wantsCover) {
+      if (isCoverTrack) {
+        score += 600;
+      } else {
+        score -= 500;
+      }
+    } else if (isCoverTrack) {
       score -= 500;
     }
 
-    if (intent.wantsInstrumental && (versionInfo.type == VersionType.instrumental || rawTitle.contains('instrumental') || rawTitle.contains('karaoke'))) {
-      score += 600;
-    } else if (!intent.wantsInstrumental && (versionInfo.type == VersionType.instrumental || rawTitle.contains('instrumental') || rawTitle.contains('karaoke'))) {
+    final isInstTrack = versionInfo.type == VersionType.instrumental ||
+        rawTitle.contains('instrumental') ||
+        rawTitle.contains('karaoke');
+    if (intent.wantsInstrumental || intent.wantsKaraoke) {
+      if (isInstTrack) {
+        score += 600;
+      } else {
+        score -= 600;
+      }
+    } else if (isInstTrack) {
       score -= 500;
     }
 
@@ -1823,10 +1946,19 @@ class SearchDeduplicator {
       score += 600;
     }
 
-    // 4. View count signal (strictly subordinate logarithmic tie-breaker)
-    final views = parseViewCount(video);
+    // 4. View count signal: meaningful popularity boost for authoritative global releases
+    final views = parseViewCount(video) ?? video.rawViewCount;
     if (views != null && views > 0) {
-      final logScore = (math.log(views + 1) / math.ln10) * 4.0;
+      if (views >= 500000000) {
+        score += 150; // 500M+ views (global mega-hit)
+      } else if (views >= 100000000) {
+        score += 100; // 100M+ views
+      } else if (views >= 10000000) {
+        score += 60;  // 10M+ views
+      } else if (views >= 1000000) {
+        score += 30;  // 1M+ views
+      }
+      final logScore = (math.log(views + 1) / math.ln10) * 8.0;
       score += logScore;
     }
 

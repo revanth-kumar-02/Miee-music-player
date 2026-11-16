@@ -102,9 +102,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   void _playYouTubeResult(YouTubeVideo video) {
-    // Strict validation: Reject commentary, exposés, podcasts or non-music videos
-    if (!MusicResultClassifier.isValidIndividualSong(video,
-        query: _searchQuery)) {
+    // Validation: Reject commentary, exposés, podcasts, scenes or non-music videos
+    final isApprovedMusic = MusicResultClassifier.isValidIndividualSong(video,
+            query: _searchQuery) ||
+        MusicResultClassifier.isValidMusicTrack(video, query: _searchQuery);
+    if (!isApprovedMusic) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('This video is not a recognized music track.'),

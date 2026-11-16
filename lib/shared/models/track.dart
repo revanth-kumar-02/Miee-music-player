@@ -43,6 +43,12 @@ class Track implements MusicItem {
   /// Raw audio source identifier (e.g. 11-char YouTube videoId).
   final String? sourceId;
 
+  /// Raw numeric view count if available (for quality verification and ranking).
+  final int? rawViewCount;
+
+  /// Human-readable view count string (e.g. "776.7M views").
+  final String? viewCount;
+
   const Track({
     required this.id,
     required this.title,
@@ -61,6 +67,8 @@ class Track implements MusicItem {
     this.metadataIdentifier,
     this.sourceProvider,
     this.sourceId,
+    this.rawViewCount,
+    this.viewCount,
   }) : localFilePath = filePath;
 
   @override
@@ -103,6 +111,8 @@ class Track implements MusicItem {
     String? metadataIdentifier,
     String? sourceProvider,
     String? sourceId,
+    int? rawViewCount,
+    String? viewCount,
   }) {
     String resolvedImage = (imageUrl != null && imageUrl.isNotEmpty)
         ? imageUrl
@@ -139,6 +149,8 @@ class Track implements MusicItem {
       metadataIdentifier: metadataIdentifier ?? this.metadataIdentifier,
       sourceProvider: sourceProvider ?? this.sourceProvider,
       sourceId: sourceId ?? this.sourceId,
+      rawViewCount: rawViewCount ?? this.rawViewCount,
+      viewCount: viewCount ?? this.viewCount,
     );
   }
 }

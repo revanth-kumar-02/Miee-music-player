@@ -565,6 +565,20 @@ class MusicResultClassifier {
       }
     }
 
+    // Isolated scene clips (e.g. "[BLACK PANTHER] (2018) All The Stars Scene", "All The Stars Scene")
+    final isSceneOrClip = RegExp(
+      r'[\(\[\{\|\-]?\s*\b(scene|scenes|film\s+clip|movie\s+clip|deleted\s+scene)\b',
+      caseSensitive: false,
+    ).hasMatch(titleLower);
+    if (isSceneOrClip && !(query != null && query.toLowerCase().contains('scene'))) {
+      return makeVerdict(
+        MusicTrackConfidence.rejected,
+        false,
+        'Movie scene or film clip',
+        0,
+      );
+    }
+
     // F. Commercial trailers, promos, teasers, ads
     final promoPatterns = [
       'official trailer',
@@ -820,9 +834,15 @@ class MusicResultClassifier {
       hasMusicIndicator = true;
     }
 
-    // Signal: Typical song duration (2:00 to 6:30) (+15 points)
-    if ((durationSec >= 120 && durationSec <= 390) || (durationSec >= 45 && durationSec <= 390 && (hasMusicIndicator || isMusicLabelChannel || hasMusicKeywordInTitle))) {
+    // Signal: Typical song duration (1:15 to 7:00) (+15 points)
+    if (durationSec >= 75 && durationSec <= 420) {
       score += 15;
+    }
+
+    // Signal: Verified metadata from Apple iTunes (+50 points)
+    if (video.metadataProvider == 'itunes') {
+      score += 50;
+      hasMusicIndicator = true;
     }
 
     // Signal: Verified song marker in view count (+30 points)
@@ -848,9 +868,12 @@ class MusicResultClassifier {
       hasMusicIndicator = true;
     }
 
-    // Signal: High View Count on Valid Song Format (+15 to +30 points)
-    final numericViews = _parseNumericViews(video);
-    if (numericViews != null && numericViews >= 1000000) {
+    // Signal: High View Count on Valid Song Format (+15 to +40 points)
+    final numericViews = _parseNumericViews(video) ?? video.rawViewCount;
+    if (numericViews != null && numericViews >= 10000000) {
+      score += 40;
+      hasMusicIndicator = true;
+    } else if (numericViews != null && numericViews >= 1000000) {
       score += 30;
       hasMusicIndicator = true;
     } else if (numericViews != null && numericViews >= 100000) {
@@ -888,10 +911,11 @@ class MusicResultClassifier {
       }
 
       // If video has zero musical indicators and is from an unverified channel:
-      // In individual playback mode, strictly reject it.
-      // For general classification, mark as uncertain so official tracks rank above it.
+      // Strictly reject if it actually matches creator/vlog/scene archetypes or is an extreme duration.
       if (!hasMusicIndicator && !isMusicLabelChannel && !isVerifiedArtistChannel) {
-        if (forIndividualPlayback || durationSec > 300) {
+        final hasCreatorArchetype = _hasCreatorChannelArchetype(channelLower) ||
+            _hasCreatorTitleArchetype(rawTitle, video.rawTitle ?? video.title);
+        if (hasCreatorArchetype || durationSec > 540 || (durationSec > 0 && durationSec < 45)) {
           return makeVerdict(
             MusicTrackConfidence.rejected,
             false,
@@ -1382,7 +1406,76 @@ class MusicResultClassifier {
   /// Checks if channel belongs to a verified music artist, composer, or official artist channel.
   static bool _isVerifiedMusicArtist(String channelLower) {
     if (_isOfficialMusicLabel(channelLower)) return true;
+
+    // Reject fan/status/edit channels
+    const fanIndicators = [
+      'fan', 'editz', 'edits', 'status', 'reels', 'shorts', 'update', 'updates',
+      'army', 'club', 'cover', 'tribute', 'lyrics', 'zone', 'vibes', 'creation',
+      'beatz', 'beats', 'mashup', 'remix', 'world', 'hub', 'unplugged', 'scene',
+    ];
+    for (final fi in fanIndicators) {
+      if (RegExp(r'\b' + RegExp.escape(fi) + r'\b').hasMatch(channelLower)) {
+        return false;
+      }
+    }
+
+    if (channelLower.endsWith(' - topic') ||
+        channelLower.endsWith(' topic') ||
+        channelLower.contains('vevo') ||
+        channelLower.endsWith(' official') ||
+        channelLower.endsWith(' - official')) {
+      return true;
+    }
+
     final verifiedArtists = [
+      'kendrick lamar',
+      'kendrick lamar, sza',
+      'sza',
+      'lana del rey',
+      'rihanna',
+      'beyonce',
+      'travis scott',
+      'post malone',
+      'kanye west',
+      'bruno mars',
+      'billie eilish',
+      'adele',
+      'eminem',
+      'lady gaga',
+      'justin bieber',
+      'katy perry',
+      'shakira',
+      'selena gomez',
+      'ariana grande',
+      'shawn mendes',
+      'olivia rodrigo',
+      'sabrina carpenter',
+      'charli xcx',
+      'harry styles',
+      'maroon 5',
+      'linkin park',
+      'imagine dragons',
+      'queen',
+      'the beatles',
+      'nirvana',
+      'michael jackson',
+      'david bowie',
+      'radiohead',
+      'frank ocean',
+      'tyler, the creator',
+      'tyler the creator',
+      'j. cole',
+      'j cole',
+      '21 savage',
+      'metro boomin',
+      'future',
+      'lil nas x',
+      'doja cat',
+      'cardi b',
+      'nicki minaj',
+      'megan thee stallion',
+      'mac miller',
+      'juice wrld',
       'anirudh ravichander',
       'anirudh',
       'a.r. rahman',
@@ -1418,11 +1511,6 @@ class MusicResultClassifier {
       'the weeknd',
       'bts',
       'drake',
-      'eminem',
-      'adele',
-      'billie eilish',
-      'post malone',
-      'bruno mars',
       'alan walker',
       'sanjay subrahmanyan',
     ];
@@ -1431,7 +1519,10 @@ class MusicResultClassifier {
           channelLower.startsWith('$artist ') ||
           channelLower.endsWith(' $artist') ||
           channelLower == '$artist official' ||
-          channelLower.contains('$artist vevo')) {
+          channelLower == '$artist - official' ||
+          channelLower.contains('$artist vevo') ||
+          channelLower.contains('$artist - topic') ||
+          channelLower.contains('$artist topic')) {
         return true;
       }
     }
