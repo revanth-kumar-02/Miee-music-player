@@ -322,6 +322,34 @@ class YouTubeRepository {
         return false;
       }
 
+      // Exclude derivative edits (karaoke, slowed+reverb, sped up, bass boosted, compilation mix)
+      final intent = QueryIntent.fromQuery(seedVideo.channelTitle.isNotEmpty
+          ? seedVideo.channelTitle
+          : seedVideo.artist);
+      final editType = SearchDeduplicator.detectEditType(track, intent);
+      if (editType == EditType.karaokeVersion ||
+          editType == EditType.slowedReverb ||
+          editType == EditType.spedUpNightcore ||
+          editType == EditType.audioModified ||
+          editType == EditType.compilationMix ||
+          editType == EditType.coverSong) {
+        return false;
+      }
+
+      // Exclude non-music broadcast networks, TV channels, serial promos
+      final chLower =
+          (track.rawChannelTitle ?? track.channelTitle).toLowerCase();
+      if (chLower.contains('sun tv') ||
+          chLower.contains('globtamil') ||
+          chLower.contains('zee tv') ||
+          chLower.contains('vijay tv') ||
+          chLower.contains('polimer') ||
+          chLower.contains('etv') ||
+          chLower.contains('colorstv') ||
+          chLower.contains('news')) {
+        return false;
+      }
+
       return true;
     }).toList();
 

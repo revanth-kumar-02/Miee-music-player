@@ -26,6 +26,7 @@ import '../../features/onboarding/domain/artist_model.dart';
 import 'youtube_audio_service.dart';
 
 import 'playback_diagnostics.dart';
+import 'queue_diagnostics.dart';
 
 /// Single orchestrator bridging [MieeAudioHandler] with unified Riverpod state.
 ///
@@ -107,6 +108,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
         final restoredTracks = snapshot.queue.map((m) => m.toTrack()).toList();
         _queueManager.setQueue(restoredTracks,
             startIndex: snapshot.currentIndex);
+        QueueDiagnostics.logQueueCreation(
+          reason: 'Snapshot restore after app restart',
+          tracks: restoredTracks,
+          startIndex: snapshot.currentIndex,
+        );
         final current = _queueManager.currentTrack;
         final repeat = snapshot.repeatMode == 'one'
             ? RepeatMode.one
@@ -260,7 +266,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
           _persistQueueSnapshot();
           _recordRecentlyPlayed(track);
           _analyticsTracker.onTrackChanged(track);
-          unawaited(expandQueueIfNeeded());
         }
       }
     });
@@ -395,6 +400,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     _queueManager.setQueue(finalQueue, startIndex: finalStartIndex);
     _persistQueueSnapshot();
+    QueueDiagnostics.logQueueCreation(
+      reason: playingFrom ?? 'Direct setQueue',
+      tracks: finalQueue,
+      startIndex: finalStartIndex,
+      playingFrom: playingFrom,
+    );
     final track = _queueManager.currentTrack;
     if (track != null) {
       playTrack(track, playingFrom: playingFrom);
@@ -488,12 +499,31 @@ class PlayerController extends StateNotifier<PlaybackState> {
     final currentIndex = _queueManager.currentIndex;
     if (queue.isEmpty || currentIndex < 0) return;
 
-    // Prefetching threshold: begin background fetch when 3 or fewer tracks remain
-    final remaining = queue.length - 1 - currentIndex;
-    if (remaining > 3) return;
-
     final current = _queueManager.currentTrack;
     if (current == null) return;
+
+    // Check user preference for autoplay
+    final isAutoplayEnabled = _ref.read(settingsProvider).autoPlayNext;
+    final remaining = queue.length - 1 - currentIndex;
+
+    QueueDiagnostics.logAutoplayCheck(
+      enabled: isAutoplayEnabled,
+      remaining: remaining,
+      activeTrackId: current.id,
+      reason: 'expandQueueIfNeeded evaluated',
+    );
+
+    if (!isAutoplayEnabled) {
+      debugLog(
+          '[QueueExpansion] Autoplay is disabled by user setting. Skipping expansion.');
+      return;
+    }
+
+    // Only replenish when playback has reached or is at the end of the active queue (remaining <= 0)
+    // Never expand prematurely while user still has upcoming queued songs.
+    if (remaining > 0) {
+      return;
+    }
 
     final completer = Completer<void>();
     _expandingCompleter = completer;
@@ -501,7 +531,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     final token = _queueGenerationToken;
 
     debugLog(
-        '[QueueExpansion] Queue low ($remaining tracks remaining). Expanding queue...');
+        '[QueueExpansion] Reached queue end ($remaining tracks remaining). Expanding queue via Autoplay...');
 
     try {
       final recService = _ref.read(recommendationServiceProvider);
@@ -578,14 +608,26 @@ class PlayerController extends StateNotifier<PlaybackState> {
           final normId = _normalizeTrackId(t.id);
           final recKey = SearchDeduplicator.computeRecordingKey(t);
 
-          if (currentNormIds.contains(normId)) continue;
+          if (currentNormIds.contains(normId)) {
+            QueueDiagnostics.logDuplicateRejected(
+              track: t,
+              duplicateReason: 'Track ID already in queue ($normId)',
+            );
+            continue;
+          }
           if (!_isPlayableMusicItem(t)) {
             debugLog(
                 '[QueueExpansion] Discarding non-music candidate: "${t.title}"');
             continue;
           }
 
-          if (currentKeys.contains(recKey)) continue;
+          if (currentKeys.contains(recKey)) {
+            QueueDiagnostics.logDuplicateRejected(
+              track: t,
+              duplicateReason: 'Recording key already in queue ($recKey)',
+            );
+            continue;
+          }
 
           // Reject different artists' tracks merely sharing the current track's title
           final tBaseTitle = SearchDeduplicator.normalizeBaseTitle(
@@ -606,10 +648,24 @@ class PlayerController extends StateNotifier<PlaybackState> {
         }
 
         if (freshTracks.isNotEmpty) {
+          final indexBefore = _queueManager.queue.length;
           _queueManager.addTracks(freshTracks);
           await _handler.appendTracks(freshTracks);
           _persistQueueSnapshot();
           state = state.copyWith(currentTrack: _queueManager.currentTrack);
+          for (int i = 0; i < freshTracks.length; i++) {
+            final t = freshTracks[i];
+            QueueDiagnostics.logTrackInsertion(
+              track: t,
+              reason: 'Autoplay dynamic expansion',
+              userInitiated: false,
+              recommendationSource: _activeArtistContext != null
+                  ? 'Artist catalog: $_activeArtistContext'
+                  : 'Musically related recommendations',
+              indexBefore: indexBefore + i,
+              indexAfter: indexBefore + i + 1,
+            );
+          }
           debugLog(
               '[QueueExpansion] Successfully appended ${freshTracks.length} fresh tracks. Total queue size: ${_queueManager.queue.length}');
         } else {
@@ -856,7 +912,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (token != _playRequestToken) return;
       await _handler.play();
       _recordRecentlyPlayed(resolvedTrack);
-      unawaited(expandQueueIfNeeded());
     } catch (e) {
       if (token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
@@ -1118,18 +1173,36 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   Future<void> addTrackToQueue(MusicItem track) async {
+    final indexBefore = _queueManager.queue.length;
     _queueManager.addTrack(track);
     await _handler.appendTrack(track);
     _persistQueueSnapshot();
+    QueueDiagnostics.logTrackInsertion(
+      track: track,
+      reason: 'User explicitly added to queue',
+      userInitiated: true,
+      indexBefore: indexBefore,
+      indexAfter: _queueManager.queue.length,
+    );
     if (state.currentTrack == null) {
       await playTrack(track);
     }
   }
 
   Future<void> removeTrackAt(int index) async {
+    final removedTrack = (index >= 0 && index < _queueManager.queue.length)
+        ? _queueManager.queue[index]
+        : null;
     _queueManager.removeTrackAt(index);
     await _handler.removeTrackAt(index);
     _persistQueueSnapshot();
+    if (removedTrack != null) {
+      QueueDiagnostics.logTrackRemoved(
+        index: index,
+        removedTrack: removedTrack,
+        remainingSize: _queueManager.queue.length,
+      );
+    }
     if (_queueManager.queue.isEmpty) {
       clearQueue();
     } else {
@@ -1144,6 +1217,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _queueManager.reorder(oldIndex, newIndex);
     await _handler.reorderQueue(oldIndex, newIndex);
     _persistQueueSnapshot();
+    QueueDiagnostics.logQueueReorder(
+      oldIndex: oldIndex,
+      newIndex: newIndex,
+      queueLength: _queueManager.queue.length,
+    );
     state = state.copyWith(currentTrack: _queueManager.currentTrack);
   }
 

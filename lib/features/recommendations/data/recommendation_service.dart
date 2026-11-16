@@ -11,6 +11,7 @@ import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
 import '../../search/domain/search_deduplicator.dart';
 import '../../youtube/data/youtube_repository.dart';
+import '../../../core/audio/queue_diagnostics.dart';
 import 'taste_profile_repository.dart';
 import 'trending_music_service.dart';
 import '../domain/candidate_ranker.dart';
@@ -766,14 +767,13 @@ class RecommendationService {
   }
 
   /// Generates dynamic upcoming queue recommendations when the playback queue
-  /// is running low or approaching exhaustion.
+  /// Evaluates and generates truly related upcoming track recommendations for the playing queue.
   ///
-  /// Considers:
-  /// - Current playing track and artist.
-  /// - Real chart trends from [TrendingMusicService].
-  /// - User's selected artists.
-  /// - Deduplicates strictly against [currentQueue] and recent listening history.
-  /// - Enforces artist diversity so the queue never loops through identical tracks.
+  /// Strict Rules:
+  /// - Prioritizes the same artist, same album, or verified musical relationships.
+  /// - Excludes derivative edits (karaoke, covers, fan edits, compilation mixes, live recordings).
+  /// - Strictly NEVER falls back to unrelated regional trending songs or arbitrary curated artists.
+  /// - If no reliable recommendation is available, returns an empty list leaving the queue untouched.
   Future<List<MusicItem>> getUpcomingQueueRecommendations({
     required MusicItem currentTrack,
     required List<MusicItem> currentQueue,
@@ -786,9 +786,12 @@ class RecommendationService {
         .toSet();
     final queueIds = currentQueue.map((t) => _normalizeTrackId(t.id)).toSet();
 
-    // Also include currentTrack key and ID
+    // Include currentTrack key and ID to prevent immediate duplicate
     queueKeys.add(SearchDeduplicator.computeRecordingKey(currentTrack));
     queueIds.add(_normalizeTrackId(currentTrack.id));
+
+    final currentArtist = currentTrack.artist.trim();
+    final currentArtistNorm = SearchDeduplicator.normalizeArtist(currentArtist);
 
     final currentBaseTitle = SearchDeduplicator.normalizeBaseTitle(
       currentTrack.title,
@@ -796,24 +799,21 @@ class RecommendationService {
           (currentTrack is Track) ? currentTrack.rawTitle : currentTrack.title,
       artist: currentTrack.artist,
     ).toLowerCase().trim();
-    final currentArtistNorm =
-        SearchDeduplicator.normalizeArtist(currentTrack.artist);
 
-    // Track how many songs per artist are in the upcoming batch to guarantee variety
-    final artistCount = <String, int>{};
-    void addQueueTrack(MusicItem track) {
+    void addCandidate(MusicItem track, {required String sourceReason}) {
       if (upcoming.length >= limit) return;
       final key = SearchDeduplicator.computeRecordingKey(track);
-      final artistKey = track.artist.toLowerCase().trim();
-      final count = artistCount[artistKey] ?? 0;
+      final normId = _normalizeTrackId(track.id);
 
-      final currentArtistKey = currentTrack.artist.toLowerCase().trim();
-      final isDominantArtist =
-          currentArtistKey.isNotEmpty && currentArtistKey == artistKey;
-      final maxAllowed = isDominantArtist ? 6 : 2;
-      if (count >= maxAllowed) return;
+      if (queueKeys.contains(key) || queueIds.contains(normId)) {
+        QueueDiagnostics.logDuplicateRejected(
+          track: track,
+          duplicateReason: 'Track already present in queue ($normId)',
+        );
+        return;
+      }
 
-      // Rule: Do not add different artists' tracks merely because they share the selected track's title
+      // Reject different artists' tracks merely sharing the current track's title
       final candidateBaseTitle = SearchDeduplicator.normalizeBaseTitle(
         track.title,
         rawTitle: (track is Track) ? track.rawTitle : track.title,
@@ -823,10 +823,9 @@ class RecommendationService {
           SearchDeduplicator.normalizeArtist(track.artist);
 
       if (currentBaseTitle.isNotEmpty &&
-          candidateBaseTitle == currentBaseTitle) {
-        if (candidateArtistNorm != currentArtistNorm) {
-          return;
-        }
+          candidateBaseTitle == currentBaseTitle &&
+          candidateArtistNorm != currentArtistNorm) {
+        return;
       }
 
       if (track.isYoutube) {
@@ -845,20 +844,49 @@ class RecommendationService {
           rawChannelTitle: rawA,
         );
         if (!isLegitimateSong(v)) return;
+
+        // Exclude derivative edits (covers, karaoke, fan edits, status clips, etc.)
+        final intent = QueryIntent.fromQuery(currentArtist);
+        final editType = SearchDeduplicator.detectEditType(v, intent);
+        if (editType == EditType.coverSong ||
+            editType == EditType.karaokeVersion ||
+            editType == EditType.fanEdit ||
+            editType == EditType.livePerformance ||
+            editType == EditType.compilationMix ||
+            editType == EditType.mashupRemake ||
+            editType == EditType.nonMusicEntertainment) {
+          return;
+        }
       }
 
-      final normId = _normalizeTrackId(track.id);
-      if (!queueKeys.contains(key) && !queueIds.contains(normId)) {
-        queueKeys.add(key);
-        queueIds.add(normId);
-        artistCount[artistKey] = count + 1;
-        upcoming.add(track);
-      }
+      queueKeys.add(key);
+      queueIds.add(normId);
+      upcoming.add(track);
     }
 
     try {
-      // 1. Fetch related tracks seeded by current track
-      if (currentTrack.isYoutube) {
+      // 1. Primary: Genuine catalog tracks by the SAME ARTIST
+      if (currentArtist.isNotEmpty &&
+          currentArtist.toLowerCase() != 'unknown' &&
+          currentArtist.toLowerCase() != 'various artists') {
+        final artistTracks = await _youtubeRepo.getArtistTracks(
+          currentArtist,
+          page: 1,
+          limit: limit,
+          preferredLanguages: profile?.preferredLanguages ?? const [],
+        );
+        for (final v in artistTracks) {
+          if (isLegitimateSong(v)) {
+            addCandidate(
+              v.toTrack(reliableArtist: currentArtist),
+              sourceReason: 'Same artist catalog: "$currentArtist"',
+            );
+          }
+        }
+      }
+
+      // 2. Secondary: If more tracks needed, check verified related tracks seeded by current track
+      if (upcoming.length < limit && currentTrack.isYoutube) {
         final videoId = currentTrack.id.replaceFirst('youtube_', '');
         if (videoId.length == 11) {
           final seed = YouTubeVideo(
@@ -870,109 +898,48 @@ class RecommendationService {
             viewCount: '',
           );
           final relatedVideos =
-              await _youtubeRepo.getRelatedTracks(seed, limit: 8);
+              await _youtubeRepo.getRelatedTracks(seed, limit: limit);
           for (final v in relatedVideos) {
-            if (isLegitimateSong(v)) {
-              addQueueTrack(v.toTrack());
+            final candArtistNorm =
+                SearchDeduplicator.normalizeArtist(v.channelTitle);
+            final isSameOrRelated = candArtistNorm == currentArtistNorm ||
+                v.title.toLowerCase().contains(currentArtist.toLowerCase()) ||
+                v.channelTitle.toLowerCase().contains(currentArtist.toLowerCase());
+            if (isSameOrRelated && isLegitimateSong(v)) {
+              addCandidate(
+                v.toTrack(),
+                sourceReason: 'Verified related track for "$currentArtist"',
+              );
             }
           }
         }
       }
 
-      // If related videos didn't fill the quota, fetch more tracks for this artist
-      if (upcoming.length < limit) {
-        final searchRelated = await _youtubeRepo.getArtistTracks(
-          currentTrack.artist,
-          page: 2,
-          limit: limit,
-          preferredLanguages: profile?.preferredLanguages ?? const [],
-        );
-        for (final v in searchRelated) {
-          if (isLegitimateSong(v)) {
-            addQueueTrack(v.toTrack(reliableArtist: currentTrack.artist));
-          }
-        }
-      }
-
-      // 2. Blend genuine provider-backed trending tracks
-      if (upcoming.length < limit) {
-        final chartResult =
-            await _trendingService.getTrendingAndRecentReleases();
-        for (final chartTrack in chartResult.trendingTracks) {
-          addQueueTrack(chartTrack);
-          if (upcoming.length >= limit) break;
-        }
-      }
-
-      // 3. Blend user's other selected artists
+      // 3. Tertiary: If the current track belongs to an album, fetch more from that album
       if (upcoming.length < limit &&
-          profile != null &&
-          profile.selectedArtists.isNotEmpty) {
-        for (final fav in profile.selectedArtists) {
-          if (fav.name.toLowerCase().trim() ==
-              currentTrack.artist.toLowerCase().trim()) {
-            continue;
+          currentTrack is Track &&
+          currentTrack.albumName != null &&
+          currentTrack.albumName!.isNotEmpty) {
+        final albumTracks = await _youtubeRepo.search(
+          '${currentTrack.artist} ${currentTrack.albumName}',
+        );
+        for (final v in albumTracks) {
+          if (isLegitimateSong(v)) {
+            addCandidate(
+              v.toTrack(reliableArtist: currentTrack.artist),
+              sourceReason: 'Same album: "${currentTrack.albumName}"',
+            );
           }
-          final favTracks = await getTracksForArtist(fav, limit: 2);
-          for (final t in favTracks) {
-            addQueueTrack(t);
-          }
-          if (upcoming.length >= limit) break;
-        }
-      }
-
-      // 4. Fallback to curated catalog
-      if (upcoming.length < limit) {
-        final curated = DeezerArtistRepository.staticCuratedArtists;
-        for (final artist in curated) {
-          final catalogTracks =
-              await getTracksForArtist(artist.toSummary(), limit: 1);
-          for (final t in catalogTracks) {
-            addQueueTrack(t);
-          }
-          if (upcoming.length >= limit) break;
         }
       }
     } catch (e) {
       debugPrint('[RecommendationService] Upcoming queue expansion error: $e');
     }
 
+    // STRICT POLICY: Never fallback to unrelated trending chart songs or arbitrary curated artists!
+    // If no genuinely related tracks are available, return empty list leaving queue untouched.
     if (upcoming.isEmpty) return const [];
 
-    // Pull taste profile and listening history for deterministic ranking
-    final uid = profile?.uid;
-    final history = await _historyRepo.getRecentHistory(uid: uid, limit: 30);
-    final tasteProfile = (uid != null && uid.isNotEmpty && _tasteRepo != null)
-        ? await _tasteRepo!.getProfile(uid)
-        : UserTasteProfile.empty(uid ?? '');
-
-    // Get chart ranks if available from cached trending
-    final chartRanks = <String, int>{};
-    final cachedTrending =
-        await _trendingService.getTrendingAndRecentReleases();
-    for (int i = 0; i < cachedTrending.trendingTracks.length; i++) {
-      final t = cachedTrending.trendingTracks[i];
-      chartRanks[_normalizeTrackId(t.id)] = i + 1;
-      chartRanks[t.id] = i + 1;
-    }
-
-    final preferredLanguages = profile?.preferredLanguages ??
-        MusicLanguageService.getPreferredLanguages(
-          history: history,
-          profile: profile,
-        );
-
-    final ranked = _candidateRanker.rankCandidates(
-      candidates: upcoming,
-      tasteProfile: tasteProfile,
-      preferredLanguages: preferredLanguages,
-      chartRanks: chartRanks,
-      recentHistory: history,
-      limit: limit,
-      excludedTrackIds: queueIds,
-      excludedRecordingKeys: queueKeys,
-    );
-
-    return ranked.isNotEmpty ? ranked : upcoming;
+    return upcoming;
   }
 }
