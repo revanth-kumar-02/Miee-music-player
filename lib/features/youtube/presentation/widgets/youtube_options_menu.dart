@@ -119,8 +119,8 @@ class YouTubeOptionsMenu extends ConsumerWidget {
                     SnackBar(
                       content: Text(
                         isFav
-                            ? 'Removed "${video.title}" from favorites'
-                            : 'Added "${video.title}" to favorites',
+                            ? 'Removed "${video.displayTitle}" from favorites'
+                            : 'Added "${video.displayTitle}" to favorites',
                       ),
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -137,7 +137,7 @@ class YouTubeOptionsMenu extends ConsumerWidget {
               ref.read(playerControllerProvider.notifier).addTrackToQueue(video);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Added "${video.title}" to queue'),
+                  content: Text('Added "${video.displayTitle}" to queue'),
                   behavior: SnackBarBehavior.floating,
                 ),
               );

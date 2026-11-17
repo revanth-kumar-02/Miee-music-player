@@ -212,7 +212,7 @@ class PlayerPage extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            hasTrack ? currentTrack.title : 'Blue Hour',
+                            hasTrack ? currentTrack.displayTitle : 'Blue Hour',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.geist(
@@ -817,7 +817,7 @@ class PlayerPage extends ConsumerWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      hasTrack ? currentTrack.title : 'No Track Selected',
+                                      hasTrack ? currentTrack.displayTitle : 'No Track Selected',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.plusJakartaSans(

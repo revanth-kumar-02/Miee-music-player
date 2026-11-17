@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'music_item.dart';
+import '../utils/display_title_normalizer.dart';
 
 /// Model representing a music track.
 class Track implements MusicItem {
@@ -114,6 +115,9 @@ class Track implements MusicItem {
 
   @override
   String get filePath => localFilePath ?? '';
+
+  @override
+  String get displayTitle => DisplayTitleNormalizer.normalize(title);
 
   /// Deterministic artwork source priority getter:
   /// 1. Verified high-confidence external album artwork (iTunes, Deezer, etc.)

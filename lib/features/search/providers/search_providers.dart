@@ -253,7 +253,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
             isYouTubeLoading: false,
             errorMessage: null,
           );
-          _enrichArtistsFromSongs(query, youtube, reqId);
+          unawaited(_enrichArtistsFromSongs(query, youtube, reqId));
           _enrichYouTubeMetadataProgressively(query, youtube, reqId);
         }
       } catch (e) {
@@ -366,6 +366,11 @@ class SearchNotifier extends StateNotifier<SearchState> {
     for (final video in youtube.take(5)) {
       final artistName = (video.canonicalArtist ?? video.channelTitle).trim();
       if (artistName.isEmpty) continue;
+
+      // Retain full artist name as top candidate (preserves bands like "She & Him", "Simon & Garfunkel")
+      if (!candidateNames.contains(artistName)) {
+        candidateNames.add(artistName);
+      }
 
       final parts = artistName.split(
         RegExp(r'\s*(&|,|\bft\.?\b|\bfeat\.?\b)\s*', caseSensitive: false),

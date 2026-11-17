@@ -1,6 +1,8 @@
 import 'package:hive/hive.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../domain/search_deduplicator.dart';
+import '../domain/canonical_music_ranker.dart';
+import '../domain/query_relevance_evaluator.dart';
 import '../domain/artist_classifier.dart';
 import '../domain/online_playlist.dart';
 import '../domain/music_suggestion.dart';
@@ -11,6 +13,7 @@ import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/domain/music_result_classifier.dart';
 import '../../youtube/data/youtube_repository.dart';
 import '../../metadata/data/itunes_metadata_service.dart';
+import '../../metadata/domain/itunes_song.dart';
 import '../../metadata/data/musicbrainz_service.dart';
 import '../../metadata/domain/musicbrainz_models.dart';
 import 'playback_source_resolver.dart';
@@ -172,98 +175,117 @@ class SearchRepository {
     SearchRankingConfig? config,
     bool enrichSynchronously = false,
   }) async {
-    // 1. Stage B: MusicBrainz Web Service Discovery (Primary Open Music Metadata Authority)
-    List<MusicBrainzRecording> mbRecordings = const [];
-    try {
-      mbRecordings = await musicBrainzService.searchRecordings(clean, limit: 12);
-    } catch (_) {}
+    // 1. Stage B: Dual-Authority Music Discovery (MusicBrainz + Apple iTunes + Deezer Curated Artists)
+    // Run structured metadata lookups concurrently to discover both open canonical metadata (MBID/CAA)
+    // and commercial popularity / studio release prominence signals.
+    final mbFuture = musicBrainzService.searchRecordings(clean, limit: 15).catchError((_) => <MusicBrainzRecording>[]);
+    final itunesFuture = itunesMetadataService.searchSongs(clean, limit: 15).catchError((_) => <ItunesSong>[]);
+    final artistsFuture = searchArtists(clean).catchError((_) => <ArtistModel>[]);
 
-    if (mbRecordings.isNotEmpty) {
-      final musicVideos = mbRecordings
-          .map((rec) => YouTubeVideo.fromMusicBrainzRecording(rec))
-          .toList();
+    final discovery = await Future.wait([mbFuture, itunesFuture, artistsFuture]);
+    final mbRecordings = discovery[0] as List<MusicBrainzRecording>;
+    final itunesSongs = discovery[1] as List<ItunesSong>;
+    final artists = discovery[2] as List<ArtistModel>;
 
-      // Launch non-blocking background cover art resolution from Cover Art Archive
-      _enrichRecordingsWithCoverArt(clean, mbRecordings, musicVideos);
+    if (mbRecordings.isNotEmpty || itunesSongs.isNotEmpty) {
+      final candidatePool = <YouTubeVideo>[];
 
-      // Launch non-blocking background pre-resolution of YouTube audio streams for top 5 candidates
-      _preResolvePlaybackSources(musicVideos.take(5).toList());
-
-      // Controlled Supplemental Search:
-      // If the query explicitly seeks an alternate version (e.g. "live", "remix", "acoustic", "unplugged")
-      // or if MusicBrainz returned fewer than 3 candidates, supplement with verified YouTube recordings
-      final cleanLower = clean.toLowerCase();
-      final isSpecificVersionQuery = cleanLower.contains('live') ||
-          cleanLower.contains('remix') ||
-          cleanLower.contains('acoustic') ||
-          cleanLower.contains('unplugged') ||
-          cleanLower.contains('cover');
-
-      if (musicVideos.length < 3 || isSpecificVersionQuery) {
-        try {
-          final supplemental = await youtubeRepository.search(clean);
-          final validSupplemental = supplemental.where((yt) {
-            if (!MusicResultClassifier.isValidMusicTrack(yt, query: clean)) return false;
-            for (final mb in musicVideos) {
-              if (SearchDeduplicator.isSameCanonicalSong(yt, mb)) return false;
-            }
-            return true;
-          }).take(4).toList();
-
-          if (validSupplemental.isNotEmpty) {
-            return [...musicVideos, ...validSupplemental];
-          }
-        } catch (_) {}
+      // Convert MusicBrainz recordings that pass relevance check
+      for (final rec in mbRecordings) {
+        final mbVideo = YouTubeVideo.fromMusicBrainzRecording(rec);
+        if (QueryRelevanceEvaluator.isCandidateRelevant(mbVideo, query: clean)) {
+          candidatePool.add(mbVideo);
+        }
       }
 
-      return musicVideos;
-    }
-
-    // 2. Stage B Fallback: Apple iTunes Catalogue (Secondary Structured Music Authority)
-    final itunesSongs = await itunesMetadataService.searchSongs(clean, limit: 15);
-
-    if (itunesSongs.isNotEmpty) {
-      final musicVideos = itunesSongs.map((song) => YouTubeVideo.fromItunesSong(song)).toList();
-
-      // Launch non-blocking background pre-resolution of YouTube audio streams for top 5 candidates
-      _preResolvePlaybackSources(musicVideos.take(5).toList());
-
-      // Controlled Supplemental Search:
-      // If the query explicitly seeks an alternate version (e.g. "live", "remix", "acoustic", "unplugged")
-      // or if MusicBrainz returned fewer than 3 candidates, supplement with verified YouTube recordings
-      final cleanLower = clean.toLowerCase();
-      final isSpecificVersionQuery = cleanLower.contains('live') ||
-          cleanLower.contains('remix') ||
-          cleanLower.contains('acoustic') ||
-          cleanLower.contains('unplugged') ||
-          cleanLower.contains('cover');
-
-      if (musicVideos.length < 3 || isSpecificVersionQuery) {
-        try {
-          final supplemental = await youtubeRepository.search(clean);
-          final validSupplemental = supplemental.where((yt) {
-            if (!MusicResultClassifier.isValidMusicTrack(yt, query: clean)) return false;
-            for (final mb in musicVideos) {
-              if (SearchDeduplicator.isSameCanonicalSong(yt, mb)) return false;
-            }
-            return true;
-          }).take(4).toList();
-
-          if (validSupplemental.isNotEmpty) {
-            return [...musicVideos, ...validSupplemental];
-          }
-        } catch (_) {}
+      // Convert iTunes songs that pass relevance check
+      for (final song in itunesSongs) {
+        final itVideo = YouTubeVideo.fromItunesSong(song);
+        if (QueryRelevanceEvaluator.isCandidateRelevant(itVideo, query: clean)) {
+          candidatePool.add(itVideo);
+        }
       }
 
-      return musicVideos;
+      if (candidatePool.isNotEmpty) {
+        final String? canonicalArtist = candidatePool.first.canonicalArtist;
+
+        // Rank using CanonicalMusicRanker: prioritizes canonical studio recordings,
+        // elevates prominent performing artists, and heavily penalizes unrequested tribute/cover acts
+        final rankedRecordings = CanonicalMusicRanker.rankVideos(
+          candidatePool,
+          query: clean,
+          canonicalArtist: canonicalArtist,
+          prominentArtists: artists,
+        );
+
+        // Launch non-blocking background cover art resolution from Cover Art Archive
+        _enrichRecordingsWithCoverArt(clean, mbRecordings, rankedRecordings);
+
+        // Launch non-blocking background pre-resolution of YouTube audio streams for top 5 candidates
+        _preResolvePlaybackSources(rankedRecordings.take(5).toList());
+
+        // Controlled Supplemental Search:
+        // If the query explicitly seeks an alternate version (e.g. "live", "remix", "acoustic", "unplugged", "cover")
+        // or if discovery returned fewer than 3 candidates, supplement with verified YouTube recordings
+        final cleanLower = clean.toLowerCase();
+        final isSpecificVersionQuery = cleanLower.contains('live') ||
+            cleanLower.contains('remix') ||
+            cleanLower.contains('acoustic') ||
+            cleanLower.contains('unplugged') ||
+            cleanLower.contains('cover');
+
+        if (rankedRecordings.length < 3 || isSpecificVersionQuery) {
+          try {
+            final supplemental = await youtubeRepository.search(clean);
+            final validSupplemental = supplemental.where((yt) {
+              if (!MusicResultClassifier.isValidMusicTrack(yt, query: clean)) return false;
+              if (!QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean)) return false;
+              for (final r in rankedRecordings) {
+                if (SearchDeduplicator.isSameCanonicalSong(yt, r)) return false;
+              }
+              return true;
+            }).take(4).toList();
+
+            if (validSupplemental.isNotEmpty) {
+              return CanonicalMusicRanker.rankVideos(
+                [...rankedRecordings, ...validSupplemental],
+                query: clean,
+                canonicalArtist: canonicalArtist,
+                prominentArtists: artists,
+              );
+            }
+          } catch (_) {}
+        }
+
+        return rankedRecordings;
+      }
     }
 
-    // 3. Stage B Last-Resort Fallback: If query returned 0 catalogue entries (e.g. obscure unreleased live bootlegs),
-    // fall back to YouTube search with strict music filtering
+    // 2. Stage B Fallback: If structured open metadata discovery had 0 relevant recordings
+    // (e.g. collection queries like "OM All Songs Tamil", obscure regional tracks, or unreleased recordings),
+    // fall back to YouTube search with strict music and query relevance filtering
     final rawVideos = await youtubeRepository.search(clean);
+    final validYt = rawVideos
+        .where((yt) => MusicResultClassifier.isValidMusicTrack(yt, query: clean))
+        .where((yt) => QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean))
+        .toList();
+
+    if (validYt.isNotEmpty) {
+      final ranked = CanonicalMusicRanker.rankVideos(
+        validYt,
+        query: clean,
+        canonicalArtist: null,
+        prominentArtists: artists,
+      );
+
+      if (enrichSynchronously) {
+        return await enrichYouTubeResults(ranked);
+      }
+      return ranked;
+    }
 
     final ranked = SearchDeduplicator.deduplicateAndRank(
-      rawVideos,
+      rawVideos.where((yt) => QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean)).toList(),
       query: clean,
       config: config ?? const SearchRankingConfig(filterDerivativeEdits: true),
     );
@@ -280,19 +302,31 @@ class SearchRepository {
     List<MusicBrainzRecording> recordings,
     List<YouTubeVideo> videos,
   ) {
+    if (recordings.isEmpty || videos.isEmpty) return;
     Future<void>(() async {
       bool updated = false;
       final updatedList = List<YouTubeVideo>.from(videos);
 
-      for (var i = 0; i < recordings.length && i < 5; i++) {
-        final rec = recordings[i];
-        final coverUrl = await musicBrainzService.resolveCoverArtUrl(rec);
-        if (coverUrl != null && coverUrl.isNotEmpty) {
-          updatedList[i] = updatedList[i].copyWith(
-            highResArtworkUrl: coverUrl,
-            thumbnailUrl: coverUrl,
-          );
-          updated = true;
+      for (var i = 0; i < updatedList.length && i < 5; i++) {
+        final video = updatedList[i];
+        if (video.metadataProvider == 'musicbrainz' && (video.mbid != null && video.mbid!.isNotEmpty)) {
+          MusicBrainzRecording? rec;
+          for (final r in recordings) {
+            if (r.mbid == video.mbid) {
+              rec = r;
+              break;
+            }
+          }
+          if (rec != null) {
+            final coverUrl = await musicBrainzService.resolveCoverArtUrl(rec);
+            if (coverUrl != null && coverUrl.isNotEmpty) {
+              updatedList[i] = updatedList[i].copyWith(
+                highResArtworkUrl: coverUrl,
+                thumbnailUrl: coverUrl,
+              );
+              updated = true;
+            }
+          }
         }
       }
 
@@ -343,41 +377,39 @@ class SearchRepository {
     final itunesArtists = results[2];
 
     // Infer performing artist from canonical song discovery if query is a song title (e.g. "brooklyn baby")
+    // Use iTunes song search for instantaneous artist inference to preserve MusicBrainz rate limiter for main track discovery
     final inferredSongArtists = <ArtistModel>[];
-    try {
-      final topSongs = await musicBrainzService.searchRecordings(cleanQuery, limit: 3);
-      if (topSongs.isNotEmpty) {
-        for (final song in topSongs) {
-          final artistName = song.primaryArtist;
-          if (artistName.isNotEmpty) {
-            final curated = DeezerArtistRepository.findCuratedByName(artistName);
+    final verifiedInferredIds = <String>{};
+
+    if (!QueryRelevanceEvaluator.isCollectionQuery(cleanQuery)) {
+      try {
+        final itunesTop = await itunesMetadataService.searchSongs(cleanQuery, limit: 3);
+        for (final song in itunesTop) {
+          final itVideo = YouTubeVideo.fromItunesSong(song);
+          if (song.artistName.isNotEmpty &&
+              QueryRelevanceEvaluator.isCandidateRelevant(itVideo, query: cleanQuery)) {
+            final curated = DeezerArtistRepository.findCuratedByName(song.artistName);
             if (curated != null) {
               inferredSongArtists.add(curated);
+              verifiedInferredIds.add(curated.id);
             } else {
-              final resolved = await artistRepository.searchArtists(artistName).catchError((_) => <ArtistModel>[]);
+              final resolved =
+                  await artistRepository.searchArtists(song.artistName).catchError((_) => <ArtistModel>[]);
               if (resolved.isNotEmpty) {
                 inferredSongArtists.add(resolved.first);
+                verifiedInferredIds.add(resolved.first.id);
               }
             }
           }
         }
-      } else {
-        final itunesTop = await itunesMetadataService.searchSongs(cleanQuery, limit: 3);
-        for (final song in itunesTop) {
-          if (song.artistName.isNotEmpty) {
-            final curated = DeezerArtistRepository.findCuratedByName(song.artistName);
-            if (curated != null) {
-              inferredSongArtists.add(curated);
-            }
-          }
-        }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     return mergeAndDeduplicateArtists(
       curatedAndDeezer: [...inferredSongArtists, ...deezerCurated, ...mbArtists],
       itunesArtists: itunesArtists,
       query: cleanQuery,
+      verifiedInferredArtistIds: verifiedInferredIds,
     );
   }
 
@@ -390,6 +422,7 @@ class SearchRepository {
     List<ArtistModel> itunesArtists = const [],
     List<ArtistModel> youtubeArtists = const [],
     required String query,
+    Set<String> verifiedInferredArtistIds = const {},
   }) {
     final seenIds = <String>{};
     final seenCanonicalNames = <String>{};
@@ -402,6 +435,10 @@ class SearchRepository {
     // 1. Process Curated / Deezer artists first (they have verified discography metadata & fan counts)
     for (final artist in curatedAndDeezer) {
       if (artist.id.isEmpty) continue;
+      if (!verifiedInferredArtistIds.contains(artist.id) &&
+          !QueryRelevanceEvaluator.isArtistRelevant(artist.name, query: cleanQuery)) {
+        continue;
+      }
       if (!ArtistClassifier.isLegitimateMusicArtist(
         artist.name,
         fanCount: artist.fanCount,
@@ -428,6 +465,10 @@ class SearchRepository {
     // 2. Process Apple iTunes artists
     for (final itArtist in itunesArtists) {
       if (itArtist.id.isEmpty) continue;
+      if (!verifiedInferredArtistIds.contains(itArtist.id) &&
+          !QueryRelevanceEvaluator.isArtistRelevant(itArtist.name, query: cleanQuery)) {
+        continue;
+      }
       if (!ArtistClassifier.isLegitimateMusicArtist(
         itArtist.name,
         query: cleanQuery,

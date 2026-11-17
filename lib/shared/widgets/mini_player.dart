@@ -80,7 +80,7 @@ class MiniPlayer extends StatelessWidget {
     final imageUrl = musicItem.imageUrl;
 
     return Semantics(
-      label: 'Mini Player. Now playing: ${musicItem.title} by ${musicItem.artist}. Tap to open full screen player.',
+      label: 'Mini Player. Now playing: ${musicItem.displayTitle} by ${musicItem.artist}. Tap to open full screen player.',
       button: true,
       enabled: onTap != null,
       child: GestureDetector(
@@ -146,7 +146,7 @@ class MiniPlayer extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          musicItem.title,
+                          musicItem.displayTitle,
                           style: AppTypography.labelMedium.copyWith(
                             color: primaryTextColor,
                             fontWeight: FontWeight.bold,

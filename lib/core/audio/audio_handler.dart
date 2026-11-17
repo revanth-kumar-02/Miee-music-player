@@ -1889,7 +1889,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
     return MediaItem(
       id: track.id,
-      title: track.title,
+      title: track.displayTitle,
       artist: track.artist,
       album: albumTitle,
       duration: effectiveDuration,

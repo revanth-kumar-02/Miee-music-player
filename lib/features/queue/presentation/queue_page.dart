@@ -38,7 +38,6 @@ class QueuePage extends ConsumerWidget {
 
     // Real Now Playing background cover URL
     final coverUrl = currentTrack?.imageUrl;
-    final hasValidCover = coverUrl != null && coverUrl.trim().isNotEmpty;
 
     return PopScope(
       canPop: false,
@@ -275,7 +274,7 @@ class QueuePage extends ConsumerWidget {
                                       controller.removeTrackAt(fullIndex);
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
-                                          content: Text('Removed "${track.title}" from queue'),
+                                          content: Text('Removed "${track.displayTitle}" from queue'),
                                           behavior: SnackBarBehavior.floating,
                                           duration: const Duration(seconds: 2),
                                         ),

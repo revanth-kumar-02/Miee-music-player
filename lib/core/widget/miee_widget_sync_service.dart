@@ -343,7 +343,7 @@ class MieeWidgetSyncService {
 
     _pushNowPlayingPayload(
       trackId: track?.id ?? '',
-      title: track?.title ?? 'Miee Music',
+      title: track?.displayTitle ?? 'Miee Music',
       artist: track?.artist ?? 'Ready to play',
       fields: fields,
       isPlaying: isPlaying,
@@ -421,7 +421,7 @@ class MieeWidgetSyncService {
       _lastArtworkSignature = enrichedFields.signature;
       _pushNowPlayingPayload(
         trackId: track.id,
-        title: track.title,
+        title: track.displayTitle,
         artist: track.artist,
         fields: enrichedFields,
         isPlaying: isPlaying,
@@ -474,7 +474,7 @@ class MieeWidgetSyncService {
         sourceId: t.sourceId,
       );
       return {
-        'title': t.title,
+        'title': t.displayTitle,
         'artist': t.artist,
         'trackId': t.id,
         'artworkPath': fields.artworkPath,
@@ -507,7 +507,7 @@ class MieeWidgetSyncService {
         sourceId: t.sourceId,
       );
       return {
-        'title': t.title,
+        'title': t.displayTitle,
         'artist': t.artist,
         'trackId': t.id,
         'artworkPath': fields.artworkPath,

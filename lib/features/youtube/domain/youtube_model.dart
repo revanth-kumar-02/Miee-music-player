@@ -1,5 +1,6 @@
 import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
+import '../../../shared/utils/display_title_normalizer.dart';
 import '../../metadata/domain/itunes_song.dart';
 import '../../metadata/domain/musicbrainz_models.dart';
 import 'youtube_metadata_cleaner.dart';
@@ -201,6 +202,9 @@ class YouTubeVideo implements MusicItem {
 
   @override
   String get artist => canonicalArtist ?? channelTitle;
+
+  @override
+  String get displayTitle => DisplayTitleNormalizer.normalize(canonicalTitle ?? title);
 
   @override
   String get imageUrl => highResArtworkUrl ?? thumbnailUrl;

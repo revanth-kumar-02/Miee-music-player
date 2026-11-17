@@ -1068,9 +1068,32 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       }
     }
 
-    final isDoneLoading = !state.isLoading;
     final isLoading = state.isLoading;
     final filter = state.activeFilter;
+
+    // Aggregate unique artists across online and local
+    final allArtists = <ArtistModel>[];
+    final seenArtistIds = <String>{};
+    final seenArtistNames = <String>{};
+
+    for (final a in state.onlineArtists) {
+      if (a.id.isNotEmpty && seenArtistIds.add(a.id)) {
+        final norm = a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+        if (norm.isNotEmpty) seenArtistNames.add(norm);
+        allArtists.add(a);
+      }
+    }
+    for (final a in state.localArtists) {
+      final norm = a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (seenArtistIds.add(a.id) &&
+          (norm.isEmpty || seenArtistNames.add(norm))) {
+        allArtists.add(ArtistModel(
+          id: a.id,
+          name: a.name,
+          imageUrl: a.artworkPath ?? '',
+        ));
+      }
+    }
 
     if (isLoading && state.isEmpty) {
       return Center(
@@ -1103,16 +1126,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       );
     }
 
-    // Category-specific empty states when loading completes
-    if (isDoneLoading) {
-      if (filter == 'Artists' && state.totalArtistsCount == 0) {
-        return _buildCategoryEmptyState(
-          icon: Icons.person_search_rounded,
-          title: 'No artists found',
-          message: 'No artist profiles found for "${state.query}".',
-        );
-      }
-      if (filter == 'Songs' && state.totalSongsCount == 0) {
+    // Category-specific empty & loading states
+    if (filter == 'Songs') {
+      if (state.totalSongsCount > 0) {
+        // Rendered in songs section below
+      } else if (state.isYouTubeLoading || state.isLocalLoading) {
+        return _buildSongsLoadingSkeleton();
+      } else {
         return _buildCategoryEmptyState(
           icon: Icons.music_off_rounded,
           title: 'No songs found',
@@ -1120,21 +1140,44 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               'No songs found for "${state.query}". Try searching another title.',
         );
       }
-      if (filter == 'Albums' && state.totalAlbumsCount == 0) {
+    } else if (filter == 'Artists') {
+      if (allArtists.isNotEmpty) {
+        // Rendered in artists section below
+      } else if (state.isArtistsLoading) {
+        return _buildArtistsLoadingSkeleton();
+      } else {
+        return _buildCategoryEmptyState(
+          icon: Icons.person_search_rounded,
+          title: 'No artists found',
+          message: 'No artist profiles found for "${state.query}".',
+        );
+      }
+    } else if (filter == 'Albums') {
+      if (state.totalAlbumsCount > 0) {
+        // Rendered in albums section below
+      } else if (state.isArtistsLoading || state.isYouTubeLoading) {
+        return _buildAlbumsLoadingSkeleton();
+      } else {
         return _buildCategoryEmptyState(
           icon: Icons.album_outlined,
           title: 'No albums found',
           message: 'No albums found for "${state.query}".',
         );
       }
-      if (filter == 'Playlists' && state.totalPlaylistsCount == 0) {
+    } else if (filter == 'Playlists') {
+      if (state.totalPlaylistsCount > 0) {
+        // Rendered in playlists section below
+      } else if (state.isPlaylistsLoading) {
+        return _buildPlaylistsLoadingSkeleton();
+      } else {
         return _buildCategoryEmptyState(
           icon: Icons.queue_music_rounded,
           title: 'No playlists found',
           message: 'No playlists found for "${state.query}".',
         );
       }
-      if (state.isEmpty) {
+    } else if (filter == 'All') {
+      if (state.isEmpty && !state.isLoading) {
         return Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 48.0),
@@ -1188,73 +1231,54 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         (s) => s.status == PlaybackStatus.playing ? s.currentTrack?.id : null));
 
     final cleanQuery = state.query.trim().toLowerCase();
-    final normCleanQuery = cleanQuery.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    String normalizeWords(String s) => s
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final normQueryWords = normalizeWords(cleanQuery);
 
-    // Aggregate unique artists across online and local
-    final allArtists = <ArtistModel>[];
-    final seenArtistIds = <String>{};
-    final seenArtistNames = <String>{};
-
-    for (final a in state.onlineArtists) {
-      if (a.id.isNotEmpty && seenArtistIds.add(a.id)) {
-        final norm = a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-        if (norm.isNotEmpty) seenArtistNames.add(norm);
-        allArtists.add(a);
-      }
-    }
-    for (final a in state.localArtists) {
-      final norm = a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-      if (seenArtistIds.add(a.id) &&
-          (norm.isEmpty || seenArtistNames.add(norm))) {
-        allArtists.add(ArtistModel(
-          id: a.id,
-          name: a.name,
-          imageUrl: a.artworkPath ?? '',
-        ));
-      }
-    }
-
-    // Top Result matching
+    // Exact or direct artist match
     final matchingArtist = allArtists.cast<ArtistModel?>().firstWhere(
-          (a) =>
-              a != null &&
-              (a.name.toLowerCase() == cleanQuery ||
-                  a.name.toLowerCase().contains(cleanQuery) ||
-                  cleanQuery.contains(a.name.toLowerCase()) ||
-                  (normCleanQuery.length >= 3 &&
-                      a.name
-                              .toLowerCase()
-                              .replaceAll(RegExp(r'[^a-z0-9]'), '') ==
-                          normCleanQuery)),
+          (a) {
+            if (a == null) return false;
+            final aNorm = normalizeWords(a.name);
+            return aNorm == normQueryWords ||
+                a.name.toLowerCase() == cleanQuery ||
+                (a.name.toLowerCase().startsWith(cleanQuery) && a.fanCount >= 50000);
+          },
           orElse: () => (filter == 'Artists' && allArtists.isNotEmpty
               ? allArtists.first
               : null),
         );
 
     final matchingSong = state.youtubeResults.cast<YouTubeVideo?>().firstWhere(
-          (v) =>
-              v != null &&
-              (v.title.toLowerCase().contains(cleanQuery) ||
-                  cleanQuery.contains(v.title.toLowerCase())),
+          (v) {
+            if (v == null) return false;
+            final t = (v.canonicalTitle ?? v.title).toLowerCase();
+            final tNorm = normalizeWords(t);
+            return tNorm == normQueryWords ||
+                t == cleanQuery ||
+                t.startsWith(cleanQuery) ||
+                cleanQuery.startsWith(t);
+          },
           orElse: () => (state.youtubeResults.isNotEmpty
               ? state.youtubeResults.first
               : null),
         );
 
-    final isArtistHighProminence = matchingArtist != null &&
-        (DeezerArtistRepository.findCuratedByName(matchingArtist.name) !=
-                null ||
-            matchingArtist.fanCount >= 5000);
+    final hasExactArtistQuery = matchingArtist != null &&
+        normalizeWords(matchingArtist.name) == normQueryWords &&
+        (DeezerArtistRepository.findCuratedByName(matchingArtist.name) != null ||
+            matchingArtist.fanCount >= 50000);
 
-    final hasExactSongMatch = matchingSong != null &&
-        (matchingSong.title.toLowerCase().contains(cleanQuery) ||
-            cleanQuery.contains(matchingSong.title.toLowerCase()) ||
-            (matchingSong.canonicalTitle != null &&
-                matchingSong.canonicalTitle!
-                    .toLowerCase()
-                    .contains(cleanQuery)));
+    final hasSongMatch = matchingSong != null;
 
-    final preferSongTopResult = (hasExactSongMatch && !isArtistHighProminence);
+    // Prefer Song as Top Result for song/track queries unless the user specifically
+    // queried a prominent artist name or is on the Artists tab.
+    final preferSongTopResult = filter == 'Songs' ||
+        (!hasExactArtistQuery && hasSongMatch) ||
+        (filter != 'Artists' && hasSongMatch && !hasExactArtistQuery);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1317,9 +1341,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               },
             ),
             const SizedBox(height: 28),
-          ] else if (preferSongTopResult) ...[
+          ] else if (preferSongTopResult && matchingSong != null) ...[
             _buildTopResultCard(
-              name: matchingSong.canonicalTitle ?? matchingSong.title,
+              name: matchingSong.displayTitle,
               subtitle:
                   matchingSong.canonicalArtist ?? matchingSong.channelTitle,
               imageUrl:
@@ -1358,7 +1382,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             const SizedBox(height: 28),
           ] else if (matchingSong != null) ...[
             _buildTopResultCard(
-              name: matchingSong.canonicalTitle ?? matchingSong.title,
+              name: matchingSong.displayTitle,
               subtitle:
                   matchingSong.canonicalArtist ?? matchingSong.channelTitle,
               imageUrl:
@@ -1376,66 +1400,70 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ],
 
         // 2. Artists Section
-        if (showArtists && allArtists.isNotEmpty) ...[
-          if (filter == 'Artists') ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Artists',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.cocoaPlum,
+        if (showArtists) ...[
+          if (allArtists.isNotEmpty) ...[
+            if (filter == 'Artists') ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Artists',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.cocoaPlum,
+                    ),
                   ),
-                ),
-                Text(
-                  '${allArtists.length} FOUND',
-                  style: GoogleFonts.geist(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.mutedMauve,
+                  Text(
+                    '${allArtists.length} FOUND',
+                    style: GoogleFonts.geist(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.mutedMauve,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...allArtists.map((artist) => _buildArtistListTile(artist)),
-            const SizedBox(height: 24),
-          ] else ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Artists',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.cocoaPlum,
-                  ),
-                ),
-                Text(
-                  '${allArtists.length} found',
-                  style: GoogleFonts.geist(
-                    fontSize: 12,
-                    color: AppColors.mutedMauve,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 145,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: allArtists.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 14),
-                itemBuilder: (context, idx) =>
-                    _buildArtistCard(allArtists[idx]),
+                ],
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              ...allArtists.map((artist) => _buildArtistListTile(artist)),
+              const SizedBox(height: 24),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Artists',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.cocoaPlum,
+                    ),
+                  ),
+                  Text(
+                    '${allArtists.length} found',
+                    style: GoogleFonts.geist(
+                      fontSize: 12,
+                      color: AppColors.mutedMauve,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 145,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: allArtists.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 14),
+                  itemBuilder: (context, idx) =>
+                      _buildArtistCard(allArtists[idx]),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ] else if (state.isArtistsLoading) ...[
+            _buildArtistsLoadingSkeleton(),
           ],
         ],
 
@@ -1519,13 +1547,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ),
                 ),
             const SizedBox(height: 24),
+          ] else if (state.isYouTubeLoading) ...[
+            _buildSongsLoadingSkeleton(),
           ],
         ],
 
         // 4. Albums Section
-        if (showAlbums &&
-            (state.onlineAlbums.isNotEmpty ||
-                state.localAlbums.isNotEmpty)) ...[
+        if (showAlbums) ...[
+          if (state.onlineAlbums.isNotEmpty ||
+              state.localAlbums.isNotEmpty) ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1618,108 +1648,120 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
             const SizedBox(height: 24),
           ],
+        ] else if (state.isArtistsLoading || state.isYouTubeLoading) ...[
+          _buildAlbumsLoadingSkeleton(),
         ],
+      ],
 
         // 5. Playlists Section
-        if (showPlaylists &&
-            (state.onlinePlaylists.isNotEmpty ||
-                state.localPlaylists.isNotEmpty)) ...[
-          if (filter == 'Playlists') ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Playlists',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.cocoaPlum,
-                  ),
-                ),
-                Text(
-                  '${state.totalPlaylistsCount} FOUND',
-                  style: GoogleFonts.geist(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.mutedMauve,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...state.localPlaylists.map(
-              (playlist) => _buildPlaylistListTile(
-                title: playlist.name,
-                subtitle: '${playlist.trackCount} tracks · Local Playlist',
-                imageUrl: null,
-                onTap: () => context
-                    .push('/playlist/${Uri.encodeComponent(playlist.id)}'),
-              ),
-            ),
-            ...state.onlinePlaylists.map(
-              (playlist) => _buildPlaylistListTile(
-                title: playlist.title,
-                subtitle: '${playlist.trackCount} tracks · ${playlist.author}',
-                imageUrl: playlist.thumbnailUrl,
-                onTap: () => _applyHistoryQuery(playlist.title),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ] else ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Playlists',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.cocoaPlum,
-                  ),
-                ),
-                Text(
-                  '${state.totalPlaylistsCount} found',
-                  style: GoogleFonts.geist(
-                    fontSize: 12,
-                    color: AppColors.mutedMauve,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 180,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
+        if (showPlaylists) ...[
+          if (state.onlinePlaylists.isNotEmpty ||
+              state.localPlaylists.isNotEmpty) ...[
+            if (filter == 'Playlists') ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ...state.localPlaylists.map(
-                    (playlist) => Padding(
-                      padding: const EdgeInsets.only(right: 14),
-                      child: _buildPlaylistCard(
-                        title: playlist.name,
-                        subtitle: '${playlist.trackCount} tracks',
-                        imageUrl: null,
-                        onTap: () => context.push(
-                            '/playlist/${Uri.encodeComponent(playlist.id)}'),
-                      ),
+                  Text(
+                    'Playlists',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.cocoaPlum,
                     ),
                   ),
-                  ...state.onlinePlaylists.map(
-                    (playlist) => Padding(
-                      padding: const EdgeInsets.only(right: 14),
-                      child: _buildPlaylistCard(
-                        title: playlist.title,
-                        subtitle: '${playlist.trackCount} tracks',
-                        imageUrl: playlist.thumbnailUrl,
-                        onTap: () => _applyHistoryQuery(playlist.title),
-                      ),
+                  Text(
+                    '${state.totalPlaylistsCount} FOUND',
+                    style: GoogleFonts.geist(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.mutedMauve,
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              ...state.localPlaylists.map(
+                (playlist) => _buildPlaylistListTile(
+                  title: playlist.name,
+                  subtitle: '${playlist.trackCount} tracks · Local Playlist',
+                  imageUrl: null,
+                  onTap: () => context
+                      .push('/playlist/${Uri.encodeComponent(playlist.id)}'),
+                ),
+              ),
+              ...state.onlinePlaylists.map(
+                (playlist) => _buildPlaylistListTile(
+                  title: playlist.title,
+                  subtitle: '${playlist.trackCount} tracks · ${playlist.author}',
+                  imageUrl: playlist.thumbnailUrl,
+                  onTap: () => context.push(
+                    '/online-playlist/${Uri.encodeComponent(playlist.id)}',
+                    extra: playlist,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Playlists',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.cocoaPlum,
+                    ),
+                  ),
+                  Text(
+                    '${state.totalPlaylistsCount} found',
+                    style: GoogleFonts.geist(
+                      fontSize: 12,
+                      color: AppColors.mutedMauve,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 180,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    ...state.localPlaylists.map(
+                      (playlist) => Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: _buildPlaylistCard(
+                          title: playlist.name,
+                          subtitle: '${playlist.trackCount} tracks',
+                          imageUrl: null,
+                          onTap: () => context.push(
+                              '/playlist/${Uri.encodeComponent(playlist.id)}'),
+                        ),
+                      ),
+                    ),
+                    ...state.onlinePlaylists.map(
+                      (playlist) => Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: _buildPlaylistCard(
+                          title: playlist.title,
+                          subtitle: '${playlist.trackCount} tracks',
+                          imageUrl: playlist.thumbnailUrl,
+                          onTap: () => context.push(
+                            '/online-playlist/${Uri.encodeComponent(playlist.id)}',
+                            extra: playlist,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ] else if (state.isPlaylistsLoading) ...[
+            _buildPlaylistsLoadingSkeleton(),
           ],
         ],
       ],
@@ -1947,6 +1989,339 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSongsLoadingSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Songs',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.cocoaPlum,
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SEARCHING SONGS...',
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mutedMauve,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (int i = 0; i < 3; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.softClay.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: AppColors.oatBeige.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.softClay,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          constraints: const BoxConstraints(maxWidth: 160),
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: AppColors.softClay,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: 90,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: AppColors.softClay.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildArtistsLoadingSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Artists',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.cocoaPlum,
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SEARCHING ARTISTS...',
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mutedMauve,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 145,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 4,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (_, __) => Column(
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.softClay.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 70,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: AppColors.softClay,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildAlbumsLoadingSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Albums',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.cocoaPlum,
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SEARCHING ALBUMS...',
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mutedMauve,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 180,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 3,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (_, __) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.softClay.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 100,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: AppColors.softClay,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildPlaylistsLoadingSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Playlists',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.cocoaPlum,
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.dustyRose),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SEARCHING PLAYLISTS...',
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mutedMauve,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 180,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 3,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (_, __) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.softClay.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 100,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: AppColors.softClay,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 

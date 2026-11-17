@@ -16,6 +16,8 @@ import '../../features/queue/presentation/queue_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/about/presentation/miee_dedication_page.dart';
 import '../../features/playlists/presentation/playlist_detail_page.dart';
+import '../../features/playlists/presentation/online_playlist_detail_page.dart';
+import '../../features/search/domain/online_playlist.dart';
 import '../../features/playlists/presentation/playlists_page.dart';
 import '../../features/playlists/presentation/local_songs_page.dart';
 import '../../features/playlists/presentation/liked_songs_page.dart';
@@ -284,6 +286,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return CustomTransitionPage<void>(
                 key: state.pageKey,
                 child: PlaylistDetailPage(playlistId: id),
+                transitionDuration: const Duration(milliseconds: 350),
+                reverseTransitionDuration: const Duration(milliseconds: 300),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  return SlideTransition(
+                    position: animation.drive(
+                      Tween<Offset>(
+                        begin: const Offset(1.0, 0.0),
+                        end: Offset.zero,
+                      ).chain(CurveTween(curve: Curves.easeOutCubic)),
+                    ),
+                    child: child,
+                  );
+                },
+              );
+            },
+          ),
+          GoRoute(
+            path: '/online-playlist/:id',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id']!;
+              final playlist = state.extra as OnlinePlaylist?;
+              return CustomTransitionPage<void>(
+                key: state.pageKey,
+                child: OnlinePlaylistDetailPage(
+                  playlistId: id,
+                  initialPlaylist: playlist,
+                ),
                 transitionDuration: const Duration(milliseconds: 350),
                 reverseTransitionDuration: const Duration(milliseconds: 300),
                 transitionsBuilder: (context, animation, secondaryAnimation, child) {

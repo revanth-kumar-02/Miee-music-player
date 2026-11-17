@@ -1,4 +1,5 @@
 import '../../../shared/models/music_item.dart';
+import '../../../shared/utils/display_title_normalizer.dart';
 
 /// Strongly typed application domain model for a local song/track discovered on the device.
 class MediaSong implements MusicItem {
@@ -32,6 +33,9 @@ class MediaSong implements MusicItem {
 
   @override
   String get effectiveArtworkUrl => artworkPath;
+
+  @override
+  String get displayTitle => DisplayTitleNormalizer.normalize(title);
 
   @override
   bool get isYoutube => false;

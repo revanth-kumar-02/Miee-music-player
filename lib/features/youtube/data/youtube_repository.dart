@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
 import '../domain/youtube_model.dart';
 import '../domain/youtube_metadata_cleaner.dart';
@@ -23,6 +24,7 @@ class YouTubeRepository {
   final Map<String, List<YouTubeVideo>> _searchCache = {};
   final Map<String, List<ArtistModel>> _artistSearchCache = {};
   final Map<String, List<OnlinePlaylist>> _playlistSearchCache = {};
+  final Map<String, List<YouTubeVideo>> _playlistVideosCache = {};
   static const int _maxCacheSize = 50;
 
   /// Active search lists to support continuous pagination across batches
@@ -910,10 +912,164 @@ class YouTubeRepository {
     return playlists;
   }
 
+  /// Fetches the actual videos belonging to an online YouTube playlist.
+  ///
+  /// Queries YouTube Music Innertube (`WEB_REMIX`) for verified tracks, titles,
+  /// artists, durations, and playable video IDs, with fallback to Explode.
+  Future<List<YouTubeVideo>> getPlaylistVideos(
+    String playlistId, {
+    int limit = 50,
+  }) async {
+    final cleanId = playlistId.trim();
+    if (cleanId.isEmpty) return const [];
+
+    if (_playlistVideosCache.containsKey(cleanId)) {
+      return _playlistVideosCache[cleanId]!;
+    }
+
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 12),
+        receiveTimeout: const Duration(seconds: 12),
+      ),
+    );
+
+    try {
+      final browseId = cleanId.startsWith('VL') ? cleanId : 'VL$cleanId';
+      final response = await dio.post<dynamic>(
+        'https://music.youtube.com/youtubei/v1/browse',
+        data: {
+          'context': {
+            'client': {
+              'clientName': 'WEB_REMIX',
+              'clientVersion': '1.20240101.01.00',
+              'hl': 'en',
+              'gl': 'US',
+            }
+          },
+          'browseId': browseId,
+        },
+        options: Options(headers: {
+          'Content-Type': 'application/json',
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }),
+      );
+
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final items = <Map<String, dynamic>>[];
+        void scan(dynamic obj) {
+          if (obj is Map<String, dynamic>) {
+            if (obj.containsKey('musicResponsiveListItemRenderer')) {
+              items.add(obj['musicResponsiveListItemRenderer'] as Map<String, dynamic>);
+            }
+            for (final v in obj.values) {
+              scan(v);
+            }
+          } else if (obj is List) {
+            for (final item in obj) {
+              scan(item);
+            }
+          }
+        }
+
+        scan(data);
+
+        final videos = <YouTubeVideo>[];
+        for (final item in items) {
+          final flexCols = item['flexColumns'] as List?;
+          String? title;
+          String? artist;
+          if (flexCols != null && flexCols.isNotEmpty) {
+            final col0 = flexCols[0]?['musicResponsiveListItemFlexColumnRenderer']?['text']?['runs'];
+            if (col0 != null && col0 is List && col0.isNotEmpty) {
+              title = col0[0]?['text']?.toString();
+            }
+            if (flexCols.length > 1) {
+              final col1 = flexCols[1]?['musicResponsiveListItemFlexColumnRenderer']?['text']?['runs'];
+              if (col1 != null && col1 is List && col1.isNotEmpty) {
+                artist = col1.map((r) => r['text']).join('');
+              }
+            }
+          }
+
+          final fixedCols = item['fixedColumns'] as List?;
+          String? duration;
+          if (fixedCols != null && fixedCols.isNotEmpty) {
+            final col0 = fixedCols[0]?['musicResponsiveListItemFixedColumnRenderer']?['text']?['runs'];
+            if (col0 != null && col0 is List && col0.isNotEmpty) {
+              duration = col0[0]?['text']?.toString();
+            }
+          }
+
+          final playlistItemData = item['playlistItemData'];
+          final videoId = playlistItemData?['videoId']?.toString() ??
+              item['doubleTapCommand']?['watchEndpoint']?['videoId']?.toString();
+
+          if (videoId != null && videoId.isNotEmpty && title != null && title.isNotEmpty) {
+            final cleaned = YouTubeMetadataCleaner.clean(
+              rawTitle: title,
+              rawChannel: artist ?? '',
+            );
+
+            final video = YouTubeVideo(
+              id: videoId,
+              title: cleaned.title,
+              channelTitle: cleaned.artist,
+              thumbnailUrl: 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg',
+              duration: duration ?? '',
+              viewCount: 'YouTube Music',
+              rawTitle: title,
+              rawChannelTitle: artist ?? '',
+              canonicalTitle: cleaned.title,
+              canonicalArtist: cleaned.artist,
+            );
+            videos.add(video);
+            if (videos.length >= limit) break;
+          }
+        }
+
+        if (videos.isNotEmpty) {
+          if (_playlistVideosCache.length >= _maxCacheSize) {
+            _playlistVideosCache.remove(_playlistVideosCache.keys.first);
+          }
+          _playlistVideosCache[cleanId] = videos;
+          return videos;
+        }
+      }
+    } catch (e) {
+      debugPrint('[YouTubeRepository] getPlaylistVideos Innertube error: $e');
+    }
+
+    // Fallback: Explode playlist stream if Innertube did not yield results
+    if (!kIsWeb) {
+      try {
+        final videos = <YouTubeVideo>[];
+        final stream = _yt.playlists.getVideos(cleanId);
+        await for (final video in stream.take(limit)) {
+          videos.add(_processVideo(video, ''));
+        }
+        if (videos.isNotEmpty) {
+          if (_playlistVideosCache.length >= _maxCacheSize) {
+            _playlistVideosCache.remove(_playlistVideosCache.keys.first);
+          }
+          _playlistVideosCache[cleanId] = videos;
+          return videos;
+        }
+      } catch (e) {
+        debugPrint('[YouTubeRepository] getPlaylistVideos Explode error: $e');
+      }
+    }
+
+    return const [];
+  }
+
   void clearCache() {
     _searchCache.clear();
     _artistSearchCache.clear();
     _playlistSearchCache.clear();
+    _playlistVideosCache.clear();
     _activeSearchLists.clear();
   }
 }

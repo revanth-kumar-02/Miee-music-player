@@ -1042,7 +1042,7 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                       GestureDetector(
                         onTap: () => context.push('/player'),
                         child: Text(
-                          track.title,
+                          track.displayTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
@@ -1649,7 +1649,7 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            track.title,
+                            track.displayTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.plusJakartaSans(
@@ -1903,7 +1903,7 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  qItem.title,
+                                  qItem.displayTitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.plusJakartaSans(

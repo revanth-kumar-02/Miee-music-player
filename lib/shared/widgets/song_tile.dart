@@ -6,6 +6,7 @@ import '../../app/theme/app_typography.dart';
 import '../../features/artwork/domain/artwork_query.dart';
 import '../../features/artwork/presentation/miee_artwork_image.dart';
 import '../models/music_item.dart';
+import '../utils/display_title_normalizer.dart';
 
 /// Reusable Song/Track Tile widget.
 /// Renders as a list tile with options for numbering, artwork, options menus,
@@ -85,6 +86,7 @@ class SongTile extends StatelessWidget {
         ? rawUrl
         : effectiveMusicItem?.imageUrl;
     final isCurrent = isActive ?? isPlaying;
+    final effectiveTitle = effectiveMusicItem?.displayTitle ?? DisplayTitleNormalizer.normalize(title);
 
     Widget leadingWidget;
     if ((effectiveImageUrl != null && effectiveImageUrl.isNotEmpty) || effectiveMusicItem != null) {
@@ -245,7 +247,7 @@ class SongTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      effectiveTitle,
                       style: isHighlighted
                           ? AppTypography.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,

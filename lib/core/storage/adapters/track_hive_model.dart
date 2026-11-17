@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import '../../../shared/models/track.dart';
 import '../../../shared/models/music_item.dart';
+import '../../../shared/utils/display_title_normalizer.dart';
 
 /// Hive-persisted representation of a [Track].
 ///
@@ -27,6 +28,8 @@ class TrackHiveModel extends HiveObject {
   final String? mbid;
   final String? recordingMbid;
   final String? releaseMbid;
+
+  String get displayTitle => DisplayTitleNormalizer.normalize(title);
 
   TrackHiveModel({
     required this.id,

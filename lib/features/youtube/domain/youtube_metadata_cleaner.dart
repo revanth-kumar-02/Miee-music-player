@@ -346,6 +346,9 @@ class YouTubeMetadataCleaner {
   static String _stripSongNoise(String input) {
     var str = input;
 
+    // Remove hashtags (e.g. #D25 #VIP #V...)
+    str = str.replaceAll(RegExp(r'#\S*(?:\.{2,3})?', caseSensitive: false), ' ').trim();
+
     // Remove bracketed noise
     final bracketNoise = RegExp(
       r'[\(\[\{]\s*(official\s*(music)?\s*video|official\s*video|official\s*audio|official|music\s*video|video\s*song|video|audio\s*song|audio|lyric\s*video|lyrical\s*video|lyrics|lyrical|visualizer|mv|hd|4k|4k\s*uhd|remastered|full\s*song|full\s*video\s*song)\s*[\)\]\}]',
@@ -397,6 +400,7 @@ class YouTubeMetadataCleaner {
 
   static String _removeVideoNoise(String input) {
     var str = input;
+    str = str.replaceAll(RegExp(r'#\S*(?:\.{2,3})?', caseSensitive: false), ' ').trim();
     final noiseRegex = RegExp(
       r'[\(\[\{]\s*(official\s*(music)?\s*video|official\s*video|official\s*audio|official|music\s*video|video|audio|lyric\s*video|lyrical\s*video|lyrics|lyrical|visualizer|mv|hd|4k|remastered|full\s*song|video\s*song|audio\s*song)\s*[\)\]\}]',
       caseSensitive: false,

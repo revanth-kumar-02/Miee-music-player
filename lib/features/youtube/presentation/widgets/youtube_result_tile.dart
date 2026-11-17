@@ -73,7 +73,7 @@ class YouTubeResultTile extends ConsumerWidget {
     );
 
     return Semantics(
-      label: 'YouTube video: ${video.title} by ${video.channelTitle}, duration ${video.duration}',
+      label: 'YouTube video: ${video.displayTitle} by ${video.channelTitle}, duration ${video.duration}',
       button: true,
       child: InkWell(
         onTap: isTrackLoading ? null : () => _handleTap(ref),
@@ -151,7 +151,7 @@ class YouTubeResultTile extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      video.title,
+                      video.displayTitle,
                       style: AppTypography.bodyMedium.copyWith(
                         color: isCurrentTrack ? AppColors.dustyRose : AppColors.cocoaPlum,
                         fontWeight: isCurrentTrack ? FontWeight.w700 : FontWeight.w600,

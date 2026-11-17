@@ -389,7 +389,40 @@ class MusicBrainzService {
 
   List<MusicBrainzRecording> _rankRecordings(List<MusicBrainzRecording> list, String query) {
     final qLower = query.toLowerCase().trim();
+    final tributeBands = [
+      'vitamin string quartet',
+      'string quartet',
+      'rockabye baby',
+      'twinkle twinkle little rock star',
+      'lullaby',
+      'karaoke',
+      'caitlin de ville',
+      'tribute',
+    ];
+
+    bool isTribute(MusicBrainzRecording r) {
+      final a = r.artistCredit.toLowerCase();
+      final alb = (r.albumTitle ?? '').toLowerCase();
+      return tributeBands.any((t) => a.contains(t)) ||
+          alb.contains('performs') ||
+          alb.contains('tribute') ||
+          alb.contains('covers collection');
+    }
+
+    final queryWantsTribute = qLower.contains('tribute') ||
+        qLower.contains('cover') ||
+        qLower.contains('quartet') ||
+        qLower.contains('lullaby') ||
+        qLower.contains('karaoke');
+
     list.sort((a, b) {
+      if (!queryWantsTribute) {
+        final aTrib = isTribute(a);
+        final bTrib = isTribute(b);
+        if (!aTrib && bTrib) return -1;
+        if (aTrib && !bTrib) return 1;
+      }
+
       final aExactTitle = a.title.toLowerCase() == qLower;
       final bExactTitle = b.title.toLowerCase() == qLower;
       if (aExactTitle && !bExactTitle) return -1;
