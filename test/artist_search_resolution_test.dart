@@ -197,7 +197,7 @@ void main() {
       expect(testState.youtubeResults.every((v) => v.id.isNotEmpty), isTrue);
     });
 
-    test('SearchNotifier resolves Sai Abhyankkar under onlineArtists for song queries like "alaakaa loova"', () {
+    test('SearchNotifier resolves Sai Abhyankkar under onlineArtists for song queries like "alaakaa loova"', () async {
       final container = ProviderContainer(
         overrides: [
           searchRepositoryProvider.overrideWithValue(SearchRepository()),
@@ -215,7 +215,7 @@ void main() {
         viewCount: '50M views',
       );
 
-      notifier.enrichArtistsFromSongsForTesting('alaakaa loova', [alaakaaSong]);
+      await notifier.enrichArtistsFromSongsForTesting('alaakaa loova', [alaakaaSong]);
       final state = container.read(searchNotifierProvider);
 
       expect(state.onlineArtists.any((a) => a.name == 'Sai Abhyankkar'), isTrue);

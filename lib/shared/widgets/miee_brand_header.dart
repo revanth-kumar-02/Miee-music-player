@@ -129,7 +129,16 @@ class MieeBrandHeader extends StatelessWidget implements PreferredSizeWidget {
       location = GoRouterState.of(context).matchedLocation;
     } catch (_) {}
     final isHome = location == '/home' || location == '/';
-    final hasBackStack = context.canPop();
+    bool hasBackStack = false;
+    try {
+      hasBackStack = context.canPop();
+    } catch (_) {
+      try {
+        hasBackStack = Navigator.of(context).canPop();
+      } catch (_) {
+        hasBackStack = false;
+      }
+    }
     final showBackButton = automaticallyImplyLeading &&
         (hasBackStack || (!isHome && title != null && title!.trim().isNotEmpty));
 

@@ -84,6 +84,17 @@ class MusicResultClassifier {
       return verdict;
     }
 
+    // 0. Verified Music Catalogue Signal:
+    // Tracks identified via official MusicBrainz or Apple iTunes catalogue are confirmed studio releases.
+    if (video.metadataProvider == 'musicbrainz' || video.metadataProvider == 'itunes') {
+      return makeVerdict(
+        MusicTrackConfidence.officialMusic,
+        true,
+        null,
+        100,
+      );
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // 1. Definite Non-Music Signals (REJECTION CHECKS)
     // ─────────────────────────────────────────────────────────────────────────

@@ -10,8 +10,6 @@ class Track implements MusicItem {
   @override
   final String artist;
   @override
-  final String imageUrl;
-  @override
   final String duration;
   
   final String? localFilePath;
@@ -49,11 +47,43 @@ class Track implements MusicItem {
   /// Human-readable view count string (e.g. "776.7M views").
   final String? viewCount;
 
+  /// Dedicated original YouTube video thumbnail URL (preserved as last-resort fallback).
+  final String? youtubeThumbnailUrl;
+
+  /// Verified external high-confidence studio album cover artwork URL (e.g. Apple iTunes 600x600).
+  final String? albumArtworkUrl;
+
+  /// File path to embedded local cover art on disk (for local tracks).
+  final String? embeddedArtworkPath;
+
+  /// The active resolved artwork URL or local file path chosen by the resolution engine.
+  final String? resolvedArtworkUrl;
+
+  /// Artwork source identifier ('itunes', 'deezer', 'local', 'youtube', 'neutralFallback').
+  final String? artworkSource;
+
+  /// Confidence score of the artwork match (0.0 to 1.0). High confidence is >= 0.80.
+  final double? artworkMatchConfidence;
+
+  /// Canonical MusicBrainz Recording identifier (MBID UUID).
+  final String? mbid;
+
+  /// Canonical Recording MBID specifically.
+  final String? recordingMbid;
+
+  /// Canonical Release MBID specifically.
+  final String? releaseMbid;
+
+  /// Canonical Artist MBID specifically.
+  final String? artistMbid;
+
+  final String _rawImageUrl;
+
   const Track({
     required this.id,
     required this.title,
     required this.artist,
-    required this.imageUrl,
+    required String imageUrl,
     required this.duration,
     String? filePath,
     this.progress = 0.0,
@@ -69,10 +99,50 @@ class Track implements MusicItem {
     this.sourceId,
     this.rawViewCount,
     this.viewCount,
-  }) : localFilePath = filePath;
+    this.youtubeThumbnailUrl,
+    this.albumArtworkUrl,
+    this.embeddedArtworkPath,
+    this.resolvedArtworkUrl,
+    this.artworkSource,
+    this.artworkMatchConfidence,
+    this.mbid,
+    this.recordingMbid,
+    this.releaseMbid,
+    this.artistMbid,
+  })  : _rawImageUrl = imageUrl,
+        localFilePath = filePath;
 
   @override
   String get filePath => localFilePath ?? '';
+
+  /// Deterministic artwork source priority getter:
+  /// 1. Verified high-confidence external album artwork (iTunes, Deezer, etc.)
+  /// 2. Valid embedded local album artwork
+  /// 3. Active resolved artwork URL
+  /// 4. YouTube video thumbnail fallback
+  /// 5. Raw initial image URL
+  @override
+  String get imageUrl {
+    if (albumArtworkUrl != null && albumArtworkUrl!.isNotEmpty) {
+      return albumArtworkUrl!;
+    }
+    if (embeddedArtworkPath != null && embeddedArtworkPath!.isNotEmpty) {
+      return embeddedArtworkPath!;
+    }
+    if (resolvedArtworkUrl != null && resolvedArtworkUrl!.isNotEmpty) {
+      return resolvedArtworkUrl!;
+    }
+    if (_rawImageUrl.isNotEmpty && !_rawImageUrl.contains('i.ytimg.com')) {
+      return _rawImageUrl;
+    }
+    if (youtubeThumbnailUrl != null && youtubeThumbnailUrl!.isNotEmpty) {
+      return youtubeThumbnailUrl!;
+    }
+    return _rawImageUrl;
+  }
+
+  @override
+  String get effectiveArtworkUrl => imageUrl;
 
   @override
   bool get isYoutube =>
@@ -113,10 +183,20 @@ class Track implements MusicItem {
     String? sourceId,
     int? rawViewCount,
     String? viewCount,
+    String? youtubeThumbnailUrl,
+    String? albumArtworkUrl,
+    String? embeddedArtworkPath,
+    String? resolvedArtworkUrl,
+    String? artworkSource,
+    double? artworkMatchConfidence,
+    String? mbid,
+    String? recordingMbid,
+    String? releaseMbid,
+    String? artistMbid,
   }) {
     String resolvedImage = (imageUrl != null && imageUrl.isNotEmpty)
         ? imageUrl
-        : this.imageUrl;
+        : _rawImageUrl;
 
     final targetId = id ?? this.id;
     final isYt = targetId.startsWith('youtube_') ||
@@ -131,11 +211,18 @@ class Track implements MusicItem {
       }
     }
 
+    final newAlbumArtwork = albumArtworkUrl ?? this.albumArtworkUrl;
+    final newYoutubeThumbnail = youtubeThumbnailUrl ??
+        this.youtubeThumbnailUrl ??
+        (isYt && (resolvedImage.contains('ytimg.com') || resolvedImage.contains('youtube.com'))
+            ? resolvedImage
+            : null);
+
     return Track(
       id: id ?? this.id,
       title: title ?? this.title,
       artist: artist ?? this.artist,
-      imageUrl: resolvedImage,
+      imageUrl: (newAlbumArtwork != null && newAlbumArtwork.isNotEmpty) ? newAlbumArtwork : resolvedImage,
       duration: duration ?? this.duration,
       filePath: filePath ?? localFilePath,
       progress: progress ?? this.progress,
@@ -151,7 +238,16 @@ class Track implements MusicItem {
       sourceId: sourceId ?? this.sourceId,
       rawViewCount: rawViewCount ?? this.rawViewCount,
       viewCount: viewCount ?? this.viewCount,
+      youtubeThumbnailUrl: newYoutubeThumbnail,
+      albumArtworkUrl: newAlbumArtwork,
+      embeddedArtworkPath: embeddedArtworkPath ?? this.embeddedArtworkPath,
+      resolvedArtworkUrl: resolvedArtworkUrl ?? this.resolvedArtworkUrl ?? newAlbumArtwork,
+      artworkSource: artworkSource ?? this.artworkSource,
+      artworkMatchConfidence: artworkMatchConfidence ?? this.artworkMatchConfidence,
+      mbid: mbid ?? this.mbid,
+      recordingMbid: recordingMbid ?? this.recordingMbid,
+      releaseMbid: releaseMbid ?? this.releaseMbid,
+      artistMbid: artistMbid ?? this.artistMbid,
     );
   }
 }
-

@@ -352,7 +352,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
   /// Automatically resolves and displays verified artists from top song results
   /// when a user searches for a song title (e.g. "Brooklyn Baby" -> Lana Del Rey).
-  void _enrichArtistsFromSongs(
+  Future<void> _enrichArtistsFromSongs(
     String query,
     List<YouTubeVideo> youtube,
     int reqId,
@@ -412,7 +412,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
       }
     }
 
-    if (resolvedArtists.isNotEmpty && reqId == _searchRequestId) {
+    if (mounted && resolvedArtists.isNotEmpty && reqId == _searchRequestId) {
       final merged = SearchRepository.mergeAndDeduplicateArtists(
         curatedAndDeezer: [...resolvedArtists, ...existingArtists],
         youtubeArtists: const [],
@@ -423,8 +423,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
   }
 
   @visibleForTesting
-  void enrichArtistsFromSongsForTesting(String query, List<YouTubeVideo> youtube) {
-    _enrichArtistsFromSongs(query, youtube, _searchRequestId);
+  Future<void> enrichArtistsFromSongsForTesting(String query, List<YouTubeVideo> youtube) async {
+    await _enrichArtistsFromSongs(query, youtube, _searchRequestId);
   }
 
   /// Stores query in recent searches.

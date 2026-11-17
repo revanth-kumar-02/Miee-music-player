@@ -31,6 +31,9 @@ class MediaSong implements MusicItem {
   String get imageUrl => artworkPath;
 
   @override
+  String get effectiveArtworkUrl => artworkPath;
+
+  @override
   bool get isYoutube => false;
 
   Map<String, dynamic> toJson() => {

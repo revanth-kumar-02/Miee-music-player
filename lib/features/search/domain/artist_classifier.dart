@@ -52,7 +52,13 @@ class ArtistClassifier {
     caseSensitive: false,
   );
 
-  // 8. Emojis and decorative symbols commonly used in personal vlog titles
+  // 8. Movie clip, scene vault, and entertainment clip channels
+  static final _sceneClipVaultPattern = RegExp(
+    r'\b(movie\s*vault|cinema\s*vault|film\s*vault|comedy\s*vault|scenes?\s*hub|scene\s*clips?|movie\s*scenes?|film\s*scenes?|action\s*scenes?|scenes?\b|trailers?)\b',
+    caseSensitive: false,
+  );
+
+  // 9. Emojis and decorative symbols commonly used in personal vlog titles
   static final _emojiSymbolPattern = RegExp(
     r'[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]',
     unicode: true,
@@ -112,6 +118,11 @@ class ArtistClassifier {
 
     // 7. Personal vlogger / social channels check
     if (_personalVlogPattern.hasMatch(lower) && !hasEnsembleRescue) {
+      return false;
+    }
+
+    // 8. Movie clip, scene vault, and trailer channels check
+    if (_sceneClipVaultPattern.hasMatch(lower) && !hasEnsembleRescue) {
       return false;
     }
 

@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/storage/hive_boxes.dart';
+import '../domain/artwork_source.dart';
 import '../domain/resolved_artwork.dart';
 
 /// Two-tiered cache combining fast in-memory LRU storage with persistent Hive backing
@@ -234,8 +235,27 @@ class ArtworkCache {
   }
 
   /// Persists [artwork] under [cacheKey] in both memory and persistent storage.
+  /// Prevents lower-confidence fallback artwork (like YouTube video thumbnails) from
+  /// displacing verified, high-confidence external album cover artwork.
   Future<void> put(String cacheKey, ResolvedArtwork artwork) async {
     if (cacheKey.isEmpty) return;
+
+    // Guard: Never let a fallback thumbnail displace a high-confidence external studio album cover
+    final existing = get(cacheKey);
+    if (existing != null) {
+      final existingIsAuthoritative = existing.source == ArtworkSource.itunes ||
+          existing.source == ArtworkSource.deezer ||
+          existing.source == ArtworkSource.coverArtArchive ||
+          existing.source == ArtworkSource.local ||
+          existing.confidence >= 0.80;
+      final newIsFallback = artwork.source == ArtworkSource.youtube ||
+          artwork.source == ArtworkSource.neutralFallback ||
+          artwork.confidence < 0.70;
+      if (existingIsAuthoritative && newIsFallback) {
+        debugPrint('[ArtworkDiag] Overwrite blocked: Preserving authoritative ${existing.source.name} album artwork against ${artwork.source.name} fallback for key: $cacheKey');
+        return;
+      }
+    }
 
     _putInMemory(cacheKey, artwork);
 

@@ -8,4 +8,7 @@ abstract class MusicItem {
   String get duration;
   String get filePath;
   bool get isYoutube;
+
+  /// Returns the prioritized artwork source for this item.
+  String get effectiveArtworkUrl => imageUrl;
 }

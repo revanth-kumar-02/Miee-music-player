@@ -1898,6 +1898,28 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     );
   }
 
+  /// Dynamically updates the active MediaItem's album artwork URL without interrupting playback.
+  /// This ensures Android lock screen and notification shade reflect verified external album art.
+  void updateActiveMediaItemArtwork(String trackId, String artworkUrl) {
+    if (artworkUrl.isEmpty) return;
+    final current = mediaItem.value;
+    if (current == null) return;
+    final cleanId = _extractYouTubeVideoId(trackId);
+    final currentClean = _extractYouTubeVideoId(current.id);
+    if (current.id == trackId || (cleanId.isNotEmpty && cleanId == currentClean)) {
+      Uri? newArtUri;
+      if (artworkUrl.startsWith('http://') || artworkUrl.startsWith('https://')) {
+        newArtUri = Uri.parse(artworkUrl);
+      } else {
+        newArtUri = Uri.file(artworkUrl);
+      }
+      if (newArtUri != current.artUri) {
+        mediaItem.add(current.copyWith(artUri: newArtUri));
+        debugPrint('[ArtworkDiag] Updated Android MediaItem artUri dynamically to: $artworkUrl');
+      }
+    }
+  }
+
   @override
   Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
     debugPrint('[AudioHandler] customAction received from system: $name');

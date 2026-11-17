@@ -20,6 +20,13 @@ class TrackHiveModel extends HiveObject {
   final String? sourceId;
   final String? rawTitle;
   final String? rawArtist;
+  final String? youtubeThumbnailUrl;
+  final String? albumArtworkUrl;
+  final String? artworkSource;
+  final double? artworkMatchConfidence;
+  final String? mbid;
+  final String? recordingMbid;
+  final String? releaseMbid;
 
   TrackHiveModel({
     required this.id,
@@ -35,6 +42,13 @@ class TrackHiveModel extends HiveObject {
     this.sourceId,
     this.rawTitle,
     this.rawArtist,
+    this.youtubeThumbnailUrl,
+    this.albumArtworkUrl,
+    this.artworkSource,
+    this.artworkMatchConfidence,
+    this.mbid,
+    this.recordingMbid,
+    this.releaseMbid,
   });
 
   /// Converts a domain [MusicItem] into a [TrackHiveModel].
@@ -67,6 +81,13 @@ class TrackHiveModel extends HiveObject {
         sourceId: track.sourceId,
         rawTitle: track.rawTitle,
         rawArtist: track.rawArtist,
+        youtubeThumbnailUrl: track.youtubeThumbnailUrl,
+        albumArtworkUrl: track.albumArtworkUrl,
+        artworkSource: track.artworkSource,
+        artworkMatchConfidence: track.artworkMatchConfidence,
+        mbid: track.mbid,
+        recordingMbid: track.recordingMbid,
+        releaseMbid: track.releaseMbid,
       );
     }
 
@@ -105,6 +126,13 @@ class TrackHiveModel extends HiveObject {
       sourceId: sourceId,
       rawTitle: rawTitle,
       rawArtist: rawArtist,
+      youtubeThumbnailUrl: youtubeThumbnailUrl,
+      albumArtworkUrl: albumArtworkUrl,
+      artworkSource: artworkSource,
+      artworkMatchConfidence: artworkMatchConfidence,
+      mbid: mbid,
+      recordingMbid: recordingMbid,
+      releaseMbid: releaseMbid,
     );
   }
 }
@@ -134,13 +162,20 @@ class TrackHiveModelAdapter extends TypeAdapter<TrackHiveModel> {
       sourceId: fields[10]?.toString(),
       rawTitle: fields[11]?.toString(),
       rawArtist: fields[12]?.toString(),
+      youtubeThumbnailUrl: fields[13]?.toString(),
+      albumArtworkUrl: fields[14]?.toString(),
+      artworkSource: fields[15]?.toString(),
+      artworkMatchConfidence: fields[16] != null ? (fields[16] as num).toDouble() : null,
+      mbid: fields[17]?.toString(),
+      recordingMbid: fields[18]?.toString(),
+      releaseMbid: fields[19]?.toString(),
     );
   }
 
   @override
   void write(BinaryWriter writer, TrackHiveModel obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -166,6 +201,20 @@ class TrackHiveModelAdapter extends TypeAdapter<TrackHiveModel> {
       ..writeByte(11)
       ..write(obj.rawTitle)
       ..writeByte(12)
-      ..write(obj.rawArtist);
+      ..write(obj.rawArtist)
+      ..writeByte(13)
+      ..write(obj.youtubeThumbnailUrl)
+      ..writeByte(14)
+      ..write(obj.albumArtworkUrl)
+      ..writeByte(15)
+      ..write(obj.artworkSource)
+      ..writeByte(16)
+      ..write(obj.artworkMatchConfidence)
+      ..writeByte(17)
+      ..write(obj.mbid)
+      ..writeByte(18)
+      ..write(obj.recordingMbid)
+      ..writeByte(19)
+      ..write(obj.releaseMbid);
   }
 }

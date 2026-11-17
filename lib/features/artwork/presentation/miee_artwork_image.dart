@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -74,6 +75,17 @@ class MieeArtworkImage extends ConsumerWidget {
         );
       },
       loading: () {
+        // If query already carries high-res studio album artwork, render it immediately
+        final albumCover = effectiveQuery.albumArtworkUrl;
+        if (albumCover != null && albumCover.isNotEmpty) {
+          return _renderDirectImage(
+            context,
+            albumCover,
+            effectiveBorderRadius,
+            effectiveQuery,
+            sourceLabel: 'Album Art',
+          );
+        }
         // While resolving, display the fallback thumbnail if available immediately
         final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
         if (immediateImage != null &&
@@ -84,11 +96,22 @@ class MieeArtworkImage extends ConsumerWidget {
             immediateImage,
             effectiveBorderRadius,
             effectiveQuery,
+            sourceLabel: 'YouTube (Resolving...)',
           );
         }
         return placeholder ?? _buildPlaceholder(context, effectiveBorderRadius);
       },
       error: (_, __) {
+        final albumCover = effectiveQuery.albumArtworkUrl;
+        if (albumCover != null && albumCover.isNotEmpty) {
+          return _renderDirectImage(
+            context,
+            albumCover,
+            effectiveBorderRadius,
+            effectiveQuery,
+            sourceLabel: 'Album Art',
+          );
+        }
         final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
         if (immediateImage != null &&
             immediateImage.isNotEmpty &&
@@ -98,6 +121,7 @@ class MieeArtworkImage extends ConsumerWidget {
             immediateImage,
             effectiveBorderRadius,
             effectiveQuery,
+            sourceLabel: 'YouTube Fallback',
           );
         }
         return errorWidget ?? _buildNeutralFallback(context, effectiveBorderRadius);
@@ -112,6 +136,16 @@ class MieeArtworkImage extends ConsumerWidget {
     ArtworkQuery effectiveQuery,
   ) {
     if (artwork.isNeutralFallback || artwork.imageUrl.isEmpty) {
+      if (effectiveQuery.albumArtworkUrl != null &&
+          effectiveQuery.albumArtworkUrl!.isNotEmpty) {
+        return _renderDirectImage(
+          context,
+          effectiveQuery.albumArtworkUrl!,
+          radius,
+          effectiveQuery,
+          sourceLabel: 'Album Art',
+        );
+      }
       // Prioritize the track's authentic stream thumbnail or explicit URL
       // over the neutral icon whenever available
       if (effectiveQuery.fallbackThumbnailUrl != null &&
@@ -122,6 +156,7 @@ class MieeArtworkImage extends ConsumerWidget {
           effectiveQuery.fallbackThumbnailUrl!,
           radius,
           effectiveQuery,
+          sourceLabel: 'YouTube Fallback',
         );
       }
       if (explicitUrl != null &&
@@ -132,24 +167,34 @@ class MieeArtworkImage extends ConsumerWidget {
       return _buildNeutralFallback(context, radius);
     }
 
+    final sourceName = artwork.source.name;
+
     if (ArtworkCache.hasValidLocalFile(artwork.localCachedPath)) {
       return _renderDirectImage(
         context,
         artwork.localCachedPath!,
         radius,
         effectiveQuery,
+        sourceLabel: sourceName,
       );
     }
 
-    return _renderDirectImage(context, artwork.imageUrl, radius, effectiveQuery);
+    return _renderDirectImage(
+      context,
+      artwork.imageUrl,
+      radius,
+      effectiveQuery,
+      sourceLabel: sourceName,
+    );
   }
 
   Widget _renderDirectImage(
     BuildContext context,
     String pathOrUrl,
     BorderRadius radius,
-    ArtworkQuery? query,
-  ) {
+    ArtworkQuery? query, {
+    String? sourceLabel,
+  }) {
     final isNetwork = pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
     final isAsset = pathOrUrl.startsWith('assets/');
 
@@ -240,7 +285,35 @@ class MieeArtworkImage extends ConsumerWidget {
         width: width,
         height: height,
         color: AppColors.paleConcrete,
-        child: imageWidget,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            imageWidget,
+            if (kDebugMode &&
+                sourceLabel != null &&
+                (width == null || width! >= 50) &&
+                (height == null || height! >= 50))
+              Positioned(
+                bottom: 2,
+                left: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    sourceLabel,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

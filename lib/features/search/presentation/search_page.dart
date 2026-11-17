@@ -23,6 +23,7 @@ import '../../../shared/models/track.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
+import '../data/playback_source_resolver.dart';
 
 /// Recreated Miee Search Screen matching the reference design:
 /// - Cocoa Plum sidebar + Vanilla Cream canvas
@@ -101,11 +102,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     ref.read(searchNotifierProvider.notifier).searchNow(query);
   }
 
-  void _playYouTubeResult(YouTubeVideo video) {
-    // Validation: Reject commentary, exposés, podcasts, scenes or non-music videos
-    final isApprovedMusic = MusicResultClassifier.isValidIndividualSong(video,
+  Future<void> _playYouTubeResult(YouTubeVideo video) async {
+    YouTubeVideo playableVideo = video;
+
+    // Validation: Canonical MusicBrainz and iTunes entries are verified studio recordings.
+    final isApprovedMusic = playableVideo.metadataProvider == 'musicbrainz' ||
+        playableVideo.metadataProvider == 'itunes' ||
+        MusicResultClassifier.isValidIndividualSong(playableVideo,
             query: _searchQuery) ||
-        MusicResultClassifier.isValidMusicTrack(video, query: _searchQuery);
+        MusicResultClassifier.isValidMusicTrack(playableVideo, query: _searchQuery);
     if (!isApprovedMusic) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -117,10 +122,34 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
 
     final isLoading = ref.read(playerControllerProvider.select((s) =>
-        s.loadingTrackId != null && isSameTrackId(s.loadingTrackId, video.id)));
+        s.loadingTrackId != null && isSameTrackId(s.loadingTrackId, playableVideo.id)));
     if (isLoading) return;
 
-    final targetTrack = video.toTrack();
+    // If audio playback source (YouTube video ID) is not yet resolved:
+    if (playableVideo.id.startsWith('itunes_') ||
+        playableVideo.id.startsWith('mb_') ||
+        !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(playableVideo.id)) {
+      final resolvedId = await PlaybackSourceResolver().resolveVideoId(
+        title: playableVideo.canonicalTitle ?? playableVideo.title,
+        artist: playableVideo.canonicalArtist ?? playableVideo.channelTitle,
+        durationStr: playableVideo.duration,
+        album: playableVideo.albumName,
+      );
+      if (resolvedId != null && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(resolvedId)) {
+        playableVideo = playableVideo.copyWith(id: resolvedId);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No authentic playback source found for this recording.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
+    final targetTrack = playableVideo.toTrack();
     final playerNotifier = ref.read(playerControllerProvider.notifier);
 
     // Play the selected track as the queue's current item.
@@ -1263,9 +1292,32 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
         ],
 
-        // 1. Top Result Card (Rendered only in 'All' overview tab)
-        if (filter == 'All') ...[
-          if (preferSongTopResult) ...[
+        // 1. Top Result Card (Rendered in 'All' overview tab or 'Artists' tab for top artist)
+        if (filter == 'All' || (filter == 'Artists' && matchingArtist != null)) ...[
+          if (filter == 'Artists' && matchingArtist != null) ...[
+            _buildTopResultCard(
+              name: matchingArtist.name,
+              subtitle: matchingArtist.fanCount > 0
+                  ? '${_formatNumber(matchingArtist.fanCount)} fans'
+                  : 'Artist',
+              imageUrl: matchingArtist.imageUrl,
+              onTap: () => _navigateToArtist(context, matchingArtist),
+              onPlay: () {
+                if (state.youtubeResults.isNotEmpty) {
+                  final artistNorm =
+                      SearchDeduplicator.normalizeArtist(matchingArtist.name);
+                  final artistTrack = state.youtubeResults.firstWhere(
+                    (v) =>
+                        SearchDeduplicator.normalizeArtist(v.channelTitle) ==
+                        artistNorm,
+                    orElse: () => state.youtubeResults.first,
+                  );
+                  _playYouTubeResult(artistTrack);
+                }
+              },
+            ),
+            const SizedBox(height: 28),
+          ] else if (preferSongTopResult) ...[
             _buildTopResultCard(
               name: matchingSong.canonicalTitle ?? matchingSong.title,
               subtitle:

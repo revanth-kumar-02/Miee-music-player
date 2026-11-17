@@ -6,6 +6,8 @@ import 'package:dio/dio.dart';
 import '../../artwork/data/artwork_match_validator.dart';
 import '../../youtube/domain/youtube_metadata_cleaner.dart';
 import '../../youtube/domain/youtube_model.dart';
+import '../../onboarding/domain/artist_model.dart';
+import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../../shared/models/track.dart';
 import '../domain/itunes_song.dart';
 import '../domain/metadata_match_result.dart';
@@ -137,6 +139,143 @@ class ItunesMetadataService {
       return songs;
     } catch (e) {
       debugPrint('[ItunesMetadataService] Search API error for "$cleanTerm": $e');
+      return const [];
+    }
+  }
+
+  /// Searches verified music artists on Apple iTunes catalogue (`entity=musicArtist&media=music`).
+  Future<List<ArtistModel>> searchArtists(
+    String term, {
+    int limit = 10,
+  }) async {
+    final cleanTerm = term.trim();
+    if (cleanTerm.isEmpty) return const [];
+
+    try {
+      final response = await _dio.get<dynamic>(
+        'https://itunes.apple.com/search',
+        queryParameters: {
+          'term': cleanTerm,
+          'entity': 'musicArtist',
+          'media': 'music',
+          'limit': limit,
+        },
+      );
+
+      if (response.statusCode != 200 || response.data == null) {
+        return const [];
+      }
+
+      final Map<String, dynamic> data;
+      if (response.data is String) {
+        data = jsonDecode(response.data as String) as Map<String, dynamic>;
+      } else if (response.data is Map) {
+        data = Map<String, dynamic>.from(response.data as Map);
+      } else {
+        return const [];
+      }
+
+      final rawResults = data['results'] as List<dynamic>? ?? const [];
+      final artists = <ArtistModel>[];
+
+      for (final item in rawResults) {
+        if (item is Map) {
+          final wrapperType = item['wrapperType']?.toString().toLowerCase();
+          final artistType = item['artistType']?.toString().toLowerCase();
+          final name = (item['artistName'] ?? '').toString().trim();
+          final artistId = (item['artistId'] ?? '').toString().trim();
+          final genre = (item['primaryGenreName'] ?? '').toString().trim();
+
+          if (name.isNotEmpty && (wrapperType == 'artist' || artistType == 'artist')) {
+            final curated = DeezerArtistRepository.findCuratedByName(name);
+            final imageUrl = curated?.imageUrl ?? '';
+            final fanCount = curated?.fanCount ?? 5000;
+            final languages = curated?.languages ?? (genre.isNotEmpty ? [genre] : const <String>[]);
+
+            artists.add(
+              ArtistModel(
+                id: 'itunes_$artistId',
+                name: name,
+                imageUrl: imageUrl,
+                fanCount: fanCount,
+                genres: genre.isNotEmpty ? [genre] : const [],
+                languages: languages,
+              ),
+            );
+          }
+        }
+      }
+      return artists;
+    } catch (e) {
+      debugPrint('[ItunesMetadataService] searchArtists error for "$cleanTerm": $e');
+      return const [];
+    }
+  }
+
+  /// Searches verified music albums on Apple iTunes catalogue (`entity=album&media=music`).
+  Future<List<ArtistAlbum>> searchAlbums(
+    String term, {
+    int limit = 10,
+  }) async {
+    final cleanTerm = term.trim();
+    if (cleanTerm.isEmpty) return const [];
+
+    try {
+      final response = await _dio.get<dynamic>(
+        'https://itunes.apple.com/search',
+        queryParameters: {
+          'term': cleanTerm,
+          'entity': 'album',
+          'media': 'music',
+          'limit': limit,
+        },
+      );
+
+      if (response.statusCode != 200 || response.data == null) {
+        return const [];
+      }
+
+      final Map<String, dynamic> data;
+      if (response.data is String) {
+        data = jsonDecode(response.data as String) as Map<String, dynamic>;
+      } else if (response.data is Map) {
+        data = Map<String, dynamic>.from(response.data as Map);
+      } else {
+        return const [];
+      }
+
+      final rawResults = data['results'] as List<dynamic>? ?? const [];
+      final albums = <ArtistAlbum>[];
+
+      for (final item in rawResults) {
+        if (item is Map) {
+          final collectionId = (item['collectionId'] ?? '').toString();
+          final collectionName = (item['collectionName'] ?? '').toString().trim();
+          final artistName = (item['artistName'] ?? '').toString().trim();
+          final artwork100 = (item['artworkUrl100'] ?? item['artworkUrl60'] ?? '').toString();
+          final highResCover = artwork100.isNotEmpty
+              ? artwork100.replaceAll('100x100bb', '600x600bb').replaceAll('60x60bb', '600x600bb')
+              : '';
+          final releaseDate = (item['releaseDate'] ?? '').toString();
+          final trackCount = (item['trackCount'] as int?) ?? 0;
+
+          if (collectionId.isNotEmpty && collectionName.isNotEmpty) {
+            albums.add(
+              ArtistAlbum(
+                id: 'itunes_$collectionId',
+                title: collectionName,
+                coverUrl: highResCover,
+                releaseDate: releaseDate,
+                trackCount: trackCount,
+                artistName: artistName,
+              ),
+            );
+          }
+        }
+      }
+      return albums;
+    } catch (e) {
+      debugPrint('[ItunesMetadataService] searchAlbums error for "$cleanTerm": $e');
       return const [];
     }
   }
@@ -399,7 +538,7 @@ class ItunesMetadataService {
   /// Enriches an existing [Track] with iTunes canonical metadata if confidently matched.
   Future<Track> enrichTrack(Track track) async {
     // If track already has iTunes metadata, return unchanged
-    if (track.metadataProvider == 'itunes' && track.albumName != null) {
+    if (track.metadataProvider == 'itunes' && track.albumName != null && track.albumArtworkUrl != null) {
       return track;
     }
 
@@ -417,9 +556,12 @@ class ItunesMetadataService {
           title: song.trackName,
           artist: song.artistName,
           albumName: song.collectionName,
+          albumArtworkUrl: song.highResArtworkUrl.isNotEmpty ? song.highResArtworkUrl : null,
           imageUrl: song.highResArtworkUrl.isNotEmpty ? song.highResArtworkUrl : track.imageUrl,
           metadataProvider: 'itunes',
           metadataIdentifier: song.trackId.toString(),
+          artworkSource: 'itunes',
+          artworkMatchConfidence: match.confidence,
           sourceProvider: track.sourceProvider ?? (track.isYoutube ? 'youtube' : 'local'),
           sourceId: track.sourceId ?? (track.isYoutube ? track.id.replaceFirst('youtube_', '') : null),
         );

@@ -29,6 +29,9 @@ class ArtworkQuery {
   /// Cached or extracted artwork file path on disk (for local tracks).
   final String? localArtworkPath;
 
+  /// High-confidence external studio album cover URL (iTunes 600x600, Deezer, etc.).
+  final String? albumArtworkUrl;
+
   /// Original stream thumbnail URL (e.g. YouTube thumbnail) as last-resort fallback.
   final String? fallbackThumbnailUrl;
 
@@ -44,6 +47,7 @@ class ArtworkQuery {
     this.durationMs,
     this.localFilePath,
     this.localArtworkPath,
+    this.albumArtworkUrl,
     this.fallbackThumbnailUrl,
     this.source,
   });
@@ -106,16 +110,16 @@ class ArtworkQuery {
         album: album ?? item.album,
         durationMs: item.durationMs,
         localFilePath: item.filePath,
-        localArtworkPath: item.artworkPath,
+        localArtworkPath: item.artworkPath.isNotEmpty ? item.artworkPath : null,
         fallbackThumbnailUrl: cleanExplicit,
         source: 'local',
       );
     }
 
     if (item is YouTubeVideo) {
-      String? fallback = cleanExplicit ??
-          _sanitizeFallbackUrl(item.highResArtworkUrl) ??
-          _sanitizeFallbackUrl(item.thumbnailUrl);
+      final isHighRes = item.highResArtworkUrl != null && item.highResArtworkUrl!.isNotEmpty;
+      final highRes = isHighRes ? _sanitizeFallbackUrl(item.highResArtworkUrl) : null;
+      String? fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.thumbnailUrl);
       if (fallback == null || fallback.isEmpty) {
         fallback = 'https://i.ytimg.com/vi/${item.id}/hqdefault.jpg';
       }
@@ -124,6 +128,7 @@ class ArtworkQuery {
         title: item.canonicalTitle ?? item.title,
         artist: item.canonicalArtist ?? item.channelTitle,
         album: album ?? item.albumName,
+        albumArtworkUrl: highRes,
         durationMs: _parseDurationString(item.duration),
         localFilePath: null,
         localArtworkPath: null,
@@ -134,7 +139,18 @@ class ArtworkQuery {
 
     if (item is Track) {
       final isYt = item.isYoutube;
-      String? fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.imageUrl);
+      final albumArt = (item.albumArtworkUrl != null && item.albumArtworkUrl!.isNotEmpty)
+          ? _sanitizeFallbackUrl(item.albumArtworkUrl)
+          : ((item.imageUrl.isNotEmpty &&
+                  (item.imageUrl.contains('mzstatic.com') ||
+                      item.imageUrl.contains('dzcdn.net') ||
+                      item.imageUrl.contains('archive.org')))
+              ? _sanitizeFallbackUrl(item.imageUrl)
+              : null);
+
+      String? fallback = cleanExplicit ??
+          _sanitizeFallbackUrl(item.youtubeThumbnailUrl) ??
+          (isYt ? _sanitizeFallbackUrl(item.imageUrl) : null);
 
       if (isYt && (fallback == null || fallback.isEmpty || !fallback.startsWith('http'))) {
         final vid = (item.sourceId ?? item.id).replaceFirst('youtube_', '').trim();
@@ -148,9 +164,10 @@ class ArtworkQuery {
         title: item.title,
         artist: item.artist,
         album: album ?? item.albumName,
+        albumArtworkUrl: albumArt,
         durationMs: _parseDurationString(item.duration),
         localFilePath: item.localFilePath,
-        localArtworkPath: (item.localFilePath != null && !isYt) ? item.imageUrl : null,
+        localArtworkPath: item.embeddedArtworkPath ?? ((item.localFilePath != null && !isYt) ? item.imageUrl : null),
         fallbackThumbnailUrl: fallback,
         source: isYt ? 'youtube' : 'local',
       );
@@ -212,6 +229,17 @@ class ArtworkQuery {
     }
 
     return 'id_$id';
+  }
+
+  /// Stable catalog key based purely on canonical track metadata (artist + title).
+  /// This bridges YouTube search representations and authoritative studio album artwork.
+  String get canonicalKey {
+    final normArtist = _normalize(artist);
+    final normTitle = _normalize(title);
+    if (normArtist.isNotEmpty && normTitle.isNotEmpty) {
+      return 'art_canon_${normArtist}_$normTitle';
+    }
+    return cacheKey;
   }
 
   static String _normalize(String input) {

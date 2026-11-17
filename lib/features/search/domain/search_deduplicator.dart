@@ -415,54 +415,68 @@ class SearchDeduplicator {
   /// Used across Queue, PlayerController, Recommendations and Search to eliminate duplicate uploads
   /// while strictly preserving distinct tracks with identical titles by different artists.
   static String computeRecordingKey(MusicItem track) {
-    final rawTitle = track.title;
-    final rawArtist = track.artist;
-    final versionInfo = _extractVersion(rawTitle, rawTitle);
-    final baseTitle = _normalizeBaseTitle(rawTitle, rawTitle, rawArtist);
+    final rawTitle = (track is Track && track.rawTitle != null && track.rawTitle!.isNotEmpty)
+        ? track.rawTitle!
+        : ((track is YouTubeVideo && track.rawTitle != null && track.rawTitle!.isNotEmpty)
+            ? track.rawTitle!
+            : track.title);
+    final rawArtist = (track is Track && track.rawArtist != null && track.rawArtist!.isNotEmpty)
+        ? track.rawArtist!
+        : ((track is YouTubeVideo && track.rawChannelTitle != null && track.rawChannelTitle!.isNotEmpty)
+            ? track.rawChannelTitle!
+            : track.artist);
+    final versionInfo = _extractVersion(rawTitle, track.title);
+    final baseTitle = _normalizeBaseTitle(track.title, rawTitle, rawArtist);
     final lang =
         MusicLanguageService.detectLanguage(rawTitle, artist: rawArtist);
     final langSuffix = (lang != 'Unknown') ? '|$lang' : '';
-    final normArtist = _normalizeArtist(rawArtist);
+    final isGeneric = _isGenericUploader(rawArtist);
+    final normArtist = isGeneric ? 'generic' : _normalizeArtist(rawArtist);
     final resolvedArtist = normArtist.isNotEmpty ? normArtist : 'unknown';
     return '$baseTitle|$resolvedArtist|${versionInfo.tag}$langSuffix';
+  }
+
+  static _CanonicalSongSignature _computeCanonicalSignatureFromMusicItem(
+      MusicItem item) {
+    final rawOrCleanTitle = (item is Track && item.rawTitle != null && item.rawTitle!.isNotEmpty)
+        ? item.rawTitle!
+        : ((item is YouTubeVideo && item.rawTitle != null && item.rawTitle!.isNotEmpty)
+            ? item.rawTitle!
+            : item.title);
+    final rawOrCleanChannel = (item is Track && item.rawArtist != null && item.rawArtist!.isNotEmpty)
+        ? item.rawArtist!
+        : ((item is YouTubeVideo && item.channelTitle.isNotEmpty)
+            ? item.channelTitle
+            : item.artist);
+
+    final versionInfo = _extractVersion(rawOrCleanTitle, item.title);
+    final normalizedTitle =
+        _normalizeBaseTitle(item.title, rawOrCleanTitle, rawOrCleanChannel);
+    final normalizedArtist = _normalizeArtist(rawOrCleanChannel);
+    final durSec = _parseDurationSeconds(item.duration);
+    final isGeneric = _isGenericUploader(rawOrCleanChannel);
+    final language = MusicLanguageService.detectLanguage(rawOrCleanTitle,
+        artist: rawOrCleanChannel);
+
+    return _CanonicalSongSignature(
+      normalizedTitle: normalizedTitle,
+      normalizedArtist: normalizedArtist,
+      versionType: versionInfo.type,
+      versionTag: versionInfo.tag,
+      language: language,
+      durationSeconds: durSec,
+      rawTitle: rawOrCleanTitle,
+      rawChannel: rawOrCleanChannel,
+      isGenericUploader: isGeneric,
+    );
   }
 
   /// Checks whether two [MusicItem]s represent the same underlying canonical recording.
   static bool isSameCanonicalRecording(MusicItem a, MusicItem b) {
     if (a.id.isNotEmpty && b.id.isNotEmpty && a.id == b.id) return true;
-    final keyA = computeRecordingKey(a);
-    final keyB = computeRecordingKey(b);
-    if (keyA == keyB) return true;
-
-    final langA =
-        MusicLanguageService.detectLanguage(a.title, artist: a.artist);
-    final langB =
-        MusicLanguageService.detectLanguage(b.title, artist: b.artist);
-    if (langA != 'Unknown' && langB != 'Unknown' && langA != langB)
-      return false;
-
-    final vA = _extractVersion(a.title, a.title);
-    final vB = _extractVersion(b.title, b.title);
-    if (vA.tag != vB.tag) return false;
-
-    final baseA = _normalizeBaseTitle(a.title, a.title, a.artist);
-    final baseB = _normalizeBaseTitle(b.title, b.title, b.artist);
-    if (_titlesMatchSubstantially(baseA, baseB)) {
-      final artA = _normalizeArtist(a.artist);
-      final artB = _normalizeArtist(b.artist);
-      if (artA.isNotEmpty && artB.isNotEmpty && artA == artB) return true;
-
-      // Check if one track's raw title explicitly credits the other's artist
-      final rawTitleA = (a is Track && a.rawTitle != null)
-          ? a.rawTitle!.toLowerCase()
-          : a.title.toLowerCase();
-      final rawTitleB = (b is Track && b.rawTitle != null)
-          ? b.rawTitle!.toLowerCase()
-          : b.title.toLowerCase();
-      if (artA.isNotEmpty && rawTitleB.contains(artA)) return true;
-      if (artB.isNotEmpty && rawTitleA.contains(artB)) return true;
-    }
-    return false;
+    final sigA = _computeCanonicalSignatureFromMusicItem(a);
+    final sigB = _computeCanonicalSignatureFromMusicItem(b);
+    return _isSameCanonicalSong(sigA, sigB);
   }
 
   /// Public exposure of base title normalization for queue filtering and context checks.

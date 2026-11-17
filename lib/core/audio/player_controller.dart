@@ -23,6 +23,10 @@ import '../../features/recommendations/providers/recommendation_providers.dart';
 import '../../features/profile/providers/profile_providers.dart';
 import '../../features/wrapped/data/playback_analytics_tracker.dart';
 import '../../features/onboarding/domain/artist_model.dart';
+import '../../features/artwork/presentation/artwork_providers.dart';
+import '../../features/artwork/domain/artwork_query.dart';
+import '../../features/artwork/domain/artwork_source.dart';
+import '../../features/search/data/playback_source_resolver.dart';
 import 'youtube_audio_service.dart';
 
 import 'playback_diagnostics.dart';
@@ -719,46 +723,71 @@ class PlayerController extends StateNotifier<PlaybackState> {
       var candidateId = track.id.replaceFirst('youtube_', '');
       YouTubeVideo? verifiedCandidate;
 
-      // If the ID is a discovery/chart metadata ID (e.g. wm_chart_...), resolve verified YouTube video ID
+      // If the ID is a discovery/chart metadata ID (e.g. wm_chart_... or itunes_... or mb_...), resolve verified YouTube video ID
       if (candidateId.startsWith('wm_') ||
+          candidateId.startsWith('itunes_') ||
+          candidateId.startsWith('mb_') ||
           !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(candidateId)) {
-        final query = '$rawT $rawA'.trim();
-        verifiedCandidate =
-            await YouTubeAudioService().resolveCandidateForQuery(query);
-        if (verifiedCandidate != null &&
-            RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(verifiedCandidate.id)) {
-          candidateId = verifiedCandidate.id;
+        // Targeted Music-First Resolution
+        final resolvedId = await PlaybackSourceResolver().resolveVideoId(
+          title: rawT,
+          artist: rawA,
+          durationStr: track.duration,
+          album: (track is Track) ? track.albumName : null,
+        );
+
+        if (resolvedId != null && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(resolvedId)) {
+          candidateId = resolvedId;
           track = (track is Track)
               ? track.copyWith(
                   id: 'youtube_$candidateId',
-                  rawTitle:
-                      verifiedCandidate.rawTitle ?? verifiedCandidate.title,
-                  rawArtist: verifiedCandidate.rawChannelTitle ??
-                      verifiedCandidate.channelTitle,
-                  duration: (track.duration.isNotEmpty &&
-                          track.duration != '3:30' &&
-                          track.duration != '03:30' &&
-                          track.duration != '0:00' &&
-                          track.duration != '00:00')
-                      ? track.duration
-                      : (verifiedCandidate.duration.isNotEmpty
-                          ? verifiedCandidate.duration
-                          : track.duration),
-                  imageUrl: (track.imageUrl.isNotEmpty &&
-                          !track.imageUrl.contains('default'))
-                      ? track.imageUrl
-                      : verifiedCandidate.thumbnailUrl,
+                  filePath: 'https://www.youtube.com/watch?v=$candidateId',
+                  sourceId: candidateId,
                 )
               : track;
         } else {
-          debugLog(
-              '[Playback] Pre-validation failed: no verified YouTube stream found for "$query"');
-          state = state.copyWith(
-            status: PlaybackStatus.error,
-            clearLoadingTrackId: true,
-            errorMessage: 'This video is not a recognized music track.',
-          );
-          return;
+          final query = '$rawT $rawA'.trim();
+          verifiedCandidate =
+              await YouTubeAudioService().resolveCandidateForQuery(query);
+          if (verifiedCandidate != null &&
+              RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(verifiedCandidate.id)) {
+            candidateId = verifiedCandidate.id;
+            track = (track is Track)
+                ? track.copyWith(
+                    id: 'youtube_$candidateId',
+                    rawTitle:
+                        verifiedCandidate.rawTitle ?? verifiedCandidate.title,
+                    rawArtist: verifiedCandidate.rawChannelTitle ??
+                        verifiedCandidate.channelTitle,
+                    duration: (track.duration.isNotEmpty &&
+                            track.duration != '3:30' &&
+                            track.duration != '03:30' &&
+                            track.duration != '0:00' &&
+                            track.duration != '00:00')
+                        ? track.duration
+                        : (verifiedCandidate.duration.isNotEmpty
+                            ? verifiedCandidate.duration
+                            : track.duration),
+                    imageUrl: (track.albumArtworkUrl != null && track.albumArtworkUrl!.isNotEmpty)
+                        ? track.albumArtworkUrl!
+                        : ((track.imageUrl.isNotEmpty &&
+                                !track.imageUrl.contains('default') &&
+                                !track.imageUrl.contains('ytimg.com'))
+                            ? track.imageUrl
+                            : verifiedCandidate.thumbnailUrl),
+                    youtubeThumbnailUrl: verifiedCandidate.thumbnailUrl,
+                  )
+                : track;
+          } else {
+            debugLog(
+                '[Playback] Pre-validation failed: no verified YouTube stream found for "$query"');
+            state = state.copyWith(
+              status: PlaybackStatus.error,
+              clearLoadingTrackId: true,
+              errorMessage: 'No authentic playback source found for this recording.',
+            );
+            return;
+          }
         }
       }
 
@@ -782,8 +811,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
             rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
             rawChannelTitle:
                 (track is Track) ? (track.rawArtist ?? rawA) : rawA,
+            metadataProvider: (track is Track) ? track.metadataProvider : null,
           );
-      final isApprovedMusic = MusicResultClassifier.isValidIndividualSong(candidate,
+      final isApprovedMusic = (track is Track &&
+              (track.metadataProvider == 'itunes' ||
+                  track.metadataProvider == 'musicbrainz')) ||
+          candidate.metadataProvider == 'itunes' ||
+          candidate.metadataProvider == 'musicbrainz' ||
+          MusicResultClassifier.isValidIndividualSong(candidate,
               query: '$rawT $rawA'.trim()) ||
           MusicResultClassifier.isValidMusicTrack(candidate,
               query: '$rawT $rawA'.trim());
@@ -798,10 +833,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
         return;
       }
 
-      // Ensure active track carries the verified thumbnail if imageUrl was blank
-      if (track is Track && (track.imageUrl.isEmpty || !track.imageUrl.startsWith('http'))) {
+      // Ensure active track preserves external album artwork while saving verified YouTube thumbnail
+      if (track is Track) {
         track = track.copyWith(
-          imageUrl: candidate.thumbnailUrl,
+          youtubeThumbnailUrl: candidate.thumbnailUrl,
+          imageUrl: (track.albumArtworkUrl != null && track.albumArtworkUrl!.isNotEmpty)
+              ? track.albumArtworkUrl!
+              : (track.imageUrl.isNotEmpty && !track.imageUrl.contains('default') && !track.imageUrl.contains('ytimg.com')
+                  ? track.imageUrl
+                  : candidate.thumbnailUrl),
         );
       }
     }
@@ -918,6 +958,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (token != _playRequestToken) return;
       await _handler.play();
       _recordRecentlyPlayed(resolvedTrack);
+      _enrichActiveTrackArtwork(resolvedTrack, token);
     } catch (e) {
       if (token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
@@ -1283,17 +1324,85 @@ class PlayerController extends StateNotifier<PlaybackState> {
         } catch (_) {}
       }
 
-      final trackToRecord = Track(
-        id: track.id,
-        title: track.title,
-        artist: track.artist,
-        imageUrl: resolvedImage,
-        duration: track.duration,
-        filePath: track.filePath,
-      );
+      final Track trackToRecord;
+      if (track is Track) {
+        trackToRecord = track.copyWith(
+          imageUrl: (track.albumArtworkUrl != null && track.albumArtworkUrl!.isNotEmpty)
+              ? track.albumArtworkUrl!
+              : resolvedImage,
+        );
+      } else {
+        trackToRecord = Track(
+          id: track.id,
+          title: track.title,
+          artist: track.artist,
+          imageUrl: resolvedImage,
+          duration: track.duration,
+          filePath: track.filePath,
+        );
+      }
       _ref.read(recentlyPlayedRepositoryProvider).recordPlay(trackToRecord);
     } catch (e) {
       debugLog('[RecentlyPlayed] Record error: $e');
+    }
+  }
+
+  /// Asynchronously resolves verified studio album artwork for the active playing track
+  /// without blocking audio playback. When external artwork resolves with high confidence,
+  /// updates PlayerController state, the active queue item, Android lockscreen MediaItem,
+  /// and recently played repository.
+  void _enrichActiveTrackArtwork(MusicItem item, int token) async {
+    if (item is! Track) return;
+    // If track already has verified external album artwork, skip
+    if (item.albumArtworkUrl != null && item.albumArtworkUrl!.isNotEmpty) {
+      debugPrint('[ArtworkDiag] Active track "${item.title}" already carries external album art: ${item.albumArtworkUrl}');
+      return;
+    }
+
+    try {
+      final query = ArtworkQuery.fromMusicItem(item);
+      final resolver = _ref.read(artworkResolverProvider);
+      final resolved = await resolver.resolve(query);
+
+      if (token != _playRequestToken) return;
+
+      if (resolved.source == ArtworkSource.itunes ||
+          resolved.source == ArtworkSource.deezer ||
+          resolved.source == ArtworkSource.coverArtArchive ||
+          resolved.confidence >= 0.80) {
+        debugPrint('[ArtworkDiag] Upgrading active playing track "${item.title}" with verified ${resolved.source.name} artwork: ${resolved.imageUrl}');
+
+        final updatedTrack = item.copyWith(
+          albumArtworkUrl: resolved.imageUrl,
+          resolvedArtworkUrl: resolved.imageUrl,
+          artworkSource: resolved.source.name,
+          artworkMatchConfidence: resolved.confidence,
+        );
+
+        // 1. Update PlayerController state if still playing this track
+        if (state.currentTrack?.id == item.id) {
+          state = state.copyWith(currentTrack: updatedTrack);
+        }
+
+        // 2. Update queue manager
+        final currentIdx = _queueManager.currentIndex;
+        if (currentIdx >= 0 && currentIdx < _queueManager.queue.length) {
+          if (_queueManager.queue[currentIdx].id == item.id) {
+            _queueManager.replaceTrackAt(currentIdx, updatedTrack);
+          }
+        }
+
+        // 3. Update Android system notification and lockscreen artwork dynamically
+        _handler.updateActiveMediaItemArtwork(item.id, updatedTrack.effectiveArtworkUrl);
+
+        // 4. Update Recently Played repository
+        _recordRecentlyPlayed(updatedTrack);
+
+        // 5. Persist queue snapshot
+        _persistQueueSnapshot();
+      }
+    } catch (e) {
+      debugPrint('[ArtworkDiag] Background artwork enrichment error for "${item.title}": $e');
     }
   }
 
