@@ -15,6 +15,8 @@ import '../../library/providers/library_providers.dart';
 import '../domain/playlist_model.dart';
 import '../providers/playlist_providers.dart';
 import 'widgets/create_playlist_dialog.dart';
+import 'widgets/join_playlist_dialog.dart';
+import 'widgets/playlist_collaboration_sheet.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../wrapped/providers/wrapped_providers.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
@@ -67,6 +69,16 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
               ),
             ),
             const Divider(color: AppColors.oatBeige),
+            ListTile(
+              leading:
+                  const Icon(Icons.group_outlined, color: AppColors.cocoaPlum),
+              title: Text('Collaboration & Sharing',
+                  style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
+              onTap: () {
+                Navigator.pop(context);
+                showPlaylistCollaborationSheet(context, playlist);
+              },
+            ),
             ListTile(
               leading:
                   const Icon(Icons.edit_outlined, color: AppColors.cocoaPlum),
@@ -224,6 +236,16 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
           : MieeBrandHeader(
               title: 'Library',
               actions: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.group_add_outlined,
+                    color: AppColors.denseObsidian,
+                    size: 24,
+                  ),
+                  splashRadius: 20,
+                  tooltip: 'Join Collaborative Playlist',
+                  onPressed: () => showJoinPlaylistDialog(context),
+                ),
                 IconButton(
                   icon: const Icon(
                     Icons.add_rounded,

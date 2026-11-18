@@ -1,5 +1,47 @@
 import '../../../shared/models/music_item.dart';
 
+/// Defines the visibility and collaboration mode of a playlist.
+enum PlaylistType {
+  private,
+  shared,
+  collaborative;
+
+  static PlaylistType fromString(String? val) {
+    switch (val?.toLowerCase()) {
+      case 'shared':
+        return PlaylistType.shared;
+      case 'collaborative':
+        return PlaylistType.collaborative;
+      default:
+        return PlaylistType.private;
+    }
+  }
+
+  String toDbString() => name;
+  String get value => name;
+}
+
+/// Defines a user's role in a shared or collaborative playlist.
+enum PlaylistRole {
+  owner,
+  editor,
+  viewer;
+
+  static PlaylistRole fromString(String? val) {
+    switch (val?.toLowerCase()) {
+      case 'editor':
+        return PlaylistRole.editor;
+      case 'viewer':
+        return PlaylistRole.viewer;
+      default:
+        return PlaylistRole.owner;
+    }
+  }
+
+  String toDbString() => name;
+  String get value => name;
+}
+
 /// Rich domain model for a user playlist.
 ///
 /// Derived from [PlaylistHiveModel] — computed fields are calculated
@@ -16,6 +58,21 @@ class PlaylistModel {
   /// When set, this takes highest priority as the playlist cover.
   final String? customCoverPath;
 
+  /// Optional description of the playlist.
+  final String description;
+
+  /// Visibility and collaboration mode.
+  final PlaylistType type;
+
+  /// Auth user ID of the owner.
+  final String? ownerId;
+
+  /// Current user's permission role.
+  final PlaylistRole role;
+
+  /// Monotonically increasing revision version for conflict resolution.
+  final int version;
+
   const PlaylistModel({
     required this.id,
     required this.name,
@@ -23,7 +80,20 @@ class PlaylistModel {
     required this.createdAt,
     required this.lastModified,
     this.customCoverPath,
+    this.description = '',
+    this.type = PlaylistType.private,
+    this.ownerId,
+    this.role = PlaylistRole.owner,
+    this.version = 1,
   });
+
+  // ── Permissions & Capabilities ─────────────────────────────────────────────
+
+  bool get isOwner => role == PlaylistRole.owner;
+  bool get canEdit => role == PlaylistRole.owner || role == PlaylistRole.editor;
+  bool get isCollaborative => type == PlaylistType.collaborative;
+  bool get isShared => type == PlaylistType.shared;
+  bool get isPrivate => type == PlaylistType.private;
 
   // ── Computed properties ───────────────────────────────────────────────────
 
@@ -98,6 +168,11 @@ class PlaylistModel {
     DateTime? lastModified,
     String? customCoverPath,
     bool clearCustomCover = false,
+    String? description,
+    PlaylistType? type,
+    String? ownerId,
+    PlaylistRole? role,
+    int? version,
   }) =>
       PlaylistModel(
         id: id ?? this.id,
@@ -106,6 +181,11 @@ class PlaylistModel {
         createdAt: createdAt ?? this.createdAt,
         lastModified: lastModified ?? this.lastModified,
         customCoverPath: clearCustomCover ? null : (customCoverPath ?? this.customCoverPath),
+        description: description ?? this.description,
+        type: type ?? this.type,
+        ownerId: ownerId ?? this.ownerId,
+        role: role ?? this.role,
+        version: version ?? this.version,
       );
 }
 

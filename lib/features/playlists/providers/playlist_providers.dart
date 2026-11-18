@@ -61,15 +61,31 @@ class PlaylistController extends StateNotifier<PlaylistsState> {
   // ── CRUD ───────────────────────────────────────────────────────────────────
 
   /// Creates a playlist. Returns the new id, or null on validation error.
-  Future<String?> createPlaylist(String name) async {
+  Future<String?> createPlaylist(
+    String name, {
+    PlaylistType type = PlaylistType.private,
+    String description = '',
+  }) async {
     try {
-      final id = await _repo.createPlaylist(name);
+      final id = await _repo.createPlaylist(name, type: type, description: description);
       _refresh();
       return id;
     } on ArgumentError catch (e) {
       state = state.copyWith(error: e.message as String?);
       return null;
     }
+  }
+
+  /// Updates the visibility / collaboration [type] of [id].
+  Future<void> updatePlaylistType(String id, PlaylistType type) async {
+    await _repo.updatePlaylistType(id, type);
+    _refresh();
+  }
+
+  /// Updates the [description] of [id].
+  Future<void> updatePlaylistDescription(String id, String description) async {
+    await _repo.updatePlaylistDescription(id, description);
+    _refresh();
   }
 
   /// Renames [id]. Returns the error string if validation fails, null on success.

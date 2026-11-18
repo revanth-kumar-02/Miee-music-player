@@ -19,6 +19,7 @@ import '../providers/playlist_providers.dart';
 import 'widgets/add_songs_to_playlist_sheet.dart';
 import 'widgets/add_to_playlist_sheet.dart';
 import 'widgets/create_playlist_dialog.dart';
+import 'widgets/playlist_collaboration_sheet.dart';
 
 /// Full-screen Playlist Detail — shows artwork, metadata, reorderable song list.
 class PlaylistDetailPage extends ConsumerWidget {
@@ -100,10 +101,20 @@ class _PlaylistDetailView extends ConsumerWidget {
                 splashRadius: 20.0,
               ),
             actions: [
+              if (playlist.canEdit)
+                IconButton(
+                  icon: const Icon(Icons.playlist_add, color: AppColors.onSurface),
+                  tooltip: 'Add Songs',
+                  onPressed: () => showAddSongsToPlaylistSheet(context, playlist),
+                  splashRadius: 20.0,
+                ),
               IconButton(
-                icon: const Icon(Icons.playlist_add, color: AppColors.onSurface),
-                tooltip: 'Add Songs',
-                onPressed: () => showAddSongsToPlaylistSheet(context, playlist),
+                icon: Icon(
+                  playlist.isCollaborative ? Icons.group_outlined : Icons.person_add_outlined,
+                  color: AppColors.onSurface,
+                ),
+                tooltip: 'Collaborate & Share',
+                onPressed: () => showPlaylistCollaborationSheet(context, playlist),
                 splashRadius: 20.0,
               ),
               IconButton(
@@ -132,11 +143,65 @@ class _PlaylistDetailView extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   AppSpacing.heightXs,
-                  Text(
-                    '${playlist.songCount} ${playlist.songCount == 1 ? 'song' : 'songs'} · ${playlist.totalDurationFormatted}',
-                    style: AppTypography.labelMedium
-                        .copyWith(color: AppColors.onSurfaceVariant),
+                  Row(
+                    children: [
+                      Text(
+                        '${playlist.songCount} ${playlist.songCount == 1 ? 'song' : 'songs'} · ${playlist.totalDurationFormatted}',
+                        style: AppTypography.labelMedium
+                            .copyWith(color: AppColors.onSurfaceVariant),
+                      ),
+                      if (playlist.isCollaborative || playlist.type == PlaylistType.shared) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: playlist.isCollaborative
+                                ? AppColors.primary.withValues(alpha: 0.15)
+                                : AppColors.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: playlist.isCollaborative
+                                  ? AppColors.primary.withValues(alpha: 0.4)
+                                  : AppColors.outlineVariant,
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                playlist.isCollaborative
+                                    ? Icons.group_outlined
+                                    : Icons.share_outlined,
+                                size: 13,
+                                color: playlist.isCollaborative
+                                    ? AppColors.primary
+                                    : AppColors.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                playlist.isCollaborative ? 'Collaborative' : 'Shared',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: playlist.isCollaborative
+                                      ? AppColors.primary
+                                      : AppColors.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                  if (playlist.description.isNotEmpty) ...[
+                    AppSpacing.heightXs,
+                    Text(
+                      playlist.description,
+                      style: AppTypography.bodySmall
+                          .copyWith(color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
                   AppSpacing.heightMd,
 
                   // ── Play / Shuffle / Add buttons ─────────────────────────────
@@ -182,19 +247,21 @@ class _PlaylistDetailView extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      AppSpacing.widthSm,
-                      IconButton.filledTonal(
-                        icon: const Icon(Icons.playlist_add, size: 22.0),
-                        tooltip: 'Add Songs',
-                        onPressed: () =>
-                            showAddSongsToPlaylistSheet(context, playlist),
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppColors.surfaceContainerHigh,
-                          foregroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: AppRadius.radiusMd),
+                      if (playlist.canEdit) ...[
+                        AppSpacing.widthSm,
+                        IconButton.filledTonal(
+                          icon: const Icon(Icons.playlist_add, size: 22.0),
+                          tooltip: 'Add Songs',
+                          onPressed: () =>
+                              showAddSongsToPlaylistSheet(context, playlist),
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppColors.surfaceContainerHigh,
+                            foregroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: AppRadius.radiusMd),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                   AppSpacing.heightMd,
@@ -293,31 +360,33 @@ class _PlaylistDetailView extends ConsumerWidget {
                               ),
                             ),
                             // Remove button
-                            GestureDetector(
-                              onTap: () => _confirmRemove(context, ref, track),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4.0, vertical: 12.0),
-                                child: const Icon(
-                                  Icons.remove_circle_outline,
-                                  color: AppColors.outlineVariant,
-                                  size: 20.0,
+                            if (playlist.canEdit)
+                              GestureDetector(
+                                onTap: () => _confirmRemove(context, ref, track),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 4.0, vertical: 12.0),
+                                  child: Icon(
+                                    Icons.remove_circle_outline,
+                                    color: AppColors.outlineVariant,
+                                    size: 20.0,
+                                  ),
                                 ),
                               ),
-                            ),
                             // Drag handle
-                            ReorderableDragStartListener(
-                              index: index,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 4.0, vertical: 12.0),
-                                child: Icon(
-                                  Icons.drag_handle,
-                                  color: AppColors.outlineVariant,
-                                  size: 20.0,
+                            if (playlist.canEdit)
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 4.0, vertical: 12.0),
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    color: AppColors.outlineVariant,
+                                    size: 20.0,
+                                  ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -408,13 +477,28 @@ class _PlaylistDetailView extends ConsumerWidget {
                 ),
                 ListTile(
                   leading:
-                      const Icon(Icons.playlist_add, color: AppColors.primary),
-                  title: const Text('Add Songs'),
+                      const Icon(Icons.group_outlined, color: AppColors.primary),
+                  title: const Text('Collaboration & Sharing'),
+                  subtitle: Text(
+                    playlist.isCollaborative
+                        ? 'Collaborative · ${playlist.role.name.toUpperCase()}'
+                        : 'Private',
+                  ),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
-                    showAddSongsToPlaylistSheet(context, playlist);
+                    showPlaylistCollaborationSheet(context, playlist);
                   },
                 ),
+                if (playlist.canEdit)
+                  ListTile(
+                    leading:
+                        const Icon(Icons.playlist_add, color: AppColors.primary),
+                    title: const Text('Add Songs'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      showAddSongsToPlaylistSheet(context, playlist);
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
                   title: const Text('Rename'),

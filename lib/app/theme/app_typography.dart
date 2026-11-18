@@ -71,6 +71,13 @@ abstract class AppTypography {
         height: 1.5,
       );
 
+  /// Label Large: Geist, 16px, semi-bold 600
+  static TextStyle get labelLarge => GoogleFonts.geist(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
+      );
+
   /// Label Medium: Geist, 14px, semi-bold 600
   static TextStyle get labelMedium => GoogleFonts.geist(
         fontSize: 14,
@@ -85,5 +92,12 @@ abstract class AppTypography {
         fontWeight: FontWeight.w500,
         height: 1.33,
         letterSpacing: 0.04 * 12,
+      );
+
+  /// Body Small: Geist, 14px, regular 400
+  static TextStyle get bodySmall => GoogleFonts.geist(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        height: 1.4,
       );
 }

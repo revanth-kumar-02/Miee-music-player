@@ -9,6 +9,8 @@ import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 import '../../../core/sync/sync_manager.dart';
 import '../../../core/sync/offline_operation.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../playlists/domain/playlist_model.dart';
 
 /// Manages user-created playlists persisted in Hive with background cloud synchronization.
 class PlaylistsRepository {
@@ -47,15 +49,25 @@ class PlaylistsRepository {
 
   /// Creates a new empty playlist with [name].
   /// Returns the generated playlist id.
-  Future<String> createPlaylist(String name) async {
+  Future<String> createPlaylist(
+    String name, {
+    PlaylistType type = PlaylistType.private,
+    String description = '',
+  }) async {
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     final now = DateTime.now();
+    final currentUserId = _ref.read(authControllerProvider.notifier).currentUserId;
     final playlist = PlaylistHiveModel(
       id: id,
       name: name,
       tracks: [],
       createdAt: now,
       lastModified: now,
+      type: type.value,
+      ownerId: currentUserId,
+      role: 'owner',
+      description: description,
+      version: 1,
     );
     await _box.put(id, playlist);
 
@@ -65,6 +77,9 @@ class PlaylistsRepository {
       payload: {
         'id': id,
         'name': name,
+        'type': type.value,
+        'description': description,
+        'version': 1,
         'createdAt': now.toIso8601String(),
         'lastModified': now.toIso8601String(),
       },
@@ -73,6 +88,48 @@ class PlaylistsRepository {
     await _ref.read(syncManagerProvider).queueOperation(op);
 
     return id;
+  }
+
+  /// Updates the visibility and collaboration [type] of [playlistId].
+  Future<void> updatePlaylistType(String playlistId, PlaylistType type) async {
+    final playlist = _box.get(playlistId);
+    if (playlist == null) return;
+    playlist.type = type.value;
+    playlist.lastModified = DateTime.now();
+    await playlist.save();
+
+    final op = OfflineOperation(
+      id: 'pl_meta_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_meta_update',
+      payload: {
+        'id': playlistId,
+        'type': type.value,
+        'lastModified': playlist.lastModified.toIso8601String(),
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
+  }
+
+  /// Updates the [description] of [playlistId].
+  Future<void> updatePlaylistDescription(String playlistId, String description) async {
+    final playlist = _box.get(playlistId);
+    if (playlist == null) return;
+    playlist.description = description;
+    playlist.lastModified = DateTime.now();
+    await playlist.save();
+
+    final op = OfflineOperation(
+      id: 'pl_meta_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_meta_update',
+      payload: {
+        'id': playlistId,
+        'description': description,
+        'lastModified': playlist.lastModified.toIso8601String(),
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
   /// Returns true if any playlist already uses [name] (case-insensitive),
@@ -277,7 +334,7 @@ class PlaylistsRepository {
           },
           timestamp: DateTime.now(),
         );
-        _ref.read(syncManagerProvider).queueOperation(op);
+        await _ref.read(syncManagerProvider).queueOperation(op);
       }
     }
 

@@ -51,11 +51,21 @@ class PlaylistRepository {
   // ── Write ─────────────────────────────────────────────────────────────────
 
   /// Creates a new playlist. Returns the id, or throws if name is invalid.
-  Future<String> createPlaylist(String name) async {
+  Future<String> createPlaylist(
+    String name, {
+    PlaylistType type = PlaylistType.private,
+    String description = '',
+  }) async {
     final error = validateName(name);
     if (error != null) throw ArgumentError(error);
-    return _base.createPlaylist(name.trim());
+    return _base.createPlaylist(name.trim(), type: type, description: description);
   }
+
+  Future<void> updatePlaylistType(String id, PlaylistType type) =>
+      _base.updatePlaylistType(id, type);
+
+  Future<void> updatePlaylistDescription(String id, String description) =>
+      _base.updatePlaylistDescription(id, description);
 
   Future<void> renamePlaylist(String id, String newName) async {
     final error = validateName(newName, excludeId: id);
@@ -152,6 +162,20 @@ class PlaylistRepository {
     final createdAt = parseDate(raw.createdAt, now);
     final lastModified = parseDate(raw.lastModified, createdAt);
 
+    String? rawType;
+    String? rawOwnerId;
+    String? rawRole;
+    String? rawDesc;
+    int rawVersion = 1;
+
+    try {
+      rawType = raw.type as String?;
+      rawOwnerId = raw.ownerId as String?;
+      rawRole = raw.role as String?;
+      rawDesc = raw.description as String?;
+      rawVersion = (raw.version as int?) ?? 1;
+    } catch (_) {}
+
     return PlaylistModel(
       id: (raw.id ?? '').toString(),
       name: (raw.name ?? 'Untitled Playlist').toString(),
@@ -159,6 +183,11 @@ class PlaylistRepository {
       createdAt: createdAt,
       lastModified: lastModified,
       customCoverPath: raw.customCoverPath as String?,
+      type: PlaylistType.fromString(rawType),
+      ownerId: rawOwnerId,
+      role: PlaylistRole.fromString(rawRole),
+      description: rawDesc ?? '',
+      version: rawVersion,
     );
   }
 }

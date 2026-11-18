@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/sync/supabase_config.dart';
+import '../../../core/sync/sync_manager.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../rooms/providers/room_providers.dart';
@@ -53,7 +55,11 @@ class AuthController extends StateNotifier<AuthState> {
           if (data.event == AuthChangeEvent.signedOut) {
             state = const AuthState(user: null, isLoading: false, isOfflineMock: false);
           } else {
-            state = state.copyWith(user: data.session?.user, isLoading: false);
+            final u = data.session?.user;
+            state = state.copyWith(user: u, isLoading: false);
+            if (u != null) {
+              unawaited(_ref.read(syncManagerProvider).migrateGuestPlaylists(u.id));
+            }
           }
         });
       } catch (_) {
@@ -85,6 +91,9 @@ class AuthController extends StateNotifier<AuthState> {
           password: password,
         );
         state = AuthState(user: response.user);
+        if (response.user != null) {
+          unawaited(_ref.read(syncManagerProvider).migrateGuestPlaylists(response.user!.id));
+        }
         return true;
       } else {
         // Mock offline sign in
@@ -112,6 +121,9 @@ class AuthController extends StateNotifier<AuthState> {
           data: {'display_name': displayName},
         );
         state = AuthState(user: response.user);
+        if (response.user != null) {
+          unawaited(_ref.read(syncManagerProvider).migrateGuestPlaylists(response.user!.id));
+        }
         return true;
       } else {
         state = const AuthState(

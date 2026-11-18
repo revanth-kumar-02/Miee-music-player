@@ -15,6 +15,21 @@ class PlaylistHiveModel extends HiveObject {
   /// When set, takes priority over auto-derived artwork.
   String? customCoverPath;
 
+  /// Visibility and collaboration mode ('private', 'shared', 'collaborative').
+  String type;
+
+  /// Auth user ID of the owner.
+  String? ownerId;
+
+  /// Current user's permission role ('owner', 'editor', 'viewer').
+  String role;
+
+  /// Optional playlist description.
+  String? description;
+
+  /// Monotonically increasing revision version.
+  int version;
+
   PlaylistHiveModel({
     required this.id,
     required this.name,
@@ -22,6 +37,11 @@ class PlaylistHiveModel extends HiveObject {
     required this.createdAt,
     DateTime? lastModified,
     this.customCoverPath,
+    this.type = 'private',
+    this.ownerId,
+    this.role = 'owner',
+    this.description = '',
+    this.version = 1,
   }) : lastModified = lastModified ?? createdAt;
 }
 
@@ -74,13 +94,18 @@ class PlaylistHiveModelAdapter extends TypeAdapter<PlaylistHiveModel> {
       createdAt: createdAt,
       lastModified: lastModified,
       customCoverPath: fields[5]?.toString(),
+      type: (fields[6] ?? 'private').toString(),
+      ownerId: fields[7]?.toString(),
+      role: (fields[8] ?? 'owner').toString(),
+      description: fields[9]?.toString() ?? '',
+      version: (fields[10] as int?) ?? 1,
     );
   }
 
   @override
   void write(BinaryWriter writer, PlaylistHiveModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -92,7 +117,17 @@ class PlaylistHiveModelAdapter extends TypeAdapter<PlaylistHiveModel> {
       ..writeByte(4)
       ..write(obj.lastModified)
       ..writeByte(5)
-      ..write(obj.customCoverPath);
+      ..write(obj.customCoverPath)
+      ..writeByte(6)
+      ..write(obj.type)
+      ..writeByte(7)
+      ..write(obj.ownerId)
+      ..writeByte(8)
+      ..write(obj.role)
+      ..writeByte(9)
+      ..write(obj.description)
+      ..writeByte(10)
+      ..write(obj.version);
   }
 }
 

@@ -328,6 +328,9 @@ class SyncManager with WidgetsBindingObserver {
               'id': payload['id'],
               'user_id': userId,
               'name': payload['name'],
+              if (payload['type'] != null) 'type': payload['type'],
+              if (payload['description'] != null) 'description': payload['description'],
+              if (payload['version'] != null) 'version': payload['version'],
               if (payload['customCoverPath'] != null)
                 'custom_cover_path': payload['customCoverPath'],
               'created_at': payload['createdAt'],
@@ -335,59 +338,66 @@ class SyncManager with WidgetsBindingObserver {
             });
             break;
 
+          case 'playlist_meta_update':
+            await client.from('playlists').update({
+              if (payload['name'] != null) 'name': payload['name'],
+              if (payload['type'] != null) 'type': payload['type'],
+              if (payload['description'] != null) 'description': payload['description'],
+              'last_modified': payload['lastModified'] ?? op.timestamp.toIso8601String(),
+            }).eq('id', payload['id'] as Object);
+            break;
+
           case 'playlist_delete':
             await client
                 .from('playlists')
                 .delete()
-                .eq('id', payload['id'] as Object)
-                .eq('user_id', userId);
+                .eq('id', payload['id'] as Object);
             break;
 
           case 'playlist_rename':
-            await client.from('playlists').upsert({
-              'id': payload['id'],
-              'user_id': userId,
+            await client.from('playlists').update({
               'name': payload['name'],
               'last_modified': payload['lastModified'],
-            });
+            }).eq('id', payload['id'] as Object);
             break;
 
           case 'playlist_cover_update':
             await client.from('playlists').update({
               'custom_cover_path': payload['customCoverPath'],
               'last_modified': payload['lastModified'],
-            }).eq('id', payload['id'] as Object).eq('user_id', userId);
+            }).eq('id', payload['id'] as Object);
             break;
 
           case 'playlist_tracks_reorder':
-            // ARCHITECTURAL NOTE — Playlist Reorder Synchronization:
-            // 1. Partial-Update Behavior: Each track position is updated sequentially over REST.
-            //    If network drops mid-loop (e.g. at index k of N), items 0..k-1 have updated positions
-            //    while items k..N retain old positions on remote.
-            // 2. Retry Safety: Because the payload contains the complete intended position array,
-            //    a subsequent retry re-applies all intended positions from index 0,
-            //    eventually restoring the intended order (idempotent convergence).
-            // 3. Affected-Row Behavior: PostgREST .update() returns 200 even if 0 rows matched
-            //    (e.g. if a track was concurrently removed). The loop continues safely.
-            // 4. Future Transactional Solution: To eliminate interim inconsistent states visible
-            //    to concurrent clients, implement an atomic PostgreSQL RPC function
-            //    (e.g., 'reorder_playlist_tracks(p_playlist_id, p_positions)') that updates all positions
-            //    within a single SQL transaction.
+            final playlistId = payload['playlistId'] as String;
             final positions = payload['trackPositions'] as List<dynamic>? ?? [];
-            for (final item in positions) {
-              if (item is Map) {
-                await client
-                    .from('playlist_tracks')
-                    .update({'position': item['position']})
-                    .eq('playlist_id', payload['playlistId'] as Object)
-                    .eq('track_id', item['trackId'] as Object)
-                    .eq('user_id', userId);
+            bool rpcSucceeded = false;
+            try {
+              await client.rpc<void>('reorder_playlist_tracks', params: {
+                'p_playlist_id': playlistId,
+                'p_positions': positions,
+              });
+              rpcSucceeded = true;
+            } catch (e) {
+              debugPrint('[SyncManager] RPC reorder_playlist_tracks fallback to sequential: $e');
+            }
+
+            if (!rpcSucceeded) {
+              for (final item in positions) {
+                if (item is Map) {
+                  await client
+                      .from('playlist_tracks')
+                      .update({'position': item['position']})
+                      .eq('playlist_id', playlistId)
+                      .eq('track_id', item['trackId'] as Object);
+                }
               }
             }
+
             if (payload['lastModified'] != null) {
               await client.from('playlists').update({
                 'last_modified': payload['lastModified'],
-              }).eq('id', payload['playlistId'] as Object).eq('user_id', userId);
+              }).eq('id', playlistId);
             }
             break;
 
@@ -412,8 +422,7 @@ class SyncManager with WidgetsBindingObserver {
                 .from('playlist_tracks')
                 .delete()
                 .eq('playlist_id', payload['playlistId'] as Object)
-                .eq('track_id', payload['trackId'] as Object)
-                .eq('user_id', userId);
+                .eq('track_id', payload['trackId'] as Object);
             break;
 
           case 'profile_update':
@@ -804,12 +813,25 @@ class SyncManager with WidgetsBindingObserver {
       }
 
       // C. Playlists & Playlist Tracks
-      final playlistsRes = await client.from('playlists').select().eq('user_id', userId);
+      final playlistsRes = await client.from('playlists').select();
       final playlistTracksRes = await client
           .from('playlist_tracks')
           .select()
-          .eq('user_id', userId)
           .order('position', ascending: true);
+
+      // Fetch member roles for collaborative playlists
+      List<dynamic> membersRes = const [];
+      try {
+        membersRes = await client.from('playlist_members').select().eq('user_id', userId);
+      } catch (e) {
+        debugPrint('[SyncManager] Note: playlist_members fetch in sync: $e');
+      }
+      final rolesByPlaylist = <String, String>{};
+      for (final m in membersRes) {
+        if (m is Map && m['playlist_id'] != null && m['role'] != null) {
+          rolesByPlaylist[m['playlist_id'].toString()] = m['role'].toString();
+        }
+      }
 
       final playlistsBox = Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
       final localPlaylists = playlistsBox.values.toList();
@@ -833,6 +855,10 @@ class SyncManager with WidgetsBindingObserver {
         final now = DateTime.now();
         final createdAt = DateTime.tryParse(p['created_at']?.toString() ?? '') ?? now;
         final lastModified = DateTime.tryParse(p['last_modified']?.toString() ?? '') ?? createdAt;
+        final pOwnerId = p['user_id'] as String?;
+        final role = pOwnerId == userId
+            ? 'owner'
+            : (rolesByPlaylist[pId] ?? 'viewer');
 
         return PlaylistHiveModel(
           id: pId,
@@ -841,6 +867,11 @@ class SyncManager with WidgetsBindingObserver {
           createdAt: createdAt,
           lastModified: lastModified,
           customCoverPath: p['custom_cover_path'] as String?,
+          type: p['type'] as String? ?? 'private',
+          ownerId: pOwnerId,
+          role: role,
+          description: p['description'] as String? ?? '',
+          version: (p['version'] as int?) ?? 1,
         );
       }).toList();
 
@@ -878,6 +909,13 @@ class SyncManager with WidgetsBindingObserver {
             createdAt: resolvedMetadata.createdAt,
             lastModified: resolvedMetadata.lastModified,
             customCoverPath: durableCoverPath,
+            type: remotePl.type.isNotEmpty ? remotePl.type : localPl.type,
+            ownerId: remotePl.ownerId ?? localPl.ownerId,
+            role: remotePl.role.isNotEmpty ? remotePl.role : localPl.role,
+            description: remotePl.description?.isNotEmpty == true
+                ? remotePl.description
+                : localPl.description,
+            version: resolvedMetadata.version,
           );
         },
       );
@@ -1069,7 +1107,6 @@ class SyncManager with WidgetsBindingObserver {
     final favsRes = await client.from('liked_songs').select().eq('user_id', userId);
     if (!isSessionValid()) return;
     final favsBox = Hive.box<TrackHiveModel>(HiveBoxes.favorites);
-    await favsBox.clear();
     for (final f in favsRes as List) {
       if (!isSessionValid()) return;
       final trackId = f['track_id'] as String;
@@ -1086,15 +1123,28 @@ class SyncManager with WidgetsBindingObserver {
     }
 
     // C. Playlists & Tracks
-    final playlistsRes = await client.from('playlists').select().eq('user_id', userId);
+    final playlistsRes = await client.from('playlists').select();
     final playlistTracksRes = await client
         .from('playlist_tracks')
         .select()
-        .eq('user_id', userId)
         .order('position', ascending: true);
+
+    List<dynamic> membersRes = const [];
+    try {
+      membersRes = await client.from('playlist_members').select().eq('user_id', userId);
+    } catch (e) {
+      debugPrint('[SyncManager] Note: playlist_members fetch in downloadRemoteData: $e');
+    }
+    final rolesByPlaylist = <String, String>{};
+    for (final m in membersRes) {
+      if (m is Map && m['playlist_id'] != null && m['role'] != null) {
+        rolesByPlaylist[m['playlist_id'].toString()] = m['role'].toString();
+      }
+    }
+
     if (!isSessionValid()) return;
     final playlistsBox = Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
-    await playlistsBox.clear();
+    // Non-destructive sync: we do NOT clear playlistsBox to protect local guest/offline playlists!
     for (final p in playlistsRes as List) {
       if (!isSessionValid()) return;
       final pId = p['id'] as String;
@@ -1119,6 +1169,10 @@ class SyncManager with WidgetsBindingObserver {
       final now = DateTime.now();
       final createdAt = DateTime.tryParse(p['created_at']?.toString() ?? '') ?? now;
       final lastModified = DateTime.tryParse(p['last_modified']?.toString() ?? '') ?? createdAt;
+      final pOwnerId = p['user_id'] as String?;
+      final role = pOwnerId == userId
+          ? 'owner'
+          : (rolesByPlaylist[pId] ?? 'viewer');
 
       final playlist = PlaylistHiveModel(
         id: pId,
@@ -1127,6 +1181,11 @@ class SyncManager with WidgetsBindingObserver {
         createdAt: createdAt,
         lastModified: lastModified,
         customCoverPath: durableCoverPath,
+        type: p['type'] as String? ?? 'private',
+        ownerId: pOwnerId,
+        role: role,
+        description: p['description'] as String? ?? '',
+        version: (p['version'] as int?) ?? 1,
       );
       await playlistsBox.put(pId, playlist);
     }
@@ -1187,6 +1246,131 @@ class SyncManager with WidgetsBindingObserver {
     _ref.invalidate(favoritesProvider);
     _ref.invalidate(recentlyPlayedProvider);
     _ref.invalidate(searchHistoryProvider);
+  }
+
+  /// Migrates local guest playlists to the authenticated user account and queues them for cloud sync.
+  Future<void> migrateGuestPlaylists(String newUserId) async {
+    try {
+      final box = Hive.box<PlaylistHiveModel>(HiveBoxes.playlists);
+      final guestPlaylists = box.values.where((p) {
+        return p.ownerId == null ||
+            p.ownerId!.isEmpty ||
+            p.ownerId == 'offline_guest_user';
+      }).toList();
+
+      if (guestPlaylists.isEmpty) return;
+      debugPrint('[SyncManager] Migrating ${guestPlaylists.length} guest playlists to user $newUserId');
+
+      for (final p in guestPlaylists) {
+        p.ownerId = newUserId;
+        p.role = 'owner';
+        await p.save();
+
+        final now = DateTime.now();
+        await queueOperation(OfflineOperation(
+          id: 'pl_create_${p.id}_${now.millisecondsSinceEpoch}',
+          type: 'playlist_create',
+          payload: {
+            'id': p.id,
+            'name': p.name,
+            'type': p.type,
+            'description': p.description ?? '',
+            'version': p.version,
+            if (p.customCoverPath != null) 'customCoverPath': p.customCoverPath,
+            'createdAt': p.createdAt.toIso8601String(),
+            'lastModified': p.lastModified.toIso8601String(),
+          },
+          timestamp: now,
+        ));
+
+        for (int i = 0; i < p.tracks.length; i++) {
+          final t = p.tracks[i];
+          await queueOperation(OfflineOperation(
+            id: 'pl_song_add_${p.id}_${t.id}_${now.millisecondsSinceEpoch}_$i',
+            type: 'playlist_song_add',
+            payload: {
+              'playlistId': p.id,
+              'position': i,
+              'track': {
+                'id': t.id,
+                'title': t.title,
+                'artist': t.artist,
+                'imageUrl': t.imageUrl,
+                'duration': t.duration,
+                'filePath': t.filePath,
+                'isYoutube': t.filePath == null || t.filePath!.startsWith('http'),
+              },
+            },
+            timestamp: now,
+          ));
+        }
+      }
+
+      unawaited(triggerSync(force: true));
+    } catch (e) {
+      debugPrint('[SyncManager] Error migrating guest playlists: $e');
+    }
+  }
+
+  /// Generates a sharing/collaboration invitation code for [playlistId].
+  Future<String?> createPlaylistInvitation({
+    required String playlistId,
+    String role = 'editor',
+    Duration expiry = const Duration(days: 7),
+  }) async {
+    if (!SupabaseConfig.hasActiveSupabase || !SupabaseConfig.isInitialized) {
+      return null;
+    }
+    try {
+      final client = Supabase.instance.client;
+      final expiresAt = DateTime.now().add(expiry).toUtc().toIso8601String();
+      final res = await client.from('playlist_invitations').insert({
+        'playlist_id': playlistId,
+        'role': role,
+        'expires_at': expiresAt,
+      }).select('token').single();
+      return res['token'] as String?;
+    } catch (e) {
+      debugPrint('[SyncManager] createPlaylistInvitation error: $e');
+      return null;
+    }
+  }
+
+  /// Accepts a collaborative playlist invitation via RPC.
+  Future<String?> acceptPlaylistInvitation(String token) async {
+    if (!SupabaseConfig.hasActiveSupabase || !SupabaseConfig.isInitialized) {
+      return null;
+    }
+    try {
+      final client = Supabase.instance.client;
+      final res = await client.rpc<dynamic>('accept_playlist_invitation', params: {
+        'p_token': token.trim(),
+      });
+      // Force a sync pass to immediately pull down the joined playlist
+      await triggerSync(force: true);
+      return res?.toString();
+    } catch (e) {
+      debugPrint('[SyncManager] acceptPlaylistInvitation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches members and their roles for [playlistId] from Supabase.
+  Future<List<Map<String, dynamic>>> fetchPlaylistMembers(String playlistId) async {
+    if (!SupabaseConfig.hasActiveSupabase || !SupabaseConfig.isInitialized) {
+      return const [];
+    }
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('playlist_members')
+          .select('user_id, role, joined_at, profiles(display_name, username, profile_picture_path)')
+          .eq('playlist_id', playlistId);
+      return List<Map<String, dynamic>>.from(res as List);
+    } catch (e) {
+      debugPrint('[SyncManager] fetchPlaylistMembers error: $e');
+      return const [];
+    }
   }
 }
 
