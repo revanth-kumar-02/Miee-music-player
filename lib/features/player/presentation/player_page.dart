@@ -178,6 +178,7 @@ class PlayerPage extends ConsumerWidget {
                     aspectRatio: 1.0,
                     child: Container(
                       decoration: BoxDecoration(
+                        color: AppColors.paleConcrete,
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
@@ -190,7 +191,7 @@ class PlayerPage extends ConsumerWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(28),
                         child: hasTrack
-                            ? _buildArtworkImage(currentTrack.imageUrl, currentTrack)
+                            ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.contain)
                             : _buildFallbackArtwork(),
                       ),
                     ),
@@ -740,7 +741,7 @@ class PlayerPage extends ConsumerWidget {
                                     borderRadius: BorderRadius.circular(isCompactHeight ? 16 : 20),
                                     child: SizedBox.expand(
                                       child: hasTrack
-                                          ? _buildArtworkImage(currentTrack.imageUrl, currentTrack)
+                                          ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.contain)
                                           : _buildFallbackArtwork(),
                                     ),
                                   ),
@@ -1273,7 +1274,7 @@ class PlayerPage extends ConsumerWidget {
                           child: SizedBox(
                             width: isCompact ? 36 : 40,
                             height: isCompact ? 36 : 40,
-                            child: _buildArtworkImage(track.imageUrl, track),
+                            child: _buildArtworkImage(track.imageUrl, track, BoxFit.cover),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1665,11 +1666,15 @@ class PlayerPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildArtworkImage(String? rawUrl, [MusicItem? item]) {
+  Widget _buildArtworkImage(
+    String? rawUrl, [
+    MusicItem? item,
+    BoxFit fit = BoxFit.contain,
+  ]) {
     return MieeArtworkImage(
       musicItem: item,
       explicitUrl: rawUrl,
-      fit: BoxFit.cover,
+      fit: fit,
       borderRadius: BorderRadius.circular(28),
       errorWidget: _buildFallbackArtwork(),
     );
