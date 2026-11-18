@@ -133,20 +133,29 @@ class PlaybackSourceResolver {
     String? album,
   }) async {
     final targetSec = _parseTargetDurationSeconds(durationStr: durationStr, durationMs: durationMs);
+    final coreTitle = extractCoreTitle(cleanTitle);
+    final effectiveTitle = coreTitle.isNotEmpty ? coreTitle : cleanTitle;
 
-    // 1. Primary Targeted Query: Artist + Title + Official Audio
+    // 1. Primary Targeted Query: Artist + Core Title + Official Audio
     final primaryQuery = cleanArtist.isNotEmpty
-        ? '$cleanArtist - $cleanTitle (Official Audio)'
-        : '$cleanTitle (Official Audio)';
+        ? '$cleanArtist - $effectiveTitle (Official Audio)'
+        : '$effectiveTitle (Official Audio)';
 
     debugPrint('[PlaybackSourceResolver] Targeted search: "$primaryQuery" (targetDur: ${targetSec}s)');
     var candidates = await _executeSearch(primaryQuery);
 
-    // 2. Secondary Targeted Query: Artist + Title (without Official Audio tag)
+    // 2. Secondary Targeted Query: Artist + Core Title (without Official Audio tag)
     if (candidates.isEmpty) {
-      final secondaryQuery = cleanArtist.isNotEmpty ? '$cleanArtist $cleanTitle' : cleanTitle;
+      final secondaryQuery = cleanArtist.isNotEmpty ? '$cleanArtist $effectiveTitle' : effectiveTitle;
       debugPrint('[PlaybackSourceResolver] Secondary search: "$secondaryQuery"');
       candidates = await _executeSearch(secondaryQuery);
+    }
+
+    // 2b. Tertiary search with full clean title if coreTitle differed
+    if (candidates.isEmpty && coreTitle.isNotEmpty && coreTitle != cleanTitle) {
+      final tertiaryQuery = cleanArtist.isNotEmpty ? '$cleanArtist $cleanTitle' : cleanTitle;
+      debugPrint('[PlaybackSourceResolver] Tertiary search: "$tertiaryQuery"');
+      candidates = await _executeSearch(tertiaryQuery);
     }
 
     if (candidates.isEmpty) {
@@ -157,18 +166,20 @@ class PlaybackSourceResolver {
     // 3. Score candidates rigorously
     _ScoredCandidate? best;
     for (final candidate in candidates) {
-      final score = _evaluateCandidate(
+      final candScore = _evaluateCandidate(
         candidate: candidate,
         cleanTitle: cleanTitle,
         cleanArtist: cleanArtist,
         targetDurationSec: targetSec,
       );
 
-      debugPrint('[PlaybackSourceResolver] Candidate: "${candidate.title}" [chan: "${candidate.channelTitle}", dur: ${candidate.duration}] -> score: $score');
+      debugPrint('[PlaybackSourceResolver] Candidate: "${candidate.title}" [chan: "${candidate.channelTitle}", dur: ${candidate.duration}] -> score: ${candScore.score} (titleScore: ${candScore.titleScore})');
 
-      if (score >= 20) {
-        if (best == null || score > best.score) {
-          best = _ScoredCandidate(candidate, score);
+      if (candScore.score >= 20 && candScore.titleScore > 0) {
+        if (best == null ||
+            candScore.score > best.score ||
+            (candScore.score == best.score && candScore.titleScore > best.titleScore)) {
+          best = _ScoredCandidate(candidate, candScore.score, candScore.titleScore);
         }
       }
     }
@@ -192,17 +203,19 @@ class PlaybackSourceResolver {
     }
   }
 
-  int _evaluateCandidate({
+  _CandidateScore _evaluateCandidate({
     required YouTubeVideo candidate,
     required String cleanTitle,
     required String cleanArtist,
     required int targetDurationSec,
   }) {
     int score = 0;
+    int titleScore = 0;
     final titleLower = (candidate.rawTitle ?? candidate.title).toLowerCase();
     final channelLower = (candidate.rawChannelTitle ?? candidate.channelTitle).toLowerCase();
     final normTitle = cleanTitle.toLowerCase();
     final normArtist = cleanArtist.toLowerCase();
+    final coreTitle = extractCoreTitle(cleanTitle).toLowerCase();
 
     // 1. Duration Evaluation
     final candidateSec = _parseDurationSeconds(candidate.duration);
@@ -302,8 +315,13 @@ class PlaybackSourceResolver {
             titleLower.contains('full movie'))) {
       score -= 150;
     }
-    if (!normTitle.contains('slowed') && (titleLower.contains('slowed') || titleLower.contains('sped up'))) {
-      score -= 60;
+    if (!normTitle.contains('slowed') &&
+        (titleLower.contains('slowed') ||
+            titleLower.contains('sped up') ||
+            titleLower.contains('reverb') ||
+            titleLower.contains('bass boosted') ||
+            RegExp(r'\b8d\b', caseSensitive: false).hasMatch(titleLower))) {
+      score -= 80;
     }
     if (!isExplicitRemix && titleLower.contains('remix')) {
       score -= 40;
@@ -311,25 +329,51 @@ class PlaybackSourceResolver {
       score += 40;
     }
 
-    // 5. Title Match
+    // 5. Strict Title Match & Cross-Link Disambiguation
     final normCleanTitle = _normalizeForComparison(cleanTitle);
+    final normCoreTitle = _normalizeForComparison(coreTitle);
+    final candCoreTitle = extractCoreTitle(candidate.rawTitle ?? candidate.title);
+    final normCandCoreTitle = _normalizeForComparison(candCoreTitle);
     final normCandTitle = _normalizeForComparison(candidate.rawTitle ?? candidate.title);
 
-    if (normCleanTitle.isNotEmpty) {
-      if (normCandTitle == normCleanTitle) {
-        score += 50; // Exact canonical title match
-      } else if (titleLower.contains(normTitle)) {
-        score += 35; // Substring title match
-      } else {
-        // Check word overlap for titles with minor punctuation variances
-        final targetWords = normTitle.split(' ').where((w) => w.length > 2).toSet();
-        if (targetWords.isNotEmpty) {
-          final matchedWords = targetWords.where((w) => titleLower.contains(w)).length;
-          if (matchedWords == targetWords.length) {
-            score += 25;
-          }
+    final significantTargetWords = coreTitle
+        .split(RegExp(r'\s+'))
+        .map((w) => w.replaceAll(RegExp(r'[^a-z0-9]'), ''))
+        .where((w) => w.length >= 3)
+        .toSet();
+
+    if (normCandTitle == normCleanTitle || (normCoreTitle.isNotEmpty && normCandCoreTitle == normCoreTitle)) {
+      score += 70; // Exact canonical or core title match
+      titleScore = 70;
+    } else if (normCoreTitle.isNotEmpty && normCandTitle.contains(normCoreTitle)) {
+      score += 50; // Core title substring match
+      titleScore = 50;
+    } else if (titleLower.contains(coreTitle) || titleLower.contains(normTitle)) {
+      score += 40;
+      titleScore = 40;
+    } else if (significantTargetWords.isNotEmpty) {
+      final matchedWords = significantTargetWords.where((w) => titleLower.contains(w)).length;
+      if (matchedWords == significantTargetWords.length) {
+        score += 35; // All significant words present
+        titleScore = 35;
+      } else if (matchedWords > 0) {
+        final ratio = matchedWords / significantTargetWords.length;
+        if (ratio >= 0.5) {
+          score += 15;
+          titleScore = 15;
+        } else {
+          score -= 30; // Minor partial word overlap
+          titleScore = -30;
         }
+      } else {
+        // Zero significant words matched from the core title!
+        // This is a completely different song by the same artist/album!
+        score -= 90;
+        titleScore = -90;
       }
+    } else {
+      score -= 80;
+      titleScore = -80;
     }
 
     // Require either artist or channel or title alignment
@@ -337,7 +381,29 @@ class PlaybackSourceResolver {
       score -= 25;
     }
 
-    return score;
+    return _CandidateScore(score: score, titleScore: titleScore);
+  }
+
+  /// Extracts the essential core song title by stripping soundtrack parentheticals,
+  /// album markers, and packaging noise.
+  static String extractCoreTitle(String rawTitle) {
+    var title = rawTitle.trim();
+    // Remove (From "...") or (from ...) or [from ...]
+    title = title.replaceAll(
+      RegExp(r'[\(\[\{]\s*(from\s+(the\s+)?(movie|film|motion\s+picture|album)?|ost|soundtrack)[^\)\]\}]*[\)\]\}]', caseSensitive: false),
+      ' ',
+    );
+    // Remove standard version and packaging brackets
+    title = title.replaceAll(
+      RegExp(r'[\(\[\{][^\)\]\}]*(official|music\s+video|video|audio|lyric|lyrics|remaster|hd|4k|hq|1080p|clean|explicit)[^\)\]\}]*[\)\]\}]', caseSensitive: false),
+      ' ',
+    );
+    // Remove leading movie prefixes if any
+    title = title.replaceAll(
+      RegExp(r'^(full\s+video(\s+song)?|official\s+video(\s+song)?|official\s+audio|lyric\s+video|video\s+song|full\s+song|song)\s*[:\-\–\—\|\•]\s*', caseSensitive: false),
+      ' ',
+    );
+    return title.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   List<String> _extractArtistTokens(String artist) {
@@ -407,9 +473,17 @@ class PlaybackSourceResolver {
   }
 }
 
+class _CandidateScore {
+  final int score;
+  final int titleScore;
+
+  const _CandidateScore({required this.score, required this.titleScore});
+}
+
 class _ScoredCandidate {
   final YouTubeVideo video;
   final int score;
+  final int titleScore;
 
-  const _ScoredCandidate(this.video, this.score);
+  const _ScoredCandidate(this.video, this.score, this.titleScore);
 }

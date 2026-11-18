@@ -819,6 +819,13 @@ class SearchDeduplicator {
     );
     title = title.replaceAll(bracketNoiseRegex, ' ');
 
+    // 2a. Remove bracketed soundtrack/film info (e.g. (From "OM Chapter 1: Udhiram..."), (From the Movie ...))
+    final soundtrackBracketRegex = RegExp(
+      r'[\(\[\{]\s*(from\s+(the\s+)?(movie|film|motion\s+picture|album)?|ost|soundtrack)[^\)\]\}]*[\)\]\}]',
+      caseSensitive: false,
+    );
+    title = title.replaceAll(soundtrackBracketRegex, ' ');
+
     // 2b. Remove common parenthetical commentary noise (e.g. "(but your life will be changed)", "(listen with headphones)")
     final commentaryBracketRegex = RegExp(
       r'[\(\[\{]\s*(but\s+|you\s+|feeling\s+|listening\s+|read\s+|listen\s+|pov\s*[\:\-]|headphones)[^\)\]\}]*[\)\]\}]',
@@ -840,8 +847,8 @@ class SearchDeduplicator {
     );
     title = title.replaceAll(composerPrefixRegex, ' ');
 
-    // 2e. Remove movie prefix with colon (e.g. "Galatta Kalyanam: Kaadhalai Solla Mudiyatha")
-    if (title.contains(':')) {
+    // 2e. Remove movie prefix with colon ONLY if the colon is outside brackets/parentheses
+    if (title.contains(':') && !title.contains('(') && !title.contains('[')) {
       final colonParts = title.split(':');
       if (colonParts.length == 2 && colonParts[1].trim().length >= 4) {
         title = colonParts[1].trim();

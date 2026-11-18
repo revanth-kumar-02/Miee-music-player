@@ -435,7 +435,9 @@ class SearchRepository {
     // 1. Process Curated / Deezer artists first (they have verified discography metadata & fan counts)
     for (final artist in curatedAndDeezer) {
       if (artist.id.isEmpty) continue;
-      if (!verifiedInferredArtistIds.contains(artist.id) &&
+      final isCurated = DeezerArtistRepository.findCuratedByName(artist.name) != null;
+      if (!isCurated &&
+          !verifiedInferredArtistIds.contains(artist.id) &&
           !QueryRelevanceEvaluator.isArtistRelevant(artist.name, query: cleanQuery)) {
         continue;
       }

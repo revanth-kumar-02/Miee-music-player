@@ -588,12 +588,20 @@ class NextTrackPreloader {
           );
         } else {
           String videoIdOrUrl = trackId;
-          if (videoIdOrUrl.isEmpty || track.id.startsWith('itunes_')) {
+          final cleanId = normalizePreloadTrackId(track.id);
+          if (cleanId.isEmpty ||
+              cleanId.startsWith('itunes_') ||
+              cleanId.startsWith('mb_') ||
+              cleanId.startsWith('wm_') ||
+              cleanId.length != 11 ||
+              !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanId)) {
             final query = '${track.artist} - ${track.title}'.trim();
             final matchedId = await _resolveYouTubeQuery(query);
             if (matchedId != null && matchedId.isNotEmpty) {
               videoIdOrUrl = matchedId;
             }
+          } else {
+            videoIdOrUrl = cleanId;
           }
 
           resolved = await _resolveYouTubeStream(
