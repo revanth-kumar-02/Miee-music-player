@@ -2,6 +2,7 @@ import '../../youtube/domain/youtube_model.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import 'search_deduplicator.dart';
+import 'query_relevance_evaluator.dart';
 
 /// Ranks music tracks prioritizing original canonical studio recordings,
 /// weighting artist prominence, and penalizing unrequested tribute, cover,
@@ -108,13 +109,17 @@ class CanonicalMusicRanker {
     final artistLower = (video.canonicalArtist ?? video.channelTitle).trim().toLowerCase();
     final normArtist = artistLower.replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-    // 1. Exact Title Match
+    // 1. Exact Title Match & Full Query Coverage
     if (titleLower == cleanQuery || (normTitle.isNotEmpty && normTitle == normQuery)) {
       score += 250.0;
     } else if (titleLower.startsWith(cleanQuery)) {
       score += 100.0;
     } else if (titleLower.contains(cleanQuery)) {
       score += 50.0;
+    }
+
+    if (QueryRelevanceEvaluator.hasFullQueryCoverage(video, query: cleanQuery)) {
+      score += 300.0;
     }
 
     // 2. Canonical Artist Match from Global Popularity (e.g. Apple Music / Curated #1)

@@ -53,7 +53,13 @@ class QueryRelevanceEvaluator {
     final lower = query.toLowerCase();
     final tokens = _tokenize(lower);
     for (final token in tokens) {
-      if (token == 'all' || token == 'songs' || token == 'jukebox' || token == 'discography') {
+      if (token == 'all' ||
+          token == 'songs' ||
+          token == 'jukebox' ||
+          token == 'discography' ||
+          token == 'hits' ||
+          token == 'hit' ||
+          token == 'collection') {
         return true;
       }
     }
@@ -73,14 +79,22 @@ class QueryRelevanceEvaluator {
     return core.join(' ');
   }
 
-  /// Tokenizes a string into alphanumeric lower-case words.
+  /// Tokenizes a string into alphanumeric lower-case words, including collapsed
+  /// single-letter initials (e.g. 'a', 'r' produces 'ar' to match 'AR Rahman' vs 'A.R. Rahman').
   static List<String> _tokenize(String input) {
-    return input
+    final words = input
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
         .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty)
         .toList();
+    final combined = <String>[...words];
+    for (int i = 0; i < words.length - 1; i++) {
+      if (words[i].length == 1 && words[i + 1].length == 1) {
+        combined.add('${words[i]}${words[i + 1]}');
+      }
+    }
+    return combined;
   }
 
   /// Evaluates whether [candidate] has sufficient semantic relevance to [query].
@@ -160,8 +174,67 @@ class QueryRelevanceEvaluator {
           candidateArtist.contains(singleToken);
     }
 
-    // For multi-token queries, require at least 50% of effective tokens or at least 1 if short
+    // For multi-token queries (>= 2 effective tokens):
+    // If the query contains an entity prefix/subject (the first core token),
+    // and the candidate matches only trailing words while COMPLETELY missing the entity prefix
+    // (e.g. query "om first strike" matching "first strike" by "Luis M" but missing "om"),
+    // the candidate is an unrelated catalogue homonym and must be rejected.
+    if (effectiveTokens.length >= 2) {
+      final firstToken = effectiveTokens.first;
+      final hasFirstToken =
+          candidateTokens.contains(firstToken) || candidateCombined.contains(firstToken);
+
+      // If the candidate has 100% full query coverage, it is unconditionally relevant
+      if (matchCount >= effectiveTokens.length) {
+        return true;
+      }
+
+      // If missing the leading entity token, reject unless it's a generic collection stopword
+      if (!hasFirstToken && !collectionStopWords.contains(firstToken)) {
+        return false;
+      }
+
+      // Require at least 50% of effective tokens
+      return matchCount >= (effectiveTokens.length / 2).ceil();
+    }
+
     return matchCount >= (effectiveTokens.length / 2).ceil();
+  }
+
+  /// Checks whether [candidate] has 100% token coverage for the effective tokens in [query]
+  /// across its title, artist, or album.
+  static bool hasFullQueryCoverage(
+    YouTubeVideo candidate, {
+    required String query,
+  }) {
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) return true;
+    final queryTokens = _tokenize(cleanQuery);
+    final coreTokens =
+        queryTokens.where((t) => !collectionStopWords.contains(t)).toList();
+    final effectiveTokens = coreTokens.isNotEmpty ? coreTokens : queryTokens;
+    if (effectiveTokens.isEmpty) return true;
+
+    final candidateTitle =
+        (candidate.canonicalTitle ?? candidate.title).toLowerCase();
+    final candidateArtist =
+        (candidate.canonicalArtist ?? candidate.channelTitle).toLowerCase();
+    final candidateAlbum = (candidate.albumName ?? '').toLowerCase();
+    final candidateCombined =
+        '$candidateTitle $candidateArtist $candidateAlbum';
+    final candidateTokens = {
+      ..._tokenize(candidateTitle),
+      ..._tokenize(candidateArtist),
+      ..._tokenize(candidateAlbum),
+    };
+
+    for (final token in effectiveTokens) {
+      if (!candidateTokens.contains(token) &&
+          !candidateCombined.contains(token)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Validates whether a candidate artist is genuinely relevant to the query.

@@ -206,8 +206,37 @@ class SearchRepository {
         }
       }
 
+      // Check whether structured discovery yielded full query coverage candidates
+      final hasFullCoverage = candidatePool.any(
+          (c) => QueryRelevanceEvaluator.hasFullQueryCoverage(c, query: clean));
+
+      // If candidatePool has no candidates matching the full query context
+      // (e.g. iTunes only has partial matches or nothing for regional/soundtrack phrases like "om first strike"),
+      // query YouTube to discover authentic verified recordings matching the complete user query.
+      if (!hasFullCoverage) {
+        try {
+          final ytVideos = await youtubeRepository.search(clean);
+          for (final yt in ytVideos) {
+            if (MusicResultClassifier.isValidMusicTrack(yt, query: clean) &&
+                QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean)) {
+              candidatePool.add(yt);
+            }
+          }
+        } catch (_) {}
+      }
+
       if (candidatePool.isNotEmpty) {
-        final String? canonicalArtist = candidatePool.first.canonicalArtist;
+        // Pick canonicalArtist ONLY from a candidate with full query coverage,
+        // avoiding arbitrary elevation of unrelated homonyms.
+        YouTubeVideo? fullMatchCandidate;
+        for (final c in candidatePool) {
+          if (QueryRelevanceEvaluator.hasFullQueryCoverage(c, query: clean)) {
+            fullMatchCandidate = c;
+            break;
+          }
+        }
+        final String? canonicalArtist = fullMatchCandidate?.canonicalArtist ??
+            (hasFullCoverage ? candidatePool.first.canonicalArtist : null);
 
         // Rank using CanonicalMusicRanker: prioritizes canonical studio recordings,
         // elevates prominent performing artists, and heavily penalizes unrequested tribute/cover acts
@@ -226,15 +255,18 @@ class SearchRepository {
 
         // Controlled Supplemental Search:
         // If the query explicitly seeks an alternate version (e.g. "live", "remix", "acoustic", "unplugged", "cover")
-        // or if discovery returned fewer than 3 candidates, supplement with verified YouTube recordings
+        // or if discovery returned fewer than 3 candidates, or if no full coverage candidate is present yet,
+        // supplement with verified YouTube recordings
         final cleanLower = clean.toLowerCase();
         final isSpecificVersionQuery = cleanLower.contains('live') ||
             cleanLower.contains('remix') ||
             cleanLower.contains('acoustic') ||
             cleanLower.contains('unplugged') ||
             cleanLower.contains('cover');
+        final lacksFullMatch = !rankedRecordings.any(
+            (r) => QueryRelevanceEvaluator.hasFullQueryCoverage(r, query: clean));
 
-        if (rankedRecordings.length < 3 || isSpecificVersionQuery) {
+        if (rankedRecordings.length < 3 || isSpecificVersionQuery || lacksFullMatch) {
           try {
             final supplemental = await youtubeRepository.search(clean);
             final validSupplemental = supplemental.where((yt) {
