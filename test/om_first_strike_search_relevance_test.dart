@@ -43,6 +43,49 @@ void main() {
       rawChannelTitle: 'Ben Frost',
       canonicalTitle: 'First Strike',
       canonicalArtist: 'Ben Frost',
+      albumName: "Tom Clancy's Siege (Original Game Soundtrack)",
+    );
+
+    const firstStrikeFromMarsHarvey = YouTubeVideo(
+      id: 'itunes_harvey',
+      title: 'First Strike from Mars',
+      channelTitle: 'Harvey McKay',
+      thumbnailUrl: '',
+      duration: '7:08',
+      viewCount: 'Apple Music',
+      rawTitle: 'First Strike from Mars',
+      rawChannelTitle: 'Harvey McKay',
+      canonicalTitle: 'First Strike from Mars',
+      canonicalArtist: 'Harvey McKay',
+      albumName: 'Dots & Pearls II',
+    );
+
+    const firstStrikeTomHolkenborg = YouTubeVideo(
+      id: 'itunes_tomh',
+      title: 'First Strike',
+      channelTitle: 'Tom Holkenborg',
+      thumbnailUrl: '',
+      duration: '2:09',
+      viewCount: 'Apple Music',
+      rawTitle: 'First Strike',
+      rawChannelTitle: 'Tom Holkenborg',
+      canonicalTitle: 'First Strike',
+      canonicalArtist: 'Tom Holkenborg',
+      albumName: 'Mortal Engines',
+    );
+
+    const firstStrikeHorstClooney = YouTubeVideo(
+      id: 'itunes_horst',
+      title: 'First Strike',
+      channelTitle: 'Horst Clooney',
+      thumbnailUrl: '',
+      duration: '2:20',
+      viewCount: 'Apple Music',
+      rawTitle: 'First Strike',
+      rawChannelTitle: 'Horst Clooney',
+      canonicalTitle: 'First Strike',
+      canonicalArtist: 'Horst Clooney',
+      albumName: 'Homeland',
     );
 
     test('1. "om first strike" prioritizes the OM soundtrack recording and rejects unrelated singles', () {
@@ -65,6 +108,47 @@ void main() {
       );
       expect(
         QueryRelevanceEvaluator.isCandidateRelevant(firstStrikeLuisM, query: query),
+        isFalse,
+      );
+
+      // Verify word boundary token isolation:
+      // 'om' must NOT match 'from' in Harvey McKay - First Strike from Mars
+      expect(
+        QueryRelevanceEvaluator.hasFullQueryCoverage(firstStrikeFromMarsHarvey, query: query),
+        isFalse,
+      );
+      expect(
+        QueryRelevanceEvaluator.isCandidateRelevant(firstStrikeFromMarsHarvey, query: query),
+        isFalse,
+      );
+
+      // 'om' must NOT match 'tom' in Ben Frost - First Strike (Tom Clancy's Siege)
+      expect(
+        QueryRelevanceEvaluator.hasFullQueryCoverage(firstStrikeBenFrost, query: query),
+        isFalse,
+      );
+      expect(
+        QueryRelevanceEvaluator.isCandidateRelevant(firstStrikeBenFrost, query: query),
+        isFalse,
+      );
+
+      // 'om' must NOT match 'tom' in Tom Holkenborg - First Strike
+      expect(
+        QueryRelevanceEvaluator.hasFullQueryCoverage(firstStrikeTomHolkenborg, query: query),
+        isFalse,
+      );
+      expect(
+        QueryRelevanceEvaluator.isCandidateRelevant(firstStrikeTomHolkenborg, query: query),
+        isFalse,
+      );
+
+      // 'om' must NOT match 'homeland' in Horst Clooney - First Strike (Homeland)
+      expect(
+        QueryRelevanceEvaluator.hasFullQueryCoverage(firstStrikeHorstClooney, query: query),
+        isFalse,
+      );
+      expect(
+        QueryRelevanceEvaluator.isCandidateRelevant(firstStrikeHorstClooney, query: query),
         isFalse,
       );
 

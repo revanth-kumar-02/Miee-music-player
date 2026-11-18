@@ -30,8 +30,8 @@ class ItunesMetadataService {
   ItunesMetadataService._internal()
       : _dio = Dio(
           BaseOptions(
-            connectTimeout: const Duration(seconds: 4),
-            receiveTimeout: const Duration(seconds: 4),
+            connectTimeout: const Duration(seconds: 6),
+            receiveTimeout: const Duration(seconds: 6),
             headers: {
               'Accept': 'application/json',
               'User-Agent': 'MieeMusic/2.0 (Mobile; Audio)',
@@ -51,8 +51,15 @@ class ItunesMetadataService {
   final Map<String, MetadataMatchResult> _matchCache = {};
   static const int _maxMatchCache = 600;
 
-  /// In-flight request deduplication map.
+  /// Bounded LRU in-memory cache for album tracklists.
+  final Map<String, List<ItunesSong>> _albumTracksCache = {};
+  static const int _maxAlbumTracksCache = 100;
+
+  /// In-flight request deduplication map for matching.
   final Map<String, Future<MetadataMatchResult>> _inFlightMatches = {};
+
+  /// In-flight request deduplication map for album tracklists.
+  final Map<String, Future<List<ItunesSong>>> _inFlightAlbumTracks = {};
 
   /// Version tags that indicate specialized audio recordings.
   static const List<String> _specializedVersionTags = [
@@ -276,6 +283,83 @@ class ItunesMetadataService {
       return albums;
     } catch (e) {
       debugPrint('[ItunesMetadataService] searchAlbums error for "$cleanTerm": $e');
+      return const [];
+    }
+  }
+
+  /// Fetches verified tracks for an album/collection from Apple iTunes catalogue
+  /// using the lookup endpoint (`https://itunes.apple.com/lookup?id={collectionId}&entity=song`).
+  Future<List<ItunesSong>> getAlbumTracks(String collectionId) async {
+    final cleanId = collectionId.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanId.isEmpty) return const [];
+
+    if (_albumTracksCache.containsKey(cleanId)) {
+      return _albumTracksCache[cleanId]!;
+    }
+
+    if (_inFlightAlbumTracks.containsKey(cleanId)) {
+      return await _inFlightAlbumTracks[cleanId]!;
+    }
+
+    final future = _fetchAlbumTracksInternal(cleanId).whenComplete(() {
+      _inFlightAlbumTracks.remove(cleanId);
+    });
+
+    _inFlightAlbumTracks[cleanId] = future;
+    final results = await future;
+
+    if (_albumTracksCache.length >= _maxAlbumTracksCache) {
+      _albumTracksCache.remove(_albumTracksCache.keys.first);
+    }
+    _albumTracksCache[cleanId] = results;
+
+    return results;
+  }
+
+  Future<List<ItunesSong>> _fetchAlbumTracksInternal(String collectionId) async {
+    try {
+      final response = await _dio.get<dynamic>(
+        'https://itunes.apple.com/lookup',
+        queryParameters: {
+          'id': collectionId,
+          'entity': 'song',
+        },
+      );
+
+      if (response.statusCode != 200 || response.data == null) {
+        return const [];
+      }
+
+      final Map<String, dynamic> data;
+      if (response.data is String) {
+        data = jsonDecode(response.data as String) as Map<String, dynamic>;
+      } else if (response.data is Map) {
+        data = Map<String, dynamic>.from(response.data as Map);
+      } else {
+        return const [];
+      }
+
+      final rawResults = data['results'] as List<dynamic>? ?? const [];
+      final songs = <ItunesSong>[];
+      final seenTrackIds = <int>{};
+
+      for (final item in rawResults) {
+        if (item is Map) {
+          final wrapperType = item['wrapperType']?.toString().toLowerCase();
+          if (wrapperType == 'track') {
+            final song = ItunesSong.fromJson(Map<String, dynamic>.from(item));
+            if (song.trackId > 0 && song.trackName.isNotEmpty) {
+              if (seenTrackIds.add(song.trackId)) {
+                songs.add(song);
+              }
+            }
+          }
+        }
+      }
+
+      return songs;
+    } catch (e) {
+      debugPrint('[ItunesMetadataService] getAlbumTracks error for "$collectionId": $e');
       return const [];
     }
   }

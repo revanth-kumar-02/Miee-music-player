@@ -81,10 +81,11 @@ class QueryRelevanceEvaluator {
 
   /// Tokenizes a string into alphanumeric lower-case words, including collapsed
   /// single-letter initials (e.g. 'a', 'r' produces 'ar' to match 'AR Rahman' vs 'A.R. Rahman').
+  /// Supports Unicode letters, marks, and numbers.
   static List<String> _tokenize(String input) {
     final words = input
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'[^\p{L}\p{N}\p{M}\s]', unicode: true), ' ')
         .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty)
         .toList();
@@ -95,6 +96,29 @@ class QueryRelevanceEvaluator {
       }
     }
     return combined;
+  }
+
+  /// Checks whether [token] matches as a complete word/token in [candidateTokens]
+  /// or with strict word-boundary matching in [candidateCombined].
+  ///
+  /// Prevents short tokens (<= 3 chars such as 'om', 'dj', 'in', 'on') from
+  /// matching substrings of unrelated words (e.g., 'om' inside 'from', 'tom', 'homeland').
+  static bool _matchesToken(
+    String token,
+    Set<String> candidateTokens,
+    String candidateCombined,
+  ) {
+    if (candidateTokens.contains(token)) return true;
+    if (token.length <= 3) {
+      // Short tokens must match as whole tokens to avoid accidental sub-word matches
+      return false;
+    }
+    // For longer tokens (>= 4 chars), allow word-boundary matching
+    final pattern = RegExp(
+      r'(^|\s|[^\p{L}\p{N}\p{M}])' + RegExp.escape(token) + r'($|\s|[^\p{L}\p{N}\p{M}])',
+      unicode: true,
+    );
+    return pattern.hasMatch(candidateCombined);
   }
 
   /// Evaluates whether [candidate] has sufficient semantic relevance to [query].
@@ -146,7 +170,7 @@ class QueryRelevanceEvaluator {
     // completely contradict it.
     int matchCount = 0;
     for (final token in effectiveTokens) {
-      if (candidateTokens.contains(token) || candidateCombined.contains(token)) {
+      if (_matchesToken(token, candidateTokens, candidateCombined)) {
         matchCount++;
       }
     }
@@ -158,7 +182,7 @@ class QueryRelevanceEvaluator {
       // Must match at least the non-language entity token (e.g. "om")
       final nonLangTokens = effectiveTokens.where((t) => !languageMarkers.contains(t)).toList();
       final hasNonLangMatch = nonLangTokens.any((t) =>
-          candidateTokens.contains(t) || candidateCombined.contains(t));
+          _matchesToken(t, candidateTokens, candidateCombined));
 
       if (!hasNonLangMatch) {
         return false;
@@ -169,7 +193,7 @@ class QueryRelevanceEvaluator {
     // For single-word queries, direct token match or substring match required
     if (effectiveTokens.length == 1) {
       final singleToken = effectiveTokens.first;
-      return candidateTokens.contains(singleToken) ||
+      return _matchesToken(singleToken, candidateTokens, candidateCombined) ||
           candidateTitle.contains(singleToken) ||
           candidateArtist.contains(singleToken);
     }
@@ -181,8 +205,7 @@ class QueryRelevanceEvaluator {
     // the candidate is an unrelated catalogue homonym and must be rejected.
     if (effectiveTokens.length >= 2) {
       final firstToken = effectiveTokens.first;
-      final hasFirstToken =
-          candidateTokens.contains(firstToken) || candidateCombined.contains(firstToken);
+      final hasFirstToken = _matchesToken(firstToken, candidateTokens, candidateCombined);
 
       // If the candidate has 100% full query coverage, it is unconditionally relevant
       if (matchCount >= effectiveTokens.length) {
@@ -229,8 +252,7 @@ class QueryRelevanceEvaluator {
     };
 
     for (final token in effectiveTokens) {
-      if (!candidateTokens.contains(token) &&
-          !candidateCombined.contains(token)) {
+      if (!_matchesToken(token, candidateTokens, candidateCombined)) {
         return false;
       }
     }

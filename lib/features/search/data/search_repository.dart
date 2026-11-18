@@ -181,11 +181,59 @@ class SearchRepository {
     final mbFuture = musicBrainzService.searchRecordings(clean, limit: 15).catchError((_) => <MusicBrainzRecording>[]);
     final itunesFuture = itunesMetadataService.searchSongs(clean, limit: 15).catchError((_) => <ItunesSong>[]);
     final artistsFuture = searchArtists(clean).catchError((_) => <ArtistModel>[]);
+    final albumsFuture = itunesMetadataService.searchAlbums(clean, limit: 3).catchError((_) => <ArtistAlbum>[]);
 
-    final discovery = await Future.wait([mbFuture, itunesFuture, artistsFuture]);
+    final discovery = await Future.wait([mbFuture, itunesFuture, artistsFuture, albumsFuture]);
     final mbRecordings = discovery[0] as List<MusicBrainzRecording>;
-    final itunesSongs = discovery[1] as List<ItunesSong>;
+    final itunesSongs = List<ItunesSong>.from(discovery[1] as List<ItunesSong>);
     final artists = discovery[2] as List<ArtistModel>;
+    final albums = discovery[3] as List<ArtistAlbum>;
+
+    // Bridge strongly relevant album tracks into itunesSongs
+    final stronglyRelevantAlbums = <ArtistAlbum>[];
+    for (final alb in albums) {
+      final albTitle = alb.title.toLowerCase();
+      if (albTitle.contains(clean.toLowerCase()) ||
+          clean.toLowerCase().contains(albTitle) ||
+          QueryRelevanceEvaluator.hasFullQueryCoverage(
+            YouTubeVideo(
+              id: '',
+              title: alb.title,
+              channelTitle: alb.artistName,
+              thumbnailUrl: '',
+              duration: '',
+              viewCount: '',
+            ),
+            query: clean,
+          )) {
+        stronglyRelevantAlbums.add(alb);
+        if (stronglyRelevantAlbums.length >= 3) break;
+      }
+    }
+
+    if (stronglyRelevantAlbums.isNotEmpty) {
+      final collectionIds = stronglyRelevantAlbums
+          .map((a) => a.id.replaceFirst('itunes_', ''))
+          .where((id) => id.isNotEmpty)
+          .toSet();
+
+      if (collectionIds.isNotEmpty) {
+        try {
+          final trackFutures = collectionIds.map((id) => itunesMetadataService.getAlbumTracks(id));
+          final trackLists = await Future.wait(trackFutures).timeout(
+            const Duration(milliseconds: 1800),
+            onTimeout: () => <List<ItunesSong>>[],
+          );
+          for (final tracks in trackLists) {
+            for (final song in tracks) {
+              if (!itunesSongs.any((s) => s.trackId == song.trackId)) {
+                itunesSongs.add(song);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
 
     if (mbRecordings.isNotEmpty || itunesSongs.isNotEmpty) {
       final candidatePool = <YouTubeVideo>[];
