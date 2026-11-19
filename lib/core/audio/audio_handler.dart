@@ -972,6 +972,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _syncRollingPreload();
   }
 
+  Future<void> insertTrack(int index, MusicItem track) async {
+    final insertAt = index.clamp(0, _queue.length);
+    _queue.insert(insertAt, track);
+    if (_currentIndex >= insertAt && _currentIndex >= 0) {
+      _currentIndex++;
+    }
+    queue.add(_queue.map(_trackToMediaItem).toList());
+    debugPrint('[Queue] Inserted track "${track.title}" at $insertAt (queue size: ${_queue.length})');
+    _syncRollingPreload();
+  }
+
   Future<void> appendTracks(List<MusicItem> tracks) async {
     if (tracks.isEmpty) return;
     _queue.addAll(tracks);

@@ -139,6 +139,11 @@ class PlaylistController extends StateNotifier<PlaylistsState> {
     _refresh();
   }
 
+  Future<void> updateTrackOrder(String playlistId, List<String> trackIds) async {
+    await _repo.updateTrackOrder(playlistId, trackIds);
+    _refresh();
+  }
+
   // ── Playback ───────────────────────────────────────────────────────────────
 
   /// Loads all playlist tracks into [PlayerController] and starts playing.

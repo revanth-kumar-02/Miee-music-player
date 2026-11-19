@@ -93,6 +93,21 @@ class QueueManager {
     }
   }
 
+  /// Inserts a track at [index] into the queue.
+  void insertTrack(int index, MusicItem track) {
+    _cachedUnmodifiableQueue = null;
+    final insertAt = index.clamp(0, _queue.length);
+    _queue.insert(insertAt, track);
+    if (_isShuffled) {
+      _originalQueue.add(track);
+    }
+    if (_currentIndex == -1) {
+      _currentIndex = 0;
+    } else if (_currentIndex >= insertAt) {
+      _currentIndex++;
+    }
+  }
+
   /// Appends a list of tracks to the end of the queue.
   void addTracks(List<MusicItem> tracks) {
     _cachedUnmodifiableQueue = null;

@@ -1286,6 +1286,30 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
   }
 
+  /// Inserts a track immediately after the active track in the queue.
+  Future<void> playNext(MusicItem track) async {
+    if (state.currentTrack == null || _queueManager.queue.isEmpty) {
+      await addTrackToQueue(track);
+      return;
+    }
+    final indexBefore = _queueManager.queue.length;
+    final insertIndex = (_queueManager.currentIndex >= 0 &&
+            _queueManager.currentIndex < _queueManager.queue.length)
+        ? _queueManager.currentIndex + 1
+        : _queueManager.queue.length;
+
+    _queueManager.insertTrack(insertIndex, track);
+    await _handler.insertTrack(insertIndex, track);
+    _persistQueueSnapshot();
+    QueueDiagnostics.logTrackInsertion(
+      track: track,
+      reason: 'User explicitly selected play next',
+      userInitiated: true,
+      indexBefore: indexBefore,
+      indexAfter: _queueManager.queue.length,
+    );
+  }
+
   Future<void> removeTrackAt(int index) async {
     final removedTrack = (index >= 0 && index < _queueManager.queue.length)
         ? _queueManager.queue[index]

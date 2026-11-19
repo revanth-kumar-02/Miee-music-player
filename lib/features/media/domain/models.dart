@@ -9,6 +9,7 @@ class MediaSong implements MusicItem {
   final String title;
   @override
   final String artist;
+  @override
   final String album;
   @override
   final String duration; // e.g. "3:42"

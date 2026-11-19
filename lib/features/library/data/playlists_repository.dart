@@ -400,6 +400,42 @@ class PlaylistsRepository {
     await _ref.read(syncManagerProvider).queueOperation(op);
   }
 
+  /// Sets track order for [playlistId] based on the ordered list of [trackIds].
+  Future<void> updateTrackOrder(
+      String playlistId, List<String> trackIds) async {
+    final playlist = _box.get(playlistId);
+    if (playlist == null) return;
+
+    final trackMap = {for (final t in playlist.tracks) t.id: t};
+    final newTracks = <TrackHiveModel>[];
+    for (final id in trackIds) {
+      final t = trackMap[id];
+      if (t != null) newTracks.add(t);
+    }
+    for (final t in playlist.tracks) {
+      if (!newTracks.contains(t)) newTracks.add(t);
+    }
+
+    playlist.tracks = newTracks;
+    playlist.lastModified = DateTime.now();
+    await playlist.save();
+
+    final op = OfflineOperation(
+      id: 'pl_reorder_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'playlist_tracks_reorder',
+      payload: {
+        'playlistId': playlistId,
+        'lastModified': playlist.lastModified.toIso8601String(),
+        'trackPositions': [
+          for (int i = 0; i < newTracks.length; i++)
+            {'trackId': newTracks[i].id, 'position': i}
+        ],
+      },
+      timestamp: DateTime.now(),
+    );
+    await _ref.read(syncManagerProvider).queueOperation(op);
+  }
+
   /// Permanently clears all playlists from the database.
   Future<void> clearAll() async => _box.clear();
 

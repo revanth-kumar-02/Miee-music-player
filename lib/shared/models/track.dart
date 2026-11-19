@@ -157,6 +157,9 @@ class Track implements MusicItem {
   String get effectiveArtworkUrl => imageUrl;
 
   @override
+  String? get album => albumName;
+
+  @override
   bool get isYoutube =>
       kIsWeb ||
       id.startsWith('youtube_') ||

@@ -95,6 +95,9 @@ class PlaylistRepository {
   Future<void> reorderTracks(String playlistId, int oldIndex, int newIndex) =>
       _base.reorderTracks(playlistId, oldIndex, newIndex);
 
+  Future<void> updateTrackOrder(String playlistId, List<String> trackIds) =>
+      _base.updateTrackOrder(playlistId, trackIds);
+
   // ── Conversion ────────────────────────────────────────────────────────────
 
   PlaylistModel _toModel(dynamic raw) {

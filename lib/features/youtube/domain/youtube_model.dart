@@ -204,6 +204,9 @@ class YouTubeVideo implements MusicItem {
   String get artist => canonicalArtist ?? channelTitle;
 
   @override
+  String? get album => albumName;
+
+  @override
   String get displayTitle => DisplayTitleNormalizer.normalize(canonicalTitle ?? title);
 
   @override

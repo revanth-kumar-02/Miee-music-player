@@ -11,6 +11,9 @@ abstract class MusicItem {
   String get filePath;
   bool get isYoutube;
 
+  /// Optional album name if known.
+  String? get album => null;
+
   /// Clean, human-friendly song display title for user interfaces.
   String get displayTitle => DisplayTitleNormalizer.normalize(title);
 
