@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +16,9 @@ import '../../../core/widgets/empty_state.dart';
 
 final genreSongsProvider = FutureProvider.family<List<MediaSong>, String>((ref, genreId) async {
   final songs = ref.watch(songsProvider);
+  if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+    return [];
+  }
   final audioQuery = OnAudioQuery();
   
   try {

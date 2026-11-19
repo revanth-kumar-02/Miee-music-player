@@ -151,6 +151,7 @@ class MieeWidgetSyncService {
         _artworkResolverOverride = artworkResolver,
         _fileExistsOverride = fileExistsProvider,
         _autoListen = autoListen {
+    if (kIsWeb || !Platform.isAndroid) return;
     _methodChannel.setMethodCallHandler(_handleMethodCall);
     if (_autoListen) {
       _initListeners();
@@ -446,6 +447,7 @@ class MieeWidgetSyncService {
     required int posMs,
     required int durMs,
   }) {
+    if (kIsWeb || !Platform.isAndroid) return;
     _methodChannel.invokeMethod('updateNowPlaying', {
       'trackId': trackId,
       'title': title,
@@ -465,6 +467,7 @@ class MieeWidgetSyncService {
 
   @visibleForTesting
   void syncFavourites(List<Track> favs) {
+    if (kIsWeb || !Platform.isAndroid) return;
     final top4 = favs.take(4).map((t) {
       final fields = extractWidgetArtworkFields(
         trackId: t.id,
@@ -492,6 +495,7 @@ class MieeWidgetSyncService {
 
   @visibleForTesting
   void syncRecentlyPlayed(List<HistoryEntry> entries) {
+    if (kIsWeb || !Platform.isAndroid) return;
     final top4 = entries.take(4).map((e) {
       final t = e.track;
       final isYt = t.id.startsWith('youtube_') ||
@@ -525,6 +529,7 @@ class MieeWidgetSyncService {
 
   @visibleForTesting
   void syncPlaylists(List<PlaylistHiveModel> playlists) {
+    if (kIsWeb || !Platform.isAndroid) return;
     final top3 = playlists.take(3).map((p) {
       final firstTrack = p.tracks.isNotEmpty ? p.tracks.first : null;
       final isYt = firstTrack != null &&

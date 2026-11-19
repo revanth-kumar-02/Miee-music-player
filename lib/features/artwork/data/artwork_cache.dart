@@ -69,6 +69,7 @@ class ArtworkCache {
 
   /// Checks whether [path] points to an existing, non-empty local image file.
   static bool hasValidLocalFile(String? path) {
+    if (kIsWeb) return false;
     if (path == null || path.trim().isEmpty) return false;
     try {
       final f = File(path.trim());
@@ -79,6 +80,7 @@ class ArtworkCache {
   }
 
   Future<Directory?> _getImageCacheDir() async {
+    if (kIsWeb) return null;
     if (_cacheDirOverride != null) {
       if (!await _cacheDirOverride!.exists()) {
         await _cacheDirOverride!.create(recursive: true);
@@ -98,13 +100,13 @@ class ArtworkCache {
   }
 
   String _safeFileName(String cacheKey) {
-    // Deterministic 64-bit FNV-1a hex hash to avoid filesystem path length/char issues
-    var hash = 0xcbf29ce484222325;
+    // Deterministic 32-bit FNV-1a hex hash (safe across Web/JS and native platforms)
+    var hash = 0x811c9dc5;
     for (final unit in cacheKey.codeUnits) {
       hash ^= unit;
-      hash = (hash * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
     }
-    return 'art_${hash.toRadixString(16).padLeft(16, '0')}.img';
+    return 'art_${hash.toRadixString(16).padLeft(8, '0')}.img';
   }
 
   /// Downloads and validates [imageUrl], storing it on disk and returning its local path.

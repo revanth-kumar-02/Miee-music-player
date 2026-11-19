@@ -34,6 +34,7 @@ import '../../features/rooms/presentation/join_room_page.dart';
 import '../../features/rooms/presentation/active_room_page.dart';
 import '../../features/wrapped/presentation/wrapped_story_page.dart';
 import '../../features/wrapped/providers/wrapped_providers.dart';
+import '../../features/desktop/presentation/desktop_shell.dart';
 import '../../shared/widgets/main_app_shell.dart';
 
 /// Listens to authentication and profile state to trigger router re-evaluation.
@@ -204,6 +205,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         navigatorKey: shellNavigatorKey,
         builder: (context, state, child) {
+          final isDesktop = !kIsWeb &&
+              (defaultTargetPlatform == TargetPlatform.windows ||
+                  defaultTargetPlatform == TargetPlatform.linux ||
+                  defaultTargetPlatform == TargetPlatform.macOS);
+          if (isDesktop) {
+            return DesktopShell(child: child);
+          }
           return MainAppShell(child: child);
         },
         routes: [

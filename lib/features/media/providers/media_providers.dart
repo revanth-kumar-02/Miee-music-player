@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../data/desktop_media_repository.dart';
 import '../data/media_repository_impl.dart';
+import '../data/web_media_repository.dart';
 import '../domain/library_filter_policy.dart';
 import '../domain/media_repository.dart';
 import '../domain/models.dart';
@@ -151,7 +154,13 @@ class MediaLibraryService extends StateNotifier<MediaLibraryState> {
 
 // 1. Dependency Injection Repository Provider
 final mediaRepositoryProvider = Provider<MediaRepository>((ref) {
-  return MediaRepositoryImpl();
+  if (kIsWeb) {
+    return WebMediaRepository();
+  }
+  if (Platform.isAndroid || Platform.isIOS) {
+    return MediaRepositoryImpl();
+  }
+  return DesktopMediaRepository();
 });
 
 // 2. State Orchestrator Provider

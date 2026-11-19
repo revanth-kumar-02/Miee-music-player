@@ -381,10 +381,16 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     debugPrint('[AudioHandler] MieeAudioHandler() constructed');
   }
 
+  bool get _supportsAudioSession =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
   /// Configures the audio session for music playback and wires up interruptions.
   Future<void> initialize() async {
-    if (kIsWeb) {
-      debugPrint('[BackgroundAudio] Web platform: skipping native AudioSession');
+    if (!_supportsAudioSession) {
+      debugPrint('[BackgroundAudio] Non-mobile/web platform: skipping native AudioSession');
       return;
     }
     try {
@@ -1984,7 +1990,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         return;
       }
       final postLoadToken = _activeLoadToken;
-      if (!kIsWeb) {
+      if (_supportsAudioSession) {
         try {
           final session = await AudioSession.instance;
           await session.setActive(true);
@@ -1998,7 +2004,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       return;
     }
     try {
-      if (!kIsWeb) {
+      if (_supportsAudioSession) {
         try {
           final session = await AudioSession.instance;
           await session.setActive(true);

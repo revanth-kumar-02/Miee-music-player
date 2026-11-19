@@ -30,16 +30,22 @@ Future<void> main() async {
     }
   }
 
-  // On Web, native AudioService foreground services and Android notification
-  // configurations are not applicable; use direct MieeAudioHandler.
-  if (kIsWeb) {
-    debugPrint('Running on Web platform: using direct MieeAudioHandler');
-    final webHandler = MieeAudioHandler();
-    await webHandler.initialize();
+  // On Web and Desktop (Windows, macOS, Linux), native Android foreground
+  // services and notification channel configurations are not applicable;
+  // use direct MieeAudioHandler.
+  final isDesktop = !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  if (kIsWeb || isDesktop) {
+    debugPrint('Running on non-mobile platform: using direct MieeAudioHandler');
+    final directHandler = MieeAudioHandler();
+    await directHandler.initialize();
 
     runApp(
       ProviderScope(
-        overrides: [audioHandlerProvider.overrideWithValue(webHandler)],
+        overrides: [audioHandlerProvider.overrideWithValue(directHandler)],
         child: const MieeApp(),
       ),
     );

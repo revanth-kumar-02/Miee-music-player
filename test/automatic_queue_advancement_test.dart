@@ -26,6 +26,12 @@ class _TestTrack implements MusicItem {
   final String filePath;
   @override
   final bool isYoutube;
+  @override
+  String? get album => null;
+  @override
+  String get displayTitle => title;
+  @override
+  String get effectiveArtworkUrl => imageUrl;
 
   const _TestTrack({
     required this.id,
