@@ -47,86 +47,133 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
 
   void _showPlaylistOptions(
       BuildContext context, WidgetRef ref, PlaylistModel playlist) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
       backgroundColor: AppColors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Text(
-                playlist.name,
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 18,
-                  color: AppColors.cocoaPlum,
-                  fontWeight: FontWeight.bold,
-                ),
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.75,
+          ),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).padding.bottom + 16.0,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(top: 12.0, bottom: 8.0),
+                      decoration: BoxDecoration(
+                        color: AppColors.oatBeige,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                    child: Text(
+                      playlist.name,
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 18,
+                        color: AppColors.cocoaPlum,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Divider(color: AppColors.oatBeige, height: 1),
+                  ListTile(
+                    leading:
+                        const Icon(Icons.group_outlined, color: AppColors.cocoaPlum),
+                    title: Text('Collaboration & Sharing',
+                        style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      showPlaylistCollaborationSheet(context, playlist);
+                    },
+                  ),
+                  ListTile(
+                    leading:
+                        const Icon(Icons.edit_outlined, color: AppColors.cocoaPlum),
+                    title: Text('Rename Playlist',
+                        style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      showCreatePlaylistDialog(
+                        context,
+                        existingId: playlist.id,
+                        initialName: playlist.name,
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading:
+                        const Icon(Icons.copy_outlined, color: AppColors.cocoaPlum),
+                    title: Text('Duplicate Playlist',
+                        style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      ref
+                          .read(playlistControllerProvider.notifier)
+                          .duplicatePlaylist(playlist.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Duplicated "${playlist.name}"'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading:
+                        const Icon(Icons.image_outlined, color: AppColors.cocoaPlum),
+                    title: Text('Change Cover',
+                        style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _pickPlaylistCover(context, ref, playlist.id);
+                    },
+                  ),
+                  if (playlist.customCoverPath != null)
+                    ListTile(
+                      leading: const Icon(Icons.hide_image_outlined,
+                          color: AppColors.mutedMauve),
+                      title: Text('Remove Custom Cover',
+                          style: GoogleFonts.geist(color: AppColors.mutedMauve)),
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        ref
+                            .read(playlistControllerProvider.notifier)
+                            .updateCoverPath(playlist.id, null);
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline, color: Colors.red),
+                    title: Text('Delete Playlist',
+                        style: GoogleFonts.geist(color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _confirmDelete(context, ref, playlist);
+                    },
+                  ),
+                ],
               ),
             ),
-            const Divider(color: AppColors.oatBeige),
-            ListTile(
-              leading:
-                  const Icon(Icons.group_outlined, color: AppColors.cocoaPlum),
-              title: Text('Collaboration & Sharing',
-                  style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
-              onTap: () {
-                Navigator.pop(context);
-                showPlaylistCollaborationSheet(context, playlist);
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.edit_outlined, color: AppColors.cocoaPlum),
-              title: Text('Rename Playlist',
-                  style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
-              onTap: () {
-                Navigator.pop(context);
-                showCreatePlaylistDialog(
-                  context,
-                  existingId: playlist.id,
-                  initialName: playlist.name,
-                );
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.image_outlined, color: AppColors.cocoaPlum),
-              title: Text('Change Cover',
-                  style: GoogleFonts.geist(color: AppColors.cocoaPlum)),
-              onTap: () {
-                Navigator.pop(context);
-                _pickPlaylistCover(context, ref, playlist.id);
-              },
-            ),
-            if (playlist.customCoverPath != null)
-              ListTile(
-                leading: const Icon(Icons.hide_image_outlined,
-                    color: AppColors.mutedMauve),
-                title: Text('Remove Custom Cover',
-                    style: GoogleFonts.geist(color: AppColors.mutedMauve)),
-                onTap: () {
-                  Navigator.pop(context);
-                  ref
-                      .read(playlistControllerProvider.notifier)
-                      .updateCoverPath(playlist.id, null);
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: Text('Delete Playlist',
-                  style: GoogleFonts.geist(color: Colors.red)),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDelete(context, ref, playlist);
-              },
-            ),
-            const SizedBox(height: 12.0),
-          ],
+          ),
         ),
       ),
     );
@@ -147,7 +194,7 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
 
   void _confirmDelete(
       BuildContext context, WidgetRef ref, PlaylistModel playlist) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.white,

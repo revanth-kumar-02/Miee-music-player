@@ -128,14 +128,20 @@ class LyricsSearchQueryBuilder {
       ));
     }
 
-    // Stage 1: Exact original title + composite artist
+    // If title contained fluff/tags (e.g. "Lyrical", "(Tamil)"), prioritize canonical normalized title first
+    final normalizedTitle = LyricsTitleNormalizer.normalize(title);
     final rawTrimmedTitle = LyricsTitleNormalizer.normalizeWhitespace(title);
+
+    if (normalizedTitle != rawTrimmedTitle && primaryArtist.isNotEmpty) {
+      addCandidate(normalizedTitle, primaryArtist, 'Stage 1a: Normalized title + primary artist');
+    }
+
+    // Stage 1: Exact original title + composite artist
     if (cleanArtist.isNotEmpty) {
       addCandidate(rawTrimmedTitle, cleanArtist, 'Stage 1: Exact original title + composite artist');
     }
 
     // Stage 2: Normalized title + primary artist
-    final normalizedTitle = LyricsTitleNormalizer.normalize(title);
     if (primaryArtist.isNotEmpty) {
       addCandidate(normalizedTitle, primaryArtist, 'Stage 2: Normalized title + primary artist');
       if (cleanArtist != primaryArtist) {

@@ -23,7 +23,7 @@ class LyricsTitleNormalizer {
     r'lyric\s+video|video\s+song|full\s+video\s+song|full\s+video|full\s+song|'
     r'audio\s+song|full\s+audio|visualizer|remastered|extended\s+version|'
     r'deluxe\s+edition|deluxe\s+version|teaser|trailer|promo|'
-    r'vertical\s+video|studio\s+version|album\s+version)\b',
+    r'vertical\s+video|studio\s+version|album\s+version|lyrical|lyric|lyrics)\b',
     caseSensitive: false,
   );
 

@@ -82,7 +82,7 @@ class ItunesMetadataService {
 
   /// Promotional / video fluff tags stripped before iTunes querying.
   static final RegExp _videoFluffPattern = RegExp(
-    r'\b(official\s*(music)?\s*video|music\s*video|official\s*audio|official\s*lyric\s*video|lyric\s*video|lyrical\s*video|lyrics|full\s*video\s*song|video\s*song|visualizer|mv|4k|hd|1080p|audio\s*track|audio\s*song)\b',
+    r'\b(official\s*(music)?\s*video|music\s*video|official\s*audio|official\s*lyric\s*video|lyric\s*video|lyrical\s*video|lyrical|lyrics|full\s*video\s*song|video\s*song|visualizer|mv|4k|hd|1080p|audio\s*track|audio\s*song|teaser|trailer|promo|video|audio)\b',
     caseSensitive: false,
   );
 
@@ -418,10 +418,21 @@ class ItunesMetadataService {
 
     // 2. Strip video-specific fluff words from search query
     String queryTitle = cleaned.title.replaceAll(_videoFluffPattern, ' ');
+    // Strip language tags from search query title (e.g. [Tamil] or (Tamil))
+    queryTitle = queryTitle.replaceAll(
+      RegExp(r'\s*[\(\[]\s*(tamil|telugu|hindi|kannada|malayalam|english|punjabi)\s*[\)\]]', caseSensitive: false),
+      ' ',
+    );
     queryTitle = queryTitle.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     String queryArtist = cleaned.artist.replaceAll(_videoFluffPattern, ' ');
     queryArtist = queryArtist.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+    // Primary artist decomposition
+    final primaryArtist = queryArtist
+        .split(RegExp(r'\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\/)\s*', caseSensitive: false))
+        .firstOrNull
+        ?.trim() ?? queryArtist;
 
     // 3. Formulate search term
     String primaryTerm;
@@ -436,8 +447,13 @@ class ItunesMetadataService {
     // 4. Query iTunes
     var candidates = await searchSongs(primaryTerm, limit: 8, forceRefresh: forceRefresh);
 
-    // If no candidates and term had both title & artist, try title alone
-    if (candidates.isEmpty && primaryTerm != queryTitle && queryTitle.isNotEmpty) {
+    // If no candidates, try title + primary artist
+    if (candidates.isEmpty && primaryArtist.isNotEmpty && primaryArtist != queryArtist) {
+      candidates = await searchSongs('$queryTitle $primaryArtist', limit: 8, forceRefresh: forceRefresh);
+    }
+
+    // If still no candidates, try clean title alone
+    if (candidates.isEmpty && queryTitle.isNotEmpty) {
       candidates = await searchSongs(queryTitle, limit: 6, forceRefresh: forceRefresh);
     }
 
@@ -689,6 +705,13 @@ class ItunesMetadataService {
     final tokensB = b.split(' ').where((t) => t.length > 1).toSet();
 
     if (_matchTokens(tokensA, tokensB)) return 0.95;
+
+    // Check composite artist decomposition (e.g. "Sai Abhyankkar, Tippu & Arun Srinivasan" vs "Sai Abhyankkar & Rokesh")
+    final primaryA = a.split(RegExp(r'\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\/)\s*')).firstOrNull?.trim() ?? a;
+    final primaryB = b.split(RegExp(r'\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\/)\s*')).firstOrNull?.trim() ?? b;
+    if (primaryA.isNotEmpty && primaryB.isNotEmpty && primaryA == primaryB) {
+      return 0.90;
+    }
 
     return _calculateSimilarity(a, b);
   }

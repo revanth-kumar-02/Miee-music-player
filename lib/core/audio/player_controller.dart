@@ -774,7 +774,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
                                 !track.imageUrl.contains('default') &&
                                 !track.imageUrl.contains('ytimg.com'))
                             ? track.imageUrl
-                            : verifiedCandidate.thumbnailUrl),
+                            : ''),
                     youtubeThumbnailUrl: verifiedCandidate.thumbnailUrl,
                   )
                 : track;

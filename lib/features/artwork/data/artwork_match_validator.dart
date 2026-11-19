@@ -86,7 +86,7 @@ class ArtworkMatchValidator {
     // 4. Artist Matching (with controlled fallback when query artist is missing/unknown)
     final missingQueryArtist = isMissingArtist(query.artist);
     if (!missingQueryArtist) {
-      final artistMatches = _matchArtist(qArtistNorm, cArtistNorm);
+      final artistMatches = _matchArtist(query.artist, candidateArtist);
       if (!artistMatches) {
         return 0.0; // Strictly reject different artists even if song titles match!
       }
@@ -151,8 +151,13 @@ class ArtworkMatchValidator {
     // Remove content inside parenthesis or brackets
     s = s.replaceAll(RegExp(r'\([^)]*\)'), ' ');
     s = s.replaceAll(RegExp(r'\[[^\]]*\]'), ' ');
+    // Remove common film / movie clauses (e.g. 'from "OM Chapter 1: ..."' or 'from <movie>')
+    s = s.replaceAll(RegExp(r'\bfrom\s+["\u201C][^"\u201D]+["\u201D]', caseSensitive: false), ' ');
+    s = s.replaceAll(RegExp(r'\bfrom\s+[a-z0-9\s:]+', caseSensitive: false), ' ');
     // Remove common featuring indicators
     s = s.replaceAll(RegExp(r'\b(feat|ft|featuring|with)\b.*'), ' ');
+    // Strip standalone promotional/format fluff words
+    s = s.replaceAll(RegExp(r'\b(lyrical|lyric|official|video|audio|song|track|promo|teaser)\b', caseSensitive: false), ' ');
     // Collapse paired initials like "a. r. rahman" -> "ar rahman"
     s = s.replaceAllMapped(
       RegExp(r'\b([a-z])\.\s*([a-z])\.\s*'),
@@ -163,6 +168,15 @@ class ArtworkMatchValidator {
     // Collapse spaces
     s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
     return s;
+  }
+
+  /// Splits composite artist strings into distinct individual artists.
+  static List<String> _splitArtists(String artist) {
+    return artist
+        .split(RegExp(r'\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\bwith\b|\/)\s*', caseSensitive: false))
+        .map((a) => a.trim())
+        .where((a) => a.isNotEmpty)
+        .toList();
   }
 
   /// Checks if versions are compatible using word-boundary matching.
@@ -189,17 +203,33 @@ class ArtworkMatchValidator {
   /// Checks if candidate artist is compatible with query artist.
   bool _matchArtist(String artistA, String artistB) {
     if (artistA.isEmpty || artistB.isEmpty) return false;
-    if (artistA == artistB) return true;
+    final normA = normalize(artistA);
+    final normB = normalize(artistB);
+    if (normA == normB) return true;
 
     // Check substring or token containment (e.g., "Taylor Swift" vs "Taylor Swift, Post Malone")
-    final tokensA = artistA.split(' ').where((t) => t.isNotEmpty).toSet();
-    final tokensB = artistB.split(' ').where((t) => t.isNotEmpty).toSet();
+    final tokensA = normA.split(' ').where((t) => t.isNotEmpty).toSet();
+    final tokensB = normB.split(' ').where((t) => t.isNotEmpty).toSet();
 
     if (tokensA.containsAll(tokensB) || tokensB.containsAll(tokensA)) {
       return true;
     }
 
-    return _calculateSimilarity(artistA, artistB) >= 0.80;
+    // Decompose composite artist strings (e.g. "Sai Abhyankkar, Tippu & Arun Srinivasan" vs "Sai Abhyankkar & Rokesh")
+    final listA = _splitArtists(artistA).map(normalize).where((s) => s.isNotEmpty).toList();
+    final listB = _splitArtists(artistB).map(normalize).where((s) => s.isNotEmpty).toList();
+    if (listA.isNotEmpty && listB.isNotEmpty) {
+      final primaryA = listA.first;
+      final primaryB = listB.first;
+      if (primaryA == primaryB) return true;
+      for (final a in listA) {
+        for (final b in listB) {
+          if (a == b || a.contains(b) || b.contains(a)) return true;
+        }
+      }
+    }
+
+    return _calculateSimilarity(normA, normB) >= 0.80;
   }
 
   /// Jaccard & Levenshtein hybrid similarity between 0.0 and 1.0.

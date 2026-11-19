@@ -139,8 +139,10 @@ class LyricsValidator {
 
     // ── Hard Veto 3: Language Tag Alignment ───────────────────────────────────
     // e.g. "Veezha Veera [Tamil]" vs "Veezha Veera [Hindi]"
-    final queryLang = LyricsTitleNormalizer.extractLanguageTag(rawQueryTitle);
-    final candLang = LyricsTitleNormalizer.extractLanguageTag(rawCandTitle);
+    final queryLang = LyricsTitleNormalizer.extractLanguageTag(rawQueryTitle) ??
+        (queryAlbum != null ? LyricsTitleNormalizer.extractLanguageTag(queryAlbum) : null);
+    final candLang = LyricsTitleNormalizer.extractLanguageTag(rawCandTitle) ??
+        (candidateAlbum != null ? LyricsTitleNormalizer.extractLanguageTag(candidateAlbum) : null);
     double languageScore = 1.0;
 
     if (queryLang != null && candLang != null) {
