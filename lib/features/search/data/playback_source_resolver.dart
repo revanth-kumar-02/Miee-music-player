@@ -203,6 +203,19 @@ class PlaybackSourceResolver {
     }
   }
 
+  @visibleForTesting
+  _CandidateScore evaluateCandidateInternal({
+    required YouTubeVideo candidate,
+    required String cleanTitle,
+    required String cleanArtist,
+    required int targetDurationSec,
+  }) => _evaluateCandidate(
+    candidate: candidate,
+    cleanTitle: cleanTitle,
+    cleanArtist: cleanArtist,
+    targetDurationSec: targetDurationSec,
+  );
+
   _CandidateScore _evaluateCandidate({
     required YouTubeVideo candidate,
     required String cleanTitle,
@@ -231,6 +244,9 @@ class PlaybackSourceResolver {
         score -= 60; // Deviates significantly (e.g. scene clip or compilation)
       } else if (diff > 120) {
         score -= 100;
+      }
+      if (candidateSec < 60 && targetDurationSec >= 90) {
+        score -= 150; // Heavy penalty for teaser/promo clips when resolving full song
       }
     }
 

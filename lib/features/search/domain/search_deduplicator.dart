@@ -833,6 +833,13 @@ class SearchDeduplicator {
     );
     title = title.replaceAll(commentaryBracketRegex, ' ');
 
+    // 2b.1. Remove milestone celebration / views descriptors (e.g. "🔥 50M+ Views", "100M+ Views", "1B Views")
+    final milestoneNoiseRegex = RegExp(
+      r'[\s\|\-\•]*[\uD83C-\uDBFF\uDC00-\uDFFF]*\s*\b\d+\s*[mbk]\+?\s*views?\b[\s\|\-\•]*',
+      caseSensitive: false,
+    );
+    title = title.replaceAll(milestoneNoiseRegex, ' ');
+
     // 2c. Remove leading packaging noise (e.g. "Full Video: ", "Video Song: ", "Official Video: ", "HD Video Song: ")
     final leadingNoiseRegex = RegExp(
       r'^(full\s+video(\s+song)?|official\s+video(\s+song)?|official\s+music\s+video|video\s+song|lyric\s+video|official\s+audio|audio\s+song|hd\s+video(\s+song)?|4k\s+video(\s+song)?|full\s+song|song)\s*[:\-\–\—\|\•]\s*',
@@ -1210,9 +1217,17 @@ class SearchDeduplicator {
         if (!isClassicalOrConcert) {
           score -= 150;
         }
-      } else if (durationSeconds < 40) {
-        // Less than 40 seconds is likely a ringtone, teaser, or preview
-        score -= 100;
+      } else if (durationSeconds < 60) {
+        // Less than 60 seconds is likely a teaser, ringtone, or preview unless an intro/interlude
+        final isShortTrack = rawTitle.contains('intro') ||
+            rawTitle.contains('interlude') ||
+            rawTitle.contains('skit') ||
+            rawTitle.contains('prelude') ||
+            rawTitle.contains('outro') ||
+            rawTitle.contains('theme');
+        if (!isShortTrack) {
+          score -= 100;
+        }
       }
     }
 
@@ -1315,6 +1330,15 @@ class SearchDeduplicator {
     }
 
     final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
+
+    // 0.1. Milestone views celebration / promotional teaser clip check
+    final isMilestonePromo = RegExp(
+      r'(\b\d+\s*[mbk]\+?\s*views\b|\bcelebration\s*video\b|\bsuccess\s*meet\b|\bthanks\s*meet\b)',
+      caseSensitive: false,
+    ).hasMatch(rawTitle);
+    if (isMilestonePromo) {
+      return EditType.nonMusicEntertainment;
+    }
     final cleanTitle = video.title.toLowerCase();
     final channelLower =
         (video.rawChannelTitle ?? video.channelTitle).toLowerCase();

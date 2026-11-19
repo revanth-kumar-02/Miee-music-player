@@ -209,6 +209,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
               final idx = _queueManager.currentIndex;
               if (idx >= 0 && idx < _queueManager.queue.length) {
                 _queueManager.replaceTrackAt(idx, updated);
+                _persistQueueSnapshot();
               }
             } else if (curr is YouTubeVideo) {
               final updated = curr.copyWith(duration: formatted);
@@ -216,6 +217,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
               final idx = _queueManager.currentIndex;
               if (idx >= 0 && idx < _queueManager.queue.length) {
                 _queueManager.replaceTrackAt(idx, updated);
+                _persistQueueSnapshot();
               }
             }
           }
@@ -724,15 +726,26 @@ class PlayerController extends StateNotifier<PlaybackState> {
       YouTubeVideo? verifiedCandidate;
 
       // If the ID is a discovery/chart metadata ID (e.g. wm_chart_... or itunes_... or mb_...), resolve verified YouTube video ID
+      // OR if the candidate has an implausibly short teaser/promo duration (<60s) while not an intro/skit/interlude
+      final rawDurSec = MusicResultClassifier.parseDurationSeconds(track.duration);
+      final isShortForm = rawT.toLowerCase().contains('intro') ||
+          rawT.toLowerCase().contains('interlude') ||
+          rawT.toLowerCase().contains('skit') ||
+          rawT.toLowerCase().contains('prelude') ||
+          rawT.toLowerCase().contains('outro') ||
+          rawT.toLowerCase().contains('theme');
+      final isSuspiciousShortPromo = rawDurSec > 0 && rawDurSec < 60 && !isShortForm;
+
       if (candidateId.startsWith('wm_') ||
           candidateId.startsWith('itunes_') ||
           candidateId.startsWith('mb_') ||
+          isSuspiciousShortPromo ||
           !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(candidateId)) {
         // Targeted Music-First Resolution
         final resolvedId = await PlaybackSourceResolver().resolveVideoId(
           title: rawT,
           artist: rawA,
-          durationStr: track.duration,
+          durationStr: isSuspiciousShortPromo ? null : track.duration,
           album: (track is Track) ? track.albumName : null,
         );
 

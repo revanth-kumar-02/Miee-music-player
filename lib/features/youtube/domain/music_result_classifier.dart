@@ -590,7 +590,20 @@ class MusicResultClassifier {
       );
     }
 
-    // F. Commercial trailers, promos, teasers, ads
+    // F. Commercial trailers, promos, teasers, ads, and milestone celebration videos
+    final milestonePromoRegex = RegExp(
+      r'(\b\d+\s*[mbk]\+?\s*views\b|\bcelebration\s*video\b|\bsuccess\s*meet\b|\bthanks\s*meet\b)',
+      caseSensitive: false,
+    );
+    if (milestonePromoRegex.hasMatch(rawTitle)) {
+      return makeVerdict(
+        MusicTrackConfidence.rejected,
+        false,
+        'Milestone views celebration or promotional teaser clip',
+        0,
+      );
+    }
+
     final promoPatterns = [
       'official trailer',
       'movie trailer',
@@ -598,6 +611,12 @@ class MusicResultClassifier {
       'first look',
       'motion poster',
       'sneak peek',
+      'promo video',
+      'video promo',
+      'song promo',
+      'special promo',
+      'title glimpse',
+      'official glimpse',
     ];
 
     for (final pattern in promoPatterns) {
@@ -606,6 +625,24 @@ class MusicResultClassifier {
           MusicTrackConfidence.rejected,
           false,
           'Commercial trailer or promotional preview',
+          0,
+        );
+      }
+    }
+
+    // F.2. Short-clip non-musical guard: Sub-45s clips lacking short-form musical structure
+    final isExplicitShortFormTrack = titleLower.contains('intro') ||
+        titleLower.contains('interlude') ||
+        titleLower.contains('prelude') ||
+        titleLower.contains('outro') ||
+        titleLower.contains('skit') ||
+        titleLower.contains('theme');
+    if (durationSec > 0 && durationSec < 45 && !isExplicitShortFormTrack) {
+      if (!channelLower.endsWith('- topic') && !channelLower.contains('- topic')) {
+        return makeVerdict(
+          MusicTrackConfidence.rejected,
+          false,
+          'Sub-45s short clip without short-form musical marker',
           0,
         );
       }
@@ -1752,6 +1789,8 @@ class MusicResultClassifier {
     if (queryLower.isEmpty) return false;
     return queryLower.contains(term);
   }
+
+  static int parseDurationSeconds(String durationStr) => _parseDurationSeconds(durationStr);
 
   static int _parseDurationSeconds(String durationStr) {
     if (durationStr.isEmpty) return 0;

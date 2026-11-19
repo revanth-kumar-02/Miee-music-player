@@ -410,6 +410,16 @@ class YouTubeAudioService {
             rawChannelTitle: video.author,
           );
           candidates.add(candidate);
+          final candSec = MusicResultClassifier.parseDurationSeconds(candidate.duration);
+          final isShortForm = cleanQuery.toLowerCase().contains('intro') ||
+              cleanQuery.toLowerCase().contains('interlude') ||
+              cleanQuery.toLowerCase().contains('skit') ||
+              cleanQuery.toLowerCase().contains('prelude') ||
+              cleanQuery.toLowerCase().contains('outro') ||
+              cleanQuery.toLowerCase().contains('theme');
+          if (candSec > 0 && candSec < 60 && !isShortForm) {
+            continue; // Skip teaser / promo clips
+          }
           if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
             final id = video.id.value;
             debugPrint('[YouTubeAudioService] Resolved valid music video ID "$id" for query "$cleanQuery" via YoutubeExplode');

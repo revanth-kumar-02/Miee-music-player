@@ -328,6 +328,26 @@ class RecommendationService {
       return false;
     }
 
+    // 4b. Milestone views / promotional celebration teasers
+    final milestonePromoRegex = RegExp(
+      r'(\b\d+\s*[mbk]\+?\s*views\b|\bcelebration\s*video\b|\bsuccess\s*meet\b|\bthanks\s*meet\b)',
+      caseSensitive: false,
+    );
+    if (milestonePromoRegex.hasMatch(raw)) {
+      return false;
+    }
+
+    // 4c. Implausibly short clips (< 60s) unless explicitly tagged as intro/interlude/skit/prelude/outro/theme
+    final isShortForm = title.contains('intro') ||
+        title.contains('interlude') ||
+        title.contains('skit') ||
+        title.contains('prelude') ||
+        title.contains('outro') ||
+        title.contains('theme');
+    if (durationSec > 0 && durationSec < 60 && !isShortForm) {
+      return false;
+    }
+
     // 5. Long-form video heuristics: require legitimate musical genre indicators
     if (durationSec >= 480) {
       final isLegitimateLongMusic = title.contains('raga') ||
