@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
 import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 import '../../media/domain/models.dart';
@@ -31,8 +32,10 @@ abstract class LyricsRepository {
 
 class LrclibLyricsRepository implements LyricsRepository {
   final Dio _dio;
+  yte.YoutubeExplode? _sharedYt;
+  yte.YoutubeExplode get _yt => _sharedYt ??= yte.YoutubeExplode();
 
-  /// In-memory cache for resolved lyrics keyed by stable track identity or normalized title+artist.
+  /// In-memory cache for resolved lyrics keyed by stable track identity or normalized title+artist+version+lang.
   final Map<String, _CachedLyricsEntry> _cache = {};
 
   /// Tracks in-flight futures to prevent duplicate concurrent network requests for the same track.
@@ -43,6 +46,7 @@ class LrclibLyricsRepository implements LyricsRepository {
 
   LrclibLyricsRepository({
     Dio? dio,
+    yte.YoutubeExplode? ytClient,
     Duration negativeCacheTtl = const Duration(minutes: 10),
   })  : _dio = dio ??
             Dio(
@@ -51,10 +55,11 @@ class LrclibLyricsRepository implements LyricsRepository {
                 receiveTimeout: const Duration(seconds: 8),
                 headers: {
                   'User-Agent':
-                      'MieeMusic/1.0.0 (https://github.com/revanth-kumar-02/Miee-music-player)',
+                      'MieeMusic/2.0.0 (https://github.com/revanth-kumar-02/Miee-music-player)',
                 },
               ),
             ),
+        _sharedYt = ytClient,
         _negativeCacheTtl = negativeCacheTtl;
 
   @override
@@ -64,12 +69,15 @@ class LrclibLyricsRepository implements LyricsRepository {
   }
 
   String _cacheKey(MusicItem track) {
-    if (track.id.trim().isNotEmpty) {
-      return track.id.trim();
-    }
     final normTitle = LyricsTitleNormalizer.normalize(track.title).toLowerCase();
-    final normArtist = track.artist.trim().toLowerCase();
-    return '$normTitle|$normArtist';
+    final primaryArtist = LyricsTitleNormalizer.splitArtists(track.artist).firstOrNull?.toLowerCase() ?? track.artist.trim().toLowerCase();
+    final version = LyricsTitleNormalizer.extractVersionModifier(track.title) ?? '';
+    final lang = LyricsTitleNormalizer.extractLanguageTag(track.title) ?? '';
+
+    if (track.id.trim().isNotEmpty) {
+      return '${track.id.trim()}|$version|$lang';
+    }
+    return '$normTitle|$primaryArtist|$version|$lang';
   }
 
   @override
@@ -107,7 +115,7 @@ class LrclibLyricsRepository implements LyricsRepository {
   }
 
   Future<LyricsData> _resolveLyrics(MusicItem track) async {
-    // Step A: Local .lrc file for offline tracks
+    // Step A: Local .lrc file check for offline tracks
     if (!track.isYoutube && track.filePath.isNotEmpty) {
       try {
         final songFile = File(track.filePath);
@@ -135,7 +143,7 @@ class LrclibLyricsRepository implements LyricsRepository {
     final rawTitle = track is Track ? track.rawTitle : null;
     final album = _extractAlbum(track);
 
-    // Step B: Generate structured search candidates covering Stages 1-7
+    // Step B: Generate structured search candidates covering Stages 1-8
     final candidates = LyricsSearchQueryBuilder.buildCandidates(
       title: track.title,
       artist: track.artist,
@@ -143,7 +151,7 @@ class LrclibLyricsRepository implements LyricsRepository {
       rawTitle: rawTitle,
     );
 
-    // Step C: Try exact /api/get query using high-confidence candidates (normalized/exact title + artist)
+    // Step C: Try exact /api/get query using high-confidence candidates (normalized title + primary artist)
     for (final candidate in candidates.take(3)) {
       if (candidate.artistName.isNotEmpty) {
         try {
@@ -165,16 +173,40 @@ class LrclibLyricsRepository implements LyricsRepository {
 
           if (response?.statusCode == 200 && response?.data is Map) {
             final data = response!.data as Map;
-            final synced = data['syncedLyrics'] as String?;
-            if (synced != null && synced.trim().isNotEmpty) {
-              final parsed = LyricParser.parse(synced);
-              if (parsed.isNotEmpty) {
-                return LyricsData(lines: parsed, isSynced: true, source: 'lrclib_get_synced');
+            final itemTrackName = data['trackName'] as String? ?? '';
+            final itemArtistName = data['artistName'] as String? ?? '';
+            final itemAlbumName = data['albumName'] as String?;
+            final itemDurationSec = (data['duration'] as num?)?.round();
+            final itemDuration = itemDurationSec != null ? Duration(seconds: itemDurationSec) : null;
+
+            // Rigorously validate the exact match candidate before accepting
+            final matchResult = LyricsValidator.evaluateMatch(
+              queryTrackName: candidate.trackName,
+              candidateTrackName: itemTrackName,
+              queryArtistName: candidate.originalQueryArtist.isNotEmpty
+                  ? candidate.originalQueryArtist
+                  : candidate.artistName,
+              candidateArtistName: itemArtistName,
+              queryDuration: trackDuration,
+              candidateDuration: itemDuration,
+              queryAlbum: candidate.albumName ?? album,
+              candidateAlbum: itemAlbumName,
+            );
+
+            if (matchResult.isValid) {
+              final synced = data['syncedLyrics'] as String?;
+              if (synced != null && synced.trim().isNotEmpty) {
+                final parsed = LyricParser.parse(synced);
+                if (parsed.isNotEmpty) {
+                  return LyricsData(lines: parsed, isSynced: true, source: 'lrclib_get_synced');
+                }
               }
-            }
-            final plain = data['plainLyrics'] as String?;
-            if (plain != null && plain.trim().isNotEmpty) {
-              plainFallback = plain;
+              final plain = data['plainLyrics'] as String?;
+              if (plain != null && plain.trim().isNotEmpty) {
+                plainFallback = plain;
+              }
+            } else {
+              debugPrint('[Lyrics] LRCLIB exact get candidate rejected: ${matchResult.reason}');
             }
           }
         } catch (e) {
@@ -183,7 +215,10 @@ class LrclibLyricsRepository implements LyricsRepository {
       }
     }
 
-    // Step D: Controlled candidate search loop via /api/search
+    // Step D: Controlled candidate search loop via /api/search with scoring
+    Map<dynamic, dynamic>? bestCandidateItem;
+    double bestConfidenceScore = 0.0;
+
     for (int i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       try {
@@ -212,31 +247,35 @@ class LrclibLyricsRepository implements LyricsRepository {
             if (item is! Map) continue;
 
             final itemTrackName = item['trackName'] as String? ?? '';
+            final itemArtistName = item['artistName'] as String? ?? '';
+            final itemAlbumName = item['albumName'] as String?;
             final itemDurationSec = (item['duration'] as num?)?.round();
             final itemDuration = itemDurationSec != null ? Duration(seconds: itemDurationSec) : null;
 
-            // Validate candidate match before accepting to protect against wrong-song false positives
-            final isValid = LyricsValidator.validate(
+            final matchResult = LyricsValidator.evaluateMatch(
               queryTrackName: candidate.trackName,
               candidateTrackName: itemTrackName,
+              queryArtistName: candidate.originalQueryArtist.isNotEmpty
+                  ? candidate.originalQueryArtist
+                  : candidate.artistName,
+              candidateArtistName: itemArtistName,
               queryDuration: trackDuration,
               candidateDuration: itemDuration,
+              queryAlbum: candidate.albumName ?? album,
+              candidateAlbum: itemAlbumName,
             );
 
-            if (!isValid) continue;
+            if (matchResult.isValid && matchResult.confidence > bestConfidenceScore) {
+              bestConfidenceScore = matchResult.confidence;
+              bestCandidateItem = item;
 
-            final synced = item['syncedLyrics'] as String?;
-            if (synced != null && synced.trim().isNotEmpty) {
-              final parsed = LyricParser.parse(synced);
-              if (parsed.isNotEmpty) {
-                return LyricsData(lines: parsed, isSynced: true, source: 'lrclib_search_synced');
-              }
-            }
-
-            if (plainFallback == null) {
-              final plain = item['plainLyrics'] as String?;
-              if (plain != null && plain.trim().isNotEmpty) {
-                plainFallback = plain;
+              // If candidate is a near-perfect match (>= 0.90) with synced lyrics, accept immediately
+              final synced = item['syncedLyrics'] as String?;
+              if (synced != null && synced.trim().isNotEmpty && matchResult.confidence >= 0.90) {
+                final parsed = LyricParser.parse(synced);
+                if (parsed.isNotEmpty) {
+                  return LyricsData(lines: parsed, isSynced: true, source: 'lrclib_search_synced');
+                }
               }
             }
           }
@@ -246,7 +285,30 @@ class LrclibLyricsRepository implements LyricsRepository {
       }
     }
 
-    // Step E: Unsynchronized plain lyrics fallback (Duration.zero, no fake timestamps)
+    // If a best candidate was found above the acceptance threshold
+    if (bestCandidateItem != null && bestConfidenceScore >= LyricsValidator.acceptanceThreshold) {
+      final synced = bestCandidateItem['syncedLyrics'] as String?;
+      if (synced != null && synced.trim().isNotEmpty) {
+        final parsed = LyricParser.parse(synced);
+        if (parsed.isNotEmpty) {
+          return LyricsData(lines: parsed, isSynced: true, source: 'lrclib_search_synced');
+        }
+      }
+      final plain = bestCandidateItem['plainLyrics'] as String?;
+      if (plain != null && plain.trim().isNotEmpty) {
+        plainFallback = plain;
+      }
+    }
+
+    // Step E: Tier 4 Fallback — YouTube Timed Closed Captions
+    if (track.isYoutube || track.id.startsWith('youtube_') || RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(track.id)) {
+      final ytCaptions = await _fetchYouTubeClosedCaptions(track);
+      if (ytCaptions != null && ytCaptions.isNotEmpty) {
+        return ytCaptions;
+      }
+    }
+
+    // Step F: Unsynchronized plain lyrics fallback (Duration.zero, no fake timestamps)
     if (plainFallback != null && plainFallback.trim().isNotEmpty) {
       final plainLines = plainFallback
           .split('\n')
@@ -260,6 +322,100 @@ class LrclibLyricsRepository implements LyricsRepository {
     }
 
     return LyricsData.empty;
+  }
+
+  /// Fetches timed closed captions directly from YouTube for official video songs / lyric videos.
+  Future<LyricsData?> _fetchYouTubeClosedCaptions(MusicItem track) async {
+    try {
+      final videoIdStr = _extractYouTubeVideoId(track);
+      if (videoIdStr == null || videoIdStr.isEmpty) return null;
+
+      final manifest = await _yt.videos.closedCaptions.getManifest(videoIdStr);
+      if (manifest.tracks.isEmpty) return null;
+
+      yte.ClosedCaptionTrackInfo? selectedTrack;
+      final lang = LyricsTitleNormalizer.extractLanguageTag(track.title);
+      final langCode = _mapLanguageToCode(lang);
+
+      if (langCode != null) {
+        selectedTrack = manifest.getByLanguage(langCode, autoGenerated: false).firstOrNull;
+      }
+      selectedTrack ??= manifest.getByLanguage('en', autoGenerated: false).firstOrNull;
+      selectedTrack ??= manifest.tracks.where((t) => !t.isAutoGenerated).firstOrNull;
+      selectedTrack ??= manifest.tracks.firstOrNull;
+
+      if (selectedTrack == null) return null;
+
+      final captionTrack = await _yt.videos.closedCaptions.get(selectedTrack);
+      if (captionTrack.captions.isEmpty) return null;
+
+      final lyricLines = <LyricLine>[];
+      for (final caption in captionTrack.captions) {
+        final text = caption.text.trim();
+        if (text.isEmpty || text == '♪' || text == '[Music]') continue;
+        lyricLines.add(LyricLine(
+          time: caption.offset,
+          text: text.replaceAll('\n', ' ').trim(),
+        ));
+      }
+
+      if (lyricLines.isNotEmpty) {
+        debugPrint('[Lyrics] Resolved ${lyricLines.length} timed lines from YouTube Closed Captions (${selectedTrack.language.name})');
+        return LyricsData(
+          lines: lyricLines,
+          isSynced: true,
+          source: 'youtube_timed_captions_${selectedTrack.language.code}',
+        );
+      }
+    } catch (e) {
+      debugPrint('[Lyrics] YouTube closed captions lookup failed for "${track.title}": $e');
+    }
+    return null;
+  }
+
+  String? _extractYouTubeVideoId(MusicItem track) {
+    if (track.id.startsWith('youtube_')) {
+      return track.id.replaceFirst('youtube_', '').trim();
+    }
+    if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(track.id)) {
+      return track.id;
+    }
+    if (track is Track && track.sourceId != null && track.sourceId!.isNotEmpty) {
+      return track.sourceId!.replaceFirst('youtube_', '').trim();
+    }
+    if (track.filePath.contains('v=')) {
+      final uri = Uri.tryParse(track.filePath);
+      return uri?.queryParameters['v'];
+    }
+    return null;
+  }
+
+  String? _mapLanguageToCode(String? lang) {
+    if (lang == null) return null;
+    switch (lang.toLowerCase()) {
+      case 'tamil':
+        return 'ta';
+      case 'telugu':
+        return 'te';
+      case 'hindi':
+        return 'hi';
+      case 'malayalam':
+        return 'ml';
+      case 'kannada':
+        return 'kn';
+      case 'punjabi':
+        return 'pa';
+      case 'bengali':
+        return 'bn';
+      case 'marathi':
+        return 'mr';
+      case 'english':
+        return 'en';
+      case 'spanish':
+        return 'es';
+      default:
+        return null;
+    }
   }
 
   Future<Response<dynamic>?> _requestWithRetry(

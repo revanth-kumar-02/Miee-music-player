@@ -29,25 +29,97 @@ class LyricsTitleNormalizer {
 
   /// Bracketed and parenthesized noise patterns.
   static final RegExp _bracketNoiseRegex = RegExp(
-    r'[\(\[\{](?:[^\)\]\}]*(?:official|video|audio|lyric|lyrics|lyrical|remaster|remix|version|hd|4k|8k|uhd|fhd|1080p|720p|fps|teaser|trailer|promo|song|mv|prod\.|feat\.|ft\.)[^\)\]\}]*)[\)\]\}]',
+    r'[\(\[\{](?:[^\)\]\}]*(?:official|video|audio|lyric|lyrics|lyrical|remaster|hd|4k|8k|uhd|fhd|1080p|720p|fps|teaser|trailer|promo|song|mv|prod\.|feat\.|ft\.)[^\)\]\}]*)[\)\]\}]',
     caseSensitive: false,
   );
+
+  /// Pattern matching regional Indian and international language tags.
+  static final RegExp _languageTagRegex = RegExp(
+    r'[\(\[\{]\s*(tamil|telugu|hindi|malayalam|kannada|punjabi|bengali|marathi|english|spanish|korean|japanese)(?:\s+(?:song|version|audio|video|track))?\s*[\)\]\}]',
+    caseSensitive: false,
+  );
+
+  /// Key version modifiers that alter the actual recording/lyrics composition.
+  static const List<String> versionModifiers = [
+    'reprise',
+    'acoustic',
+    'unplugged',
+    'live',
+    'remix',
+    'lofi',
+    'slowed',
+    'reverb',
+    'cover',
+    'instrumental',
+    'radio edit',
+  ];
+
+  /// Detects and extracts language tag from title or subtitle (e.g. "[Tamil]" -> "tamil").
+  static String? extractLanguageTag(String title) {
+    final match = _languageTagRegex.firstMatch(title);
+    if (match != null) {
+      return match.group(1)?.toLowerCase();
+    }
+    return null;
+  }
+
+  /// Detects whether the title contains a specific version modifier (e.g. "reprise").
+  static String? extractVersionModifier(String title) {
+    final lower = title.toLowerCase();
+    for (final modifier in versionModifiers) {
+      final reg = RegExp(r'\b' + RegExp.escape(modifier) + r'\b');
+      if (reg.hasMatch(lower)) {
+        return modifier;
+      }
+    }
+    return null;
+  }
+
+  /// Normalizes acronym punctuation (e.g., "O.M" -> "OM", "K.G.F" -> "KGF", "A.R." -> "AR").
+  static String normalizeAcronyms(String text) {
+    if (text.isEmpty) return text;
+    // Replace sequences of single letter followed by period, e.g. "O.M." or "O.M"
+    return text.replaceAllMapped(
+      RegExp(r'\b([a-zA-Z])\.([a-zA-Z])(?:\.([a-zA-Z]))?(?:\.([a-zA-Z]))?\b'),
+      (match) {
+        final g1 = match.group(1) ?? '';
+        final g2 = match.group(2) ?? '';
+        final g3 = match.group(3) ?? '';
+        final g4 = match.group(4) ?? '';
+        return '$g1$g2$g3$g4';
+      },
+    );
+  }
+
+  /// Splits composite artist strings into discrete individual artists.
+  /// Handles delimiters like `&`, `,`, `feat.`, `ft.`, `and`, `featuring`, `/`, `vs`.
+  /// The primary artist is guaranteed to be at index 0.
+  static List<String> splitArtists(String artist) {
+    if (artist.isEmpty) return [];
+
+    final clean = stripInvisibleChars(artist);
+    // Split by common collaborator delimiters
+    final parts = clean.split(
+      RegExp(r'\s*(?:&|,|\/|\||\band\b|\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|\bvs\.?\b)\s*', caseSensitive: false),
+    );
+
+    final results = <String>[];
+    final seen = <String>{};
+
+    for (final part in parts) {
+      final trimmed = normalizeWhitespace(part.replaceAll(RegExp(r'[\(\)\[\]\{\}]'), ''));
+      if (trimmed.isNotEmpty && seen.add(trimmed.toLowerCase())) {
+        results.add(trimmed);
+      }
+    }
+
+    return results.isNotEmpty ? results : [clean.trim()];
+  }
 
   /// Normalizes a display track title for lyrics matching.
   ///
   /// Preserves the core song title and returns a clean, canonical string suitable
   /// for querying lyrics providers.
-  ///
-  /// Examples:
-  /// - `Kadhal En Kadhal - 8K` -> `Kadhal En Kadhal`
-  /// - `Song Name 4K` -> `Song Name`
-  /// - `Song Name HD` -> `Song Name`
-  /// - `Song Name (Official Video)` -> `Song Name`
-  /// - `Song Name [Remastered]` -> `Song Name`
-  /// - `Song Name Lyrical Video` -> `Song Name`
-  /// - `7 Years` -> `7 Years` (meaningful numbers preserved)
-  /// - `21 Guns` -> `21 Guns` (meaningful numbers preserved)
-  /// - `1999` -> `1999` (meaningful numbers preserved)
   static String normalize(String title) {
     if (title.isEmpty) return '';
 
@@ -56,17 +128,19 @@ class LyricsTitleNormalizer {
     // 1. Remove bracketed/parenthesized promotional noise
     t = t.replaceAll(_bracketNoiseRegex, ' ');
 
-    // 2. Remove video / format / promotional keywords
+    // 2. Remove language tags from the query title (preserved in metadata via extractLanguageTag)
+    t = t.replaceAll(_languageTagRegex, ' ');
+
+    // 3. Remove video / format / promotional keywords
     t = t.replaceAll(_videoNoiseRegex, ' ');
 
-    // 3. Remove resolution suffixes (8k, 4k, 2k, hd, uhd, fhd, 1080p, etc.)
+    // 4. Remove resolution suffixes (8k, 4k, 2k, hd, uhd, fhd, 1080p, etc.)
     t = t.replaceAll(_resolutionRegex, ' ');
 
-    // 4. If the title contains multi-clause separators like ' - ' or ' | ' or ' / '
-    // check if trailing or preceding clauses were left empty or contain only noise
+    // 5. Clean dangling separators left after noise removal
     t = _cleanDanglingClauses(t);
 
-    // 5. Strip leading/trailing hyphens, colons, pipes, and delimiters
+    // 6. Strip leading/trailing hyphens, colons, pipes, and delimiters
     t = t.replaceAll(RegExp(r'^[\s\-\–\—\|\:\/\•]+|[\s\-\–\—\|\:\/\•]+$'), '');
 
     t = normalizeWhitespace(t);
@@ -91,6 +165,12 @@ class LyricsTitleNormalizer {
     final normalized = normalize(title);
     add(normalized);
 
+    // Also add acronym-normalized variant if it differs (e.g. "O.M Special Duty" -> "OM Special Duty")
+    final acronymNorm = normalizeAcronyms(normalized);
+    if (acronymNorm.toLowerCase() != normalized.toLowerCase()) {
+      add(acronymNorm);
+    }
+
     // Check parenthetical sub-titles: e.g. "Title (Subtitle)" or "Title (from Movie)"
     final parenRegex = RegExp(r'\(([^)]+)\)|\[([^\]]+)\]');
     for (final m in parenRegex.allMatches(title)) {
@@ -102,6 +182,10 @@ class LyricsTitleNormalizer {
           final normInside = normalize(inside);
           if (normInside.isNotEmpty) {
             add(normInside);
+            final acronymInside = normalizeAcronyms(normInside);
+            if (acronymInside.toLowerCase() != normInside.toLowerCase()) {
+              add(acronymInside);
+            }
           }
         }
       }
@@ -117,6 +201,10 @@ class LyricsTitleNormalizer {
 
       for (final clause in clauses) {
         add(clause);
+        final ac = normalizeAcronyms(clause);
+        if (ac.toLowerCase() != clause.toLowerCase()) {
+          add(ac);
+        }
       }
     }
 
@@ -149,4 +237,3 @@ class LyricsTitleNormalizer {
     return s.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }
-

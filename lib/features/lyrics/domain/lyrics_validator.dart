@@ -2,152 +2,372 @@ import 'dart:math';
 import 'indic_transliterator.dart';
 import 'lyrics_title_normalizer.dart';
 
+/// Detailed result of candidate lyrics validation and matching.
+class LyricsMatchResult {
+  final bool isValid;
+  final double confidence;
+  final String reason;
+  final double titleScore;
+  final double artistScore;
+  final double durationScore;
+  final double languageScore;
+  final double versionScore;
+
+  const LyricsMatchResult({
+    required this.isValid,
+    required this.confidence,
+    required this.reason,
+    this.titleScore = 0.0,
+    this.artistScore = 0.0,
+    this.durationScore = 0.0,
+    this.languageScore = 0.0,
+    this.versionScore = 0.0,
+  });
+
+  static const invalidEmpty = LyricsMatchResult(
+    isValid: false,
+    confidence: 0.0,
+    reason: 'Empty query or candidate track name',
+  );
+
+  @override
+  String toString() =>
+      'LyricsMatchResult(valid: $isValid, conf: ${(confidence * 100).toStringAsFixed(1)}%, reason: $reason, T: $titleScore, A: $artistScore, D: $durationScore, L: $languageScore, V: $versionScore)';
+}
+
 /// Rigorous candidate validator to prevent false positives and verify that
 /// returned lyrics legitimately correspond to the active track.
 class LyricsValidator {
-  static const _versionSubtitleNoise = [
-    'acoustic',
-    'live',
-    'remix',
-    'version',
+  const LyricsValidator._();
+
+  /// High-confidence threshold required to display lyrics.
+  static const double acceptanceThreshold = 0.75;
+
+  /// General non-version promotional noises that can safely be ignored in title comparison.
+  /// (Crucial: 'reprise', 'acoustic', 'remix' are version modifiers and NOT treated as noise).
+  static const _nonVersionNoise = [
+    'official',
+    'video',
+    'audio',
+    'lyric',
+    'lyrics',
+    'lyrical',
     'remastered',
-    'reprise',
     'original',
-    'lofi',
-    'slowed',
-    'reverb',
     'soundtrack',
     'theme',
-    'instrumental',
+    'visualizer',
+    'deluxe',
+    'extended',
     'edit',
-    'radio edit',
   ];
 
-  /// Validates whether [candidateTrackName] from a lyrics provider is a genuine
-  /// match for [queryTrackName].
+  /// Comprehensive multi-factor candidate evaluation.
   ///
-  /// If duration information is provided, validates that durations do not wildly
-  /// diverge.
-  static bool validate({
+  /// Evaluates:
+  /// 1. Title compatibility (35% weight)
+  /// 2. Artist alignment (35% weight)
+  /// 3. Duration divergence (15% weight)
+  /// 4. Language tag compatibility (10% weight)
+  /// 5. Version modifier alignment (5% weight)
+  ///
+  /// Applies hard vetoes for:
+  /// - Disjoint known artists
+  /// - Conflicting language tags (e.g. Hindi vs Tamil)
+  /// - Version modifier mismatches (e.g. Reprise vs original)
+  /// - Wild duration divergences (> 45 seconds)
+  static LyricsMatchResult evaluateMatch({
     required String queryTrackName,
     required String candidateTrackName,
+    String queryArtistName = '',
+    String candidateArtistName = '',
     Duration? queryDuration,
     Duration? candidateDuration,
+    String? queryAlbum,
+    String? candidateAlbum,
   }) {
-    // 1. Duration check
+    final rawQueryTitle = queryTrackName.trim();
+    final rawCandTitle = candidateTrackName.trim();
+
+    if (rawQueryTitle.isEmpty || rawCandTitle.isEmpty) {
+      return LyricsMatchResult.invalidEmpty;
+    }
+
+    // ── Hard Veto 1: Duration Check ───────────────────────────────────────────
+    double durationScore = 1.0;
     if (queryDuration != null &&
         candidateDuration != null &&
         queryDuration.inSeconds > 0 &&
         candidateDuration.inSeconds > 0) {
       final diff = (queryDuration.inSeconds - candidateDuration.inSeconds).abs();
-      // Allow up to 45 seconds tolerance for YouTube audio (intro dialogues / outro credits)
       if (diff > 45) {
-        return false;
+        return LyricsMatchResult(
+          isValid: false,
+          confidence: 0.0,
+          reason: 'Duration divergence too high: ${diff}s (>45s max allowed)',
+          durationScore: 0.0,
+        );
+      }
+      if (diff <= 3) {
+        durationScore = 1.0;
+      } else if (diff <= 10) {
+        durationScore = 0.85;
+      } else if (diff <= 25) {
+        durationScore = 0.60;
+      } else {
+        durationScore = 0.35;
       }
     }
 
-    final normQuery = _cleanTitle(queryTrackName);
-    final normCand = _cleanTitle(candidateTrackName);
+    // ── Hard Veto 2: Version Modifier Alignment ───────────────────────────────
+    // e.g. "Urugi Urugi" vs "Urugi Urugi - Reprise", or "Song (Acoustic)" vs "Song"
+    final queryVersion = LyricsTitleNormalizer.extractVersionModifier(rawQueryTitle);
+    final candVersion = LyricsTitleNormalizer.extractVersionModifier(rawCandTitle);
+    double versionScore = 1.0;
 
-    if (normQuery.isEmpty || normCand.isEmpty) return false;
-
-    // 2. Exact match
-    if (normQuery == normCand) return true;
-
-    // 3. Subtitle / parenthetical version match:
-    // e.g. "Arabic Kuthu" matching "Arabic Kuthu - Halamithi Habibo"
-    // or "Oo Solriya" matching "Oo Solriya (From Pushpa)"
-    final coreCand = _stripVersionSubtitle(normCand);
-    final coreQuery = _stripVersionSubtitle(normQuery);
-
-    if (coreCand == coreQuery) return true;
-    if (coreCand == normQuery || coreQuery == normCand) return true;
-
-    // 4. Indic Script Comparison (Transliteration & Phonetic Stemming)
-    final hasIndicQuery = IndicTransliterator.hasIndicScript(normQuery);
-    final hasIndicCand = IndicTransliterator.hasIndicScript(normCand);
-
-    if (hasIndicQuery || hasIndicCand) {
-      final latinQuery = hasIndicQuery ? IndicTransliterator.transliterate(normQuery) : normQuery;
-      final latinCand = hasIndicCand ? IndicTransliterator.transliterate(normCand) : normCand;
-
-      final stemQuery = IndicTransliterator.phoneticStem(latinQuery);
-      final stemCand = IndicTransliterator.phoneticStem(latinCand);
-
-      if (stemQuery == stemCand) return true;
-      if (_fuzzySimilarity(stemQuery, stemCand) >= 0.70) return true;
-
-      final coreStemQ = IndicTransliterator.phoneticStem(_stripVersionSubtitle(latinQuery));
-      final coreStemC = IndicTransliterator.phoneticStem(_stripVersionSubtitle(latinCand));
-      if (coreStemQ == coreStemC) return true;
-      if (_fuzzySimilarity(coreStemQ, coreStemC) >= 0.70) return true;
-
-      // Prefix match on stems (e.g. "u solriya" inside "u solriya u u solriya from pushpa")
-      if (stemCand.startsWith('$stemQuery ') || stemQuery.startsWith('$stemCand ') ||
-          coreStemC.startsWith('$coreStemQ ') || coreStemQ.startsWith('$coreStemC ')) {
-        return true;
+    if (queryVersion != null || candVersion != null) {
+      if (queryVersion != candVersion) {
+        return LyricsMatchResult(
+          isValid: false,
+          confidence: 0.0,
+          reason: 'Version modifier mismatch: query has "${queryVersion ?? 'original'}", candidate has "${candVersion ?? 'original'}"',
+          versionScore: 0.0,
+        );
       }
+      versionScore = 1.0;
+    }
 
-      // Token overlap on phonetic stems
-      final qTokens = coreStemQ.split(' ').where((w) => w.length > 1).toSet();
-      final cTokens = coreStemC.split(' ').where((w) => w.length > 1).toSet();
-      if (qTokens.isNotEmpty && cTokens.isNotEmpty && qTokens.difference(cTokens).isEmpty) {
-        return true;
+    // ── Hard Veto 3: Language Tag Alignment ───────────────────────────────────
+    // e.g. "Veezha Veera [Tamil]" vs "Veezha Veera [Hindi]"
+    final queryLang = LyricsTitleNormalizer.extractLanguageTag(rawQueryTitle);
+    final candLang = LyricsTitleNormalizer.extractLanguageTag(rawCandTitle);
+    double languageScore = 1.0;
+
+    if (queryLang != null && candLang != null) {
+      if (queryLang != candLang) {
+        return LyricsMatchResult(
+          isValid: false,
+          confidence: 0.0,
+          reason: 'Conflicting language tags: query is "$queryLang", candidate is "$candLang"',
+          languageScore: 0.0,
+        );
+      }
+      languageScore = 1.0;
+    } else if (queryLang != null && candLang == null) {
+      // Candidate not explicitly tagged, neutral
+      languageScore = 0.9;
+    } else if (queryLang == null && candLang != null) {
+      // Candidate has specific language tag while query did not specify
+      // If candidate is Hindi and query artist is confirmed Tamil composer (or vice versa), veto
+      final qArtists = LyricsTitleNormalizer.splitArtists(queryArtistName).map((a) => a.toLowerCase()).toSet();
+      if (candLang == 'hindi' && (qArtists.contains('sai abhyankkar') || qArtists.contains('anirudh ravichander') || qArtists.contains('dhanush') || qArtists.contains('yuvan shankar raja'))) {
+        return const LyricsMatchResult(
+          isValid: false,
+          confidence: 0.0,
+          reason: 'Language conflict: candidate tagged with [Hindi] but query is Tamil composer',
+          languageScore: 0.0,
+        );
+      }
+      languageScore = 0.85;
+    }
+
+    // ── Hard Veto 4 & Scoring: Artist Compatibility ───────────────────────────
+    final artistScore = _computeArtistScore(queryArtistName, candidateArtistName);
+    if (artistScore <= 0.0 && queryArtistName.trim().isNotEmpty && candidateArtistName.trim().isNotEmpty) {
+      return LyricsMatchResult(
+        isValid: false,
+        confidence: 0.0,
+        reason: 'Conflicting artist: candidate "$candidateArtistName" does not match query "$queryArtistName"',
+        artistScore: 0.0,
+      );
+    }
+
+    // ── Scoring: Title Compatibility ──────────────────────────────────────────
+    final titleScore = _computeTitleScore(rawQueryTitle, rawCandTitle);
+    if (titleScore < 0.50) {
+      return LyricsMatchResult(
+        isValid: false,
+        confidence: 0.0,
+        reason: 'Title mismatch: similarity ${(titleScore * 100).toStringAsFixed(1)}% is below 50%',
+        titleScore: titleScore,
+      );
+    }
+
+    // ── Composite Confidence Calculation ──────────────────────────────────────
+    // Title (35%), Artist (35%), Duration (15%), Language (10%), Version (5%)
+    final totalConfidence = (0.35 * titleScore) +
+        (0.35 * artistScore) +
+        (0.15 * durationScore) +
+        (0.10 * languageScore) +
+        (0.05 * versionScore);
+
+    final isValid = totalConfidence >= acceptanceThreshold;
+
+    return LyricsMatchResult(
+      isValid: isValid,
+      confidence: totalConfidence,
+      reason: isValid
+          ? 'Matched with ${(totalConfidence * 100).toStringAsFixed(1)}% confidence'
+          : 'Confidence ${(totalConfidence * 100).toStringAsFixed(1)}% below threshold ${(acceptanceThreshold * 100).toStringAsFixed(0)}%',
+      titleScore: titleScore,
+      artistScore: artistScore,
+      durationScore: durationScore,
+      languageScore: languageScore,
+      versionScore: versionScore,
+    );
+  }
+
+  /// Backward-compatible boolean validation helper.
+  static bool validate({
+    required String queryTrackName,
+    required String candidateTrackName,
+    String queryArtistName = '',
+    String candidateArtistName = '',
+    Duration? queryDuration,
+    Duration? candidateDuration,
+  }) {
+    final result = evaluateMatch(
+      queryTrackName: queryTrackName,
+      candidateTrackName: candidateTrackName,
+      queryArtistName: queryArtistName,
+      candidateArtistName: candidateArtistName,
+      queryDuration: queryDuration,
+      candidateDuration: candidateDuration,
+    );
+    return result.isValid;
+  }
+
+  /// Computes artist alignment score between 0.0 and 1.0.
+  /// Hard 0.0 indicates completely disjoint, conflicting artists.
+  static double _computeArtistScore(String queryArtist, String candidateArtist) {
+    final cleanQ = queryArtist.trim().toLowerCase();
+    final cleanC = candidateArtist.trim().toLowerCase();
+
+    if (cleanQ.isEmpty || cleanC.isEmpty) {
+      // Unspecified artist: neutral baseline
+      return 0.65;
+    }
+
+    if (cleanQ == cleanC) return 1.0;
+
+    final qArtists = LyricsTitleNormalizer.splitArtists(queryArtist)
+        .map((a) => a.toLowerCase().trim())
+        .where((a) => a.isNotEmpty)
+        .toList();
+    final cArtists = LyricsTitleNormalizer.splitArtists(candidateArtist)
+        .map((a) => a.toLowerCase().trim())
+        .where((a) => a.isNotEmpty)
+        .toList();
+
+    if (qArtists.isEmpty || cArtists.isEmpty) return 0.65;
+
+    // Check exact primary artist match
+    final primaryQ = qArtists.first;
+    final primaryC = cArtists.first;
+    if (primaryQ == primaryC) return 0.95;
+
+    // Check cross-artist match (e.g. "Sai Abhyankkar" in "Sai Abhyankkar & Dhanush")
+    for (final q in qArtists) {
+      for (final c in cArtists) {
+        if (q == c) return 0.90;
+        if (q.contains(c) || c.contains(q)) return 0.85;
       }
     }
 
-    // 5. Token analysis and Substring Protection
-    // Single-word titles (e.g. "Yellow", "Starboy") must NOT match completely
-    // different songs that happen to contain that word (e.g. "Black and Yellow", "Stargirl")
+    // Token intersection on artist names
+    final qTokens = qArtists.expand((a) => a.split(RegExp(r'\s+'))).where((t) => t.length > 2).toSet();
+    final cTokens = cArtists.expand((a) => a.split(RegExp(r'\s+'))).where((t) => t.length > 2).toSet();
+
+    if (qTokens.isNotEmpty && cTokens.isNotEmpty) {
+      final intersection = qTokens.intersection(cTokens);
+      if (intersection.isNotEmpty) {
+        return 0.80;
+      }
+    }
+
+    // Both artists are non-empty and have zero overlap -> Conflicting artist!
+    return 0.0;
+  }
+
+  /// Computes title alignment score between 0.0 and 1.0.
+  static double _computeTitleScore(String queryTitle, String candidateTitle) {
+    final normQuery = _cleanTitle(queryTitle);
+    final normCand = _cleanTitle(candidateTitle);
+
+    if (normQuery.isEmpty || normCand.isEmpty) return 0.0;
+    if (normQuery == normCand) return 1.0;
+
+    // Check acronym normalized equivalence: e.g. "om special duty" == "o m special duty"
+    final acQuery = LyricsTitleNormalizer.normalizeAcronyms(normQuery);
+    final acCand = LyricsTitleNormalizer.normalizeAcronyms(normCand);
+    if (acQuery == acCand || acQuery == normCand || normQuery == acCand) {
+      return 0.98;
+    }
+
+    // Check core stripped noise
+    final coreQ = _stripNonVersionNoise(normQuery);
+    final coreC = _stripNonVersionNoise(normCand);
+    if (coreQ == coreC) return 0.95;
+    if (coreQ.isNotEmpty && (coreQ == normCand || normQuery == coreC)) return 0.92;
+
+    // Indic transliteration / phonetic matching
+    final hasIndicQ = IndicTransliterator.hasIndicScript(normQuery);
+    final hasIndicC = IndicTransliterator.hasIndicScript(normCand);
+    if (hasIndicQ || hasIndicC) {
+      final latinQ = hasIndicQ ? IndicTransliterator.transliterate(normQuery) : normQuery;
+      final latinC = hasIndicC ? IndicTransliterator.transliterate(normCand) : normCand;
+
+      final stemQ = IndicTransliterator.phoneticStem(latinQ);
+      final stemC = IndicTransliterator.phoneticStem(latinC);
+
+      if (stemQ == stemC) return 0.90;
+      final stemFuzzy = _fuzzySimilarity(stemQ, stemC);
+      if (stemFuzzy >= 0.75) return 0.85;
+
+      final coreStemQ = IndicTransliterator.phoneticStem(_stripNonVersionNoise(latinQ));
+      final coreStemC = IndicTransliterator.phoneticStem(_stripNonVersionNoise(latinC));
+      if (coreStemQ == coreStemC) return 0.88;
+      if (_fuzzySimilarity(coreStemQ, coreStemC) >= 0.75) return 0.82;
+    }
+
+    // Token analysis
     final qTokens = normQuery.split(' ').where((w) => w.length > 1).toSet();
     final cTokens = normCand.split(' ').where((w) => w.length > 1).toSet();
 
-    if (qTokens.isEmpty || cTokens.isEmpty) return false;
+    if (qTokens.isEmpty || cTokens.isEmpty) return 0.0;
 
-    // If candidate starts with the exact query title followed by a delimiter or subtitle:
-    // e.g. "Arabic Kuthu - Halamithi Habibo" starts with "Arabic Kuthu"
-    if (normCand.startsWith('$normQuery ') || normCand.startsWith('$coreQuery ')) {
-      return true;
-    }
-    if (normQuery.startsWith('$normCand ') || normQuery.startsWith('$coreCand ')) {
-      return true;
-    }
-
-    // Token overlap: compute Jaccard index
     final intersection = qTokens.intersection(cTokens).length;
     final union = qTokens.union(cTokens).length;
     final jaccard = union > 0 ? (intersection / union) : 0.0;
 
-    // If query has only 1 token, require exact match (prevent "Yellow" -> "Black and Yellow")
+    // Single-word titles require exact match
     if (qTokens.length == 1) {
-      if (cTokens.length == 1 && jaccard == 1.0) return true;
-      // If candidate has subtitles like "(From ...)", check against core
-      final coreTokens = coreCand.split(' ').where((w) => w.length > 1).toSet();
-      return coreTokens.length == 1 && coreTokens.contains(qTokens.first);
+      if (cTokens.length == 1 && jaccard == 1.0) return 1.0;
+      final coreTokens = coreC.split(' ').where((w) => w.length > 1).toSet();
+      if (coreTokens.length == 1 && coreTokens.contains(qTokens.first)) return 0.90;
+      return 0.0;
     }
 
-    // For multi-token queries, require high token overlap (>= 0.65)
-    if (jaccard >= 0.65) return true;
+    if (jaccard >= 0.75) return 0.85;
+    if (jaccard >= 0.50) return 0.70;
 
-    // 6. Fuzzy string similarity fallback
-    return _fuzzySimilarity(normQuery, normCand) >= 0.80;
+    // Fuzzy string similarity
+    final fuzzy = _fuzzySimilarity(normQuery, normCand);
+    return fuzzy;
   }
 
   static String _cleanTitle(String s) {
-    // Run through LyricsTitleNormalizer first to strip resolution tags and video noise
     final normalized = LyricsTitleNormalizer.normalize(s);
     var str = normalized.toLowerCase();
-    // Strip invisible characters
     str = LyricsTitleNormalizer.stripInvisibleChars(str);
-    // Replace punctuation with space
     str = str.replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\s]', unicode: true), ' ');
     str = LyricsTitleNormalizer.normalizeWhitespace(str);
     return str;
   }
 
-  static String _stripVersionSubtitle(String s) {
+  static String _stripNonVersionNoise(String s) {
     var str = s;
-    for (final noise in _versionSubtitleNoise) {
+    for (final noise in _nonVersionNoise) {
       str = str.replaceAll(RegExp('\\b$noise\\b', caseSensitive: false), ' ');
     }
     // Strip "from <movie>"
