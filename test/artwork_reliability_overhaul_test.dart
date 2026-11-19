@@ -458,13 +458,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            artworkResolverProvider.overrideWithValue(
-              ArtworkResolver(
-                cache: ArtworkCache(),
-                itunesProvider: const ItunesArtworkProvider(isEnabled: false),
-                deezerProvider: DeezerArtworkProvider(isEnabled: false),
-              ),
-            ),
+            resolvedArtworkProvider.overrideWith((ref, query) async {
+              return ResolvedArtwork.neutralFallback();
+            }),
           ],
           child: MaterialApp(
             home: Scaffold(

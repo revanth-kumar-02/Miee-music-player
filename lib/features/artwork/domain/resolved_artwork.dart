@@ -83,6 +83,8 @@ class ResolvedArtwork {
 
   bool get isNeutralFallback => source == ArtworkSource.neutralFallback || imageUrl.isEmpty;
 
+  bool get isValid => !isNeutralFallback && imageUrl.isNotEmpty;
+
   Map<String, dynamic> toJson() => {
         'imageUrl': imageUrl,
         'source': source.name,

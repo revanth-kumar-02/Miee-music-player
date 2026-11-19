@@ -7,6 +7,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../shared/models/music_item.dart';
 import '../data/artwork_cache.dart';
 import '../domain/artwork_query.dart';
+import '../domain/artwork_source.dart';
 import '../domain/resolved_artwork.dart';
 import 'artwork_providers.dart';
 
@@ -77,51 +78,26 @@ class MieeArtworkImage extends ConsumerWidget {
       loading: () {
         // If query already carries high-res studio album artwork, render it immediately
         final albumCover = effectiveQuery.albumArtworkUrl;
-        if (albumCover != null && albumCover.isNotEmpty) {
+        if (albumCover != null && albumCover.isNotEmpty && !albumCover.contains('ytimg.com')) {
           return _renderDirectImage(
             context,
             albumCover,
             effectiveBorderRadius,
             effectiveQuery,
             sourceLabel: 'Album Art',
-          );
-        }
-        // While resolving, display the fallback thumbnail if available immediately
-        final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
-        if (immediateImage != null &&
-            immediateImage.isNotEmpty &&
-            !immediateImage.contains('/vi/placeholder/')) {
-          return _renderDirectImage(
-            context,
-            immediateImage,
-            effectiveBorderRadius,
-            effectiveQuery,
-            sourceLabel: 'YouTube (Resolving...)',
           );
         }
         return placeholder ?? _buildPlaceholder(context, effectiveBorderRadius);
       },
       error: (_, __) {
         final albumCover = effectiveQuery.albumArtworkUrl;
-        if (albumCover != null && albumCover.isNotEmpty) {
+        if (albumCover != null && albumCover.isNotEmpty && !albumCover.contains('ytimg.com')) {
           return _renderDirectImage(
             context,
             albumCover,
             effectiveBorderRadius,
             effectiveQuery,
             sourceLabel: 'Album Art',
-          );
-        }
-        final immediateImage = effectiveQuery.fallbackThumbnailUrl ?? explicitUrl;
-        if (immediateImage != null &&
-            immediateImage.isNotEmpty &&
-            !immediateImage.contains('/vi/placeholder/')) {
-          return _renderDirectImage(
-            context,
-            immediateImage,
-            effectiveBorderRadius,
-            effectiveQuery,
-            sourceLabel: 'YouTube Fallback',
           );
         }
         return errorWidget ?? _buildNeutralFallback(context, effectiveBorderRadius);
@@ -135,9 +111,14 @@ class MieeArtworkImage extends ConsumerWidget {
     BorderRadius radius,
     ArtworkQuery effectiveQuery,
   ) {
-    if (artwork.isNeutralFallback || artwork.imageUrl.isEmpty) {
+    final isYtThumbnail = artwork.source == ArtworkSource.youtube ||
+        artwork.imageUrl.contains('ytimg.com') ||
+        artwork.imageUrl.contains('youtube.com');
+
+    if (artwork.isNeutralFallback || artwork.imageUrl.isEmpty || isYtThumbnail) {
       if (effectiveQuery.albumArtworkUrl != null &&
-          effectiveQuery.albumArtworkUrl!.isNotEmpty) {
+          effectiveQuery.albumArtworkUrl!.isNotEmpty &&
+          !effectiveQuery.albumArtworkUrl!.contains('ytimg.com')) {
         return _renderDirectImage(
           context,
           effectiveQuery.albumArtworkUrl!,
@@ -146,21 +127,10 @@ class MieeArtworkImage extends ConsumerWidget {
           sourceLabel: 'Album Art',
         );
       }
-      // Prioritize the track's authentic stream thumbnail or explicit URL
-      // over the neutral icon whenever available
-      if (effectiveQuery.fallbackThumbnailUrl != null &&
-          effectiveQuery.fallbackThumbnailUrl!.isNotEmpty &&
-          !effectiveQuery.fallbackThumbnailUrl!.contains('/vi/placeholder/')) {
-        return _renderDirectImage(
-          context,
-          effectiveQuery.fallbackThumbnailUrl!,
-          radius,
-          effectiveQuery,
-          sourceLabel: 'YouTube Fallback',
-        );
-      }
       if (explicitUrl != null &&
           explicitUrl!.isNotEmpty &&
+          !explicitUrl!.contains('ytimg.com') &&
+          !explicitUrl!.contains('youtube.com') &&
           !explicitUrl!.contains('/vi/placeholder/')) {
         return _renderDirectImage(context, explicitUrl!, radius, effectiveQuery);
       }

@@ -101,7 +101,12 @@ class ArtworkQuery {
 
   /// Factory constructor to construct an [ArtworkQuery] seamlessly from any [MusicItem].
   factory ArtworkQuery.fromMusicItem(MusicItem item, {String? album, String? explicitUrl}) {
-    final cleanExplicit = _sanitizeFallbackUrl(explicitUrl);
+    final rawExplicit = _sanitizeFallbackUrl(explicitUrl);
+    final cleanExplicit = (rawExplicit != null &&
+            !rawExplicit.contains('ytimg.com') &&
+            !rawExplicit.contains('youtube.com'))
+        ? rawExplicit
+        : null;
     if (item is MediaSong) {
       return ArtworkQuery(
         id: item.id,
@@ -117,7 +122,10 @@ class ArtworkQuery {
     }
 
     if (item is YouTubeVideo) {
-      final isHighRes = item.highResArtworkUrl != null && item.highResArtworkUrl!.isNotEmpty;
+      final isHighRes = item.highResArtworkUrl != null &&
+          item.highResArtworkUrl!.isNotEmpty &&
+          !item.highResArtworkUrl!.contains('ytimg.com') &&
+          !item.highResArtworkUrl!.contains('youtube.com');
       final highRes = isHighRes ? _sanitizeFallbackUrl(item.highResArtworkUrl) : null;
       String? fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.thumbnailUrl);
       if (fallback == null || fallback.isEmpty) {
@@ -139,25 +147,21 @@ class ArtworkQuery {
 
     if (item is Track) {
       final isYt = item.isYoutube;
-      final albumArt = (item.albumArtworkUrl != null && item.albumArtworkUrl!.isNotEmpty)
+      final albumArt = (item.albumArtworkUrl != null &&
+              item.albumArtworkUrl!.isNotEmpty &&
+              !item.albumArtworkUrl!.contains('ytimg.com') &&
+              !item.albumArtworkUrl!.contains('youtube.com'))
           ? _sanitizeFallbackUrl(item.albumArtworkUrl)
           : ((item.imageUrl.isNotEmpty &&
+                  !item.imageUrl.contains('ytimg.com') &&
+                  !item.imageUrl.contains('youtube.com') &&
                   (item.imageUrl.contains('mzstatic.com') ||
                       item.imageUrl.contains('dzcdn.net') ||
                       item.imageUrl.contains('archive.org')))
               ? _sanitizeFallbackUrl(item.imageUrl)
               : null);
 
-      String? fallback = cleanExplicit ??
-          _sanitizeFallbackUrl(item.youtubeThumbnailUrl) ??
-          (isYt ? _sanitizeFallbackUrl(item.imageUrl) : null);
-
-      if (isYt && (fallback == null || fallback.isEmpty || !fallback.startsWith('http'))) {
-        final vid = (item.sourceId ?? item.id).replaceFirst('youtube_', '').trim();
-        if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
-          fallback = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
-        }
-      }
+      final fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.youtubeThumbnailUrl);
 
       return ArtworkQuery(
         id: item.id,

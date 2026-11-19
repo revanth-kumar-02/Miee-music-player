@@ -837,11 +837,16 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (track is Track) {
         track = track.copyWith(
           youtubeThumbnailUrl: candidate.thumbnailUrl,
-          imageUrl: (track.albumArtworkUrl != null && track.albumArtworkUrl!.isNotEmpty)
+          imageUrl: (track.albumArtworkUrl != null &&
+                  track.albumArtworkUrl!.isNotEmpty &&
+                  !track.albumArtworkUrl!.contains('ytimg.com'))
               ? track.albumArtworkUrl!
-              : (track.imageUrl.isNotEmpty && !track.imageUrl.contains('default') && !track.imageUrl.contains('ytimg.com')
+              : (track.imageUrl.isNotEmpty &&
+                      !track.imageUrl.contains('default') &&
+                      !track.imageUrl.contains('ytimg.com') &&
+                      !track.imageUrl.contains('youtube.com')
                   ? track.imageUrl
-                  : candidate.thumbnailUrl),
+                  : ''),
         );
       }
     }
@@ -875,6 +880,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
       clearErrorMessage: true,
     );
     PlaybackDiagnostics().recordSelectedTrackUpdated(track.id);
+
+    // Resolve authentic studio album cover asynchronously if not already verified
+    final hasVerifiedAlbumArt = (track is Track &&
+        track.albumArtworkUrl != null &&
+        track.albumArtworkUrl!.isNotEmpty &&
+        !track.albumArtworkUrl!.contains('ytimg.com'));
+    if (!hasVerifiedAlbumArt) {
+      unawaited(_resolveAndApplyStudioArtwork(track, token));
+    }
 
     // 2. Concurrently fade out active audio with a snappy 60ms duration while resolving source in parallel
     final fadeOutFuture = () async {
@@ -1031,6 +1045,42 @@ class PlayerController extends StateNotifier<PlaybackState> {
       }
     } catch (_) {}
     return null;
+  }
+
+  /// Asynchronously resolves canonical studio album artwork and attaches it to the active track
+  /// as well as the Android system MediaItem notification.
+  Future<void> _resolveAndApplyStudioArtwork(MusicItem track, int token) async {
+    try {
+      final query = ArtworkQuery.fromMusicItem(track);
+      final resolver = _ref.read(artworkResolverProvider);
+      final resolved = await resolver.resolve(query);
+
+      if (resolved.isValid &&
+          !resolved.isNeutralFallback &&
+          resolved.source != ArtworkSource.youtube &&
+          !resolved.imageUrl.contains('ytimg.com') &&
+          !resolved.imageUrl.contains('youtube.com')) {
+        if (_playRequestToken != token) return; // Stale track race guard
+
+        final current = state.currentTrack;
+        if (current != null && isSameTrackId(current.id, track.id)) {
+          final updatedTrack = (current is Track)
+              ? current.copyWith(
+                  albumArtworkUrl: resolved.imageUrl,
+                  resolvedArtworkUrl: resolved.imageUrl,
+                  artworkSource: resolved.source.name,
+                  artworkMatchConfidence: resolved.confidence,
+                )
+              : current;
+
+          state = state.copyWith(currentTrack: updatedTrack);
+          _handler.updateActiveMediaItemArtwork(track.id, resolved.imageUrl);
+          debugPrint('[PlayerController] Successfully applied resolved album cover: ${resolved.imageUrl} (${resolved.source.name})');
+        }
+      }
+    } catch (e) {
+      debugPrint('[PlayerController] Artwork resolution background task failed: $e');
+    }
   }
 
   Future<void> play() async {

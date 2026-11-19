@@ -389,7 +389,7 @@ void main() {
       expect(await itunesDisabled.resolve(query), isNull);
     });
 
-    test('YouTube fallback is returned when online providers fail', () async {
+    test('Neutral fallback is returned when online providers fail (never YouTube thumbnails as album artwork)', () async {
       // Mock both MB and Deezer returning empty
       mockAdapter.setJsonResponse('musicbrainz.org/ws/2/recording', {'recordings': <dynamic>[]});
       mockAdapter.setJsonResponse('api.deezer.com/search/track', {'data': <dynamic>[]});
@@ -403,9 +403,9 @@ void main() {
 
       final result = await resolver.resolve(query);
 
-      expect(result.source, equals(ArtworkSource.youtube));
-      expect(result.confidence, equals(0.5));
-      expect(result.imageUrl, equals('https://i.ytimg.com/vi/rare/hqdefault.jpg'));
+      expect(result.source, equals(ArtworkSource.neutralFallback));
+      expect(result.isNeutralFallback, isTrue);
+      expect(result.confidence, equals(0.0));
     });
 
     test('Neutral fallback is returned when all providers fail and no thumbnail exists', () async {
@@ -425,7 +425,7 @@ void main() {
       expect(result.confidence, equals(0.0));
     });
 
-    test('Offline / Connection Timeout falls back gracefully without unhandled exception', () async {
+    test('Offline / Connection Timeout falls back gracefully to neutral fallback without unhandled exception', () async {
       mockAdapter.setErrorResponse('musicbrainz.org', 503);
       mockAdapter.setErrorResponse('api.deezer.com', 503);
 
@@ -437,7 +437,8 @@ void main() {
       );
 
       final result = await resolver.resolve(query);
-      expect(result.source, equals(ArtworkSource.youtube));
+      expect(result.source, equals(ArtworkSource.neutralFallback));
+      expect(result.isNeutralFallback, isTrue);
     });
 
     test('Cache hit returns cached result immediately without new network requests', () async {

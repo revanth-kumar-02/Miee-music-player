@@ -227,12 +227,15 @@ class YouTubeVideo implements MusicItem {
       reliableArtist: reliableArtist ?? canonicalArtist,
       reliableTitle: reliableTitle ?? canonicalTitle,
     );
-    final hasHighRes = highResArtworkUrl != null && highResArtworkUrl!.isNotEmpty;
+    final hasHighRes = highResArtworkUrl != null &&
+        highResArtworkUrl!.isNotEmpty &&
+        !highResArtworkUrl!.contains('ytimg.com') &&
+        !highResArtworkUrl!.contains('youtube.com');
     return Track(
       id: 'youtube_$id',
       title: canonicalTitle ?? cleaned.title,
       artist: canonicalArtist ?? cleaned.artist,
-      imageUrl: hasHighRes ? highResArtworkUrl! : thumbnailUrl,
+      imageUrl: hasHighRes ? highResArtworkUrl! : '',
       duration: duration,
       filePath: audioStreamUrl ?? videoUrl, // Playback engine will recognize direct audio stream or YouTube URL
       isFavorited: false,
@@ -248,9 +251,9 @@ class YouTubeVideo implements MusicItem {
       viewCount: viewCount,
       youtubeThumbnailUrl: thumbnailUrl,
       albumArtworkUrl: hasHighRes ? highResArtworkUrl : null,
-      artworkSource: hasHighRes ? (metadataProvider ?? 'itunes') : 'youtube',
-      artworkMatchConfidence: hasHighRes ? 0.95 : 0.5,
-      resolvedArtworkUrl: hasHighRes ? highResArtworkUrl : thumbnailUrl,
+      artworkSource: hasHighRes ? (metadataProvider ?? 'itunes') : 'unresolved',
+      artworkMatchConfidence: hasHighRes ? 0.95 : 0.0,
+      resolvedArtworkUrl: hasHighRes ? highResArtworkUrl : null,
       mbid: mbid,
       recordingMbid: recordingMbid,
       releaseMbid: releaseMbid,

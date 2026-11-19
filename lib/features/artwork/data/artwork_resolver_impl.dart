@@ -87,6 +87,9 @@ class ArtworkResolver {
   }
 
   Future<ResolvedArtwork> _cacheAndReturn(String key, ResolvedArtwork artwork, {String? canonicalKey}) async {
+    if (artwork.source == ArtworkSource.youtube) {
+      return ResolvedArtwork.neutralFallback();
+    }
     ResolvedArtwork result = artwork;
     if (cacheImagesLocally &&
         !artwork.isLocal &&
@@ -196,8 +199,25 @@ class ArtworkResolver {
         if (cached.source != ArtworkSource.youtube &&
             !cached.isNeutralFallback &&
             cached.confidence >= 0.80) {
-          debugPrint('[ArtworkDiag] Cache HIT (${cached.source.name}) for "${query.title}": ${cached.imageUrl}');
-          return cached;
+          if (cacheImagesLocally &&
+              !cached.isLocal &&
+              cached.imageUrl.startsWith('http') &&
+              !ArtworkCache.hasValidLocalFile(cached.localCachedPath)) {
+            final localPath = await cache.cacheImageFromUrl(key, cached.imageUrl);
+            if (localPath != null) {
+              final updated = cached.copyWith(localCachedPath: localPath);
+              await cache.put(key, updated);
+              return updated;
+            } else {
+              // Remote URL expired/invalid, evict and proceed to fresh resolution
+              debugPrint('[ArtworkDiag] Cached remote URL invalid/expired, evicting ($key)');
+              await cache.evict(key);
+              await cache.evict(canonKey);
+            }
+          } else {
+            debugPrint('[ArtworkDiag] Cache HIT (${cached.source.name}) for "${query.title}": ${cached.imageUrl}');
+            return cached;
+          }
         }
       } else {
         debugPrint('[ArtworkDiag] Cache MISS for "${query.title}" ($key)');
@@ -207,18 +227,21 @@ class ArtworkResolver {
     // 3. YouTube Music resolution path:
     // Priority 1: Apple iTunes Search API (Studio 600x600bb)
     // Priority 2: Deezer catalog
-    // Priority 3: Authentic YouTube thumbnail fallback
+    // Priority 3: MusicBrainz / Cover Art Archive
+    // Priority 4: Nordic Cobalt Neutral Fallback (Never YouTube thumbnails)
     if (query.isYoutube) {
+      final catalogQuery = _cleanYoutubeQueryForCatalog(query);
+
       // Snappy iTunes catalog check (max 3500ms) to upgrade to studio 600x600 artwork
       if (itunesProvider.isEnabled) {
         try {
-          debugPrint('[ArtworkDiag] Provider queried: Apple iTunes for "${query.title}" by "${query.artist}"');
+          debugPrint('[ArtworkDiag] Provider queried: Apple iTunes for "${catalogQuery.title}" by "${catalogQuery.artist}"');
           final itunesArtwork = await itunesProvider
-              .resolve(query, forceRefresh: forceRefresh)
+              .resolve(catalogQuery, forceRefresh: forceRefresh)
               .timeout(
             const Duration(milliseconds: 3500),
             onTimeout: () {
-              debugPrint('[ArtworkDiag] iTunes provider timed out (>3500ms) for "${query.title}"');
+              debugPrint('[ArtworkDiag] iTunes provider timed out (>3500ms) for "${catalogQuery.title}"');
               return null;
             },
           );
@@ -237,12 +260,11 @@ class ArtworkResolver {
       // Secondary catalog check: Deezer (max 3000ms) with cleaned YouTube metadata
       if (deezerProvider.isEnabled) {
         try {
-          debugPrint('[ArtworkDiag] Provider queried: Deezer for "${query.title}" by "${query.artist}"');
-          final catalogQuery = _cleanYoutubeQueryForCatalog(query);
+          debugPrint('[ArtworkDiag] Provider queried: Deezer for "${catalogQuery.title}" by "${catalogQuery.artist}"');
           final deezerArtwork = await deezerProvider.resolve(catalogQuery).timeout(
             const Duration(milliseconds: 3000),
             onTimeout: () {
-              debugPrint('[ArtworkDiag] Deezer provider timed out (>3000ms) for "${query.title}"');
+              debugPrint('[ArtworkDiag] Deezer provider timed out (>3000ms) for "${catalogQuery.title}"');
               return null;
             },
           );
@@ -256,19 +278,24 @@ class ArtworkResolver {
         }
       }
 
-      // Fall back to authentic YouTube thumbnail
-      debugPrint('[ArtworkDiag] External providers unconfident or unavailable. Falling back to YouTube thumbnail.');
+      // Tertiary catalog check: MusicBrainz / Cover Art Archive
       try {
-        final ytFallback = await youtubeFallbackProvider.resolve(query);
-        if (ytFallback != null) {
-          debugPrint('[ArtworkDiag] Selected artwork source: YouTube Thumbnail (Fallback) | URL: ${ytFallback.imageUrl}');
-          return await _cacheAndReturn(key, ytFallback);
+        final mbMatch = await musicBrainzProvider.findReleaseMatch(catalogQuery);
+        if (mbMatch != null && mbMatch.releaseMbid.isNotEmpty) {
+          final caaArtwork = await coverArtArchiveProvider.fetchCoverArt(
+            mbid: mbMatch.releaseMbid,
+            confidence: mbMatch.confidence,
+          );
+          if (caaArtwork != null && caaArtwork.confidence >= 0.80) {
+            debugPrint('[ArtworkDiag] Selected artwork source: CoverArtArchive | URL: ${caaArtwork.imageUrl}');
+            return await _cacheAndReturn(key, caaArtwork, canonicalKey: canonKey);
+          }
         }
       } catch (e) {
-        debugPrint('[ArtworkDiag] YouTube fallback provider error: $e');
+        debugPrint('[ArtworkDiag] MusicBrainz/CAA lookup failed for YouTube track: $e');
       }
 
-      debugPrint('[ArtworkDiag] Selected artwork source: NeutralFallback');
+      debugPrint('[ArtworkDiag] External providers unconfident or unavailable for "${query.title}". Returning neutral fallback (never YouTube thumbnail).');
       return ResolvedArtwork.neutralFallback();
     }
 
@@ -357,18 +384,7 @@ class ArtworkResolver {
   }
 
   Future<ResolvedArtwork> _fallbackOrNeutral(ArtworkQuery query) async {
-    final key = query.cacheKey;
-
-    // 5. Last-resort fallback: authentic YouTube thumbnail
-    try {
-      final ytFallback = await youtubeFallbackProvider.resolve(query);
-      if (ytFallback != null) {
-        debugPrint('[ArtworkDiag] Selected artwork source: YouTube Thumbnail (Fallback) | URL: ${ytFallback.imageUrl}');
-        return await _cacheAndReturn(key, ytFallback);
-      }
-    } catch (_) {}
-
-    // 6. Deterministic neutral fallback
+    // Return deterministic neutral fallback (never YouTube thumbnails as album artwork)
     debugPrint('[ArtworkDiag] Selected artwork source: NeutralFallback for "${query.title}"');
     return ResolvedArtwork.neutralFallback();
   }

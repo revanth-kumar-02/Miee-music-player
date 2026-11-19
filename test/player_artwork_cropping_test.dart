@@ -12,20 +12,21 @@ void main() {
   final testOverrides = [
     resolvedArtworkProvider.overrideWith((ref, query) async {
       return ResolvedArtwork(
-        imageUrl: query.fallbackThumbnailUrl ?? 'https://example.com/art.jpg',
-        source: ArtworkSource.youtube,
-        confidence: 1.0,
+        imageUrl: query.albumArtworkUrl ?? 'https://is1-ssl.mzstatic.com/image/thumb/Music/cover.jpg/600x600bb.jpg',
+        source: ArtworkSource.itunes,
+        confidence: 0.95,
       );
     }),
   ];
 
   group('Full-Screen Player Artwork Display & Fit Tests', () {
-    testWidgets('Renders landscape (16:9) artwork with BoxFit.contain preserving full image', (tester) async {
-      const landscapeTrack = Track(
+    testWidgets('Renders studio album artwork with BoxFit.cover filling square container without distortion', (tester) async {
+      const studioTrack = Track(
         id: 'youtube_fafafa',
         title: 'FA FA FA',
         artist: 'Sai Abhyankkar & Dhanush',
-        imageUrl: 'https://i.ytimg.com/vi/fafafa123/maxresdefault.jpg',
+        imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music/fafafa.jpg/600x600bb.jpg',
+        albumArtworkUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music/fafafa.jpg/600x600bb.jpg',
         duration: '3:04',
       );
 
@@ -41,9 +42,9 @@ void main() {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(28),
                     child: MieeArtworkImage(
-                      musicItem: landscapeTrack,
-                      explicitUrl: landscapeTrack.imageUrl,
-                      fit: BoxFit.contain,
+                      musicItem: studioTrack,
+                      explicitUrl: studioTrack.albumArtworkUrl,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
@@ -59,15 +60,61 @@ void main() {
       expect(artworkFinder, findsOneWidget);
 
       final mieeArtwork = tester.widget<MieeArtworkImage>(artworkFinder);
-      expect(mieeArtwork.fit, equals(BoxFit.contain));
+      expect(mieeArtwork.fit, equals(BoxFit.cover));
     });
 
-    testWidgets('Renders square (1:1) album artwork with BoxFit.contain', (tester) async {
+    testWidgets('YouTube thumbnails are rejected from album artwork and fallback to neutral fallback', (tester) async {
+      const ytTrack = Track(
+        id: 'youtube_urugi',
+        title: 'Urugi Urugi',
+        artist: 'Siddhu Kumar',
+        imageUrl: '',
+        youtubeThumbnailUrl: 'https://i.ytimg.com/vi/urugi123/hqdefault.jpg',
+        duration: '3:56',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            resolvedArtworkProvider.overrideWith((ref, query) async {
+              return ResolvedArtwork.neutralFallback();
+            }),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 320,
+                  height: 320,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: MieeArtworkImage(
+                      musicItem: ytTrack,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final artworkFinder = find.byType(MieeArtworkImage);
+      expect(artworkFinder, findsOneWidget);
+
+      // Verify neutral fallback icon is rendered instead of YouTube video banner
+      expect(find.byIcon(Icons.album_rounded), findsOneWidget);
+    });
+
+    testWidgets('Renders square (1:1) album artwork with BoxFit.cover', (tester) async {
       const squareTrack = Track(
         id: 'track_square',
         title: 'Blue Hour',
         artist: 'Dhanush',
         imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music/cover.jpg/600x600bb.jpg',
+        albumArtworkUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music/cover.jpg/600x600bb.jpg',
         duration: '2:33',
       );
 
@@ -84,8 +131,8 @@ void main() {
                     borderRadius: BorderRadius.circular(28),
                     child: MieeArtworkImage(
                       musicItem: squareTrack,
-                      explicitUrl: squareTrack.imageUrl,
-                      fit: BoxFit.contain,
+                      explicitUrl: squareTrack.albumArtworkUrl,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
@@ -100,7 +147,7 @@ void main() {
       expect(artworkFinder, findsOneWidget);
 
       final mieeArtwork = tester.widget<MieeArtworkImage>(artworkFinder);
-      expect(mieeArtwork.fit, equals(BoxFit.contain));
+      expect(mieeArtwork.fit, equals(BoxFit.cover));
     });
 
     testWidgets('Renders portrait (3:4) soundtrack artwork with BoxFit.contain without vertical cropping', (tester) async {

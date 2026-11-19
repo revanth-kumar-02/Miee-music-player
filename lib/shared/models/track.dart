@@ -120,23 +120,31 @@ class Track implements MusicItem {
   String get displayTitle => DisplayTitleNormalizer.normalize(title);
 
   /// Deterministic artwork source priority getter:
-  /// 1. Verified high-confidence external album artwork (iTunes, Deezer, etc.)
+  /// 1. Verified high-confidence external studio album artwork (iTunes, Deezer, CoverArtArchive)
   /// 2. Valid embedded local album artwork
-  /// 3. Active resolved artwork URL
+  /// 3. Active resolved studio artwork URL
   /// 4. YouTube video thumbnail fallback
   /// 5. Raw initial image URL
   @override
   String get imageUrl {
-    if (albumArtworkUrl != null && albumArtworkUrl!.isNotEmpty) {
+    if (albumArtworkUrl != null &&
+        albumArtworkUrl!.isNotEmpty &&
+        !albumArtworkUrl!.contains('ytimg.com') &&
+        !albumArtworkUrl!.contains('youtube.com')) {
       return albumArtworkUrl!;
     }
     if (embeddedArtworkPath != null && embeddedArtworkPath!.isNotEmpty) {
       return embeddedArtworkPath!;
     }
-    if (resolvedArtworkUrl != null && resolvedArtworkUrl!.isNotEmpty) {
+    if (resolvedArtworkUrl != null &&
+        resolvedArtworkUrl!.isNotEmpty &&
+        !resolvedArtworkUrl!.contains('ytimg.com') &&
+        !resolvedArtworkUrl!.contains('youtube.com')) {
       return resolvedArtworkUrl!;
     }
-    if (_rawImageUrl.isNotEmpty && !_rawImageUrl.contains('i.ytimg.com')) {
+    if (_rawImageUrl.isNotEmpty &&
+        !_rawImageUrl.contains('ytimg.com') &&
+        !_rawImageUrl.contains('youtube.com')) {
       return _rawImageUrl;
     }
     if (youtubeThumbnailUrl != null && youtubeThumbnailUrl!.isNotEmpty) {

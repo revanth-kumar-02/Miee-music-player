@@ -191,7 +191,7 @@ class PlayerPage extends ConsumerWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(28),
                         child: hasTrack
-                            ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.contain)
+                            ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.cover)
                             : _buildFallbackArtwork(),
                       ),
                     ),
@@ -741,7 +741,7 @@ class PlayerPage extends ConsumerWidget {
                                     borderRadius: BorderRadius.circular(isCompactHeight ? 16 : 20),
                                     child: SizedBox.expand(
                                       child: hasTrack
-                                          ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.contain)
+                                          ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.cover)
                                           : _buildFallbackArtwork(),
                                     ),
                                   ),
@@ -1669,11 +1669,19 @@ class PlayerPage extends ConsumerWidget {
   Widget _buildArtworkImage(
     String? rawUrl, [
     MusicItem? item,
-    BoxFit fit = BoxFit.contain,
+    BoxFit fit = BoxFit.cover,
   ]) {
+    // Only pass explicitUrl if it represents authentic studio album artwork (never YouTube thumbnails)
+    final cleanUrl = (rawUrl != null &&
+            rawUrl.isNotEmpty &&
+            !rawUrl.contains('ytimg.com') &&
+            !rawUrl.contains('youtube.com'))
+        ? rawUrl
+        : null;
+
     return MieeArtworkImage(
       musicItem: item,
-      explicitUrl: rawUrl,
+      explicitUrl: cleanUrl,
       fit: fit,
       borderRadius: BorderRadius.circular(28),
       errorWidget: _buildFallbackArtwork(),

@@ -99,8 +99,8 @@ void main() {
       );
       final resolved = await resolver.resolve(query);
 
-      expect(resolved.source, ArtworkSource.youtube);
-      expect(resolved.imageUrl, 'https://i.ytimg.com/vi/indieTrack12/hqdefault.jpg');
+      expect(resolved.source, ArtworkSource.neutralFallback);
+      expect(resolved.isNeutralFallback, isTrue);
     });
 
     // 3. Local track with embedded artwork
