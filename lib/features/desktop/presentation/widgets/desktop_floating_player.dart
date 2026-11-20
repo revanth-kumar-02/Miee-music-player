@@ -47,11 +47,11 @@ class DesktopFloatingPlayer extends ConsumerWidget {
     final progress = (position.inMilliseconds / totalMs).clamp(0.0, 1.0);
 
     return Container(
-      width: 670,
+      width: 580,
       height: 64,
       decoration: BoxDecoration(
         color: const Color(0xD916141B), // Softer smoked dark velvet glass
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(14), // Modern square rounded rectangle container
         border: Border.all(
           color: const Color(0x1AFFEBF0),
           width: 1.0,
@@ -71,7 +71,7 @@ class DesktopFloatingPlayer extends ConsumerWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(14),
         child: BackdropFilter(
           filter: ImageFilter.blur(
             sigmaX: MidnightVelvetTokens.glassBlurSigma,
@@ -81,14 +81,14 @@ class DesktopFloatingPlayer extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             child: Row(
               children: [
-                // ── 1. Circular Album Art & Track Meta (Left) ───────────
+                // ── 1. Square Album Art & Track Meta (Left) ─────────────
                 GestureDetector(
                   onTap: onOpenNowSpinning,
                   child: Container(
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: const Color(0x26FFEBF0),
                         width: 1.0,
@@ -101,7 +101,8 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    child: ClipOval(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
                       child: (currentTrack != null && currentTrack.effectiveArtworkUrl.isNotEmpty)
                           ? MieeArtworkImage(
                               explicitUrl: currentTrack.effectiveArtworkUrl,
@@ -162,58 +163,56 @@ class DesktopFloatingPlayer extends ConsumerWidget {
 
                 const SizedBox(width: 6),
 
-                // ── 2. Central Waveform & Timecode Scrubber (Center) ────
+                // ── 2. Central Waveform & Dual Timecodes (Center) ───────
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Amber-to-Rose Glowing Gradient Waveform
-                      SizedBox(
-                        height: 20,
-                        child: _buildGradientWaveform(progress, isPlaying),
-                      ),
-                      const SizedBox(height: 3),
-
-                      // Linear Scrubber + Dual Timecodes + Amber Playhead Dot
-                      Row(
+                  child: Center(
+                    child: SizedBox(
+                      width: 236,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            _formatDuration(position),
-                            style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
-                              fontSize: 9,
-                              color: const Color(0xFF78716C),
-                            ),
+                          // Radiant Half-Yellow / Half-Red Glowing Waveform (Tappable for seeking)
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTapDown: (details) {
+                                  final ratio = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
+                                  final targetMs = (ratio * totalMs).round();
+                                  controller.seek(Duration(milliseconds: targetMs));
+                                },
+                                child: SizedBox(
+                                  height: 22,
+                                  child: _buildGradientWaveform(progress, isPlaying),
+                                ),
+                              );
+                            },
                           ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTapDown: (details) {
-                                _handleSeek(context, details.localPosition.dx, totalMs, controller);
-                              },
-                              child: SizedBox(
-                                height: 8,
-                                child: CustomPaint(
-                                  painter: _MiniScrubberPainter(
-                                    progress: progress,
-                                    activeColor: const Color(0xFFF59E0B), // Radiant amber playhead
-                                    inactiveColor: const Color(0x30FFEBF0),
-                                  ),
+                          const SizedBox(height: 3),
+
+                          // Dual Timecodes (Playback line removed)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatDuration(position),
+                                style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
+                                  fontSize: 9,
+                                  color: const Color(0xFF78716C),
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            duration.inSeconds > 0 ? _formatDuration(duration) : '4:38',
-                            style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
-                              fontSize: 9,
-                              color: const Color(0xFF78716C),
-                            ),
+                              Text(
+                                duration.inSeconds > 0 ? _formatDuration(duration) : '4:38',
+                                style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
+                                  fontSize: 9,
+                                  color: const Color(0xFF78716C),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
 
@@ -336,66 +335,73 @@ class DesktopFloatingPlayer extends ConsumerWidget {
     );
   }
 
-  void _handleSeek(
-    BuildContext context,
-    double localX,
-    double totalMs,
-    dynamic controller,
-  ) {
-    final RenderBox? box = context.findRenderObject() as RenderBox?;
-    if (box != null && box.size.width > 0) {
-      final ratio = (localX / box.size.width).clamp(0.0, 1.0);
-      final targetMs = (ratio * totalMs).round();
-      controller.seek(Duration(milliseconds: targetMs));
-    }
-  }
-
   Widget _buildGradientWaveform(double progress, bool isPlaying) {
-    const barCount = 52;
-    // Master waveform profile with authentic organic crest variation matching reference
-    final heights = [
-      0.30, 0.40, 0.55, 0.70, 0.85, 0.95, 1.00, 0.92,
-      0.80, 0.65, 0.50, 0.40, 0.52, 0.68, 0.82, 0.94,
-      0.90, 0.78, 0.62, 0.72, 0.85, 0.75, 0.58, 0.68,
-      0.82, 0.72, 0.58, 0.45, 0.55, 0.70, 0.82, 0.68,
-      0.52, 0.38, 0.48, 0.60, 0.72, 0.58, 0.45, 0.35,
-      0.45, 0.55, 0.42, 0.32, 0.42, 0.50, 0.38, 0.28,
-      0.38, 0.45, 0.30, 0.20,
+    const barCount = 44;
+    // Authentic organic waveform silhouette extracted directly from the reference
+    const heights = [
+      0.09, 0.12, 0.22, 0.34, 0.41, 0.59, 0.72, 0.88,
+      0.84, 0.81, 0.78, 0.72, 0.78, 0.81, 0.81, 0.75,
+      0.66, 0.69, 0.75, 0.81, 0.94, 1.00, 1.00, 0.97,
+      0.91, 0.84, 0.81, 0.69, 0.56, 0.53, 0.50, 0.53,
+      0.62, 0.56, 0.47, 0.38, 0.31, 0.28, 0.44, 0.56,
+      0.47, 0.34, 0.25, 0.31,
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
-        final barWidth = math.max(1.5, (totalWidth / barCount) - 1.6);
+        final barWidth = math.max(1.8, (totalWidth / barCount) - 2.5);
+
+        // At 0:00 or start, illuminate the entire waveform with radiant reference colors
+        final effectiveProgress = progress <= 0.02 ? 1.0 : progress;
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: List.generate(barCount, (i) {
+            final t = i / (barCount - 1);
             final barProgress = i / barCount;
-            final isPlayed = barProgress <= progress;
+            final isPlayed = barProgress <= effectiveProgress;
             final normalizedHeight = heights[i % heights.length];
-            final barHeight = 3.5 + (normalizedHeight * 16.5);
+            final barHeight = math.max(3.0, 3.0 + (normalizedHeight * 17.0));
 
-            // Radiant Champagne Amber to Glowing Coral Rose gradient
-            final color = Color.lerp(
-              const Color(0xFFFFD54F), // Bright luminous champagne gold / amber
-              MidnightVelvetTokens.primaryEmber, // Glowing coral rose
-              i / barCount,
-            )!;
+            // Pure half-yellow (0 to ~48%) and half-red (~52% to 100%) gradient calibration
+            final Color color;
+            if (t < 0.48) {
+              // Radiant champagne-amber yellow
+              color = Color.lerp(
+                const Color(0xFFFFD54F),
+                const Color(0xFFF59E0B),
+                t / 0.48,
+              )!;
+            } else if (t > 0.52) {
+              // Radiant coral-rose to intense ruby ember red
+              color = Color.lerp(
+                const Color(0xFFFF3366),
+                const Color(0xFFD32F2F),
+                (t - 0.52) / 0.48,
+              )!;
+            } else {
+              // Smooth midpoint transition
+              color = Color.lerp(
+                const Color(0xFFF59E0B),
+                const Color(0xFFFF3366),
+                (t - 0.48) / 0.04,
+              )!;
+            }
 
             return Container(
               width: barWidth,
               height: barHeight,
               decoration: BoxDecoration(
-                color: isPlayed ? color : color.withValues(alpha: 0.28),
+                color: isPlayed ? color : color.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(1.5),
                 boxShadow: isPlayed
                     ? [
                         BoxShadow(
-                          color: color.withValues(alpha: 0.55),
-                          blurRadius: 4,
-                          spreadRadius: 0.5,
+                          color: color.withValues(alpha: 0.65),
+                          blurRadius: 5,
+                          spreadRadius: 0.6,
                         ),
                       ]
                     : null,
@@ -405,57 +411,5 @@ class DesktopFloatingPlayer extends ConsumerWidget {
         );
       },
     );
-  }
-}
-
-class _MiniScrubberPainter extends CustomPainter {
-  final double progress;
-  final Color activeColor;
-  final Color inactiveColor;
-
-  _MiniScrubberPainter({
-    required this.progress,
-    required this.activeColor,
-    required this.inactiveColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final y = size.height / 2;
-    final trackPaint = Paint()
-      ..color = inactiveColor
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-
-    final activePaint = Paint()
-      ..color = activeColor
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
-
-    // Draw full inactive track
-    canvas.drawLine(Offset(0, y), Offset(size.width, y), trackPaint);
-
-    final activeWidth = (size.width * progress).clamp(0.0, size.width);
-    if (activeWidth > 0) {
-      // Draw active progress line
-      canvas.drawLine(Offset(0, y), Offset(activeWidth, y), activePaint);
-
-      // Draw subtle amber playhead dot matching reference
-      final dotPaint = Paint()
-        ..color = activeColor
-        ..style = PaintingStyle.fill;
-
-      final dotShadowPaint = Paint()
-        ..color = activeColor.withValues(alpha: 0.5)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-
-      canvas.drawCircle(Offset(activeWidth, y), 3.0, dotShadowPaint);
-      canvas.drawCircle(Offset(activeWidth, y), 3.0, dotPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniScrubberPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }

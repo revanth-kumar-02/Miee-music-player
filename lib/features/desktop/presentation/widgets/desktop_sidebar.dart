@@ -29,7 +29,7 @@ class DesktopSidebar extends ConsumerWidget {
       width: sidebarWidth,
       height: double.infinity,
       decoration: const BoxDecoration(
-        color: Color(0xE6262428), // Dark Graphite surface (measured RGB 36-42), subtly lighter than canvas
+        color: Color(0xF02A272B), // Warmer graphite with subtle bronze undertone
         border: Border(
           right: BorderSide(
             color: Color(0x1FFFFFFF), // Subtle 1px graphite separator
@@ -157,7 +157,7 @@ class DesktopSidebar extends ConsumerWidget {
             left: 0,
             child: Container(
               width: 2.5,
-              height: 20,
+              height: 18,
               decoration: const BoxDecoration(
                 color: Color(0xFFD5AD8A), // Refined warm champagne gold (RGB 213, 173, 138)
                 borderRadius: BorderRadius.horizontal(
@@ -181,23 +181,17 @@ class DesktopSidebar extends ConsumerWidget {
             waitDuration: const Duration(milliseconds: 400),
             child: InkWell(
               onTap: () => onSectionChanged(section),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(9.5),
               hoverColor: const Color(0x14FFFFFF),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                width: 42,
-                height: 36,
+                width: 48,
+                height: 32,
                 decoration: BoxDecoration(
                   color: isSelected
                       ? const Color(0x385A3F2C) // Refined translucent warm bronze (measured RGB 75, 58, 48)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  border: isSelected
-                      ? Border.all(
-                          color: const Color(0x28D5AD8A),
-                          width: 1.0,
-                        )
-                      : null,
+                  borderRadius: BorderRadius.circular(9.5),
                 ),
                 child: Center(
                   child: Icon(
@@ -227,11 +221,11 @@ class DesktopSidebar extends ConsumerWidget {
       waitDuration: const Duration(milliseconds: 400),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9.5),
         hoverColor: const Color(0x14FFFFFF),
         child: SizedBox(
-          width: 42,
-          height: 36,
+          width: 48,
+          height: 32,
           child: Stack(
             alignment: Alignment.center,
             children: [
