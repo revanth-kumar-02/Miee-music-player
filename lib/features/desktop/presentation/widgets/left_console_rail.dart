@@ -6,12 +6,15 @@ import '../../../../app/theme/midnight_velvet_tokens.dart';
 import '../../../../features/library/providers/library_providers.dart';
 
 enum DesktopNavSection {
+  dashboard,
   nowSpinning,
   cratesAndMixes,
   studioCatalog,
   heavyRotation,
   sessionHistory,
   masterAlbums,
+  search,
+  settings,
 }
 
 class LeftConsoleRail extends ConsumerWidget {

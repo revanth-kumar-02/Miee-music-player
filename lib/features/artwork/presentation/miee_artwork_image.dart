@@ -134,7 +134,7 @@ class MieeArtworkImage extends ConsumerWidget {
           !explicitUrl!.contains('/vi/placeholder/')) {
         return _renderDirectImage(context, explicitUrl!, radius, effectiveQuery);
       }
-      return _buildNeutralFallback(context, radius);
+      return errorWidget ?? _buildNeutralFallback(context, radius);
     }
 
     final sourceName = artwork.source.name;
@@ -249,12 +249,15 @@ class MieeArtworkImage extends ConsumerWidget {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fallbackBg = isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
+
     return ClipRRect(
       borderRadius: radius,
       child: Container(
         width: width,
         height: height,
-        color: AppColors.paleConcrete,
+        color: fallbackBg,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -289,12 +292,15 @@ class MieeArtworkImage extends ConsumerWidget {
   }
 
   Widget _buildPlaceholder(BuildContext context, BorderRadius radius) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fallbackBg = isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
+
     return ClipRRect(
       borderRadius: radius,
       child: Container(
         width: width,
         height: height,
-        color: AppColors.paleConcrete,
+        color: fallbackBg,
         child: const Center(
           child: Icon(
             Icons.music_note_rounded,
@@ -307,12 +313,15 @@ class MieeArtworkImage extends ConsumerWidget {
   }
 
   Widget _buildNeutralFallback(BuildContext context, BorderRadius radius) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fallbackBg = isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
+
     return ClipRRect(
       borderRadius: radius,
       child: Container(
         width: width,
         height: height,
-        color: AppColors.paleConcrete,
+        color: fallbackBg,
         child: Center(
           child: Icon(
             Icons.album_rounded,

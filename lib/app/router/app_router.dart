@@ -205,12 +205,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         navigatorKey: shellNavigatorKey,
         builder: (context, state, child) {
-          final isDesktop = !kIsWeb &&
-              (defaultTargetPlatform == TargetPlatform.windows ||
-                  defaultTargetPlatform == TargetPlatform.linux ||
-                  defaultTargetPlatform == TargetPlatform.macOS);
+          final isDesktop = (!kIsWeb &&
+                  (defaultTargetPlatform == TargetPlatform.windows ||
+                      defaultTargetPlatform == TargetPlatform.linux ||
+                      defaultTargetPlatform == TargetPlatform.macOS)) ||
+              MediaQuery.of(context).size.width >= 960;
           if (isDesktop) {
-            return DesktopShell(child: child);
+            return DesktopShell(
+              currentPath: state.matchedLocation,
+              child: child,
+            );
           }
           return MainAppShell(child: child);
         },

@@ -139,4 +139,45 @@ class MidnightVelvetTokens {
       ],
     );
   }
+
+  // --- Complete Material 3 Dark Theme for Desktop Midnight Velvet ---
+  static ThemeData get darkTheme => ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: canvasBase,
+        canvasColor: canvasBase,
+        cardColor: surfaceCard,
+        dialogBackgroundColor: surfaceElevated,
+        colorScheme: const ColorScheme(
+          brightness: Brightness.dark,
+          primary: primaryEmber,
+          onPrimary: Colors.white,
+          secondary: amberChampagne,
+          onSecondary: Colors.black,
+          surface: surfaceLayer1,
+          onSurface: textDisplay,
+          surfaceContainer: surfaceCard,
+          surfaceContainerHigh: surfaceElevated,
+          error: Color(0xFFEF4444),
+          onError: Colors.white,
+          outline: hairlineRim,
+          outlineVariant: hairlineRimSubtle,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: canvasBase,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          iconTheme: IconThemeData(color: textDisplay),
+        ),
+        textTheme: TextTheme(
+          displayLarge: fontDisplayLarge,
+          displayMedium: fontDisplayMedium,
+          titleLarge: fontSectionTitle,
+          titleMedium: fontSectionTitle.copyWith(fontSize: 16),
+          bodyLarge: fontBodyMedium.copyWith(color: textDisplay, fontSize: 16),
+          bodyMedium: fontBodyMedium,
+          labelMedium: fontLabelSmall.copyWith(fontSize: 12),
+          labelSmall: fontLabelSmall,
+        ),
+      );
 }

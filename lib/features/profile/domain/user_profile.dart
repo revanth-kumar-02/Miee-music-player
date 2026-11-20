@@ -4,6 +4,7 @@ import '../../onboarding/domain/artist_model.dart';
 class UserProfile {
   final String uid;
   final String displayName;
+  final String? username;
   final String email;
   final String? avatarUrl;
   final bool onboardingCompleted;
@@ -17,6 +18,7 @@ class UserProfile {
   const UserProfile({
     required this.uid,
     required this.displayName,
+    this.username,
     required this.email,
     this.avatarUrl,
     this.onboardingCompleted = false,
@@ -32,11 +34,13 @@ class UserProfile {
     required String uid,
     required String email,
     required String displayName,
+    String? username,
   }) {
     final now = DateTime.now();
     return UserProfile(
       uid: uid,
       displayName: displayName.trim().isNotEmpty ? displayName.trim() : 'Miee Listener',
+      username: username ?? displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_'),
       email: email,
       onboardingCompleted: false,
       selectedArtistIds: const [],
@@ -75,6 +79,7 @@ class UserProfile {
     return UserProfile(
       uid: uid,
       displayName: data['displayName'] as String? ?? 'Miee Listener',
+      username: (data['username'] ?? data['user_name']) as String?,
       email: data['email'] as String? ?? '',
       avatarUrl: data['avatarUrl'] as String?,
       onboardingCompleted: data['onboardingCompleted'] as bool? ?? false,
@@ -90,6 +95,7 @@ class UserProfile {
   Map<String, dynamic> toMap() {
     return {
       'displayName': displayName,
+      'username': username,
       'email': email,
       'avatarUrl': avatarUrl,
       'onboardingCompleted': onboardingCompleted,
@@ -104,6 +110,7 @@ class UserProfile {
 
   UserProfile copyWith({
     String? displayName,
+    String? username,
     String? email,
     String? avatarUrl,
     bool? onboardingCompleted,
@@ -115,6 +122,7 @@ class UserProfile {
     return UserProfile(
       uid: uid,
       displayName: displayName ?? this.displayName,
+      username: username ?? this.username,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,

@@ -8,6 +8,8 @@ import 'package:Miee/core/audio/player_controller.dart';
 import 'package:Miee/core/audio/providers.dart';
 import 'package:Miee/core/storage/adapters/playlist_hive_model.dart';
 import 'package:Miee/features/desktop/presentation/desktop_shell.dart';
+import 'package:Miee/features/desktop/presentation/widgets/desktop_sidebar.dart';
+import 'package:Miee/features/desktop/presentation/widgets/desktop_floating_player.dart';
 import 'package:Miee/features/desktop/presentation/widgets/left_console_rail.dart';
 import 'package:Miee/features/desktop/presentation/widgets/top_telemetry_header.dart';
 import 'package:Miee/features/desktop/presentation/widgets/master_transport_deck.dart';
@@ -108,7 +110,7 @@ void main() {
       expect(find.text('DAC STANDBY • 44.1 KHZ'), findsOneWidget);
     });
 
-    testWidgets('4. DesktopShell mounts full console rail, top header, and transport dock', (tester) async {
+    testWidgets('4. DesktopShell mounts compact sidebar, floating player, and stage child', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 900));
 
       await tester.pumpWidget(
@@ -132,10 +134,39 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(LeftConsoleRail), findsOneWidget);
-      expect(find.byType(TopTelemetryHeader), findsOneWidget);
-      expect(find.byType(MasterTransportDeck), findsOneWidget);
+      expect(find.byType(DesktopSidebar), findsOneWidget);
+      expect(find.byType(DesktopFloatingPlayer), findsOneWidget);
       expect(find.text('MIEE STUDIO MASTER CONSOLE'), findsOneWidget);
+    });
+
+    testWidgets('5. DesktopDashboardView renders authentic reference headers and cards', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 900));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            favoritesProvider.overrideWith((ref) => FakeFavoritesNotifier()),
+            userPlaylistsProvider.overrideWith((ref) => FakePlaylistsNotifier()),
+            currentUserProfileProvider.overrideWithValue(null),
+            playerControllerProvider.overrideWith(
+              (ref) => FakePlayerController(const PlaybackState(status: PlaybackStatus.idle)),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: DesktopShell(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Continue Listening'), findsOneWidget);
+      expect(find.text('Daily Mixes'), findsOneWidget);
+      expect(find.text('Daily Mix 1'), findsOneWidget);
+      expect(find.text('Daily Mix 2'), findsOneWidget);
+      expect(find.byType(DesktopFloatingPlayer), findsOneWidget);
     });
   });
 }

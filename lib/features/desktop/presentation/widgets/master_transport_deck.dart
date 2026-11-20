@@ -13,11 +13,13 @@ import 'studio_audio_output_modal.dart';
 class MasterTransportDeck extends ConsumerWidget {
   final VoidCallback? onToggleQueue;
   final VoidCallback? onToggleOutput;
+  final VoidCallback? onOpenNowSpinning;
 
   const MasterTransportDeck({
     super.key,
     this.onToggleQueue,
     this.onToggleOutput,
+    this.onOpenNowSpinning,
   });
 
   String _formatDuration(Duration duration) {
@@ -78,51 +80,62 @@ class MasterTransportDeck extends ConsumerWidget {
                 flex: 3,
                 child: Row(
                   children: [
-                    // 52px Album Sleeve
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: 52,
-                        height: 52,
-                        child: currentTrack != null
-                            ? MieeArtworkImage(
-                                musicItem: currentTrack,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                color: MidnightVelvetTokens.surfaceCard,
-                                child: const Icon(
-                                  Icons.music_note_rounded,
-                                  color: MidnightVelvetTokens.textSecondary,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
+                    // Clickable Album Sleeve & Title (opens Now Spinning)
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            currentTrack?.displayTitle ?? 'No Active Master',
-                            style: MidnightVelvetTokens.fontSectionTitle.copyWith(
-                              fontSize: 14,
+                      child: InkWell(
+                        onTap: onOpenNowSpinning,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Row(
+                          children: [
+                            // 52px Album Sleeve
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                width: 52,
+                                height: 52,
+                                child: currentTrack != null
+                                    ? MieeArtworkImage(
+                                        musicItem: currentTrack,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Container(
+                                        color: MidnightVelvetTokens.surfaceCard,
+                                        child: const Icon(
+                                          Icons.music_note_rounded,
+                                          color: MidnightVelvetTokens.textSecondary,
+                                        ),
+                                      ),
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            currentTrack?.artist ?? 'Select a session track',
-                            style: MidnightVelvetTokens.fontBodyMedium.copyWith(
-                              fontSize: 12,
-                              color: MidnightVelvetTokens.textSecondary,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    currentTrack?.displayTitle ?? 'No Active Master',
+                                    style: MidnightVelvetTokens.fontSectionTitle.copyWith(
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    currentTrack?.artist ?? 'Select a session track',
+                                    style: MidnightVelvetTokens.fontBodyMedium.copyWith(
+                                      fontSize: 12,
+                                      color: MidnightVelvetTokens.textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     IconButton(

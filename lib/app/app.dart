@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/widget/miee_widget_sync_service.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
+import 'theme/midnight_velvet_tokens.dart';
 
 /// Root Widget of the Miee Music Player application.
 class MieeApp extends ConsumerStatefulWidget {
@@ -50,10 +52,18 @@ class _MieeAppState extends ConsumerState<MieeApp> with WidgetsBindingObserver {
     debugPrint('STARTUP: MieeApp.build() entered');
     final router = ref.watch(appRouterProvider);
     ref.read(widgetSyncServiceProvider).attachRouter(router);
+    final isDesktop = (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.windows ||
+                defaultTargetPlatform == TargetPlatform.linux ||
+                defaultTargetPlatform == TargetPlatform.macOS)) ||
+        kIsWeb;
+
     return MaterialApp.router(
       title: 'Miee Music Player',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
+      darkTheme: MidnightVelvetTokens.darkTheme,
+      themeMode: isDesktop ? ThemeMode.dark : ThemeMode.system,
       routerConfig: router,
     );
   }
