@@ -167,7 +167,7 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                 Expanded(
                   child: Center(
                     child: SizedBox(
-                      width: 236,
+                      width: 204,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -182,13 +182,13 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                                   controller.seek(Duration(milliseconds: targetMs));
                                 },
                                 child: SizedBox(
-                                  height: 22,
+                                  height: 26,
                                   child: _buildGradientWaveform(progress, isPlaying),
                                 ),
                               );
                             },
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 4),
 
                           // Dual Timecodes (Playback line removed)
                           Row(
@@ -336,49 +336,49 @@ class DesktopFloatingPlayer extends ConsumerWidget {
   }
 
   Widget _buildGradientWaveform(double progress, bool isPlaying) {
-    const barCount = 44;
-    // Authentic organic waveform silhouette extracted directly from the reference
+    const barCount = 52;
+    // Exact 52-bar spectrum heights reverse-engineered directly from reference pixels
     const heights = [
-      0.09, 0.12, 0.22, 0.34, 0.41, 0.59, 0.72, 0.88,
-      0.84, 0.81, 0.78, 0.72, 0.78, 0.81, 0.81, 0.75,
-      0.66, 0.69, 0.75, 0.81, 0.94, 1.00, 1.00, 0.97,
-      0.91, 0.84, 0.81, 0.69, 0.56, 0.53, 0.50, 0.53,
-      0.62, 0.56, 0.47, 0.38, 0.31, 0.28, 0.44, 0.56,
-      0.47, 0.34, 0.25, 0.31,
+      0.05, 0.08, 0.18, 0.24, 0.33, 0.48, 0.63, 0.78, 0.89, 0.85,
+      0.78, 0.67, 0.70, 0.70, 0.70, 0.74, 0.81, 0.74, 0.59, 0.52,
+      0.59, 0.67, 0.70, 0.85, 0.96, 1.00, 0.93, 0.93, 0.89, 0.78,
+      0.78, 0.78, 0.67, 0.48, 0.44, 0.48, 0.41, 0.44, 0.48, 0.59,
+      0.48, 0.41, 0.30, 0.22, 0.15, 0.19, 0.37, 0.52, 0.41, 0.26,
+      0.26, 0.15,
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
-        final barWidth = math.max(1.8, (totalWidth / barCount) - 2.5);
+        final barWidth = math.max(1.8, (totalWidth / barCount) - 1.9);
 
         // At 0:00 or start, illuminate the entire waveform with radiant reference colors
         final effectiveProgress = progress <= 0.02 ? 1.0 : progress;
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end, // Bottom-aligned baseline matching reference
           children: List.generate(barCount, (i) {
             final t = i / (barCount - 1);
             final barProgress = i / barCount;
             final isPlayed = barProgress <= effectiveProgress;
             final normalizedHeight = heights[i % heights.length];
-            final barHeight = math.max(3.0, 3.0 + (normalizedHeight * 17.0));
+            final barHeight = math.max(2.5, 2.5 + (normalizedHeight * 23.5));
 
             // Pure half-yellow (0 to ~48%) and half-red (~52% to 100%) gradient calibration
             final Color color;
             if (t < 0.48) {
               // Radiant champagne-amber yellow
               color = Color.lerp(
-                const Color(0xFFFFD54F),
-                const Color(0xFFF59E0B),
+                const Color(0xFFFFE082), // luminous warm champagne white-gold
+                const Color(0xFFF59E0B), // rich golden amber
                 t / 0.48,
               )!;
             } else if (t > 0.52) {
               // Radiant coral-rose to intense ruby ember red
               color = Color.lerp(
-                const Color(0xFFFF3366),
-                const Color(0xFFD32F2F),
+                const Color(0xFFFF3366), // vibrant luminous coral rose neon
+                const Color(0xFFD32F2F), // deep glowing ruby ember red
                 (t - 0.52) / 0.48,
               )!;
             } else {
@@ -395,13 +395,15 @@ class DesktopFloatingPlayer extends ConsumerWidget {
               height: barHeight,
               decoration: BoxDecoration(
                 color: isPlayed ? color : color.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(1.5),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(1.2)),
                 boxShadow: isPlayed
                     ? [
                         BoxShadow(
-                          color: color.withValues(alpha: 0.65),
-                          blurRadius: 5,
-                          spreadRadius: 0.6,
+                          color: color.withValues(
+                            alpha: normalizedHeight > 0.75 ? 0.70 : 0.50,
+                          ),
+                          blurRadius: normalizedHeight > 0.75 ? 6 : 4,
+                          spreadRadius: normalizedHeight > 0.75 ? 0.8 : 0.4,
                         ),
                       ]
                     : null,
