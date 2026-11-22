@@ -417,8 +417,9 @@ class YouTubeAudioService {
               cleanQuery.toLowerCase().contains('prelude') ||
               cleanQuery.toLowerCase().contains('outro') ||
               cleanQuery.toLowerCase().contains('theme');
-          if (candSec > 0 && candSec < 60 && !isShortForm) {
-            continue; // Skip teaser / promo clips
+          // Only skip ultra-short non-musical clips (< 20s) that lack short-form markers
+          if (candSec > 0 && candSec < 20 && !isShortForm) {
+            continue;
           }
           if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
             final id = video.id.value;

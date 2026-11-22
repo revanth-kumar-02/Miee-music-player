@@ -621,6 +621,16 @@ class MusicResultClassifier {
 
     for (final pattern in promoPatterns) {
       if (titleLower.contains(pattern)) {
+        // Exemption: Official music label or verified artist releasing a lyrical/audio promo song or glimpse theme
+        final isOfficialAudioRelease = _isOfficialMusicLabel(channelLower) ||
+            _isVerifiedMusicArtist(channelLower) ||
+            titleLower.contains('audio') ||
+            titleLower.contains('song') ||
+            titleLower.contains('lyric');
+        if ((pattern == 'song promo' || pattern == 'special promo' || pattern == 'title glimpse' || pattern == 'official glimpse') &&
+            isOfficialAudioRelease) {
+          continue;
+        }
         return makeVerdict(
           MusicTrackConfidence.rejected,
           false,
@@ -630,22 +640,28 @@ class MusicResultClassifier {
       }
     }
 
-    // F.2. Short-clip non-musical guard: Sub-45s clips lacking short-form musical structure
+    // F.2. Short-clip non-musical guard: Sub-25s clips lacking short-form musical structure
     final isExplicitShortFormTrack = titleLower.contains('intro') ||
         titleLower.contains('interlude') ||
         titleLower.contains('prelude') ||
         titleLower.contains('outro') ||
         titleLower.contains('skit') ||
         titleLower.contains('theme');
-    if (durationSec > 0 && durationSec < 45 && !isExplicitShortFormTrack) {
-      if (!channelLower.endsWith('- topic') && !channelLower.contains('- topic')) {
-        return makeVerdict(
-          MusicTrackConfidence.rejected,
-          false,
-          'Sub-45s short clip without short-form musical marker',
-          0,
-        );
-      }
+    final isMusicSource = channelLower.endsWith('- topic') ||
+        channelLower.contains('- topic') ||
+        _isOfficialMusicLabel(channelLower) ||
+        _isVerifiedMusicArtist(channelLower) ||
+        _hasPositiveMusicIndicator(titleLower, channelLower) ||
+        _hasExplicitMusicKeyword(titleLower) ||
+        (query != null && query.toLowerCase().contains(titleLower));
+
+    if (durationSec > 0 && durationSec < 25 && !isExplicitShortFormTrack && !isMusicSource) {
+      return makeVerdict(
+        MusicTrackConfidence.rejected,
+        false,
+        'Sub-25s short clip without short-form musical marker',
+        0,
+      );
     }
 
     // G. Influencer vlogs, lifestyle, food reviews, commentary, reality shows & public reactions
@@ -948,12 +964,20 @@ class MusicResultClassifier {
       );
     } else {
       // Ambiguous metadata (e.g. unknown channel, generic title, short/missing duration)
-      final isVeryShortClip = durationSec > 0 && durationSec < 45;
-      if (isVeryShortClip && !titleLower.contains('song') && !titleLower.contains('intro')) {
+      final isVeryShortClip = durationSec > 0 && durationSec < 25;
+      final isMusicSource = channelLower.endsWith('- topic') ||
+          channelLower.contains('- topic') ||
+          isMusicLabelChannel ||
+          isVerifiedArtistChannel ||
+          hasMusicIndicator ||
+          isExplicitShortFormTrack ||
+          (query != null && query.toLowerCase().contains(titleLower));
+
+      if (isVeryShortClip && !isMusicSource && !titleLower.contains('song') && !titleLower.contains('intro')) {
         return makeVerdict(
           MusicTrackConfidence.rejected,
           false,
-          'Sub-45s short clip without musical evidence',
+          'Sub-25s short clip without musical evidence',
           20,
         );
       }
@@ -963,7 +987,7 @@ class MusicResultClassifier {
       if (!hasMusicIndicator && !isMusicLabelChannel && !isVerifiedArtistChannel) {
         final hasCreatorArchetype = _hasCreatorChannelArchetype(channelLower) ||
             _hasCreatorTitleArchetype(rawTitle, video.rawTitle ?? video.title);
-        if (hasCreatorArchetype || durationSec > 540 || (durationSec > 0 && durationSec < 45)) {
+        if (hasCreatorArchetype || durationSec > 540 || (durationSec > 0 && durationSec < 25)) {
           return makeVerdict(
             MusicTrackConfidence.rejected,
             false,

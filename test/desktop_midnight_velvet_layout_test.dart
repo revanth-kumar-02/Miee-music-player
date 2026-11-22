@@ -161,8 +161,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('FEATURED SPOTLIGHT'), findsOneWidget);
+      expect(find.text('Kannukulla'), findsAtLeast(1));
+      expect(find.text('Play Now'), findsOneWidget);
       expect(find.text('Continue Listening'), findsOneWidget);
+      expect(find.text('Popular Artists'), findsOneWidget);
+      expect(find.text('Sai Abhyankkar'), findsAtLeast(1));
+      expect(find.text('A. R. Rahman'), findsOneWidget);
+      expect(find.text('Anirudh Ravichander'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('On Repeat'), findsOneWidget);
       expect(find.text('Daily Mixes'), findsOneWidget);
       expect(find.text('Daily Mix 1'), findsOneWidget);
       expect(find.text('Daily Mix 2'), findsOneWidget);

@@ -22,6 +22,7 @@ import '../../library/providers/library_providers.dart';
 import '../../../shared/models/track.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
+import '../../artwork/domain/artwork_query.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
 import '../data/playback_source_resolver.dart';
 
@@ -105,9 +106,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Future<void> _playYouTubeResult(YouTubeVideo video) async {
     YouTubeVideo playableVideo = video;
 
-    // Validation: Canonical MusicBrainz and iTunes entries are verified studio recordings.
+    // Validation: Canonical MusicBrainz, iTunes, and verified album entries are verified studio recordings.
     final isApprovedMusic = playableVideo.metadataProvider == 'musicbrainz' ||
         playableVideo.metadataProvider == 'itunes' ||
+        (playableVideo.albumName != null && playableVideo.albumName!.isNotEmpty) ||
         MusicResultClassifier.isValidIndividualSong(playableVideo,
             query: _searchQuery) ||
         MusicResultClassifier.isValidMusicTrack(playableVideo, query: _searchQuery);
@@ -866,10 +868,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
+  String? _findMatchingAlbumCover(String playlistTitle, List<ArtistAlbum> onlineAlbums) {
+    final cleanTitle = playlistTitle.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (cleanTitle.isEmpty) return null;
+    for (final album in onlineAlbums) {
+      final albumTitle = album.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (albumTitle.isNotEmpty) {
+        if (albumTitle == cleanTitle || cleanTitle.contains(albumTitle) || albumTitle.contains(cleanTitle)) {
+          if (album.coverUrl.isNotEmpty && !album.coverUrl.contains('ytimg.com')) {
+            return album.coverUrl;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   Widget _buildPlaylistCard({
     required String title,
     required String subtitle,
     required String? imageUrl,
+    ArtworkQuery? query,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -882,8 +901,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: (imageUrl != null && imageUrl.isNotEmpty)
+              child: ((imageUrl != null && imageUrl.isNotEmpty) || query != null)
                   ? MieeArtworkImage(
+                      query: query,
                       explicitUrl: imageUrl,
                       width: 130,
                       height: 130,
@@ -941,6 +961,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     required String title,
     required String subtitle,
     required String? imageUrl,
+    ArtworkQuery? query,
     required VoidCallback onTap,
   }) {
     return Padding(
@@ -966,8 +987,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: (imageUrl != null && imageUrl.isNotEmpty)
+                child: ((imageUrl != null && imageUrl.isNotEmpty) || query != null)
                     ? MieeArtworkImage(
+                        query: query,
                         explicitUrl: imageUrl,
                         width: 52,
                         height: 52,
@@ -1681,24 +1703,42 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
               const SizedBox(height: 12),
               ...state.localPlaylists.map(
-                (playlist) => _buildPlaylistListTile(
-                  title: playlist.name,
-                  subtitle: '${playlist.trackCount} tracks · Local Playlist',
-                  imageUrl: null,
-                  onTap: () => context
-                      .push('/playlist/${Uri.encodeComponent(playlist.id)}'),
-                ),
+                (playlist) {
+                  final pQuery = ArtworkQuery.forPlaylist(
+                    id: playlist.id,
+                    title: playlist.name,
+                  );
+                  return _buildPlaylistListTile(
+                    title: playlist.name,
+                    subtitle: '${playlist.trackCount} tracks · Local Playlist',
+                    imageUrl: null,
+                    query: pQuery,
+                    onTap: () => context
+                        .push('/playlist/${Uri.encodeComponent(playlist.id)}'),
+                  );
+                },
               ),
               ...state.onlinePlaylists.map(
-                (playlist) => _buildPlaylistListTile(
-                  title: playlist.title,
-                  subtitle: '${playlist.trackCount} tracks · ${playlist.author}',
-                  imageUrl: playlist.thumbnailUrl,
-                  onTap: () => context.push(
-                    '/online-playlist/${Uri.encodeComponent(playlist.id)}',
-                    extra: playlist,
-                  ),
-                ),
+                (playlist) {
+                  final matchedCover = _findMatchingAlbumCover(playlist.title, state.onlineAlbums);
+                  final pQuery = ArtworkQuery.forPlaylist(
+                    id: playlist.id,
+                    title: playlist.title,
+                    artist: playlist.author,
+                    albumArtworkUrl: matchedCover,
+                    thumbnailUrl: playlist.thumbnailUrl,
+                  );
+                  return _buildPlaylistListTile(
+                    title: playlist.title,
+                    subtitle: '${playlist.trackCount} tracks · ${playlist.author}',
+                    imageUrl: matchedCover ?? playlist.thumbnailUrl,
+                    query: pQuery,
+                    onTap: () => context.push(
+                      '/online-playlist/${Uri.encodeComponent(playlist.id)}',
+                      extra: playlist,
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 24),
             ] else ...[
@@ -1730,30 +1770,48 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   physics: const BouncingScrollPhysics(),
                   children: [
                     ...state.localPlaylists.map(
-                      (playlist) => Padding(
-                        padding: const EdgeInsets.only(right: 14),
-                        child: _buildPlaylistCard(
+                      (playlist) {
+                        final pQuery = ArtworkQuery.forPlaylist(
+                          id: playlist.id,
                           title: playlist.name,
-                          subtitle: '${playlist.trackCount} tracks',
-                          imageUrl: null,
-                          onTap: () => context.push(
-                              '/playlist/${Uri.encodeComponent(playlist.id)}'),
-                        ),
-                      ),
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: _buildPlaylistCard(
+                            title: playlist.name,
+                            subtitle: '${playlist.trackCount} tracks',
+                            imageUrl: null,
+                            query: pQuery,
+                            onTap: () => context.push(
+                                '/playlist/${Uri.encodeComponent(playlist.id)}'),
+                          ),
+                        );
+                      },
                     ),
                     ...state.onlinePlaylists.map(
-                      (playlist) => Padding(
-                        padding: const EdgeInsets.only(right: 14),
-                        child: _buildPlaylistCard(
+                      (playlist) {
+                        final matchedCover = _findMatchingAlbumCover(playlist.title, state.onlineAlbums);
+                        final pQuery = ArtworkQuery.forPlaylist(
+                          id: playlist.id,
                           title: playlist.title,
-                          subtitle: '${playlist.trackCount} tracks',
-                          imageUrl: playlist.thumbnailUrl,
-                          onTap: () => context.push(
-                            '/online-playlist/${Uri.encodeComponent(playlist.id)}',
-                            extra: playlist,
+                          artist: playlist.author,
+                          albumArtworkUrl: matchedCover,
+                          thumbnailUrl: playlist.thumbnailUrl,
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: _buildPlaylistCard(
+                            title: playlist.title,
+                            subtitle: '${playlist.trackCount} tracks',
+                            imageUrl: matchedCover ?? playlist.thumbnailUrl,
+                            query: pQuery,
+                            onTap: () => context.push(
+                              '/online-playlist/${Uri.encodeComponent(playlist.id)}',
+                              extra: playlist,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),

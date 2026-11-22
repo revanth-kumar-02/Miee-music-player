@@ -7,6 +7,7 @@ import '../../shared/models/music_item.dart';
 import '../../shared/models/track.dart';
 import '../../features/media/domain/models.dart';
 import '../../features/youtube/domain/youtube_model.dart';
+import '../../features/youtube/domain/music_result_classifier.dart';
 import '../../features/youtube/data/web_music_discovery_source.dart';
 import 'youtube_audio_service.dart';
 import 'playback_diagnostics.dart';
@@ -826,7 +827,20 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (_currentIndex >= 0 && _currentIndex < _queue.length) {
         final currentTrack = _queue[_currentIndex];
         final formatted = '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
-        if (currentTrack.duration != formatted) {
+        final currentDurSec = MusicResultClassifier.parseDurationSeconds(currentTrack.duration);
+        final streamDurSec = duration.inSeconds;
+        final hasVerifiedDuration = (currentTrack is Track &&
+            (currentTrack.metadataProvider == 'itunes' ||
+                currentTrack.metadataProvider == 'musicbrainz' ||
+                (currentTrack.albumName != null && currentTrack.albumName!.isNotEmpty)));
+
+        // If track has verified album/studio duration and stream deviates drastically (> 15s),
+        // do not overwrite the canonical track duration with an anomalous stream length.
+        final shouldUpdateDuration = currentDurSec <= 0 ||
+            !hasVerifiedDuration ||
+            (streamDurSec - currentDurSec).abs() <= 15;
+
+        if (shouldUpdateDuration && currentTrack.duration != formatted) {
           if (currentTrack is Track) {
             _queue[_currentIndex] = currentTrack.copyWith(duration: formatted);
           } else if (currentTrack is YouTubeVideo) {

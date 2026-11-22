@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/theme/midnight_velvet_tokens.dart';
@@ -9,9 +10,11 @@ import '../../../../core/storage/adapters/history_entry.dart';
 import '../../../../shared/models/music_item.dart';
 import '../../../../shared/models/track.dart';
 import '../../../artwork/presentation/miee_artwork_image.dart';
+import '../../../library/presentation/artist_detail_page.dart';
 import '../../../library/providers/library_providers.dart';
 import '../../../media/domain/models.dart';
 import '../../../media/providers/media_providers.dart';
+import '../../../onboarding/domain/artist_model.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/providers/profile_providers.dart';
 import '../../../recommendations/domain/daily_mix.dart';
@@ -19,18 +22,86 @@ import '../../../recommendations/presentation/daily_mix_playback_helper.dart';
 import '../../../recommendations/providers/daily_mix_providers.dart';
 
 /// The Desktop Primary Dashboard View strictly reproducing the
-/// First Reference Design Image (Miee Desktop — Midnight Velvet & Warm Studio).
-class DesktopDashboardView extends ConsumerWidget {
+/// Midnight Velvet & Warm Studio design language.
+///
+/// Sections:
+/// 1. Top Bar (Search pill, Notification bell with amber pip, User Avatar)
+/// 2. Quick Filter Chips (All, On Repeat, Made For You, Playlists, New Releases)
+/// 3. Editorial Spotlight Hero Banner (Featured Release / Master Spotlight)
+/// 4. Continue Listening (Row of 6 square cards with dynamic vinyl sleeves)
+/// 5. Popular Artists (Row of 6 circular portrait cards with tactile play triggers)
+/// 6. Daily Mixes (Row of 6 editorial sleeve cards with wave cutouts)
+class DesktopDashboardView extends ConsumerStatefulWidget {
   final VoidCallback? onSearchTap;
   final VoidCallback? onSeeAllContinue;
+  final VoidCallback? onSeeAllArtists;
   final VoidCallback? onSeeAllMixes;
+  final void Function(ArtistModel artist)? onArtistTap;
 
   const DesktopDashboardView({
     super.key,
     this.onSearchTap,
     this.onSeeAllContinue,
+    this.onSeeAllArtists,
     this.onSeeAllMixes,
+    this.onArtistTap,
   });
+
+  @override
+  ConsumerState<DesktopDashboardView> createState() => _DesktopDashboardViewState();
+}
+
+class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
+  String _selectedFilter = 'All';
+  String? _hoveredArtistId;
+  bool _isBannerHovered = false;
+
+  static const List<String> _filters = [
+    'All',
+    'On Repeat',
+    'Made For You',
+    'Playlists',
+    'New Releases',
+  ];
+
+  static const List<({String id, String name, String imageUrl, String listeners})> _curatedPopularArtists = [
+    (
+      id: '223843195',
+      name: 'Sai Abhyankkar',
+      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/234646e93d6ab2923f3bdc363f53d330/500x500-000000-80-0-0.jpg',
+      listeners: '3.2M monthly',
+    ),
+    (
+      id: '491',
+      name: 'A. R. Rahman',
+      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/bd34315ef977a62a9e28c1ab19bb8ac4/500x500-000000-80-0-0.jpg',
+      listeners: '14.8M monthly',
+    ),
+    (
+      id: '1516162',
+      name: 'Anirudh Ravichander',
+      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9da0a547b39e99bc35c6a9724aef91bf/500x500-000000-80-0-0.jpg',
+      listeners: '18.4M monthly',
+    ),
+    (
+      id: '362663',
+      name: 'Harris Jayaraj',
+      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/b10caf45eae518a2b16997874ded7143/500x500-000000-80-0-0.jpg',
+      listeners: '8.6M monthly',
+    ),
+    (
+      id: '3847661',
+      name: 'Yuvan Shankar Raja',
+      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/1dbf7d81a2e964d9c707e53478407974/500x500-000000-80-0-0.jpg',
+      listeners: '9.1M monthly',
+    ),
+    (
+      id: '4325950',
+      name: 'Santhosh Narayanan',
+      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/74004fed94dddf9ae2d7c83084eaf1ad/500x500-000000-80-0-0.jpg',
+      listeners: '5.7M monthly',
+    ),
+  ];
 
   String _cleanTrackTitle(String title) {
     var cleaned = title
@@ -48,8 +119,93 @@ class DesktopDashboardView extends ConsumerWidget {
     return '$m:$s';
   }
 
+  void _onArtistSelected(String artistId, String artistName, String imageUrl) {
+    final artist = ArtistModel(
+      id: artistId,
+      name: artistName,
+      imageUrl: imageUrl,
+    );
+    if (widget.onArtistTap != null) {
+      widget.onArtistTap!(artist);
+      return;
+    }
+    try {
+      context.push('/artist/$artistId', extra: artist);
+    } catch (_) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ArtistDetailPage(
+            artistId: artistId,
+            initialArtist: artist,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _playArtistTracks(String artistName, List<MediaSong> localSongs) {
+    final cleanName = artistName.toLowerCase().trim();
+    final matchingSongs = localSongs.where((s) {
+      return s.artist.toLowerCase().contains(cleanName) ||
+          cleanName.contains(s.artist.toLowerCase());
+    }).toList();
+
+    if (matchingSongs.isNotEmpty) {
+      final queue = matchingSongs
+          .map((s) => Track(
+                id: s.id,
+                title: _cleanTrackTitle(s.title),
+                artist: s.artist,
+                imageUrl: s.artworkPath,
+                duration: _formatDurationMs(s.durationMs),
+                filePath: s.filePath,
+              ))
+          .toList();
+
+      ref.read(playerControllerProvider.notifier).setQueue(
+            queue,
+            startIndex: 0,
+            playingFrom: 'Popular Artists • $artistName',
+          );
+    } else {
+      final artistDef = _curatedPopularArtists.firstWhere(
+        (a) => a.name.toLowerCase() == cleanName,
+        orElse: () => (id: '0', name: artistName, imageUrl: '', listeners: ''),
+      );
+      _onArtistSelected(artistDef.id, artistDef.name, artistDef.imageUrl);
+    }
+  }
+
+  void _playFeaturedSpotlight(List<MediaSong> localSongs) {
+    final match = localSongs.where((s) =>
+        s.title.toLowerCase().contains('kannukulla') ||
+        s.artist.toLowerCase().contains('abhyankkar')).firstOrNull;
+
+    final Track trackToPlay;
+    if (match != null) {
+      trackToPlay = Track(
+        id: match.id,
+        title: _cleanTrackTitle(match.title),
+        artist: match.artist,
+        imageUrl: match.artworkPath,
+        duration: _formatDurationMs(match.durationMs),
+        filePath: match.filePath,
+      );
+    } else {
+      trackToPlay = const Track(
+        id: 'featured_spotlight_kannukulla',
+        title: 'Kannukulla',
+        artist: 'Sai Abhyankkar',
+        imageUrl: '',
+        duration: '04:38',
+      );
+    }
+
+    ref.read(playerControllerProvider.notifier).playTrack(trackToPlay);
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final historyAsync = ref.watch(recentlyPlayedProvider);
     final history = historyAsync.valueOrNull ?? const <HistoryEntry>[];
     final localSongs = ref.watch(songsProvider);
@@ -64,24 +220,19 @@ class DesktopDashboardView extends ConsumerWidget {
       body: Stack(
         children: [
           // ── 1. Authentic Studio Ambient Lighting ──────────────────────
-          // Measured directly from reference: Prominent, soft half-circle ambient
-          // light dome centered at top edge, radiating downward across Continue
-          // Listening with warm champagne gold and baby pink / rose tint on the right.
-          //
           // A. Primary Half-Circle Ambient Dome (Top-Center Edge)
-          // Geometrically anchored at y = -1.0 so it forms a clean arched half-circle dome.
           const Positioned.fill(
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: Alignment(0.06, -1.0), // Anchored directly on top edge for true half-circle
-                    radius: 0.78, // Arched semi-circle dome spanning Continue Listening
+                    center: Alignment(0.06, -1.0),
+                    radius: 0.78,
                     colors: [
-                      Color(0xFFC89E78), // Radiant warm champagne gold peak (RGB 167, 130, 103)
-                      Color(0xCCA87E5E), // Warm champagne amber transition
-                      Color(0x756B4232), // Warm bronze-amber bathing Continue Listening
-                      Color(0x243A201A), // Soft half-circle outer contour falloff
+                      Color(0xFFC89E78),
+                      Color(0xCCA87E5E),
+                      Color(0x756B4232),
+                      Color(0x243A201A),
                       Colors.transparent,
                     ],
                     stops: [0.0, 0.30, 0.60, 0.85, 1.0],
@@ -92,19 +243,17 @@ class DesktopDashboardView extends ConsumerWidget {
           ),
 
           // B. Co-anchored Baby Pink / Soft Rose Warmth (Top Edge, Right Half)
-          // Also anchored at top edge (y = -1.0) to preserve the pure half-circle geometry
-          // while infusing the soft baby pink shade across the right side of the dome.
           const Positioned.fill(
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: Alignment(0.32, -1.0), // Top edge right-bias
+                    center: Alignment(0.32, -1.0),
                     radius: 0.72,
                     colors: [
-                      Color(0x8CB25850), // Soft baby pink / rose ember light
-                      Color(0x55873E40), // Warm rose-terracotta tint
-                      Color(0x20501E24), // Subtle ambient rose feathering
+                      Color(0x8CB25850),
+                      Color(0x55873E40),
+                      Color(0x20501E24),
                       Colors.transparent,
                     ],
                     stops: [0.0, 0.35, 0.70, 1.0],
@@ -124,7 +273,7 @@ class DesktopDashboardView extends ConsumerWidget {
                     radius: 1.45,
                     colors: [
                       Colors.transparent,
-                      Color(0x300A080C), // Subtle edge vignette
+                      Color(0x300A080C),
                     ],
                     stops: [0.72, 1.0],
                   ),
@@ -139,14 +288,24 @@ class DesktopDashboardView extends ConsumerWidget {
               left: 36,
               right: 36,
               top: 24,
-              bottom: 110, // Buffer for floating pill player
+              bottom: 120, // Buffer for floating pill player
             ),
             physics: const BouncingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Top Header Row ────────────────────────────────────
+                // ── Top Header Row (Search Pill, Bell, Avatar) ────────
                 _buildTopHeader(context, userProfile),
+
+                const SizedBox(height: 18),
+
+                // ── Quick Filter Chips (Tactile Micro-Filter) ─────────
+                _buildFilterChipsRow(),
+
+                const SizedBox(height: 22),
+
+                // ── Editorial Hero Spotlight Banner (New Feature!) ────
+                _buildFeaturedHeaderBanner(context, localSongs),
 
                 const SizedBox(height: 28),
 
@@ -154,25 +313,671 @@ class DesktopDashboardView extends ConsumerWidget {
                 _buildSectionHeader(
                   title: 'Continue Listening',
                   actionLabel: 'See all >',
-                  onAction: onSeeAllContinue,
+                  onAction: widget.onSeeAllContinue,
                 ),
                 const SizedBox(height: 14),
-                _buildContinueListeningRow(context, ref, continueItems),
+                _buildContinueListeningRow(context, continueItems),
 
                 const SizedBox(height: 32),
 
-                // ── Section 2: Daily Mixes ────────────────────────────
+                // ── Section 2: Popular Artists ────────────────────────
+                _buildSectionHeader(
+                  title: 'Popular Artists',
+                  actionLabel: 'See all >',
+                  onAction: widget.onSeeAllArtists,
+                ),
+                const SizedBox(height: 14),
+                _buildPopularArtistsRow(context, localSongs),
+
+                const SizedBox(height: 32),
+
+                // ── Section 3: Daily Mixes ────────────────────────────
                 _buildSectionHeader(
                   title: 'Daily Mixes',
                   actionLabel: 'See All >',
-                  onAction: onSeeAllMixes,
+                  onAction: widget.onSeeAllMixes,
                 ),
                 const SizedBox(height: 14),
-                _buildDailyMixesRow(context, ref, dailyMixAsync, localSongs),
+                _buildDailyMixesRow(context, dailyMixAsync, localSongs),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Editorial Hero Spotlight Banner ───────────────────────────────────
+  Widget _buildFeaturedHeaderBanner(BuildContext context, List<MediaSong> localSongs) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isBannerHovered = true),
+      onExit: (_) => setState(() => _isBannerHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: double.infinity,
+        height: 204,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xF02A1E2A),
+              Color(0xEE1E1824),
+              Color(0xF014111A),
+            ],
+          ),
+          border: Border.all(
+            color: _isBannerHovered
+                ? const Color(0x35FFEBF0)
+                : const Color(0x18FFEBF0),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.50),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+            if (_isBannerHovered)
+              BoxShadow(
+                color: const Color(0xFFE5A96A).withValues(alpha: 0.12),
+                blurRadius: 28,
+                offset: const Offset(0, 4),
+              ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              // Ambient Right Warm Dome Glow
+              Positioned(
+                right: -40,
+                top: -30,
+                bottom: -30,
+                width: 380,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(0.4, 0.0),
+                        radius: 0.85,
+                        colors: [
+                          const Color(0xFFE5A96A).withValues(alpha: 0.22),
+                          const Color(0xFFB25850).withValues(alpha: 0.12),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Banner Content Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+                child: Row(
+                  children: [
+                    // Left Column: Editorial Details & Play Actions
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Overline Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE5A96A).withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFE5A96A).withValues(alpha: 0.35),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Text(
+                              'FEATURED SPOTLIGHT',
+                              style: GoogleFonts.inter(
+                                fontSize: 9.0,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFF2C79A),
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          // Track Headline
+                          Text(
+                            'Kannukulla',
+                            style: GoogleFonts.inter(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.4,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                          const SizedBox(height: 2),
+
+                          // Subtitle & Album Info
+                          Text(
+                            'Sai Abhyankkar • Dude Original Motion Picture Soundtrack',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFFE5A96A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                          const SizedBox(height: 5),
+
+                          // Editorial Description
+                          Text(
+                            'Lush acoustic orchestration and infectious modern rhythms redefine contemporary Indian cinema music.',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: const Color(0xFFA8A29E),
+                              height: 1.25,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Actions Row
+                          Row(
+                            children: [
+                              // Primary Play Button
+                              InkWell(
+                                onTap: () => _playFeaturedSpotlight(localSongs),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFFF2C79A),
+                                        Color(0xFFE5A96A),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFFE5A96A).withValues(alpha: 0.30),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.play_arrow_rounded,
+                                        size: 17,
+                                        color: Color(0xFF16141B),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'Play Now',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF16141B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(width: 10),
+
+                              // Secondary Save Button
+                              InkWell(
+                                onTap: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Added to Library'),
+                                      duration: Duration(seconds: 2),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0x33282330),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: const Color(0x22FFEBF0),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.bookmark_add_outlined,
+                                        size: 15,
+                                        color: Color(0xFFECE7E2),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'Save Track',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: const Color(0xFFECE7E2),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 24),
+
+                    // Right Side: 3D Vinyl & Album Sleeve Motif
+                    SizedBox(
+                      width: 200,
+                      height: 140,
+                      child: Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          // Sliding Vinyl Record (Right)
+                          Positioned(
+                            right: 0,
+                            child: AnimatedSlide(
+                              offset: _isBannerHovered
+                                  ? const Offset(0.06, 0)
+                                  : Offset.zero,
+                              duration: const Duration(milliseconds: 200),
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const RadialGradient(
+                                    colors: [
+                                      Color(0xFFE5A96A),
+                                      Color(0xFF1E1A22),
+                                      Color(0xFF0F0E12),
+                                    ],
+                                    stops: [0.15, 0.6, 1.0],
+                                  ),
+                                  border: Border.all(
+                                    color: const Color(0x30E5A96A),
+                                    width: 1.0,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.60),
+                                      blurRadius: 14,
+                                      offset: const Offset(4, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFE5A96A),
+                                    ),
+                                    child: Center(
+                                      child: Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Color(0xFF121114),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Front Album Cover Sleeve
+                          Container(
+                            width: 130,
+                            height: 130,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Color(0xFFB43830),
+                                  Color(0xFF5A1D20),
+                                ],
+                              ),
+                              border: Border.all(
+                                color: const Color(0x30FFEBF0),
+                                width: 1.0,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.55),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Stack(
+                                children: [
+                                  Image.asset(
+                                    'assets/images/continue_cover_5.png',
+                                    fit: BoxFit.cover,
+                                    width: 130,
+                                    height: 130,
+                                    errorBuilder: (_, __, ___) => const Center(
+                                      child: Text(
+                                        'DUDE',
+                                        style: TextStyle(
+                                          color: Color(0xFFF2C79A),
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Quick Filter Chips Row ────────────────────────────────────────────
+  Widget _buildFilterChipsRow() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: _filters.map((filter) {
+          final isSelected = _selectedFilter == filter;
+          return Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: InkWell(
+              onTap: () {
+                setState(() => _selectedFilter = filter);
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0x38E5A96A)
+                      : const Color(0x661A1720),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0x80E5A96A)
+                        : const Color(0x14FFEBF0),
+                    width: 1.0,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFFE5A96A).withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  filter,
+                  style: GoogleFonts.inter(
+                    fontSize: 11.5,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected
+                        ? const Color(0xFFF2C79A)
+                        : const Color(0xFF9E9793),
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── Section 2: Popular Artists Row ────────────────────────────────────
+  Widget _buildPopularArtistsRow(BuildContext context, List<MediaSong> localSongs) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        const gap = 16.0;
+        final cardWidth = (((totalWidth - (5 * gap)) / 6) * 1.06).clamp(136.0, 178.0);
+        final avatarSize = (cardWidth * 0.72).clamp(96.0, 120.0);
+
+        return SizedBox(
+          height: avatarSize + 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _curatedPopularArtists.length,
+            separatorBuilder: (_, __) => const SizedBox(width: gap),
+            itemBuilder: (context, index) {
+              final artist = _curatedPopularArtists[index];
+              final isHovered = _hoveredArtistId == artist.id;
+
+              return MouseRegion(
+                onEnter: (_) => setState(() => _hoveredArtistId = artist.id),
+                onExit: (_) => setState(() {
+                  if (_hoveredArtistId == artist.id) _hoveredArtistId = null;
+                }),
+                child: InkWell(
+                  onTap: () => _onArtistSelected(artist.id, artist.name, artist.imageUrl),
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    width: cardWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Circular Avatar with Hover Play Badge
+                        SizedBox(
+                          width: avatarSize,
+                          height: avatarSize,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Avatar Container
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 140),
+                                width: avatarSize,
+                                height: avatarSize,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isHovered
+                                        ? const Color(0x60E5A96A)
+                                        : const Color(0x18FFEBF0),
+                                    width: isHovered ? 1.8 : 1.2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.45),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                    if (isHovered)
+                                      BoxShadow(
+                                        color: const Color(0xFFE5A96A).withValues(alpha: 0.25),
+                                        blurRadius: 16,
+                                        spreadRadius: 1,
+                                      ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: MieeArtworkImage(
+                                    explicitUrl: artist.imageUrl,
+                                    fit: BoxFit.cover,
+                                    placeholder: _buildArtistMonogram(artist.name, avatarSize),
+                                    errorWidget: _buildArtistMonogram(artist.name, avatarSize),
+                                  ),
+                                ),
+                              ),
+
+                              // Tactile Play Badge on Bottom-Right of Avatar
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: AnimatedScale(
+                                  scale: isHovered ? 1.0 : 0.88,
+                                  duration: const Duration(milliseconds: 140),
+                                  child: Tooltip(
+                                    message: 'Play ${artist.name}',
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _playArtistTracks(artist.name, localSongs),
+                                        customBorder: const CircleBorder(),
+                                        child: Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: const LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                Color(0xFFF2C79A),
+                                                Color(0xFFE5A96A),
+                                              ],
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.50),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.play_arrow_rounded,
+                                              size: 20,
+                                              color: Color(0xFF16141B),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 9),
+
+                        // Artist Name
+                        Text(
+                          artist.name,
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: isHovered
+                                ? const Color(0xFFF2C79A)
+                                : const Color(0xFFECE7E2),
+                            letterSpacing: -0.1,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+
+                        const SizedBox(height: 2),
+
+                        // Role / Subtitle
+                        Text(
+                          'Artist',
+                          style: GoogleFonts.inter(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFF9E9793),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildArtistMonogram(String name, double size) {
+    final initials = name.trim().split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join();
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF2C2433),
+            Color(0xFF18151D),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: GoogleFonts.inter(
+            fontSize: size * 0.30,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFFF2C79A),
+          ),
+        ),
       ),
     );
   }
@@ -186,7 +991,6 @@ class DesktopDashboardView extends ConsumerWidget {
     final seenIds = <String>{};
     final seenTitles = <String>{};
 
-    // 1. Process recent playback history with strict deduplication
     for (final entry in history) {
       if (result.length >= 6) break;
       try {
@@ -203,7 +1007,6 @@ class DesktopDashboardView extends ConsumerWidget {
         seenIds.add(normId);
         seenTitles.add(normTitle);
 
-        // Resolve artwork against local songs if not a full web URL
         String resolvedArtwork = rawTrack.imageUrl;
         if (!rawTrack.isYoutube) {
           final localMatch = localSongs.where((s) {
@@ -227,7 +1030,6 @@ class DesktopDashboardView extends ConsumerWidget {
       } catch (_) {}
     }
 
-    // 2. Supplement with unique local songs if fewer than 6
     if (result.length < 6 && localSongs.isNotEmpty) {
       for (final song in localSongs) {
         if (result.length >= 6) break;
@@ -250,15 +1052,14 @@ class DesktopDashboardView extends ConsumerWidget {
       }
     }
 
-    // 3. Fallback aesthetic studio tracks strictly matching reference image
     if (result.length < 6) {
       final studioFallbacks = [
-        (title: 'Amasonic', artist: 'Rose-Ember'),
-        (title: 'Champagne Gold', artist: 'Rose-Ember'),
-        (title: 'Samak', artist: 'Evwonne'),
-        (title: 'Suromeno', artist: 'Rose-Ember'),
-        (title: 'The illing Rose', artist: 'Rose-Ember'),
-        (title: 'Bang & Olufsen', artist: 'Teenage-Velvet'),
+        (title: 'Vaazhanum Baththa', artist: 'Sai Abhyankkar & Karthik Netha'),
+        (title: 'Magale', artist: 'Sai Abhyankkar'),
+        (title: 'Vizhi Veekura', artist: 'Sai Abhyankkar'),
+        (title: 'Sithira Puthiri', artist: 'Sai Abhyankkar'),
+        (title: 'Kannukulla', artist: 'Sai Abhyankkar'),
+        (title: 'Veera Veera Lyrical', artist: 'Sai Abhyankkar'),
       ];
 
       for (var i = result.length; i < 6; i++) {
@@ -276,26 +1077,15 @@ class DesktopDashboardView extends ConsumerWidget {
     return result;
   }
 
-  // ── Top Header ────────────────────────────────────────────────────────
+  // ── Top Header (Search Pill, Bell, Avatar) ─────────────────────────────
   Widget _buildTopHeader(BuildContext context, UserProfile? userProfile) {
     return Row(
       children: [
-        // Heading - Smaller and restrained matching reference
-        Text(
-          'Dashboard',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFFECE7E2),
-            letterSpacing: -0.3,
-          ),
-        ),
-
         const Spacer(),
 
         // Search Pill
         InkWell(
-          onTap: onSearchTap,
+          onTap: widget.onSearchTap,
           borderRadius: BorderRadius.circular(16),
           child: Container(
             width: 180,
@@ -452,7 +1242,6 @@ class DesktopDashboardView extends ConsumerWidget {
   // ── Section 1: Continue Listening Row ─────────────────────────────────
   Widget _buildContinueListeningRow(
     BuildContext context,
-    WidgetRef ref,
     List<MusicItem> items,
   ) {
     if (items.isEmpty) {
@@ -474,7 +1263,7 @@ class DesktopDashboardView extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(width: gap),
             itemBuilder: (context, index) {
               final item = items[index];
-              return _buildContinueListeningCard(context, ref, item, items, index, cardWidth);
+              return _buildContinueListeningCard(context, item, items, index, cardWidth);
             },
           ),
         );
@@ -484,7 +1273,6 @@ class DesktopDashboardView extends ConsumerWidget {
 
   Widget _buildContinueListeningCard(
     BuildContext context,
-    WidgetRef ref,
     MusicItem item,
     List<MusicItem> queue,
     int index,
@@ -508,7 +1296,7 @@ class DesktopDashboardView extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Square Album Artwork (Dynamically sized to span row width)
+            // Square Album Artwork
             Container(
               width: cardWidth,
               height: cardWidth,
@@ -573,7 +1361,7 @@ class DesktopDashboardView extends ConsumerWidget {
     );
   }
 
-  /// Authentic Midnight Velvet studio sleeve artwork placeholder (never light-grey or empty icon)
+  /// Authentic Midnight Velvet studio sleeve artwork placeholder
   Widget _buildDarkAbstractPlaceholder(int index) {
     final assetIndex = (index % 6) + 1;
     return Image.asset(
@@ -633,10 +1421,9 @@ class DesktopDashboardView extends ConsumerWidget {
     );
   }
 
-  // ── Section 2: Daily Mixes Row ────────────────────────────────────────
+  // ── Section 3: Daily Mixes Row ────────────────────────────────────────
   Widget _buildDailyMixesRow(
     BuildContext context,
-    WidgetRef ref,
     AsyncValue<dynamic> dailyMixAsync,
     List<MediaSong> localSongs,
   ) {
@@ -648,7 +1435,6 @@ class DesktopDashboardView extends ConsumerWidget {
       }
     }
 
-    // Always guarantee exactly 6 full Daily Mix cards across the view
     final fullMixes = _resolveFullDailyMixes(existingMixes, localSongs);
 
     return LayoutBuilder(
@@ -667,7 +1453,7 @@ class DesktopDashboardView extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(width: gap),
             itemBuilder: (context, index) {
               final mix = fullMixes[index];
-              return _buildDailyMixCard(context, ref, mix, index, cardWidth);
+              return _buildDailyMixCard(context, mix, index, cardWidth);
             },
           ),
         );
@@ -678,7 +1464,6 @@ class DesktopDashboardView extends ConsumerWidget {
   List<DailyMix> _resolveFullDailyMixes(List<DailyMix> existing, List<MediaSong> localSongs) {
     final mixes = List<DailyMix>.from(existing);
 
-    // Exact curated metadata directly matching the First Reference Design Image
     final curatedDefinitions = [
       (title: 'Daily Mix 1', subtitle: 'Rloe amite • Rose-Ember'),
       (title: 'Daily Mix 2', subtitle: 'Aimarotoo • Champagne Gold'),
@@ -722,7 +1507,6 @@ class DesktopDashboardView extends ConsumerWidget {
 
   Widget _buildDailyMixCard(
     BuildContext context,
-    WidgetRef ref,
     DailyMix mix,
     int index,
     double cardWidth,
@@ -741,7 +1525,7 @@ class DesktopDashboardView extends ConsumerWidget {
         width: cardWidth,
         padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
-          color: const Color(0xFF16141B), // Clean smoked espresso velvet matching reference
+          color: const Color(0xFF16141B),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: const Color(0x14FFEBF0),
@@ -758,7 +1542,6 @@ class DesktopDashboardView extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Authentic editorial artwork sleeve with organic wave cutout and 'Daily Mixe'
             SizedBox(
               width: artworkWidth,
               height: artworkHeight,

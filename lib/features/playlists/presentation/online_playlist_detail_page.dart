@@ -7,7 +7,9 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/providers.dart';
 import '../../../shared/models/track.dart';
-import '../../../shared/widgets/widgets.dart';
+import '../../artwork/data/artwork_cache.dart';
+import '../../artwork/domain/artwork_query.dart';
+import '../../artwork/presentation/artwork_providers.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
 import '../../search/domain/online_playlist.dart';
 import '../../youtube/domain/youtube_model.dart';
@@ -135,6 +137,40 @@ class _OnlinePlaylistDetailPageState
     final heroArtwork = widget.initialPlaylist?.thumbnailUrl ??
         (_videos.isNotEmpty ? _videos.first.thumbnailUrl : '');
 
+    // Derive playlist artist: prefer curated author unless it's generic ("Playlist", "YouTube")
+    final playlistArtist = (widget.initialPlaylist?.author != null &&
+            widget.initialPlaylist!.author.isNotEmpty &&
+            widget.initialPlaylist!.author.toLowerCase() != 'playlist' &&
+            widget.initialPlaylist!.author.toLowerCase() != 'youtube')
+        ? widget.initialPlaylist!.author
+        : (_videos.isNotEmpty
+            ? (_videos.first.canonicalArtist ?? _videos.first.channelTitle)
+            : '');
+
+    final playlistArtworkQuery = ArtworkQuery.forPlaylist(
+      id: widget.playlistId,
+      title: title,
+      artist: playlistArtist,
+      thumbnailUrl: heroArtwork,
+    );
+
+    final resolvedArtworkAsync = ref.watch(resolvedArtworkProvider(playlistArtworkQuery));
+    final resolvedHeroArtwork = resolvedArtworkAsync.valueOrNull;
+    final resolvedHeroUrl = (resolvedHeroArtwork != null &&
+            !resolvedHeroArtwork.isNeutralFallback &&
+            resolvedHeroArtwork.imageUrl.isNotEmpty)
+        ? (resolvedHeroArtwork.localCachedPath != null &&
+                ArtworkCache.hasValidLocalFile(resolvedHeroArtwork.localCachedPath)
+            ? resolvedHeroArtwork.localCachedPath!
+            : resolvedHeroArtwork.imageUrl)
+        : null;
+
+    final isStudioAlbumArt = resolvedHeroUrl != null &&
+        !resolvedHeroUrl.contains('ytimg.com') &&
+        !resolvedHeroUrl.contains('youtube.com') &&
+        resolvedHeroArtwork != null &&
+        resolvedHeroArtwork.confidence >= 0.80;
+
     return PopScope(
       canPop: true,
       child: Scaffold(
@@ -163,22 +199,16 @@ class _OnlinePlaylistDetailPageState
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (heroArtwork.isNotEmpty)
-                      MieeArtworkImage(
-                        explicitUrl: heroArtwork,
-                        fit: BoxFit.cover,
-                        errorWidget: Container(
-                          color: AppColors.cocoaPlum,
-                          child: const Icon(Icons.queue_music_rounded,
-                              size: 72, color: AppColors.softClay),
-                        ),
-                      )
-                    else
-                      Container(
+                    MieeArtworkImage(
+                      query: playlistArtworkQuery,
+                      explicitUrl: resolvedHeroUrl ?? heroArtwork,
+                      fit: BoxFit.cover,
+                      errorWidget: Container(
                         color: AppColors.cocoaPlum,
                         child: const Icon(Icons.queue_music_rounded,
                             size: 72, color: AppColors.softClay),
                       ),
+                    ),
                     // Gradient overlay to ensure text contrast and aesthetic depth
                     Positioned.fill(
                       child: DecoratedBox(
@@ -364,6 +394,8 @@ class _OnlinePlaylistDetailPageState
                       index: index + 1,
                       video: video,
                       isPlaying: isPlaying,
+                      inheritedAlbumArt: isStudioAlbumArt ? resolvedHeroUrl : null,
+                      playlistAlbumTitle: title,
                       onTap: () => _playTrack(video),
                       onMoreTap: () => _showVideoOptions(context, video),
                     );
@@ -386,9 +418,18 @@ class _OnlinePlaylistDetailPageState
     required int index,
     required YouTubeVideo video,
     required bool isPlaying,
+    String? inheritedAlbumArt,
+    String? playlistAlbumTitle,
     required VoidCallback onTap,
     required VoidCallback onMoreTap,
   }) {
+    final trackQuery = ArtworkQuery.fromMusicItem(
+      video,
+      album: playlistAlbumTitle,
+      albumArtworkUrl: inheritedAlbumArt,
+      explicitUrl: inheritedAlbumArt,
+    );
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -422,7 +463,9 @@ class _OnlinePlaylistDetailPageState
                 height: 48,
                 color: AppColors.softClay,
                 child: MieeArtworkImage(
-                  explicitUrl: video.thumbnailUrl,
+                  musicItem: video,
+                  query: trackQuery,
+                  explicitUrl: inheritedAlbumArt,
                   fit: BoxFit.cover,
                   errorWidget: const Icon(Icons.music_note_rounded,
                       color: AppColors.cocoaPlum, size: 24),

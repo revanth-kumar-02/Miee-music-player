@@ -87,6 +87,22 @@ class MieeArtworkImage extends ConsumerWidget {
             sourceLabel: 'Album Art',
           );
         }
+        if (effectiveQuery.isPlaylist) {
+          final pUrl = (explicitUrl != null && explicitUrl!.isNotEmpty)
+              ? explicitUrl!
+              : (effectiveQuery.fallbackThumbnailUrl != null &&
+                      effectiveQuery.fallbackThumbnailUrl!.isNotEmpty
+                  ? effectiveQuery.fallbackThumbnailUrl!
+                  : null);
+          if (pUrl != null && !pUrl.contains('/vi/placeholder/')) {
+            return _renderDirectImage(
+              context,
+              pUrl,
+              effectiveBorderRadius,
+              effectiveQuery,
+            );
+          }
+        }
         return placeholder ?? _buildPlaceholder(context, effectiveBorderRadius);
       },
       error: (_, __) {
@@ -100,6 +116,22 @@ class MieeArtworkImage extends ConsumerWidget {
             sourceLabel: 'Album Art',
           );
         }
+        if (effectiveQuery.isPlaylist) {
+          final pUrl = (explicitUrl != null && explicitUrl!.isNotEmpty)
+              ? explicitUrl!
+              : (effectiveQuery.fallbackThumbnailUrl != null &&
+                      effectiveQuery.fallbackThumbnailUrl!.isNotEmpty
+                  ? effectiveQuery.fallbackThumbnailUrl!
+                  : null);
+          if (pUrl != null && !pUrl.contains('/vi/placeholder/')) {
+            return _renderDirectImage(
+              context,
+              pUrl,
+              effectiveBorderRadius,
+              effectiveQuery,
+            );
+          }
+        }
         return errorWidget ?? _buildNeutralFallback(context, effectiveBorderRadius);
       },
     );
@@ -111,11 +143,12 @@ class MieeArtworkImage extends ConsumerWidget {
     BorderRadius radius,
     ArtworkQuery effectiveQuery,
   ) {
+    final isPlaylist = effectiveQuery.isPlaylist;
     final isYtThumbnail = artwork.source == ArtworkSource.youtube ||
         artwork.imageUrl.contains('ytimg.com') ||
         artwork.imageUrl.contains('youtube.com');
 
-    if (artwork.isNeutralFallback || artwork.imageUrl.isEmpty || isYtThumbnail) {
+    if (artwork.isNeutralFallback || artwork.imageUrl.isEmpty || (isYtThumbnail && !isPlaylist)) {
       if (effectiveQuery.albumArtworkUrl != null &&
           effectiveQuery.albumArtworkUrl!.isNotEmpty &&
           !effectiveQuery.albumArtworkUrl!.contains('ytimg.com')) {
@@ -129,10 +162,21 @@ class MieeArtworkImage extends ConsumerWidget {
       }
       if (explicitUrl != null &&
           explicitUrl!.isNotEmpty &&
-          !explicitUrl!.contains('ytimg.com') &&
+          (!explicitUrl!.contains('ytimg.com') || isPlaylist) &&
           !explicitUrl!.contains('youtube.com') &&
           !explicitUrl!.contains('/vi/placeholder/')) {
         return _renderDirectImage(context, explicitUrl!, radius, effectiveQuery);
+      }
+      if (isPlaylist &&
+          effectiveQuery.fallbackThumbnailUrl != null &&
+          effectiveQuery.fallbackThumbnailUrl!.isNotEmpty &&
+          !effectiveQuery.fallbackThumbnailUrl!.contains('/vi/placeholder/')) {
+        return _renderDirectImage(
+          context,
+          effectiveQuery.fallbackThumbnailUrl!,
+          radius,
+          effectiveQuery,
+        );
       }
       return errorWidget ?? _buildNeutralFallback(context, radius);
     }

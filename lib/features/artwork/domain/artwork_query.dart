@@ -52,8 +52,12 @@ class ArtworkQuery {
     this.source,
   });
 
+  /// Whether this query is for a playlist collection.
+  bool get isPlaylist => id.startsWith('playlist_') || source == 'playlist';
+
   /// Whether this query is for an online YouTube / streaming track.
   bool get isYoutube {
+    if (isPlaylist) return false;
     if (source == 'youtube') return true;
     if (id.startsWith('youtube_') || id.startsWith('wm_')) return true;
     if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id)) return true;
@@ -100,7 +104,12 @@ class ArtworkQuery {
   }
 
   /// Factory constructor to construct an [ArtworkQuery] seamlessly from any [MusicItem].
-  factory ArtworkQuery.fromMusicItem(MusicItem item, {String? album, String? explicitUrl}) {
+  factory ArtworkQuery.fromMusicItem(
+    MusicItem item, {
+    String? album,
+    String? explicitUrl,
+    String? albumArtworkUrl,
+  }) {
     final rawExplicit = _sanitizeFallbackUrl(explicitUrl);
     final cleanExplicit = (rawExplicit != null &&
             !rawExplicit.contains('ytimg.com') &&
@@ -116,6 +125,7 @@ class ArtworkQuery {
         durationMs: item.durationMs,
         localFilePath: item.filePath,
         localArtworkPath: item.artworkPath.isNotEmpty ? item.artworkPath : null,
+        albumArtworkUrl: albumArtworkUrl,
         fallbackThumbnailUrl: cleanExplicit,
         source: 'local',
       );
@@ -126,7 +136,7 @@ class ArtworkQuery {
           item.highResArtworkUrl!.isNotEmpty &&
           !item.highResArtworkUrl!.contains('ytimg.com') &&
           !item.highResArtworkUrl!.contains('youtube.com');
-      final highRes = isHighRes ? _sanitizeFallbackUrl(item.highResArtworkUrl) : null;
+      final highRes = albumArtworkUrl ?? (isHighRes ? _sanitizeFallbackUrl(item.highResArtworkUrl) : null);
       String? fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.thumbnailUrl);
       if (fallback == null || fallback.isEmpty) {
         fallback = 'https://i.ytimg.com/vi/${item.id}/hqdefault.jpg';
@@ -147,19 +157,20 @@ class ArtworkQuery {
 
     if (item is Track) {
       final isYt = item.isYoutube;
-      final albumArt = (item.albumArtworkUrl != null &&
-              item.albumArtworkUrl!.isNotEmpty &&
-              !item.albumArtworkUrl!.contains('ytimg.com') &&
-              !item.albumArtworkUrl!.contains('youtube.com'))
-          ? _sanitizeFallbackUrl(item.albumArtworkUrl)
-          : ((item.imageUrl.isNotEmpty &&
-                  !item.imageUrl.contains('ytimg.com') &&
-                  !item.imageUrl.contains('youtube.com') &&
-                  (item.imageUrl.contains('mzstatic.com') ||
-                      item.imageUrl.contains('dzcdn.net') ||
-                      item.imageUrl.contains('archive.org')))
-              ? _sanitizeFallbackUrl(item.imageUrl)
-              : null);
+      final albumArt = albumArtworkUrl ??
+          ((item.albumArtworkUrl != null &&
+                  item.albumArtworkUrl!.isNotEmpty &&
+                  !item.albumArtworkUrl!.contains('ytimg.com') &&
+                  !item.albumArtworkUrl!.contains('youtube.com'))
+              ? _sanitizeFallbackUrl(item.albumArtworkUrl)
+              : ((item.imageUrl.isNotEmpty &&
+                      !item.imageUrl.contains('ytimg.com') &&
+                      !item.imageUrl.contains('youtube.com') &&
+                      (item.imageUrl.contains('mzstatic.com') ||
+                          item.imageUrl.contains('dzcdn.net') ||
+                          item.imageUrl.contains('archive.org')))
+                  ? _sanitizeFallbackUrl(item.imageUrl)
+                  : null));
 
       final fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.youtubeThumbnailUrl);
 
@@ -192,9 +203,40 @@ class ArtworkQuery {
       title: item.title,
       artist: item.artist,
       album: album,
+      albumArtworkUrl: albumArtworkUrl,
       localFilePath: isYt ? null : item.filePath,
       fallbackThumbnailUrl: fallback,
       source: isYt ? 'youtube' : 'local',
+    );
+  }
+
+  /// Factory constructor to construct an [ArtworkQuery] for playlists and curated collections.
+  factory ArtworkQuery.forPlaylist({
+    required String id,
+    required String title,
+    String? artist,
+    String? albumArtworkUrl,
+    String? thumbnailUrl,
+  }) {
+    final cleanAlbumArt = (albumArtworkUrl != null &&
+            albumArtworkUrl.isNotEmpty &&
+            !albumArtworkUrl.contains('ytimg.com') &&
+            !albumArtworkUrl.contains('youtube.com'))
+        ? albumArtworkUrl
+        : null;
+    return ArtworkQuery(
+      id: id.startsWith('playlist_') ? id : 'playlist_$id',
+      title: title,
+      artist: (artist != null &&
+              artist.isNotEmpty &&
+              artist.toLowerCase() != 'playlist' &&
+              artist.toLowerCase() != 'youtube')
+          ? artist
+          : '',
+      album: title,
+      albumArtworkUrl: cleanAlbumArt,
+      fallbackThumbnailUrl: thumbnailUrl,
+      source: 'playlist',
     );
   }
 
@@ -208,6 +250,11 @@ class ArtworkQuery {
     final normArtist = _normalize(artist);
     final normTitle = _normalize(title);
     final normAlbum = album != null ? _normalize(album!) : '';
+
+    if (isPlaylist) {
+      final effectiveName = normAlbum.isNotEmpty ? normAlbum : normTitle;
+      return 'playlist_${effectiveName}_$normArtist';
+    }
 
     if (isYoutube) {
       final vid = youtubeVideoId ?? id.replaceFirst('youtube_', '').trim();
@@ -238,6 +285,10 @@ class ArtworkQuery {
   /// Stable catalog key based purely on canonical track metadata (artist + title).
   /// This bridges YouTube search representations and authoritative studio album artwork.
   String get canonicalKey {
+    if (isPlaylist) {
+      final norm = _normalize(album != null && album!.isNotEmpty ? album! : title);
+      return 'art_canon_playlist_$norm';
+    }
     final normArtist = _normalize(artist);
     final normTitle = _normalize(title);
     if (normArtist.isNotEmpty && normTitle.isNotEmpty) {

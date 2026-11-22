@@ -47,11 +47,11 @@ class DesktopFloatingPlayer extends ConsumerWidget {
     final progress = (position.inMilliseconds / totalMs).clamp(0.0, 1.0);
 
     return Container(
-      width: 580,
-      height: 64,
+      width: 785,
+      height: 82,
       decoration: BoxDecoration(
         color: const Color(0xD916141B), // Softer smoked dark velvet glass
-        borderRadius: BorderRadius.circular(14), // Modern square rounded rectangle container
+        borderRadius: BorderRadius.circular(18), // Sized up rounded rectangle container
         border: Border.all(
           color: const Color(0x1AFFEBF0),
           width: 1.0,
@@ -71,24 +71,24 @@ class DesktopFloatingPlayer extends ConsumerWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
           filter: ImageFilter.blur(
             sigmaX: MidnightVelvetTokens.glassBlurSigma,
             sigmaY: MidnightVelvetTokens.glassBlurSigma,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
             child: Row(
               children: [
                 // ── 1. Square Album Art & Track Meta (Left) ─────────────
                 GestureDetector(
                   onTap: onOpenNowSpinning,
                   child: Container(
-                    width: 42,
-                    height: 42,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(11),
                       border: Border.all(
                         color: const Color(0x26FFEBF0),
                         width: 1.0,
@@ -102,7 +102,7 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(11),
                       child: (currentTrack != null && currentTrack.effectiveArtworkUrl.isNotEmpty)
                           ? MieeArtworkImage(
                               explicitUrl: currentTrack.effectiveArtworkUrl,
@@ -115,11 +115,11 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
 
                 // Track Title & Artist + Shuffle underneath
                 SizedBox(
-                  width: 105,
+                  width: 125,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,7 +127,7 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                       Text(
                         currentTrack?.displayTitle ?? 'Mieeemile',
                         style: GoogleFonts.inter(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFFECE7E2),
                           letterSpacing: -0.1,
@@ -139,14 +139,14 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                       Text(
                         currentTrack?.artist ?? 'Rose·Smber',
                         style: GoogleFonts.inter(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w400,
                           color: const Color(0xFF9E9793),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 1),
+                      const SizedBox(height: 2),
                       GestureDetector(
                         onTap: () => controller.toggleShuffle(),
                         child: Icon(
@@ -167,11 +167,11 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                 Expanded(
                   child: Center(
                     child: SizedBox(
-                      width: 204,
+                      width: 350,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Radiant Half-Yellow / Half-Red Glowing Waveform (Tappable for seeking)
+                          // Soft Light-Shade Glowing Waveform
                           LayoutBuilder(
                             builder: (context, constraints) {
                               return GestureDetector(
@@ -181,14 +181,27 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                                   final targetMs = (ratio * totalMs).round();
                                   controller.seek(Duration(milliseconds: targetMs));
                                 },
-                                child: SizedBox(
-                                  height: 26,
+                                child: Container(
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    gradient: RadialGradient(
+                                      center: const Alignment(0.0, 0.4),
+                                      radius: 1.2,
+                                      colors: [
+                                        const Color(0xFFE5A66E).withValues(alpha: 0.08),
+                                        const Color(0xFFD47F78).withValues(alpha: 0.05),
+                                        Colors.transparent,
+                                      ],
+                                      stops: const [0.0, 0.55, 1.0],
+                                    ),
+                                  ),
                                   child: _buildGradientWaveform(progress, isPlaying),
                                 ),
                               );
                             },
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 5),
 
                           // Dual Timecodes (Playback line removed)
                           Row(
@@ -197,14 +210,14 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                               Text(
                                 _formatDuration(position),
                                 style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
-                                  fontSize: 9,
+                                  fontSize: 10,
                                   color: const Color(0xFF78716C),
                                 ),
                               ),
                               Text(
                                 duration.inSeconds > 0 ? _formatDuration(duration) : '4:38',
                                 style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
-                                  fontSize: 9,
+                                  fontSize: 10,
                                   color: const Color(0xFF78716C),
                                 ),
                               ),
@@ -225,10 +238,10 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                     // Skip Previous
                     IconButton(
                       icon: const Icon(Icons.skip_previous_rounded),
-                      iconSize: 18,
+                      iconSize: 22,
                       color: const Color(0xFFECE7E2),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: () => controller.previous(),
                     ),
 
@@ -237,10 +250,10 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                     // Circular Play/Pause Button
                     InkWell(
                       onTap: () => controller.togglePlayPause(),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(22),
                       child: Container(
-                        width: 36,
-                        height: 36,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: const Color(0xFF28222E),
@@ -261,7 +274,7 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                         child: Center(
                           child: Icon(
                             isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            size: 20,
+                            size: 24,
                             color: const Color(0xFFECE7E2),
                           ),
                         ),
@@ -273,10 +286,10 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                     // Skip Next
                     IconButton(
                       icon: const Icon(Icons.skip_next_rounded),
-                      iconSize: 18,
+                      iconSize: 22,
                       color: const Color(0xFFECE7E2),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: () => controller.next(),
                     ),
 
@@ -284,11 +297,11 @@ class DesktopFloatingPlayer extends ConsumerWidget {
                       const SizedBox(width: 2),
                       IconButton(
                         icon: const Icon(Icons.queue_music_rounded),
-                        iconSize: 14,
+                        iconSize: 15,
                         color: const Color(0xFF5A5460),
                         tooltip: 'Session Queue',
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                         onPressed: onToggleQueue,
                       ),
                     ],
@@ -350,7 +363,7 @@ class DesktopFloatingPlayer extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
-        final barWidth = math.max(1.8, (totalWidth / barCount) - 1.9);
+        final barWidth = math.max(2.6, (totalWidth / barCount) - 3.4);
 
         // At 0:00 or start, illuminate the entire waveform with radiant reference colors
         final effectiveProgress = progress <= 0.02 ? 1.0 : progress;
@@ -363,29 +376,29 @@ class DesktopFloatingPlayer extends ConsumerWidget {
             final barProgress = i / barCount;
             final isPlayed = barProgress <= effectiveProgress;
             final normalizedHeight = heights[i % heights.length];
-            final barHeight = math.max(2.5, 2.5 + (normalizedHeight * 23.5));
+            final barHeight = math.max(3.5, 3.5 + (normalizedHeight * 31.0));
 
-            // Pure half-yellow (0 to ~48%) and half-red (~52% to 100%) gradient calibration
+            // Soft velvety studio champagne amber to dusty rose / wine ember
             final Color color;
             if (t < 0.48) {
-              // Radiant champagne-amber yellow
+              // Soft warm champagne gold
               color = Color.lerp(
-                const Color(0xFFFFE082), // luminous warm champagne white-gold
-                const Color(0xFFF59E0B), // rich golden amber
+                const Color(0xFFF2C79A), // soft warm champagne
+                const Color(0xFFE5A66E), // warm amber gold
                 t / 0.48,
               )!;
             } else if (t > 0.52) {
-              // Radiant coral-rose to intense ruby ember red
+              // Soft dusty coral rose to deep warm wine ember
               color = Color.lerp(
-                const Color(0xFFFF3366), // vibrant luminous coral rose neon
-                const Color(0xFFD32F2F), // deep glowing ruby ember red
+                const Color(0xFFD47F78), // soft dusty coral rose
+                const Color(0xFF94474B), // deep velvety wine ember
                 (t - 0.52) / 0.48,
               )!;
             } else {
               // Smooth midpoint transition
               color = Color.lerp(
-                const Color(0xFFF59E0B),
-                const Color(0xFFFF3366),
+                const Color(0xFFE5A66E),
+                const Color(0xFFD47F78),
                 (t - 0.48) / 0.04,
               )!;
             }
@@ -394,19 +407,15 @@ class DesktopFloatingPlayer extends ConsumerWidget {
               width: barWidth,
               height: barHeight,
               decoration: BoxDecoration(
-                color: isPlayed ? color : color.withValues(alpha: 0.35),
+                color: isPlayed ? color : color.withValues(alpha: 0.65),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(1.2)),
-                boxShadow: isPlayed
-                    ? [
-                        BoxShadow(
-                          color: color.withValues(
-                            alpha: normalizedHeight > 0.75 ? 0.70 : 0.50,
-                          ),
-                          blurRadius: normalizedHeight > 0.75 ? 6 : 4,
-                          spreadRadius: normalizedHeight > 0.75 ? 0.8 : 0.4,
-                        ),
-                      ]
-                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: isPlayed ? 0.35 : 0.16),
+                    blurRadius: 4,
+                    spreadRadius: 0,
+                  ),
+                ],
               ),
             );
           }),

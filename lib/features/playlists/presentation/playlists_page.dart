@@ -194,36 +194,58 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
 
   void _confirmDelete(
       BuildContext context, WidgetRef ref, PlaylistModel playlist) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.white,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1F24) : AppColors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.oatBeige),
+          side: BorderSide(color: isDark ? Colors.white12 : AppColors.oatBeige),
         ),
-        title: Text('Delete Playlist',
-            style: GoogleFonts.playfairDisplay(
-                fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
+        title: Text(
+          'Delete Playlist',
+          style: GoogleFonts.playfairDisplay(
+            fontWeight: FontWeight.bold,
+            color: isDark ? const Color(0xFFF6F6F4) : AppColors.cocoaPlum,
+          ),
+        ),
         content: Text(
           'Are you sure you want to delete "${playlist.name}"? This action cannot be undone.',
-          style: GoogleFonts.geist(color: AppColors.mutedMauve),
+          style: GoogleFonts.geist(
+            color: isDark ? const Color(0xFFA1A1AA) : AppColors.mutedMauve,
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel',
-                style: GoogleFonts.geist(color: AppColors.mutedMauve)),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.geist(
+                color: isDark ? const Color(0xFFA1A1AA) : AppColors.mutedMauve,
+              ),
+            ),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed: () {
               ref
                   .read(playlistControllerProvider.notifier)
                   .deletePlaylist(playlist.id);
-              Navigator.pop(context);
+              Navigator.of(dialogCtx).pop();
             },
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.geist(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),

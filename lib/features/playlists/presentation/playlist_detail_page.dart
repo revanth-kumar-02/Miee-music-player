@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -839,11 +840,19 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
   }
 
   void _showOptionsMenu(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF1E1F24) : AppColors.white;
+    final primaryTextColor =
+        isDark ? const Color(0xFFF6F6F4) : AppColors.cocoaPlum;
+    final secondaryTextColor =
+        isDark ? const Color(0xFFA1A1AA) : AppColors.mutedMauve;
+    final handleColor = isDark ? Colors.white24 : AppColors.outlineVariant;
+
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
-      backgroundColor: AppColors.surfaceContainerLowest,
+      backgroundColor: surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
       ),
@@ -854,121 +863,148 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(sheetContext).padding.bottom + 8.0,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
-                  child: Container(
-                    width: 36.0,
-                    height: 4.0,
-                    decoration: BoxDecoration(
-                      color: AppColors.outlineVariant,
-                      borderRadius: BorderRadius.circular(2.0),
-                    ),
+            child: Theme(
+              data: Theme.of(sheetContext).copyWith(
+                listTileTheme: ListTileThemeData(
+                  iconColor: primaryTextColor,
+                  textColor: primaryTextColor,
+                  titleTextStyle: GoogleFonts.geist(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: primaryTextColor,
+                  ),
+                  subtitleTextStyle: GoogleFonts.geist(
+                    fontSize: 12,
+                    color: secondaryTextColor,
                   ),
                 ),
-                ListTile(
-                  leading:
-                      const Icon(Icons.group_outlined, color: AppColors.primary),
-                  title: const Text('Collaboration & Sharing'),
-                  subtitle: Text(
-                    playlist.isCollaborative
-                        ? 'Collaborative · ${playlist.role.name.toUpperCase()}'
-                        : 'Private',
-                  ),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    showPlaylistCollaborationSheet(context, playlist);
-                  },
-                ),
-                if (playlist.canEdit)
-                  ListTile(
-                    leading:
-                        const Icon(Icons.playlist_add, color: AppColors.primary),
-                    title: const Text('Add Songs'),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      showAddSongsToPlaylistSheet(context, playlist);
-                    },
-                  ),
-                if (playlist.canEdit && playlist.tracks.length > 1)
-                  ListTile(
-                    leading: const Icon(
-                      Icons.swap_vert_rounded,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text('Reorder Songs'),
-                    subtitle: const Text('Rearrange track sequence'),
-                    onTap: () {
-                      Navigator.of(sheetContext).pop();
-                      _startReorderMode();
-                    },
-                  ),
-                ListTile(
-                  leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Rename'),
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await showCreatePlaylistDialog(
-                      context,
-                      existingId: playlist.id,
-                      initialName: playlist.name,
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.copy_outlined),
-                  title: const Text('Duplicate'),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    ref
-                        .read(playlistControllerProvider.notifier)
-                        .duplicatePlaylist(playlist.id);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Duplicated "${playlist.name}"'),
-                        behavior: SnackBarBehavior.floating,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12.0, bottom: 8.0),
+                    child: Container(
+                      width: 36.0,
+                      height: 4.0,
+                      decoration: BoxDecoration(
+                        color: handleColor,
+                        borderRadius: BorderRadius.circular(2.0),
                       ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.image_outlined),
-                  title: const Text('Change Cover'),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _pickPlaylistCover(context, ref, playlist.id);
-                  },
-                ),
-                if (playlist.customCoverPath != null)
+                    ),
+                  ),
                   ListTile(
-                    leading: const Icon(Icons.hide_image_outlined),
-                    title: const Text('Remove Custom Cover'),
+                    leading: const Icon(Icons.group_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Collaboration & Sharing'),
+                    subtitle: Text(
+                      playlist.isCollaborative
+                          ? 'Collaborative · ${playlist.role.name.toUpperCase()}'
+                          : 'Private',
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      showPlaylistCollaborationSheet(context, playlist);
+                    },
+                  ),
+                  if (playlist.canEdit)
+                    ListTile(
+                      leading: const Icon(Icons.playlist_add,
+                          color: AppColors.primary),
+                      title: const Text('Add Songs'),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        showAddSongsToPlaylistSheet(context, playlist);
+                      },
+                    ),
+                  if (playlist.canEdit && playlist.tracks.length > 1)
+                    ListTile(
+                      leading: const Icon(
+                        Icons.swap_vert_rounded,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text('Reorder Songs'),
+                      subtitle: const Text('Rearrange track sequence'),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        _startReorderMode();
+                      },
+                    ),
+                  ListTile(
+                    leading: Icon(Icons.edit_outlined, color: primaryTextColor),
+                    title: const Text('Rename'),
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await showCreatePlaylistDialog(
+                        context,
+                        existingId: playlist.id,
+                        initialName: playlist.name,
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.copy_outlined, color: primaryTextColor),
+                    title: const Text('Duplicate'),
                     onTap: () {
                       Navigator.of(sheetContext).pop();
                       ref
                           .read(playlistControllerProvider.notifier)
-                          .updateCoverPath(playlist.id, null);
+                          .duplicatePlaylist(playlist.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Duplicated "${playlist.name}"'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
                     },
                   ),
-                ListTile(
-                  leading:
-                      const Icon(Icons.delete_outline, color: AppColors.error),
-                  title: const Text('Delete',
-                      style: TextStyle(color: AppColors.error)),
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    final confirmed = await _confirmDelete(context);
-                    if (confirmed == true && context.mounted) {
-                      await ref
-                          .read(playlistControllerProvider.notifier)
-                          .deletePlaylist(playlist.id);
-                      if (context.mounted) context.pop();
-                    }
-                  },
-                ),
-              ],
+                  ListTile(
+                    leading:
+                        Icon(Icons.image_outlined, color: primaryTextColor),
+                    title: const Text('Change Cover'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _pickPlaylistCover(context, ref, playlist.id);
+                    },
+                  ),
+                  if (playlist.customCoverPath != null)
+                    ListTile(
+                      leading: Icon(Icons.hide_image_outlined,
+                          color: primaryTextColor),
+                      title: const Text('Remove Custom Cover'),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        ref
+                            .read(playlistControllerProvider.notifier)
+                            .updateCoverPath(playlist.id, null);
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline,
+                        color: AppColors.error),
+                    title: const Text('Delete',
+                        style: TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w600)),
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      final confirmed = await _confirmDelete(context);
+                      if (confirmed == true && context.mounted) {
+                        await ref
+                            .read(playlistControllerProvider.notifier)
+                            .deletePlaylist(playlist.id);
+                        if (context.mounted) {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/playlists');
+                          }
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -990,20 +1026,59 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
   }
 
   Future<bool?> _confirmDelete(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Playlist?'),
+      barrierDismissible: true,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1F24) : AppColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: isDark ? Colors.white12 : AppColors.oatBeige,
+          ),
+        ),
+        title: Text(
+          'Delete Playlist?',
+          style: GoogleFonts.playfairDisplay(
+            fontWeight: FontWeight.bold,
+            color: isDark ? const Color(0xFFF6F6F4) : AppColors.cocoaPlum,
+          ),
+        ),
         content: Text(
-            'Are you sure you want to delete "${playlist.name}"? This cannot be undone.'),
+          'Are you sure you want to delete "${playlist.name}"?\nThis cannot be undone.',
+          style: GoogleFonts.geist(
+            color: isDark ? const Color(0xFFA1A1AA) : AppColors.mutedMauve,
+            height: 1.4,
+          ),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete',
-                  style: TextStyle(color: AppColors.error))),
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.geist(
+                color: isDark ? const Color(0xFFA1A1AA) : AppColors.mutedMauve,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.geist(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );

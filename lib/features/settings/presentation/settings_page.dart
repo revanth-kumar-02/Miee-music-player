@@ -449,7 +449,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           style: const TextStyle(color: AppColors.mutedMauve),
                         ),
                         trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () => context.push('/onboarding'),
+                        onTap: () => context.push('/favourite-artists'),
                       ),
                       if (selectedArtists.isNotEmpty)
                         Padding(

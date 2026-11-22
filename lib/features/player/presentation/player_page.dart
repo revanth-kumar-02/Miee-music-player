@@ -412,6 +412,7 @@ class PlayerPage extends ConsumerWidget {
                               isScrollControlled: true,
                               useRootNavigator: true,
                               backgroundColor: Colors.transparent,
+                              barrierColor: Colors.black.withValues(alpha: 0.55),
                               builder: (ctx) => FractionallySizedBox(
                                 heightFactor: 0.92,
                                 child: LyricsOverlay(
@@ -910,6 +911,7 @@ class PlayerPage extends ConsumerWidget {
                                               isScrollControlled: true,
                                               useRootNavigator: true,
                                               backgroundColor: Colors.transparent,
+                                              barrierColor: Colors.black.withValues(alpha: 0.55),
                                               builder: (ctx) => FractionallySizedBox(
                                                 heightFactor: 0.92,
                                                 child: LyricsOverlay(

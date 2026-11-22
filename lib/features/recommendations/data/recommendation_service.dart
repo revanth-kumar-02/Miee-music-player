@@ -115,8 +115,9 @@ class RecommendationService {
     final rawArtist =
         (track is Track ? (track.rawArtist ?? '') : '').toLowerCase().trim();
     if (rawArtist.isNotEmpty) {
-      if (aliases.any((alias) => isArtistNameMatch(rawArtist, alias)))
+      if (aliases.any((alias) => isArtistNameMatch(rawArtist, alias))) {
         return true;
+      }
     }
 
     // 4. Check raw title or title for structured credit clauses:
@@ -337,14 +338,14 @@ class RecommendationService {
       return false;
     }
 
-    // 4c. Implausibly short clips (< 60s) unless explicitly tagged as intro/interlude/skit/prelude/outro/theme
+    // 4c. Implausibly short clips (< 20s) unless explicitly tagged as intro/interlude/skit/prelude/outro/theme
     final isShortForm = title.contains('intro') ||
         title.contains('interlude') ||
         title.contains('skit') ||
         title.contains('prelude') ||
         title.contains('outro') ||
         title.contains('theme');
-    if (durationSec > 0 && durationSec < 60 && !isShortForm) {
+    if (durationSec > 0 && durationSec < 20 && !isShortForm) {
       return false;
     }
 

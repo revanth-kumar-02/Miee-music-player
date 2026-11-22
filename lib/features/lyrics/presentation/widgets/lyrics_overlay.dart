@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -257,20 +258,51 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
         );
       },
       loading: () => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(strokeWidth: 2.5),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28.0),
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 360),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1B20),
+              borderRadius: BorderRadius.circular(24.0),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+                width: 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.40),
+                  blurRadius: 32,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
-            const SizedBox(height: 16.0),
-            Text(
-              'Searching lyrics...',
-              style: AppTypography.bodyMedium.copyWith(color: AppColors.mutedMauve),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE5C396)),
+                  ),
+                ),
+                const SizedBox(height: 18.0),
+                Text(
+                  'Searching lyrics...',
+                  style: GoogleFonts.geist(
+                    fontSize: 15.0,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFFF6F6F4),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
       error: (err, _) => _buildErrorState(err),
@@ -279,37 +311,107 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
 
   Widget _buildEmptyState(String message) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.lyrics_outlined,
-            size: 48.0,
-            color: AppColors.onSurfaceVariant.withValues(alpha: 0.35),
-          ),
-          const SizedBox(height: 14.0),
-          Text(
-            message,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28.0),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 360),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1B20),
+            borderRadius: BorderRadius.circular(24.0),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1.0,
             ),
-            textAlign: TextAlign.center,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.40),
+                blurRadius: 32,
+                offset: const Offset(0, 12),
+              ),
+            ],
           ),
-          const SizedBox(height: 6.0),
-          Text(
-            'We checked multiple title variants and providers',
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.mutedMauve,
-            ),
-            textAlign: TextAlign.center,
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Champagne accent icon container
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5C396).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFE5C396).withValues(alpha: 0.30),
+                    width: 1.0,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.lyrics_outlined,
+                  size: 28.0,
+                  color: Color(0xFFE5C396),
+                ),
+              ),
+              const SizedBox(height: 18.0),
+              // Heading
+              Text(
+                'No lyrics available for this song',
+                style: GoogleFonts.geist(
+                  fontSize: 17.0,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFF6F6F4),
+                  letterSpacing: -0.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8.0),
+              // Description
+              Text(
+                'We checked multiple title variants and providers.',
+                style: GoogleFonts.geist(
+                  fontSize: 13.0,
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFFA1A1AA),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24.0),
+              // Back to Player button
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: FilledButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    widget.onClose();
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF272930),
+                    foregroundColor: const Color(0xFFF6F6F4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.10),
+                        width: 1.0,
+                      ),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Back to Player',
+                    style: GoogleFonts.geist(
+                      fontSize: 14.0,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFF6F6F4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16.0),
-          TextButton(
-            onPressed: widget.onClose,
-            child: const Text('Back to Player'),
-          )
-        ],
+        ),
       ),
     );
   }
@@ -328,50 +430,138 @@ class _LyricsOverlayState extends ConsumerState<LyricsOverlay> {
         : 'Could not connect to the lyrics service right now.';
 
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isNetwork ? Icons.wifi_off_outlined : Icons.cloud_off_outlined,
-            size: 48.0,
-            color: AppColors.onSurfaceVariant.withValues(alpha: 0.35),
-          ),
-          const SizedBox(height: 14.0),
-          Text(
-            title,
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28.0),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 360),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1B20),
+            borderRadius: BorderRadius.circular(24.0),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1.0,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6.0),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Text(
-              subtitle,
-              style: AppTypography.labelSmall.copyWith(color: AppColors.mutedMauve),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 16.0),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              OutlinedButton(
-                onPressed: () {
-                  ref.invalidate(lyricsProvider(widget.track));
-                },
-                child: const Text('Retry'),
-              ),
-              const SizedBox(width: 12.0),
-              TextButton(
-                onPressed: widget.onClose,
-                child: const Text('Back to Player'),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.40),
+                blurRadius: 32,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
-        ],
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 28.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5C396).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFE5C396).withValues(alpha: 0.30),
+                    width: 1.0,
+                  ),
+                ),
+                child: Icon(
+                  isNetwork ? Icons.wifi_off_outlined : Icons.cloud_off_outlined,
+                  size: 28.0,
+                  color: const Color(0xFFE5C396),
+                ),
+              ),
+              const SizedBox(height: 18.0),
+              Text(
+                title,
+                style: GoogleFonts.geist(
+                  fontSize: 17.0,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFF6F6F4),
+                  letterSpacing: -0.2,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                subtitle,
+                style: GoogleFonts.geist(
+                  fontSize: 13.0,
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFFA1A1AA),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24.0),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          ref.invalidate(lyricsProvider(widget.track));
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFF6F6F4),
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            width: 1.0,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.0),
+                          ),
+                        ),
+                        child: Text(
+                          'Retry',
+                          style: GoogleFonts.geist(
+                            fontSize: 14.0,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFF6F6F4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12.0),
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: FilledButton(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          widget.onClose();
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF272930),
+                          foregroundColor: const Color(0xFFF6F6F4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.0),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.10),
+                              width: 1.0,
+                            ),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Back to Player',
+                          style: GoogleFonts.geist(
+                            fontSize: 14.0,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFF6F6F4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

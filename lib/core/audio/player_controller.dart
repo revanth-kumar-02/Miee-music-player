@@ -525,9 +525,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
       return;
     }
 
-    // Only replenish when playback has reached or is at the end of the active queue (remaining <= 0)
-    // Never expand prematurely while user still has upcoming queued songs.
-    if (remaining > 0) {
+    // Allow replenishment when approaching the end of the active queue (remaining <= 2)
+    // to ensure continuous autoplay without gap or silence, while avoiding premature expansion.
+    if (remaining > 2) {
       return;
     }
 
@@ -725,27 +725,26 @@ class PlayerController extends StateNotifier<PlaybackState> {
       var candidateId = track.id.replaceFirst('youtube_', '');
       YouTubeVideo? verifiedCandidate;
 
-      // If the ID is a discovery/chart metadata ID (e.g. wm_chart_... or itunes_... or mb_...), resolve verified YouTube video ID
-      // OR if the candidate has an implausibly short teaser/promo duration (<60s) while not an intro/skit/interlude
+      // If the ID is a discovery/chart metadata ID (e.g. wm_chart_... or itunes_... or mb_...), resolve verified YouTube video ID.
+      // Legitimate short tracks (e.g. 43s) with verified artist/album context must preserve their canonical duration.
       final rawDurSec = MusicResultClassifier.parseDurationSeconds(track.duration);
-      final isShortForm = rawT.toLowerCase().contains('intro') ||
-          rawT.toLowerCase().contains('interlude') ||
-          rawT.toLowerCase().contains('skit') ||
-          rawT.toLowerCase().contains('prelude') ||
-          rawT.toLowerCase().contains('outro') ||
-          rawT.toLowerCase().contains('theme');
-      final isSuspiciousShortPromo = rawDurSec > 0 && rawDurSec < 60 && !isShortForm;
+      final isExplicitPromoKeyword = rawT.toLowerCase().contains('promo') ||
+          rawT.toLowerCase().contains('teaser') ||
+          rawT.toLowerCase().contains('trailer') ||
+          rawT.toLowerCase().contains('glimpse');
+      final isSuspiciousShortPromo = rawDurSec > 0 && rawDurSec < 25 && isExplicitPromoKeyword;
 
       if (candidateId.startsWith('wm_') ||
           candidateId.startsWith('itunes_') ||
           candidateId.startsWith('mb_') ||
+          candidateId.startsWith('saavn_') ||
           isSuspiciousShortPromo ||
           !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(candidateId)) {
         // Targeted Music-First Resolution
         final resolvedId = await PlaybackSourceResolver().resolveVideoId(
           title: rawT,
           artist: rawA,
-          durationStr: isSuspiciousShortPromo ? null : track.duration,
+          durationStr: isSuspiciousShortPromo ? null : (rawDurSec > 0 ? track.duration : null),
           album: (track is Track) ? track.albumName : null,
         );
 
@@ -828,7 +827,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
           );
       final isApprovedMusic = (track is Track &&
               (track.metadataProvider == 'itunes' ||
-                  track.metadataProvider == 'musicbrainz')) ||
+                  track.metadataProvider == 'musicbrainz' ||
+                  (track.albumName != null && track.albumName!.isNotEmpty) ||
+                  track.artist.isNotEmpty)) ||
           candidate.metadataProvider == 'itunes' ||
           candidate.metadataProvider == 'musicbrainz' ||
           MusicResultClassifier.isValidIndividualSong(candidate,
@@ -1156,6 +1157,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   bool _isPlayableMusicItem(MusicItem track) {
     if (!track.isYoutube) return true;
+    if (track is Track &&
+        ((track.albumName != null && track.albumName!.isNotEmpty) ||
+            track.metadataProvider == 'itunes' ||
+            track.metadataProvider == 'musicbrainz')) {
+      return true;
+    }
     final candidate = YouTubeVideo(
       id: track.id.replaceFirst('youtube_', ''),
       title: track.title,
@@ -1168,7 +1175,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
       rawChannelTitle:
           (track is Track) ? (track.rawArtist ?? track.artist) : track.artist,
     );
-    return MusicResultClassifier.isValidIndividualSong(candidate);
+    return MusicResultClassifier.isValidIndividualSong(
+      candidate,
+      query: '${track.title} ${track.artist}'.trim(),
+    );
   }
 
   // ── Navigation ─────────────────────────────────────────────────────────────
