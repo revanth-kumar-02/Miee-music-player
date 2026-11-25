@@ -71,20 +71,16 @@ WidgetArtworkFields extractWidgetArtworkFields({
   for (final raw in candidates) {
     final lower = raw.toLowerCase();
     if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      if (artworkUrl.isEmpty) artworkUrl = raw;
+      if (!lower.contains('ytimg.com') &&
+          !lower.contains('youtube.com') &&
+          artworkUrl.isEmpty) {
+        artworkUrl = raw;
+      }
     } else {
       final cleanPath = _stripFileUri(raw);
       if (cleanPath.isNotEmpty && artworkPath.isEmpty) {
         artworkPath = cleanPath;
       }
-    }
-  }
-
-  // Fallback for YouTube tracks that have not yet populated imageUrl.
-  if (isYoutube && artworkUrl.isEmpty) {
-    final vid = _extractYouTubeId(sourceId ?? trackId);
-    if (vid != null) {
-      artworkUrl = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
     }
   }
 
@@ -359,7 +355,8 @@ class MieeWidgetSyncService {
       durMs: durMs,
     );
 
-    if (track != null && (trackChanged || force || _needsArtworkEnrichment(fields))) {
+    if (track != null &&
+        (trackChanged || force || _needsArtworkEnrichment(fields))) {
       unawaited(
         _resolveAndRefreshNowPlayingArtwork(
           track: track,
@@ -405,10 +402,10 @@ class MieeWidgetSyncService {
         return;
       }
 
-      final hasLocalCache = ArtworkCache.hasValidLocalFile(resolved.localCachedPath);
-      final preferredArt = hasLocalCache
-          ? resolved.localCachedPath!
-          : resolved.imageUrl.trim();
+      final hasLocalCache =
+          ArtworkCache.hasValidLocalFile(resolved.localCachedPath);
+      final preferredArt =
+          hasLocalCache ? resolved.localCachedPath! : resolved.imageUrl.trim();
       if (preferredArt.isEmpty) return;
 
       final enrichedFields = extractWidgetArtworkFields(

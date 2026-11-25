@@ -38,8 +38,10 @@ import '../../search/data/artist_resolution_service.dart';
 /// Dynamically resolves artist metadata for the currently playing track.
 /// Utilizes the centralized [ArtistResolutionService] with in-flight deduplication,
 /// tiered caching, and strict name verification to prevent unrelated artist associations.
-final nowPlayingArtistProvider = FutureProvider.autoDispose<ArtistModel?>((ref) async {
-  final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+final nowPlayingArtistProvider =
+    FutureProvider.autoDispose<ArtistModel?>((ref) async {
+  final currentTrack =
+      ref.watch(playerControllerProvider.select((s) => s.currentTrack));
   if (currentTrack == null || currentTrack.artist.trim().isEmpty) return null;
 
   final resolutionService = ref.read(artistResolutionServiceProvider);
@@ -60,12 +62,11 @@ class PlayerPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentTrack =
         ref.watch(playerControllerProvider.select((s) => s.currentTrack));
-    final isPlaying = ref.watch(
-        playerControllerProvider.select((s) => s.status == PlaybackStatus.playing));
-    final isLoading = ref.watch(
-        playerControllerProvider.select((s) =>
-            s.status == PlaybackStatus.loading ||
-            s.status == PlaybackStatus.buffering));
+    final isPlaying = ref.watch(playerControllerProvider
+        .select((s) => s.status == PlaybackStatus.playing));
+    final isLoading = ref.watch(playerControllerProvider.select((s) =>
+        s.status == PlaybackStatus.loading ||
+        s.status == PlaybackStatus.buffering));
     final isShuffleEnabled =
         ref.watch(playerControllerProvider.select((s) => s.isShuffleEnabled));
     final repeatMode =
@@ -76,7 +77,8 @@ class PlayerPage extends ConsumerWidget {
 
     final hasTrack = currentTrack != null;
     final favorites = ref.watch(favoritesProvider);
-    final isLiked = hasTrack ? favorites.any((t) => t.id == currentTrack.id) : false;
+    final isLiked =
+        hasTrack ? favorites.any((t) => t.id == currentTrack.id) : false;
     final activeRoom = ref.watch(activeRoomProvider);
     final connectState = ref.watch(connectControllerProvider);
     final isRemoteConnectActive = connectState.isRemote;
@@ -117,393 +119,408 @@ class PlayerPage extends ConsumerWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                // ── 1. Top Header Bar (Reference Screen 4) ──
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.chevron_left_rounded,
-                        size: 32,
-                        color: AppColors.denseObsidian,
-                      ),
-                      onPressed: () {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go('/home');
-                        }
-                      },
-                    ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.cast_rounded,
-                          size: 22,
-                          color: AppColors.denseObsidian,
-                        ),
-                        tooltip: 'Cast Audio',
-                        onPressed: () => NotificationSheet.show(context),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.more_vert_rounded,
-                          size: 22,
-                          color: AppColors.denseObsidian,
-                        ),
-                        tooltip: 'More Options',
-                        onPressed: hasTrack
-                            ? () => showAddToPlaylistSheet(context, currentTrack)
-                            : null,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const Spacer(flex: 1),
-
-              // ── 2. Prominent Square Album Artwork (Reference Screen 4) ──
-              Center(
-                child: ConstrainedBox(
-                  constraints:
-                      const BoxConstraints(maxWidth: 320, maxHeight: 320),
-                  child: AspectRatio(
-                    aspectRatio: 1.0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.paleConcrete,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.denseObsidian.withValues(alpha: 0.12),
-                            blurRadius: 28,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(28),
-                        child: hasTrack
-                            ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.cover)
-                            : _buildFallbackArtwork(),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const Spacer(flex: 1),
-
-              // ── 3. Title & Artist Left, Heart Action Right (Reference Screen 4) ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            hasTrack ? currentTrack.displayTitle : 'Blue Hour',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.geist(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.denseObsidian,
-                              letterSpacing: -0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hasTrack
-                                ? currentTrack.artist
-                                : 'Lauv',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.geist(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.industrialSteel,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        size: 26,
-                        color: isLiked
-                            ? AppColors.electricCobalt
-                            : AppColors.denseObsidian,
-                      ),
-                      onPressed: hasTrack
-                          ? () {
-                              final favNotifier =
-                                  ref.read(favoritesProvider.notifier);
-                              if (isLiked) {
-                                favNotifier.removeFavorite(currentTrack.id);
-                              } else {
-                                favNotifier.addFavorite(
-                                  Track(
-                                    id: currentTrack.id,
-                                    title: currentTrack.title,
-                                    artist: currentTrack.artist,
-                                    imageUrl: currentTrack.imageUrl,
-                                    duration: currentTrack.duration,
-                                    filePath: currentTrack.filePath,
-                                  ),
-                                );
-                              }
-                            }
-                          : null,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              if (isRemoteConnectActive) ...[
-                GestureDetector(
-                  onTap: () => ConnectSheet.show(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.electricCobalt.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.electricCobalt.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    // ── 1. Top Header Bar (Reference Screen 4) ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(
-                          Icons.speaker_group_rounded,
-                          color: AppColors.electricCobalt,
-                          size: 14,
+                        IconButton(
+                          icon: const Icon(
+                            Icons.chevron_left_rounded,
+                            size: 32,
+                            color: AppColors.denseObsidian,
+                          ),
+                          onPressed: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go('/home');
+                            }
+                          },
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Playing on ${connectState.activeDevice.name}',
-                          style: GoogleFonts.geist(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.cast_rounded,
+                                size: 22,
+                                color: AppColors.denseObsidian,
+                              ),
+                              tooltip: 'Cast Audio',
+                              onPressed: () => NotificationSheet.show(context),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.more_vert_rounded,
+                                size: 22,
+                                color: AppColors.denseObsidian,
+                              ),
+                              tooltip: 'More Options',
+                              onPressed: hasTrack
+                                  ? () => showAddToPlaylistSheet(
+                                      context, currentTrack)
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    const Spacer(flex: 1),
+
+                    // ── 2. Prominent Square Album Artwork (Reference Screen 4) ──
+                    Center(
+                      child: ConstrainedBox(
+                        constraints:
+                            const BoxConstraints(maxWidth: 320, maxHeight: 320),
+                        child: AspectRatio(
+                          aspectRatio: 1.0,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.paleConcrete,
+                              borderRadius: BorderRadius.circular(28),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.denseObsidian
+                                      .withValues(alpha: 0.12),
+                                  blurRadius: 28,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(28),
+                              child: hasTrack
+                                  ? _buildArtworkImage(currentTrack.imageUrl,
+                                      currentTrack, BoxFit.cover)
+                                  : _buildFallbackArtwork(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const Spacer(flex: 1),
+
+                    // ── 3. Title & Artist Left, Heart Action Right (Reference Screen 4) ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  hasTrack
+                                      ? currentTrack.displayTitle
+                                      : 'Blue Hour',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.geist(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.denseObsidian,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  hasTrack ? currentTrack.artist : 'Lauv',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.geist(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.industrialSteel,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              isLiked
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              size: 26,
+                              color: isLiked
+                                  ? AppColors.electricCobalt
+                                  : AppColors.denseObsidian,
+                            ),
+                            onPressed: hasTrack
+                                ? () {
+                                    final favNotifier =
+                                        ref.read(favoritesProvider.notifier);
+                                    if (isLiked) {
+                                      favNotifier
+                                          .removeFavorite(currentTrack.id);
+                                    } else {
+                                      favNotifier.addFavorite(
+                                        Track(
+                                          id: currentTrack.id,
+                                          title: currentTrack.title,
+                                          artist: currentTrack.artist,
+                                          imageUrl: currentTrack.imageUrl,
+                                          duration: currentTrack.duration,
+                                          filePath: currentTrack.filePath,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    if (isRemoteConnectActive) ...[
+                      GestureDetector(
+                        onTap: () => ConnectSheet.show(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color:
+                                AppColors.electricCobalt.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: AppColors.electricCobalt
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.speaker_group_rounded,
+                                color: AppColors.electricCobalt,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Playing on ${connectState.activeDevice.name}',
+                                style: GoogleFonts.geist(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.electricCobalt,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    // ── 4. Waveform Progress & Timestamps ──
+                    _WaveformProgressSection(
+                      hasTrack: hasTrack,
+                      isPlaying: isPlaying,
+                      controller: controller,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── 5. Playback Controls Row (Reference Screen 4) ──
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.shuffle_rounded),
+                            iconSize: 22,
+                            color: isShuffleEnabled
+                                ? AppColors.electricCobalt
+                                : AppColors.industrialSteel,
+                            onPressed: () => controller.toggleShuffle(),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.skip_previous_rounded),
+                            iconSize: 34,
+                            color: AppColors.denseObsidian,
+                            onPressed: () => controller.previous(),
+                          ),
+
+                          // Large Circular Electric Cobalt Play Button
+                          Material(
                             color: AppColors.electricCobalt,
+                            shape: const CircleBorder(),
+                            elevation: 4,
+                            shadowColor: AppColors.electricCobalt
+                                .withValues(alpha: 0.38),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: isLoading
+                                  ? null
+                                  : () {
+                                      if (isPlaying) {
+                                        controller.pause();
+                                      } else {
+                                        controller.play();
+                                      }
+                                    },
+                              child: Container(
+                                width: 64,
+                                height: 64,
+                                alignment: Alignment.center,
+                                child: isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.6,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  Colors.white),
+                                        ),
+                                      )
+                                    : Icon(
+                                        isPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        size: 36,
+                                        color: Colors.white,
+                                      ),
+                              ),
+                            ),
+                          ),
+
+                          IconButton(
+                            icon: const Icon(Icons.skip_next_rounded),
+                            iconSize: 34,
+                            color: AppColors.denseObsidian,
+                            onPressed: () => controller.next(),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.repeat_rounded),
+                            iconSize: 22,
+                            color: repeatMode != RepeatMode.off
+                                ? AppColors.electricCobalt
+                                : AppColors.industrialSteel,
+                            onPressed: () => controller.toggleRepeatMode(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Spacer(flex: 1),
+
+                    // ── 6. Bottom Actions: Lyrics & Queue Pills ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        InkWell(
+                          onTap: hasTrack
+                              ? () {
+                                  showModalBottomSheet<void>(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    useRootNavigator: true,
+                                    backgroundColor: Colors.transparent,
+                                    barrierColor:
+                                        Colors.black.withValues(alpha: 0.55),
+                                    builder: (ctx) => FractionallySizedBox(
+                                      heightFactor: 0.92,
+                                      child: LyricsOverlay(
+                                        track: currentTrack,
+                                        onClose: () => Navigator.of(ctx).pop(),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.paleConcrete,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.outlineVariant
+                                    .withValues(alpha: 0.4),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.lyrics_outlined,
+                                  size: 16,
+                                  color: AppColors.denseObsidian,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Lyrics',
+                                  style: GoogleFonts.geist(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.denseObsidian,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        InkWell(
+                          onTap: () => context.push('/queue'),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.paleConcrete,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.outlineVariant
+                                    .withValues(alpha: 0.4),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.queue_music_rounded,
+                                  size: 16,
+                                  color: AppColors.denseObsidian,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Queue',
+                                  style: GoogleFonts.geist(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.denseObsidian,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
-
-              // ── 4. Waveform Progress & Timestamps ──
-              _WaveformProgressSection(
-                hasTrack: hasTrack,
-                isPlaying: isPlaying,
-                controller: controller,
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── 5. Playback Controls Row (Reference Screen 4) ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.shuffle_rounded),
-                      iconSize: 22,
-                      color: isShuffleEnabled
-                          ? AppColors.electricCobalt
-                          : AppColors.industrialSteel,
-                      onPressed: () => controller.toggleShuffle(),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.skip_previous_rounded),
-                      iconSize: 34,
-                      color: AppColors.denseObsidian,
-                      onPressed: () => controller.previous(),
-                    ),
-
-                    // Large Circular Electric Cobalt Play Button
-                    Material(
-                      color: AppColors.electricCobalt,
-                      shape: const CircleBorder(),
-                      elevation: 4,
-                      shadowColor: AppColors.electricCobalt.withValues(alpha: 0.38),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: isLoading
-                            ? null
-                            : () {
-                                if (isPlaying) {
-                                  controller.pause();
-                                } else {
-                                  controller.play();
-                                }
-                              },
-                        child: Container(
-                          width: 64,
-                          height: 64,
-                          alignment: Alignment.center,
-                          child: isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.6,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : Icon(
-                                  isPlaying
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                  size: 36,
-                                  color: Colors.white,
-                                ),
-                        ),
-                      ),
-                    ),
-
-                    IconButton(
-                      icon: const Icon(Icons.skip_next_rounded),
-                      iconSize: 34,
-                      color: AppColors.denseObsidian,
-                      onPressed: () => controller.next(),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.repeat_rounded),
-                      iconSize: 22,
-                      color: repeatMode != RepeatMode.off
-                          ? AppColors.electricCobalt
-                          : AppColors.industrialSteel,
-                      onPressed: () => controller.toggleRepeatMode(),
-                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
-
-              const Spacer(flex: 1),
-
-              // ── 6. Bottom Actions: Lyrics & Queue Pills ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  InkWell(
-                    onTap: hasTrack
-                        ? () {
-                            showModalBottomSheet<void>(
-                              context: context,
-                              isScrollControlled: true,
-                              useRootNavigator: true,
-                              backgroundColor: Colors.transparent,
-                              barrierColor: Colors.black.withValues(alpha: 0.55),
-                              builder: (ctx) => FractionallySizedBox(
-                                heightFactor: 0.92,
-                                child: LyricsOverlay(
-                                  track: currentTrack,
-                                  onClose: () => Navigator.of(ctx).pop(),
-                                ),
-                              ),
-                            );
-                          }
-                        : null,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.paleConcrete,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color:
-                              AppColors.outlineVariant.withValues(alpha: 0.4),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.lyrics_outlined,
-                            size: 16,
-                            color: AppColors.denseObsidian,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Lyrics',
-                            style: GoogleFonts.geist(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.denseObsidian,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  InkWell(
-                    onTap: () => context.push('/queue'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.paleConcrete,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color:
-                              AppColors.outlineVariant.withValues(alpha: 0.4),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.queue_music_rounded,
-                            size: 16,
-                            color: AppColors.denseObsidian,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Queue',
-                            style: GoogleFonts.geist(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.denseObsidian,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  ),
-),
     );
   }
 
@@ -549,8 +566,10 @@ class PlayerPage extends ConsumerWidget {
     required dynamic activeRoom,
     required PlayerController controller,
   }) {
-    final position = ref.watch(playerControllerProvider.select((s) => s.position));
-    final duration = ref.watch(playerControllerProvider.select((s) => s.duration));
+    final position =
+        ref.watch(playerControllerProvider.select((s) => s.position));
+    final duration =
+        ref.watch(playerControllerProvider.select((s) => s.duration));
     final hasTrack = currentTrack != null;
     final progress = (duration.inMilliseconds > 0)
         ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
@@ -573,7 +592,8 @@ class PlayerPage extends ConsumerWidget {
             final isCompactHeight = availableHeight < 740;
             final isLargeHeight = availableHeight >= 920;
 
-            final outerPadV = isLargeHeight ? 28.0 : (isCompactHeight ? 16.0 : 20.0);
+            final outerPadV =
+                isLargeHeight ? 28.0 : (isCompactHeight ? 16.0 : 20.0);
             final outerPadH = availableWidth >= 1400
                 ? 36.0
                 : (availableWidth >= 1100 ? 28.0 : 20.0);
@@ -587,7 +607,8 @@ class PlayerPage extends ConsumerWidget {
             final double artworkSize;
             if (availableHeight >= 950) {
               artworkSize = 420.0;
-            } else if (availableHeight >= 820 || (availableWidth >= 1400 && availableHeight >= 780)) {
+            } else if (availableHeight >= 820 ||
+                (availableWidth >= 1400 && availableHeight >= 780)) {
               artworkSize = 400.0;
             } else if (availableHeight >= 740) {
               artworkSize = 345.0;
@@ -614,30 +635,43 @@ class PlayerPage extends ConsumerWidget {
               rightCardWidth = 360.0;
             }
 
-            final columnGap = isLargeHeight ? 52.0 : (isCompactHeight ? 36.0 : 44.0);
+            final columnGap =
+                isLargeHeight ? 52.0 : (isCompactHeight ? 36.0 : 44.0);
 
             const headerHeight = 32.0;
-            final headerBottomGap = isLargeHeight ? 16.0 : (isCompactHeight ? 10.0 : 14.0);
-            final artworkBottomGap = isLargeHeight ? 18.0 : (isCompactHeight ? 12.0 : 16.0);
-            final metaBottomGap = isLargeHeight ? 14.0 : (isCompactHeight ? 8.0 : 12.0);
-            final waveformBottomGap = isLargeHeight ? 16.0 : (isCompactHeight ? 10.0 : 14.0);
+            final headerBottomGap =
+                isLargeHeight ? 16.0 : (isCompactHeight ? 10.0 : 14.0);
+            final artworkBottomGap =
+                isLargeHeight ? 18.0 : (isCompactHeight ? 12.0 : 16.0);
+            final metaBottomGap =
+                isLargeHeight ? 14.0 : (isCompactHeight ? 8.0 : 12.0);
+            final waveformBottomGap =
+                isLargeHeight ? 16.0 : (isCompactHeight ? 10.0 : 14.0);
             final gapBetweenCards = isLargeHeight ? 18.0 : 14.0;
 
-            final scrubberHeight = isLargeHeight ? 54.0 : (isCompactHeight ? 44.0 : 48.0);
-            final playBtnSize = isLargeHeight ? 68.0 : (isCompactHeight ? 58.0 : 64.0);
-            final playIconSize = isLargeHeight ? 38.0 : (isCompactHeight ? 32.0 : 36.0);
-            final navIconSize = isLargeHeight ? 32.0 : (isCompactHeight ? 28.0 : 30.0);
+            final scrubberHeight =
+                isLargeHeight ? 54.0 : (isCompactHeight ? 44.0 : 48.0);
+            final playBtnSize =
+                isLargeHeight ? 68.0 : (isCompactHeight ? 58.0 : 64.0);
+            final playIconSize =
+                isLargeHeight ? 38.0 : (isCompactHeight ? 32.0 : 36.0);
+            final navIconSize =
+                isLargeHeight ? 32.0 : (isCompactHeight ? 28.0 : 30.0);
             final subIconSize = isLargeHeight ? 22.0 : 20.0;
 
-            final metaTitleSize = isLargeHeight ? 26.0 : (isCompactHeight ? 22.0 : 24.0);
-            final metaArtistSize = isLargeHeight ? 15.5 : (isCompactHeight ? 13.5 : 14.5);
+            final metaTitleSize =
+                isLargeHeight ? 26.0 : (isCompactHeight ? 22.0 : 24.0);
+            final metaArtistSize =
+                isLargeHeight ? 15.5 : (isCompactHeight ? 13.5 : 14.5);
 
             return SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
-              padding: EdgeInsets.symmetric(horizontal: outerPadH, vertical: outerPadV),
+              padding: EdgeInsets.symmetric(
+                  horizontal: outerPadH, vertical: outerPadV),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: (availableHeight - outerPadV * 2).clamp(0.0, double.infinity),
+                  minHeight: (availableHeight - outerPadV * 2)
+                      .clamp(0.0, double.infinity),
                 ),
                 child: Center(
                   child: Row(
@@ -653,449 +687,512 @@ class PlayerPage extends ConsumerWidget {
                             // 1. Top Context Bar (Back Arrow + NOW PLAYING)
                             SizedBox(
                               height: headerHeight,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.arrow_back_rounded, size: 22),
-                                      color: MieeWebColors.onSurfaceVariant,
-                                      tooltip: 'Back',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      onPressed: () {
-                                        if (context.canPop()) {
-                                          context.pop();
-                                        } else {
-                                          context.go('/home');
-                                        }
-                                      },
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'NOW PLAYING',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.5,
-                                        color: MieeWebColors.outline,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (activeRoom != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: MieeWebColors.primaryContainer.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: MieeWebColors.primaryContainer.withValues(alpha: 0.3)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.groups_rounded, size: 13, color: MieeWebColors.primaryContainer),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Room ${activeRoom.joinCode}',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: MieeWebColors.primaryContainer,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: headerBottomGap),
-
-                          // 2. Large Crisp Square Artwork with DIRECT MASTER badge (Centered in playback column)
-                          Center(
-                            child: Container(
-                              width: artworkSize,
-                              height: artworkSize,
-                              decoration: BoxDecoration(
-                                color: MieeWebColors.surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(isCompactHeight ? 16 : 20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF1A0F12).withValues(alpha: 0.12),
-                                    blurRadius: isCompactHeight ? 28 : 42,
-                                    offset: Offset(0, isCompactHeight ? 12 : 18),
-                                  ),
-                                  BoxShadow(
-                                    color: const Color(0xFF1A0F12).withValues(alpha: 0.06),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Stack(
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(isCompactHeight ? 16 : 20),
-                                    child: SizedBox.expand(
-                                      child: hasTrack
-                                          ? _buildArtworkImage(currentTrack.imageUrl, currentTrack, BoxFit.cover)
-                                          : _buildFallbackArtwork(),
-                                    ),
-                                  ),
-                                  // Gradient sheen
-                                  Positioned.fill(
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(isCompactHeight ? 16 : 20),
-                                        gradient: LinearGradient(
-                                          begin: Alignment.bottomCenter,
-                                          end: Alignment.topCenter,
-                                          colors: [
-                                            Colors.black.withValues(alpha: 0.25),
-                                            Colors.transparent,
-                                          ],
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.arrow_back_rounded,
+                                            size: 22),
+                                        color: MieeWebColors.onSurfaceVariant,
+                                        tooltip: 'Back',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () {
+                                          if (context.canPop()) {
+                                            context.pop();
+                                          } else {
+                                            context.go('/home');
+                                          }
+                                        },
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'NOW PLAYING',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 1.5,
+                                          color: MieeWebColors.outline,
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                  // DIRECT MASTER Badge (Preserved)
-                                  Positioned(
-                                    top: isCompactHeight ? 12 : 16,
-                                    left: isCompactHeight ? 12 : 16,
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: isCompactHeight ? 9 : 10,
-                                        vertical: isCompactHeight ? 3.5 : 4,
-                                      ),
+                                  if (activeRoom != null) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: MieeWebColors.tertiary.withValues(alpha: 0.75),
-                                        borderRadius: BorderRadius.circular(6),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.15),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
+                                        color: MieeWebColors.primaryContainer
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: MieeWebColors
+                                                .primaryContainer
+                                                .withValues(alpha: 0.3)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(
-                                            Icons.graphic_eq,
-                                            size: isCompactHeight ? 13 : 14,
-                                            color: MieeWebColors.primaryFixed,
-                                          ),
-                                          const SizedBox(width: 5),
+                                          const Icon(Icons.groups_rounded,
+                                              size: 13,
+                                              color: MieeWebColors
+                                                  .primaryContainer),
+                                          const SizedBox(width: 4),
                                           Text(
-                                            'DIRECT MASTER',
+                                            'Room ${activeRoom.joinCode}',
                                             style: GoogleFonts.plusJakartaSans(
-                                              fontSize: isCompactHeight ? 10 : 11,
-                                              fontWeight: FontWeight.w700,
-                                              letterSpacing: 0.6,
-                                              color: Colors.white,
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: MieeWebColors
+                                                  .primaryContainer,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
-                          ),
-                          SizedBox(height: artworkBottomGap),
+                            SizedBox(height: headerBottomGap),
 
-                          // 3. Metadata Bar (Title + Artist left, Action icons right, perfectly aligned)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            // 2. Large Crisp Square Artwork with DIRECT MASTER badge (Centered in playback column)
+                            Center(
+                              child: Container(
+                                width: artworkSize,
+                                height: artworkSize,
+                                decoration: BoxDecoration(
+                                  color: MieeWebColors.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(
+                                      isCompactHeight ? 16 : 20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF1A0F12)
+                                          .withValues(alpha: 0.12),
+                                      blurRadius: isCompactHeight ? 28 : 42,
+                                      offset:
+                                          Offset(0, isCompactHeight ? 12 : 18),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFF1A0F12)
+                                          .withValues(alpha: 0.06),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Stack(
                                   children: [
-                                    Text(
-                                      hasTrack ? currentTrack.displayTitle : 'No Track Selected',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: metaTitleSize,
-                                        fontWeight: FontWeight.w700,
-                                        color: MieeWebColors.textDark,
-                                        letterSpacing: -0.4,
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(
+                                          isCompactHeight ? 16 : 20),
+                                      child: SizedBox.expand(
+                                        child: hasTrack
+                                            ? _buildArtworkImage(
+                                                currentTrack.imageUrl,
+                                                currentTrack,
+                                                BoxFit.cover)
+                                            : _buildFallbackArtwork(),
                                       ),
                                     ),
-                                    const SizedBox(height: 3),
+                                    // Gradient sheen
+                                    Positioned.fill(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                              isCompactHeight ? 16 : 20),
+                                          gradient: LinearGradient(
+                                            begin: Alignment.bottomCenter,
+                                            end: Alignment.topCenter,
+                                            colors: [
+                                              Colors.black
+                                                  .withValues(alpha: 0.25),
+                                              Colors.transparent,
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // DIRECT MASTER Badge (Preserved)
+                                    Positioned(
+                                      top: isCompactHeight ? 12 : 16,
+                                      left: isCompactHeight ? 12 : 16,
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: isCompactHeight ? 9 : 10,
+                                          vertical: isCompactHeight ? 3.5 : 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: MieeWebColors.tertiary
+                                              .withValues(alpha: 0.75),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.15),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.graphic_eq,
+                                              size: isCompactHeight ? 13 : 14,
+                                              color: MieeWebColors.primaryFixed,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              'DIRECT MASTER',
+                                              style:
+                                                  GoogleFonts.plusJakartaSans(
+                                                fontSize:
+                                                    isCompactHeight ? 10 : 11,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.6,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: artworkBottomGap),
+
+                            // 3. Metadata Bar (Title + Artist left, Action icons right, perfectly aligned)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        hasTrack
+                                            ? currentTrack.displayTitle
+                                            : 'No Track Selected',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: metaTitleSize,
+                                          fontWeight: FontWeight.w700,
+                                          color: MieeWebColors.textDark,
+                                          letterSpacing: -0.4,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        hasTrack
+                                            ? currentTrack.artist
+                                            : 'Select a song from your library or search',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: metaArtistSize,
+                                          fontWeight: FontWeight.w500,
+                                          color: MieeWebColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Heart, Playlist, Lyrics action buttons
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        isLiked
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        size: isCompactHeight ? 22 : 24,
+                                        color: isLiked
+                                            ? MieeWebColors.secondary
+                                            : MieeWebColors.onSurfaceVariant,
+                                      ),
+                                      tooltip: isLiked ? 'Liked' : 'Like',
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(),
+                                      onPressed: hasTrack
+                                          ? () {
+                                              final favNotifier = ref.read(
+                                                  favoritesProvider.notifier);
+                                              if (isLiked) {
+                                                favNotifier.removeFavorite(
+                                                    currentTrack.id);
+                                              } else {
+                                                favNotifier.addFavorite(
+                                                  Track(
+                                                    id: currentTrack.id,
+                                                    title: currentTrack.title,
+                                                    artist: currentTrack.artist,
+                                                    imageUrl:
+                                                        currentTrack.imageUrl,
+                                                    duration:
+                                                        currentTrack.duration,
+                                                    filePath:
+                                                        currentTrack.filePath,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    IconButton(
+                                      icon: Icon(Icons.playlist_add,
+                                          size: isCompactHeight ? 24 : 26),
+                                      color: MieeWebColors.onSurfaceVariant,
+                                      tooltip: 'Add to Playlist',
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(),
+                                      onPressed: hasTrack
+                                          ? () => showAddToPlaylistSheet(
+                                              context, currentTrack)
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    IconButton(
+                                      icon: Icon(Icons.speaker_rounded,
+                                          size: isCompactHeight ? 22 : 24),
+                                      color: MieeWebColors.onSurfaceVariant,
+                                      tooltip: 'Audio Output & Device',
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () =>
+                                          NotificationSheet.show(context),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    IconButton(
+                                      icon: Icon(Icons.lyrics_outlined,
+                                          size: isCompactHeight ? 22 : 24),
+                                      color: MieeWebColors.onSurfaceVariant,
+                                      tooltip: 'Lyrics',
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(),
+                                      onPressed: hasTrack
+                                          ? () {
+                                              showModalBottomSheet<void>(
+                                                context: context,
+                                                isScrollControlled: true,
+                                                useRootNavigator: true,
+                                                backgroundColor:
+                                                    Colors.transparent,
+                                                barrierColor: Colors.black
+                                                    .withValues(alpha: 0.55),
+                                                builder: (ctx) =>
+                                                    FractionallySizedBox(
+                                                  heightFactor: 0.92,
+                                                  child: LyricsOverlay(
+                                                    track: currentTrack,
+                                                    onClose: () =>
+                                                        Navigator.of(ctx).pop(),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: metaBottomGap),
+
+                            // 4. Discrete Waveform Audio Scrubber (Aligned with artwork width)
+                            Column(
+                              children: [
+                                DiscreteWaveformScrubber(
+                                  progress: progress,
+                                  isPlaying: isPlaying,
+                                  height: scrubberHeight,
+                                  onSeek: (val) {
+                                    if (hasTrack &&
+                                        duration.inMilliseconds > 0) {
+                                      final ms = (val * duration.inMilliseconds)
+                                          .toInt();
+                                      controller
+                                          .seek(Duration(milliseconds: ms));
+                                    }
+                                  },
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
                                     Text(
-                                      hasTrack ? currentTrack.artist : 'Select a song from your library or search',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                      hasTrack
+                                          ? _formatTimeDuration(position)
+                                          : '0:00',
                                       style: GoogleFonts.plusJakartaSans(
-                                        fontSize: metaArtistSize,
-                                        fontWeight: FontWeight.w500,
+                                        fontSize: isCompactHeight ? 12 : 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: MieeWebColors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    Text(
+                                      hasTrack && duration.inMilliseconds > 0
+                                          ? _formatTimeDuration(duration)
+                                          : '--:--',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: isCompactHeight ? 12 : 12.5,
+                                        fontWeight: FontWeight.w600,
                                         color: MieeWebColors.onSurfaceVariant,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Heart, Playlist, Lyrics action buttons
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      isLiked ? Icons.favorite : Icons.favorite_border,
-                                      size: isCompactHeight ? 22 : 24,
-                                      color: isLiked ? MieeWebColors.secondary : MieeWebColors.onSurfaceVariant,
-                                    ),
-                                    tooltip: isLiked ? 'Liked' : 'Like',
-                                    padding: const EdgeInsets.all(4),
-                                    constraints: const BoxConstraints(),
-                                    onPressed: hasTrack
-                                        ? () {
-                                            final favNotifier = ref.read(favoritesProvider.notifier);
-                                            if (isLiked) {
-                                              favNotifier.removeFavorite(currentTrack.id);
+                              ],
+                            ),
+                            SizedBox(height: waveformBottomGap),
+
+                            // 5. Primary Transport Controls Deck
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                // Shuffle
+                                IconButton(
+                                  icon: const Icon(Icons.shuffle_rounded),
+                                  iconSize: subIconSize,
+                                  color: isShuffleEnabled
+                                      ? MieeWebColors.primaryContainer
+                                      : MieeWebColors.outline,
+                                  tooltip: 'Shuffle',
+                                  onPressed: () => controller.toggleShuffle(),
+                                ),
+                                // Prev
+                                IconButton(
+                                  icon: const Icon(Icons.skip_previous_rounded),
+                                  iconSize: navIconSize,
+                                  color: MieeWebColors.textDark,
+                                  tooltip: 'Previous',
+                                  onPressed: () => controller.previous(),
+                                ),
+                                // Big Bordeaux Circular Play/Pause #6E0D25
+                                Material(
+                                  color: MieeWebColors.primaryContainer,
+                                  shape: const CircleBorder(),
+                                  elevation: 5,
+                                  shadowColor: MieeWebColors.primaryContainer
+                                      .withValues(alpha: 0.35),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: isLoading
+                                        ? null
+                                        : () {
+                                            if (isPlaying) {
+                                              controller.pause();
                                             } else {
-                                              favNotifier.addFavorite(
-                                                Track(
-                                                  id: currentTrack.id,
-                                                  title: currentTrack.title,
-                                                  artist: currentTrack.artist,
-                                                  imageUrl: currentTrack.imageUrl,
-                                                  duration: currentTrack.duration,
-                                                  filePath: currentTrack.filePath,
-                                                ),
-                                              );
+                                              controller.play();
                                             }
-                                          }
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  IconButton(
-                                    icon: Icon(Icons.playlist_add, size: isCompactHeight ? 24 : 26),
-                                    color: MieeWebColors.onSurfaceVariant,
-                                    tooltip: 'Add to Playlist',
-                                    padding: const EdgeInsets.all(4),
-                                    constraints: const BoxConstraints(),
-                                    onPressed: hasTrack
-                                        ? () => showAddToPlaylistSheet(context, currentTrack)
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  IconButton(
-                                    icon: Icon(Icons.speaker_rounded, size: isCompactHeight ? 22 : 24),
-                                    color: MieeWebColors.onSurfaceVariant,
-                                    tooltip: 'Audio Output & Device',
-                                    padding: const EdgeInsets.all(4),
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () => NotificationSheet.show(context),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  IconButton(
-                                    icon: Icon(Icons.lyrics_outlined, size: isCompactHeight ? 22 : 24),
-                                    color: MieeWebColors.onSurfaceVariant,
-                                    tooltip: 'Lyrics',
-                                    padding: const EdgeInsets.all(4),
-                                    constraints: const BoxConstraints(),
-                                    onPressed: hasTrack
-                                        ? () {
-                                            showModalBottomSheet<void>(
-                                              context: context,
-                                              isScrollControlled: true,
-                                              useRootNavigator: true,
-                                              backgroundColor: Colors.transparent,
-                                              barrierColor: Colors.black.withValues(alpha: 0.55),
-                                              builder: (ctx) => FractionallySizedBox(
-                                                heightFactor: 0.92,
-                                                child: LyricsOverlay(
-                                                  track: currentTrack,
-                                                  onClose: () => Navigator.of(ctx).pop(),
-                                                ),
+                                          },
+                                    child: Container(
+                                      width: playBtnSize,
+                                      height: playBtnSize,
+                                      alignment: Alignment.center,
+                                      child: isLoading
+                                          ? SizedBox(
+                                              width: playBtnSize * 0.4,
+                                              height: playBtnSize * 0.4,
+                                              child:
+                                                  const CircularProgressIndicator(
+                                                strokeWidth: 2.4,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                        Color>(Colors.white),
                                               ),
-                                            );
-                                          }
-                                        : null,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: metaBottomGap),
-
-                          // 4. Discrete Waveform Audio Scrubber (Aligned with artwork width)
-                          Column(
-                            children: [
-                              DiscreteWaveformScrubber(
-                                progress: progress,
-                                isPlaying: isPlaying,
-                                height: scrubberHeight,
-                                onSeek: (val) {
-                                  if (hasTrack && duration.inMilliseconds > 0) {
-                                    final ms = (val * duration.inMilliseconds).toInt();
-                                    controller.seek(Duration(milliseconds: ms));
-                                  }
-                                },
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    hasTrack ? _formatTimeDuration(position) : '0:00',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: isCompactHeight ? 12 : 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: MieeWebColors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  Text(
-                                    hasTrack && duration.inMilliseconds > 0
-                                        ? _formatTimeDuration(duration)
-                                        : '--:--',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: isCompactHeight ? 12 : 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: MieeWebColors.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: waveformBottomGap),
-
-                          // 5. Primary Transport Controls Deck
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              // Shuffle
-                              IconButton(
-                                icon: const Icon(Icons.shuffle_rounded),
-                                iconSize: subIconSize,
-                                color: isShuffleEnabled
-                                    ? MieeWebColors.primaryContainer
-                                    : MieeWebColors.outline,
-                                tooltip: 'Shuffle',
-                                onPressed: () => controller.toggleShuffle(),
-                              ),
-                              // Prev
-                              IconButton(
-                                icon: const Icon(Icons.skip_previous_rounded),
-                                iconSize: navIconSize,
-                                color: MieeWebColors.textDark,
-                                tooltip: 'Previous',
-                                onPressed: () => controller.previous(),
-                              ),
-                              // Big Bordeaux Circular Play/Pause #6E0D25
-                              Material(
-                                color: MieeWebColors.primaryContainer,
-                                shape: const CircleBorder(),
-                                elevation: 5,
-                                shadowColor: MieeWebColors.primaryContainer.withValues(alpha: 0.35),
-                                child: InkWell(
-                                  customBorder: const CircleBorder(),
-                                  onTap: isLoading
-                                      ? null
-                                      : () {
-                                          if (isPlaying) {
-                                            controller.pause();
-                                          } else {
-                                            controller.play();
-                                          }
-                                        },
-                                  child: Container(
-                                    width: playBtnSize,
-                                    height: playBtnSize,
-                                    alignment: Alignment.center,
-                                    child: isLoading
-                                        ? SizedBox(
-                                            width: playBtnSize * 0.4,
-                                            height: playBtnSize * 0.4,
-                                            child: const CircularProgressIndicator(
-                                              strokeWidth: 2.4,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            )
+                                          : Icon(
+                                              isPlaying
+                                                  ? Icons.pause_rounded
+                                                  : Icons.play_arrow_rounded,
+                                              size: playIconSize,
+                                              color: Colors.white,
                                             ),
-                                          )
-                                        : Icon(
-                                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                            size: playIconSize,
-                                            color: Colors.white,
-                                          ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              // Next
-                              IconButton(
-                                icon: const Icon(Icons.skip_next_rounded),
-                                iconSize: navIconSize,
-                                color: MieeWebColors.textDark,
-                                tooltip: 'Next',
-                                onPressed: () => controller.next(),
-                              ),
-                              // Repeat
-                              IconButton(
-                                icon: Icon(
-                                  repeatMode == RepeatMode.one
-                                      ? Icons.repeat_one_rounded
-                                      : Icons.repeat_rounded,
+                                // Next
+                                IconButton(
+                                  icon: const Icon(Icons.skip_next_rounded),
+                                  iconSize: navIconSize,
+                                  color: MieeWebColors.textDark,
+                                  tooltip: 'Next',
+                                  onPressed: () => controller.next(),
                                 ),
-                                iconSize: subIconSize,
-                                color: repeatMode != RepeatMode.off
-                                    ? MieeWebColors.primaryContainer
-                                    : MieeWebColors.outline,
-                                tooltip: 'Repeat',
-                                onPressed: () => controller.toggleRepeatMode(),
-                              ),
-                            ],
-                          ),
-                        ],
+                                // Repeat
+                                IconButton(
+                                  icon: Icon(
+                                    repeatMode == RepeatMode.one
+                                        ? Icons.repeat_one_rounded
+                                        : Icons.repeat_rounded,
+                                  ),
+                                  iconSize: subIconSize,
+                                  color: repeatMode != RepeatMode.off
+                                      ? MieeWebColors.primaryContainer
+                                      : MieeWebColors.outline,
+                                  tooltip: 'Repeat',
+                                  onPressed: () =>
+                                      controller.toggleRepeatMode(),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    // Space between Left and Right columns
-                    SizedBox(width: columnGap),
+                      // Space between Left and Right columns
+                      SizedBox(width: columnGap),
 
-                    // ── Right Column: Up Next + About Artist (Aligned with Album Artwork) ──
-                    SizedBox(
-                      width: rightCardWidth,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Top offset to align Up Next card with Album Artwork top baseline
-                          SizedBox(height: headerHeight + headerBottomGap),
+                      // ── Right Column: Up Next + About Artist (Aligned with Album Artwork) ──
+                      SizedBox(
+                        width: rightCardWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Top offset to align Up Next card with Album Artwork top baseline
+                            SizedBox(height: headerHeight + headerBottomGap),
 
-                          // 1. Up Next Queue Panel
-                          _buildUpNextCard(
-                            context: context,
-                            controller: controller,
-                            upcomingList: upcomingList,
-                            queueList: queueList,
-                            isCompact: isCompactHeight,
-                          ),
-                          SizedBox(height: gapBetweenCards),
+                            // 1. Up Next Queue Panel
+                            _buildUpNextCard(
+                              context: context,
+                              controller: controller,
+                              upcomingList: upcomingList,
+                              queueList: queueList,
+                              isCompact: isCompactHeight,
+                            ),
+                            SizedBox(height: gapBetweenCards),
 
-                          // 2. About Artist Card (Directly Below Up Next)
-                          _buildAboutArtistCard(
-                            context: context,
-                            artistAsync: artistAsync,
-                            isCompact: isCompactHeight,
-                          ),
-                        ],
+                            // 2. About Artist Card (Directly Below Up Next)
+                            _buildAboutArtistCard(
+                              context: context,
+                              artistAsync: artistAsync,
+                              isCompact: isCompactHeight,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
         ),
       ),
     );
@@ -1156,7 +1253,8 @@ class PlayerPage extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: MieeWebColors.surfaceContainer,
                         borderRadius: BorderRadius.circular(10),
@@ -1178,7 +1276,8 @@ class PlayerPage extends ConsumerWidget {
                 onTap: () => context.push('/queue'),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1242,7 +1341,9 @@ class PlayerPage extends ConsumerWidget {
               shrinkWrap: true,
               padding: EdgeInsets.zero,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: upcomingList.length > maxTracks ? maxTracks : upcomingList.length,
+              itemCount: upcomingList.length > maxTracks
+                  ? maxTracks
+                  : upcomingList.length,
               separatorBuilder: (_, __) => const SizedBox(height: 4),
               itemBuilder: (context, index) {
                 final track = upcomingList[index];
@@ -1276,7 +1377,8 @@ class PlayerPage extends ConsumerWidget {
                           child: SizedBox(
                             width: isCompact ? 36 : 40,
                             height: isCompact ? 36 : 40,
-                            child: _buildArtworkImage(track.imageUrl, track, BoxFit.cover),
+                            child: _buildArtworkImage(
+                                track.imageUrl, track, BoxFit.cover),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1285,7 +1387,7 @@ class PlayerPage extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                track.title,
+                                track.displayTitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.plusJakartaSans(
@@ -1389,9 +1491,11 @@ class PlayerPage extends ConsumerWidget {
                         if (artist.fanCount > 5000) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: MieeWebColors.primaryContainer.withValues(alpha: 0.08),
+                              color: MieeWebColors.primaryContainer
+                                  .withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -1429,7 +1533,8 @@ class PlayerPage extends ConsumerWidget {
                       },
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 2),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1779,5 +1884,3 @@ class _WaveformProgressSection extends ConsumerWidget {
     return '$minutes:$seconds';
   }
 }
-
-

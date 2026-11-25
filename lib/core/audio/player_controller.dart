@@ -225,7 +225,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
           final formatted =
               '${dur.inMinutes}:${(dur.inSeconds % 60).toString().padLeft(2, '0')}';
           final curr = state.currentTrack!;
-          final currSec = MusicResultClassifier.parseDurationSeconds(curr.duration);
+          final currSec =
+              MusicResultClassifier.parseDurationSeconds(curr.duration);
           final streamSec = dur.inSeconds;
           final hasVerifiedDur = (curr is Track &&
               (curr.metadataProvider == 'itunes' ||
@@ -291,7 +292,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
         if (index >= 0) {
           _queueManager.setIndex(index);
           var track = queueList[index];
-          if (mediaItem.duration != null && mediaItem.duration! > Duration.zero) {
+          if (mediaItem.duration != null &&
+              mediaItem.duration! > Duration.zero) {
             final formatted =
                 '${mediaItem.duration!.inMinutes}:${(mediaItem.duration!.inSeconds % 60).toString().padLeft(2, '0')}';
             final currSec =
@@ -317,7 +319,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
           }
           state = state.copyWith(
             currentTrack: track,
-            duration: (mediaItem.duration != null && mediaItem.duration! > Duration.zero)
+            duration: (mediaItem.duration != null &&
+                    mediaItem.duration! > Duration.zero)
                 ? mediaItem.duration
                 : state.duration,
           );
@@ -904,7 +907,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
         }
 
         if (verifiedCandidate != null &&
-            PlaybackSourceResolver.isValidYouTubeVideoId(verifiedCandidate.id) &&
+            PlaybackSourceResolver.isValidYouTubeVideoId(
+                verifiedCandidate.id) &&
             PlaybackSourceResolver.isDurationCompatible(
               targetDurationStr: canonicalDur,
               candidateDurationStr: verifiedCandidate.duration,
@@ -967,7 +971,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
                 : '',
             rawViewCount: (track is Track) ? track.rawViewCount : null,
             rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
-            rawChannelTitle: (track is Track) ? (track.rawArtist ?? rawA) : rawA,
+            rawChannelTitle:
+                (track is Track) ? (track.rawArtist ?? rawA) : rawA,
             metadataProvider: (track is Track) ? track.metadataProvider : null,
           );
 
@@ -1096,6 +1101,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (token != _playRequestToken) return;
       _recordRecentlyPlayed(resolvedTrack);
       _enrichActiveTrackArtwork(resolvedTrack, token);
+      // Proactively populate upcoming tracks when starting a short/1-track queue
+      // (e.g., from Search) so playback continues seamlessly when the track ends.
+      if (_queueManager.queue.length <= 2 &&
+          state.repeatMode != RepeatMode.one) {
+        unawaited(expandQueueIfNeeded());
+      }
     } catch (e) {
       if (token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
@@ -1219,11 +1230,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
           state = state.copyWith(currentTrack: updatedTrack);
           _handler.updateActiveMediaItemArtwork(track.id, resolved.imageUrl);
-          debugPrint('[PlayerController] Successfully applied resolved album cover: ${resolved.imageUrl} (${resolved.source.name})');
+          debugPrint(
+              '[PlayerController] Successfully applied resolved album cover: ${resolved.imageUrl} (${resolved.source.name})');
         }
       }
     } catch (e) {
-      debugPrint('[PlayerController] Artwork resolution background task failed: $e');
+      debugPrint(
+          '[PlayerController] Artwork resolution background task failed: $e');
     }
   }
 
@@ -1531,13 +1544,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   void _recordRecentlyPlayed(MusicItem track) {
     try {
       String resolvedImage = track.imageUrl;
-      if (track.isYoutube &&
-          (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
-        final videoId = _normalizeTrackId(track.id);
-        if (videoId.isNotEmpty) {
-          resolvedImage = 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
-        }
-      } else if (!track.isYoutube && resolvedImage.isEmpty) {
+      if (!track.isYoutube && resolvedImage.isEmpty) {
         try {
           final localSongs = _ref.read(songsProvider);
           final match = localSongs
@@ -1554,7 +1561,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       final Track trackToRecord;
       if (track is Track) {
         trackToRecord = track.copyWith(
-          imageUrl: (track.albumArtworkUrl != null && track.albumArtworkUrl!.isNotEmpty)
+          imageUrl: (track.albumArtworkUrl != null &&
+                  track.albumArtworkUrl!.isNotEmpty)
               ? track.albumArtworkUrl!
               : resolvedImage,
         );
@@ -1582,7 +1590,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
     if (item is! Track) return;
     // If track already has verified external album artwork, skip
     if (item.albumArtworkUrl != null && item.albumArtworkUrl!.isNotEmpty) {
-      debugPrint('[ArtworkDiag] Active track "${item.title}" already carries external album art: ${item.albumArtworkUrl}');
+      debugPrint(
+          '[ArtworkDiag] Active track "${item.title}" already carries external album art: ${item.albumArtworkUrl}');
       return;
     }
 
@@ -1597,7 +1606,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
           resolved.source == ArtworkSource.deezer ||
           resolved.source == ArtworkSource.coverArtArchive ||
           resolved.confidence >= 0.80) {
-        debugPrint('[ArtworkDiag] Upgrading active playing track "${item.title}" with verified ${resolved.source.name} artwork: ${resolved.imageUrl}');
+        debugPrint(
+            '[ArtworkDiag] Upgrading active playing track "${item.title}" with verified ${resolved.source.name} artwork: ${resolved.imageUrl}');
 
         final updatedTrack = item.copyWith(
           albumArtworkUrl: resolved.imageUrl,
@@ -1620,7 +1630,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
         }
 
         // 3. Update Android system notification and lockscreen artwork dynamically
-        _handler.updateActiveMediaItemArtwork(item.id, updatedTrack.effectiveArtworkUrl);
+        _handler.updateActiveMediaItemArtwork(
+            item.id, updatedTrack.effectiveArtworkUrl);
 
         // 4. Update Recently Played repository
         _recordRecentlyPlayed(updatedTrack);
@@ -1629,7 +1640,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
         _persistQueueSnapshot();
       }
     } catch (e) {
-      debugPrint('[ArtworkDiag] Background artwork enrichment error for "${item.title}": $e');
+      debugPrint(
+          '[ArtworkDiag] Background artwork enrichment error for "${item.title}": $e');
     }
   }
 

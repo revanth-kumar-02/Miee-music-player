@@ -45,15 +45,15 @@ class RecentlyPlayedRepository {
 
     // 2. Ensure durable artwork reference
     String resolvedImageUrl = track.imageUrl;
-    if (track.isYoutube && (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http'))) {
-      resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
-    } else if (!track.isYoutube && resolvedImageUrl.isEmpty) {
+    if (!track.isYoutube && resolvedImageUrl.isEmpty) {
       try {
         final localSongs = _ref.read(songsProvider);
-        final match = localSongs.where((s) =>
-            s.id == track.id ||
-            s.id == normId ||
-            (s.filePath.isNotEmpty && s.filePath == track.filePath)).firstOrNull;
+        final match = localSongs
+            .where((s) =>
+                s.id == track.id ||
+                s.id == normId ||
+                (s.filePath.isNotEmpty && s.filePath == track.filePath))
+            .firstOrNull;
         if (match != null && match.artworkPath.isNotEmpty) {
           resolvedImageUrl = match.artworkPath;
         }
@@ -105,28 +105,22 @@ class RecentlyPlayedRepository {
     final normId = rawTrack.id.replaceFirst('youtube_', '');
 
     if (rawTrack.isYoutube) {
-      if (rawTrack.imageUrl.isEmpty || !rawTrack.imageUrl.startsWith('http')) {
-        return Track(
-          id: rawTrack.id,
-          title: rawTrack.title,
-          artist: rawTrack.artist,
-          imageUrl: 'https://i.ytimg.com/vi/$normId/hqdefault.jpg',
-          duration: rawTrack.duration,
-          filePath: rawTrack.filePath,
-        );
-      }
       return rawTrack;
     }
 
     // Local track: check if songsProvider has the live artworkPath
     try {
       final localSongs = _ref.read(songsProvider);
-      final match = localSongs.where((s) =>
-          s.id == rawTrack.id ||
-          s.id == normId ||
-          (s.filePath.isNotEmpty && s.filePath == rawTrack.filePath) ||
-          (s.title.trim().toLowerCase() == rawTrack.title.trim().toLowerCase() &&
-              s.artist.trim().toLowerCase() == rawTrack.artist.trim().toLowerCase())).firstOrNull;
+      final match = localSongs
+          .where((s) =>
+              s.id == rawTrack.id ||
+              s.id == normId ||
+              (s.filePath.isNotEmpty && s.filePath == rawTrack.filePath) ||
+              (s.title.trim().toLowerCase() ==
+                      rawTrack.title.trim().toLowerCase() &&
+                  s.artist.trim().toLowerCase() ==
+                      rawTrack.artist.trim().toLowerCase()))
+          .firstOrNull;
       if (match != null && match.artworkPath.isNotEmpty) {
         return Track(
           id: rawTrack.id,
@@ -134,7 +128,8 @@ class RecentlyPlayedRepository {
           artist: rawTrack.artist,
           imageUrl: match.artworkPath,
           duration: rawTrack.duration,
-          filePath: rawTrack.filePath.isNotEmpty ? rawTrack.filePath : match.filePath,
+          filePath:
+              rawTrack.filePath.isNotEmpty ? rawTrack.filePath : match.filePath,
         );
       }
     } catch (_) {}

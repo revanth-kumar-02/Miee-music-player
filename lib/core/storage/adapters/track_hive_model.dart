@@ -61,13 +61,7 @@ class TrackHiveModel extends HiveObject {
       finalId = 'youtube_${track.id}';
     }
 
-    String resolvedImage = track.imageUrl;
-    if (track.isYoutube && (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
-      final vid = finalId.replaceFirst('youtube_', '').trim();
-      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
-        resolvedImage = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
-      }
-    }
+    final resolvedImage = track.imageUrl;
 
     if (track is Track) {
       return TrackHiveModel(
@@ -106,14 +100,7 @@ class TrackHiveModel extends HiveObject {
 
   /// Converts back to the domain [Track] model.
   Track toTrack() {
-    String finalImage = imageUrl;
-    final isYt = id.startsWith('youtube_') || (filePath?.contains('youtube.com') ?? false);
-    if (isYt && (finalImage.isEmpty || !finalImage.startsWith('http'))) {
-      final vid = id.replaceFirst('youtube_', '').trim();
-      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
-        finalImage = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
-      }
-    }
+    final finalImage = imageUrl;
 
     return Track(
       id: id,
@@ -168,7 +155,8 @@ class TrackHiveModelAdapter extends TypeAdapter<TrackHiveModel> {
       youtubeThumbnailUrl: fields[13]?.toString(),
       albumArtworkUrl: fields[14]?.toString(),
       artworkSource: fields[15]?.toString(),
-      artworkMatchConfidence: fields[16] != null ? (fields[16] as num).toDouble() : null,
+      artworkMatchConfidence:
+          fields[16] != null ? (fields[16] as num).toDouble() : null,
       mbid: fields[17]?.toString(),
       recordingMbid: fields[18]?.toString(),
       releaseMbid: fields[19]?.toString(),

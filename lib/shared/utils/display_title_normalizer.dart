@@ -45,6 +45,12 @@ class DisplayTitleNormalizer {
     caseSensitive: false,
   );
 
+  // Trailing or slash-delimited source labels like "/ Music", "/ Official Audio", "/ Lyrics"
+  static final RegExp _slashSourceTagRegex = RegExp(
+    r'\s*/\s*(?:music|official\s+music|audio|video|lyrics?|lyrical|topic|vevo)\b.*$',
+    caseSensitive: false,
+  );
+
   // Bracketed content regex: captures anything inside ( ), [ ], or { }
   static final RegExp _bracketRegex = RegExp(
     r'[\(\[\{]([^\)\]\}]*)[\)\]\}]',
@@ -93,7 +99,11 @@ class DisplayTitleNormalizer {
             .replaceAll(_resolutionRegex, ' ')
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
-        cleanedInside = cleanedInside.replaceAll(RegExp(r'^(?:official|hd|4k|video)\s*', caseSensitive: false), '').trim();
+        cleanedInside = cleanedInside
+            .replaceAll(
+                RegExp(r'^(?:official|hd|4k|video)\s*', caseSensitive: false),
+                '')
+            .trim();
         return cleanedInside.isNotEmpty ? '($cleanedInside)' : '';
       } else if (hasNoise) {
         // Pure video noise e.g. "(Official 4K Video)", "[Full Video Song]" -> REMOVE
@@ -110,11 +120,17 @@ class DisplayTitleNormalizer {
     // 4. Remove unbracketed video noise keywords (e.g. "Official Video", "Full Video Song")
     t = t.replaceAll(_videoNoiseRegex, ' ');
 
+    // 4b. Remove slash-delimited platform/source labels (e.g. "Song / Music")
+    t = t.replaceAll(_slashSourceTagRegex, ' ');
+
     // 5. Clean multi-clause delimiters (e.g. "Song Name | Full Video Song" -> "Song Name")
     t = _cleanDanglingClauses(t);
 
     // 6. Strip leading and trailing punctuation, dangling hyphens, pipes, colons, dots
-    t = t.replaceAll(RegExp(r'^[\s\-\–\—\|\:\/\•\.\,]+|[\s\-\–\—\|\:\/\•\.\,]+$'), '').trim();
+    t = t
+        .replaceAll(
+            RegExp(r'^[\s\-\–\—\|\:\/\•\.\,]+|[\s\-\–\—\|\:\/\•\.\,]+$'), '')
+        .trim();
 
     // 7. Normalize consecutive whitespace
     t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -126,7 +142,11 @@ class DisplayTitleNormalizer {
     var str = text;
     final clauseSeparators = RegExp(r'\s*(\||•|\/\/)\s*');
     if (clauseSeparators.hasMatch(str)) {
-      final parts = str.split(clauseSeparators).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      final parts = str
+          .split(clauseSeparators)
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
       final validParts = parts.where((p) {
         final lower = p.toLowerCase();
         return lower != 'official' &&
@@ -141,7 +161,8 @@ class DisplayTitleNormalizer {
       }).toList();
 
       if (validParts.isNotEmpty) {
-        str = validParts.first; // The first primary clause is the song/track identity
+        str = validParts
+            .first; // The first primary clause is the song/track identity
       }
     }
     return str;

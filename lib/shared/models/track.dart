@@ -12,7 +12,7 @@ class Track implements MusicItem {
   final String artist;
   @override
   final String duration;
-  
+
   final String? localFilePath;
   final double progress;
   final bool isPlaying;
@@ -171,9 +171,7 @@ class Track implements MusicItem {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Track &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is Track && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
@@ -209,9 +207,8 @@ class Track implements MusicItem {
     String? releaseMbid,
     String? artistMbid,
   }) {
-    String resolvedImage = (imageUrl != null && imageUrl.isNotEmpty)
-        ? imageUrl
-        : _rawImageUrl;
+    String resolvedImage =
+        (imageUrl != null && imageUrl.isNotEmpty) ? imageUrl : _rawImageUrl;
 
     final targetId = id ?? this.id;
     final isYt = targetId.startsWith('youtube_') ||
@@ -219,17 +216,12 @@ class Track implements MusicItem {
         (filePath?.contains('youtube.com') ?? false) ||
         (localFilePath?.contains('youtube.com') ?? false);
 
-    if (isYt && (resolvedImage.isEmpty || !resolvedImage.startsWith('http'))) {
-      final cleanId = (sourceId ?? targetId).replaceFirst('youtube_', '').trim();
-      if (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanId)) {
-        resolvedImage = 'https://i.ytimg.com/vi/$cleanId/hqdefault.jpg';
-      }
-    }
-
     final newAlbumArtwork = albumArtworkUrl ?? this.albumArtworkUrl;
     final newYoutubeThumbnail = youtubeThumbnailUrl ??
         this.youtubeThumbnailUrl ??
-        (isYt && (resolvedImage.contains('ytimg.com') || resolvedImage.contains('youtube.com'))
+        (isYt &&
+                (resolvedImage.contains('ytimg.com') ||
+                    resolvedImage.contains('youtube.com'))
             ? resolvedImage
             : null);
 
@@ -237,7 +229,9 @@ class Track implements MusicItem {
       id: id ?? this.id,
       title: title ?? this.title,
       artist: artist ?? this.artist,
-      imageUrl: (newAlbumArtwork != null && newAlbumArtwork.isNotEmpty) ? newAlbumArtwork : resolvedImage,
+      imageUrl: (newAlbumArtwork != null && newAlbumArtwork.isNotEmpty)
+          ? newAlbumArtwork
+          : resolvedImage,
       duration: duration ?? this.duration,
       filePath: filePath ?? localFilePath,
       progress: progress ?? this.progress,
@@ -256,9 +250,11 @@ class Track implements MusicItem {
       youtubeThumbnailUrl: newYoutubeThumbnail,
       albumArtworkUrl: newAlbumArtwork,
       embeddedArtworkPath: embeddedArtworkPath ?? this.embeddedArtworkPath,
-      resolvedArtworkUrl: resolvedArtworkUrl ?? this.resolvedArtworkUrl ?? newAlbumArtwork,
+      resolvedArtworkUrl:
+          resolvedArtworkUrl ?? this.resolvedArtworkUrl ?? newAlbumArtwork,
       artworkSource: artworkSource ?? this.artworkSource,
-      artworkMatchConfidence: artworkMatchConfidence ?? this.artworkMatchConfidence,
+      artworkMatchConfidence:
+          artworkMatchConfidence ?? this.artworkMatchConfidence,
       mbid: mbid ?? this.mbid,
       recordingMbid: recordingMbid ?? this.recordingMbid,
       releaseMbid: releaseMbid ?? this.releaseMbid,

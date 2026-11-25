@@ -821,17 +821,30 @@ class RecommendationService {
       artist: currentTrack.artist,
     ).toLowerCase().trim();
 
-    void addCandidate(MusicItem track, {required String sourceReason}) {
-      if (upcoming.length >= limit) return;
+    final preferredLanguages = profile?.preferredLanguages ?? const <String>[];
+    final onboardingArtistsNorm = (profile?.selectedArtists ?? const [])
+        .map((a) => SearchDeduplicator.normalizeArtist(a.name))
+        .where((a) => a.isNotEmpty)
+        .toSet();
+
+    final scoredPool =
+        <({MusicItem track, double score, String artistNorm, String reason})>[];
+    final seenPoolIds = <String>{};
+    final seenPoolKeys = <String>{};
+
+    bool isValidCandidate(MusicItem track) {
       final key = SearchDeduplicator.computeRecordingKey(track);
       final normId = _normalizeTrackId(track.id);
 
-      if (queueKeys.contains(key) || queueIds.contains(normId)) {
+      if (queueKeys.contains(key) ||
+          queueIds.contains(normId) ||
+          seenPoolKeys.contains(key) ||
+          seenPoolIds.contains(normId)) {
         QueueDiagnostics.logDuplicateRejected(
           track: track,
           duplicateReason: 'Track already present in queue ($normId)',
         );
-        return;
+        return false;
       }
 
       // Reject different artists' tracks merely sharing the current track's title
@@ -846,7 +859,7 @@ class RecommendationService {
       if (currentBaseTitle.isNotEmpty &&
           candidateBaseTitle == currentBaseTitle &&
           candidateArtistNorm != currentArtistNorm) {
-        return;
+        return false;
       }
 
       if (track.isYoutube) {
@@ -864,7 +877,7 @@ class RecommendationService {
           rawTitle: rawT,
           rawChannelTitle: rawA,
         );
-        if (!isLegitimateSong(v)) return;
+        if (!isLegitimateSong(v)) return false;
 
         // Exclude derivative edits (covers, karaoke, fan edits, status clips, etc.)
         final intent = QueryIntent.fromQuery(currentArtist);
@@ -876,69 +889,130 @@ class RecommendationService {
             editType == EditType.compilationMix ||
             editType == EditType.mashupRemake ||
             editType == EditType.nonMusicEntertainment) {
-          return;
+          return false;
         }
       }
 
-      queueKeys.add(key);
-      queueIds.add(normId);
-      upcoming.add(track);
+      return true;
+    }
+
+    void collectCandidate(
+      MusicItem track, {
+      required double baseRelevanceScore,
+      required String sourceReason,
+    }) {
+      if (!isValidCandidate(track)) return;
+
+      final key = SearchDeduplicator.computeRecordingKey(track);
+      final normId = _normalizeTrackId(track.id);
+      seenPoolKeys.add(key);
+      seenPoolIds.add(normId);
+
+      final candArtistNorm = SearchDeduplicator.normalizeArtist(track.artist);
+      double score = baseRelevanceScore;
+
+      // Track-anchored affinity: modest boost for seed artist, never dominating diversity.
+      if (currentArtistNorm.isNotEmpty && candArtistNorm == currentArtistNorm) {
+        score += 15.0;
+      }
+
+      // Secondary language tie-breaker from user profile.
+      if (preferredLanguages.isNotEmpty) {
+        final lang = MusicLanguageService.detectLanguage(
+            '${track.title} ${track.artist}');
+        if (lang.isNotEmpty) {
+          final langIdx = preferredLanguages
+              .indexWhere((l) => l.toLowerCase() == lang.toLowerCase());
+          if (langIdx == 0) {
+            score += 15.0;
+          } else if (langIdx > 0) {
+            score += 8.0;
+          }
+        }
+      }
+
+      // Onboarding artist preference is a light secondary signal, not a filter.
+      if (onboardingArtistsNorm.contains(candArtistNorm)) {
+        score += 10.0;
+      }
+
+      scoredPool.add((
+        track: track,
+        score: score,
+        artistNorm: candArtistNorm,
+        reason: sourceReason,
+      ));
     }
 
     try {
-      // 1. Primary: Genuine catalog tracks by the SAME ARTIST
+      // 1. Track-Anchored Primary: YouTube related tracks (supports 11-char IDs,
+      // Track.sourceId, and discovery IDs resolved via YouTube search).
+      String seedVideoId = currentTrack.id.replaceFirst('youtube_', '');
+      if (seedVideoId.length != 11 &&
+          currentTrack is Track &&
+          currentTrack.sourceId != null &&
+          currentTrack.sourceId!.trim().length == 11) {
+        seedVideoId = currentTrack.sourceId!.trim();
+      }
+      if (seedVideoId.length != 11 && currentTrack.title.trim().isNotEmpty) {
+        final lookupQuery =
+            currentArtist.isNotEmpty && currentArtist.toLowerCase() != 'unknown'
+                ? '${currentTrack.title} $currentArtist'
+                : currentTrack.title;
+        final resolved = await _youtubeRepo.search(lookupQuery);
+        final bestSeed = resolved
+            .where((v) => isLegitimateSong(v) && v.id.length == 11)
+            .firstOrNull;
+        if (bestSeed != null) {
+          seedVideoId = bestSeed.id;
+        }
+      }
+
+      if (seedVideoId.length == 11) {
+        final seed = YouTubeVideo(
+          id: seedVideoId,
+          title: currentTrack.title,
+          channelTitle: currentTrack.artist,
+          thumbnailUrl: currentTrack.imageUrl,
+          duration: currentTrack.duration,
+          viewCount: '',
+        );
+        final relatedVideos =
+            await _youtubeRepo.getRelatedTracks(seed, limit: limit * 2);
+        for (final v in relatedVideos) {
+          if (isLegitimateSong(v)) {
+            collectCandidate(
+              v.toTrack(),
+              baseRelevanceScore: 100.0,
+              sourceReason: 'Related to "${currentTrack.title}"',
+            );
+          }
+        }
+      }
+
+      // 2. Secondary: Same-artist catalog (capped contribution so one artist never dominates)
       if (currentArtist.isNotEmpty &&
           currentArtist.toLowerCase() != 'unknown' &&
           currentArtist.toLowerCase() != 'various artists') {
         final artistTracks = await _youtubeRepo.getArtistTracks(
           currentArtist,
           page: 1,
-          limit: limit,
-          preferredLanguages: profile?.preferredLanguages ?? const [],
+          limit: 5,
+          preferredLanguages: preferredLanguages,
         );
         for (final v in artistTracks) {
           if (isLegitimateSong(v)) {
-            addCandidate(
+            collectCandidate(
               v.toTrack(reliableArtist: currentArtist),
+              baseRelevanceScore: 70.0,
               sourceReason: 'Same artist catalog: "$currentArtist"',
             );
           }
         }
       }
 
-      // 2. Secondary: If more tracks needed, check verified related tracks seeded by current track
-      if (upcoming.length < limit && currentTrack.isYoutube) {
-        final videoId = currentTrack.id.replaceFirst('youtube_', '');
-        if (videoId.length == 11) {
-          final seed = YouTubeVideo(
-            id: videoId,
-            title: currentTrack.title,
-            channelTitle: currentTrack.artist,
-            thumbnailUrl: currentTrack.imageUrl,
-            duration: currentTrack.duration,
-            viewCount: '',
-          );
-          final relatedVideos =
-              await _youtubeRepo.getRelatedTracks(seed, limit: limit);
-          for (final v in relatedVideos) {
-            final candArtistNorm =
-                SearchDeduplicator.normalizeArtist(v.channelTitle);
-            final isSameOrRelated = candArtistNorm == currentArtistNorm ||
-                v.title.toLowerCase().contains(currentArtist.toLowerCase()) ||
-                v.channelTitle.toLowerCase().contains(currentArtist.toLowerCase());
-            if (isSameOrRelated && isLegitimateSong(v)) {
-              addCandidate(
-                v.toTrack(),
-                sourceReason: 'Verified related track for "$currentArtist"',
-              );
-            }
-          }
-        }
-      }
-
-      // 3. Tertiary: If the current track belongs to an album, fetch more from that album
-      if (upcoming.length < limit &&
-          currentTrack is Track &&
+      // 3. Tertiary: Same album tracks when album metadata is available
+      if (currentTrack is Track &&
           currentTrack.albumName != null &&
           currentTrack.albumName!.isNotEmpty) {
         final albumTracks = await _youtubeRepo.search(
@@ -946,8 +1020,9 @@ class RecommendationService {
         );
         for (final v in albumTracks) {
           if (isLegitimateSong(v)) {
-            addCandidate(
+            collectCandidate(
               v.toTrack(reliableArtist: currentTrack.artist),
+              baseRelevanceScore: 85.0,
               sourceReason: 'Same album: "${currentTrack.albumName}"',
             );
           }
@@ -955,6 +1030,34 @@ class RecommendationService {
       }
     } catch (e) {
       debugPrint('[RecommendationService] Upcoming queue expansion error: $e');
+    }
+
+    if (scoredPool.isEmpty) return const [];
+
+    // Sort deterministically by relevance score descending
+    scoredPool.sort((a, b) => b.score.compareTo(a.score));
+
+    // Apply per-artist diversity cap (max 2 per normalized artist) on primary pass
+    const int maxTracksPerArtist = 2;
+    final artistCounts = <String, int>{};
+    final deferred =
+        <({MusicItem track, double score, String artistNorm, String reason})>[];
+
+    for (final entry in scoredPool) {
+      if (upcoming.length >= limit) break;
+      final count = artistCounts[entry.artistNorm] ?? 0;
+      if (entry.artistNorm.isEmpty || count < maxTracksPerArtist) {
+        artistCounts[entry.artistNorm] = count + 1;
+        upcoming.add(entry.track);
+      } else {
+        deferred.add(entry);
+      }
+    }
+
+    // Backfill remaining slots only if diverse candidates didn't fill [limit]
+    for (final entry in deferred) {
+      if (upcoming.length >= limit) break;
+      upcoming.add(entry.track);
     }
 
     // STRICT POLICY: Never fallback to unrelated trending chart songs or arbitrary curated artists!

@@ -73,7 +73,8 @@ class DailyMixService {
     RecentlyPlayedRepository? recentlyPlayedRepo,
     List<MusicItem> Function()? getLocalSongs,
   })  : candidateRanker = candidateRanker ?? const CandidateRanker(),
-        _scorer = scorer ?? candidateRanker?.scorer ?? const RecommendationScorer(),
+        _scorer =
+            scorer ?? candidateRanker?.scorer ?? const RecommendationScorer(),
         _repository = repository ?? DailyMixRepository(),
         _tasteRepo = tasteRepo,
         _historyRepo = historyRepo ?? SupabaseListeningHistoryRepository(),
@@ -112,8 +113,10 @@ class DailyMixService {
     final cachedSnapshot = await _repository.getSnapshot(userId);
 
     // 2. Return cached snapshot if still valid for today and not forcing refresh
-    if (!forceRefresh && _repository.isSnapshotValidForDate(cachedSnapshot, todayLocalDate)) {
-      debugPrint('[DailyMixService] Using existing stable Daily Mix snapshot for $todayLocalDate (User: $userId)');
+    if (!forceRefresh &&
+        _repository.isSnapshotValidForDate(cachedSnapshot, todayLocalDate)) {
+      debugPrint(
+          '[DailyMixService] Using existing stable Daily Mix snapshot for $todayLocalDate (User: $userId)');
       return cachedSnapshot!;
     }
 
@@ -121,8 +124,11 @@ class DailyMixService {
     final lastRefresh = _lastManualRefreshByUser[cleanUid];
     if (forceRefresh && lastRefresh != null) {
       final elapsed = referenceTime.difference(lastRefresh);
-      if (elapsed < minManualRefreshInterval && cachedSnapshot != null && cachedSnapshot.isNotEmpty) {
-        debugPrint('[DailyMixService] Manual refresh debounced for $cleanUid (${elapsed.inSeconds}s < ${minManualRefreshInterval.inSeconds}s). Returning existing snapshot.');
+      if (elapsed < minManualRefreshInterval &&
+          cachedSnapshot != null &&
+          cachedSnapshot.isNotEmpty) {
+        debugPrint(
+            '[DailyMixService] Manual refresh debounced for $cleanUid (${elapsed.inSeconds}s < ${minManualRefreshInterval.inSeconds}s). Returning existing snapshot.');
         return cachedSnapshot;
       }
     }
@@ -143,13 +149,15 @@ class DailyMixService {
 
       // Persist snapshot to Hive
       await _repository.saveSnapshot(snapshot);
-      debugPrint('[DailyMixService] Successfully generated and persisted Daily Mixes for $todayLocalDate');
+      debugPrint(
+          '[DailyMixService] Successfully generated and persisted Daily Mixes for $todayLocalDate');
       return snapshot;
     } catch (e, st) {
       debugPrint('[DailyMixService] Failed to generate Daily Mixes: $e\n$st');
       // On failure, preserve previous snapshot if valid rather than destroying user data
       if (cachedSnapshot != null && cachedSnapshot.isNotEmpty) {
-        debugPrint('[DailyMixService] Preserving previously saved Daily Mix snapshot following generation error.');
+        debugPrint(
+            '[DailyMixService] Preserving previously saved Daily Mix snapshot following generation error.');
         return cachedSnapshot;
       }
       return DailyMixSnapshot.empty(userId);
@@ -160,7 +168,8 @@ class DailyMixService {
   void _pruneOldCooldowns(DateTime referenceTime) {
     if (_lastManualRefreshByUser.length > 50) {
       _lastManualRefreshByUser.removeWhere(
-        (_, time) => referenceTime.difference(time) > const Duration(minutes: 10),
+        (_, time) =>
+            referenceTime.difference(time) > const Duration(minutes: 10),
       );
     }
   }
@@ -213,7 +222,8 @@ class DailyMixService {
     required String localDate,
   }) async {
     // 1. Fetch user taste profile, listening history, and user preferences
-    final history = await _historyRepo.getRecentHistory(uid: userId, limit: 100);
+    final history =
+        await _historyRepo.getRecentHistory(uid: userId, limit: 100);
     final tasteProfile = (userId.isNotEmpty && _tasteRepo != null)
         ? await _tasteRepo!.getProfile(userId)
         : UserTasteProfile.empty(userId);
@@ -225,8 +235,10 @@ class DailyMixService {
 
     // 2. Fetch user library sources (Liked songs, Most played, Recently played, Local library)
     final likedSongs = _favoritesRepo?.getFavorites() ?? const [];
-    final mostPlayedEntries = _mostPlayedRepo?.getMostPlayed(limit: 50) ?? const [];
-    final mostPlayedIds = mostPlayedEntries.map((e) => _normalizeTrackId(e.key)).toSet();
+    final mostPlayedEntries =
+        _mostPlayedRepo?.getMostPlayed(limit: 50) ?? const [];
+    final mostPlayedIds =
+        mostPlayedEntries.map((e) => _normalizeTrackId(e.key)).toSet();
     final recentlyPlayed = _recentlyPlayedRepo?.getRecentTracks() ?? const [];
     final localSongs = _getLocalSongs?.call() ?? const [];
 
@@ -249,7 +261,9 @@ class DailyMixService {
       chartRanks[t.id] = rank;
       final cleanId = _normalizeTrackId(t.id);
       chartRanks[cleanId] = rank;
-      chartRanks['${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}'] = rank;
+      chartRanks[
+              '${t.title.toLowerCase().trim()}|${t.artist.toLowerCase().trim()}'] =
+          rank;
     }
 
     // 4. User Artists pool (top affinity + profile selected artists)
@@ -267,9 +281,7 @@ class DailyMixService {
     // Fallback to static curated artists if cold start
     if (favoriteArtistNames.isEmpty) {
       favoriteArtistNames.addAll(
-        DeezerArtistRepository.staticCuratedArtists
-            .take(6)
-            .map((a) => a.name),
+        DeezerArtistRepository.staticCuratedArtists.take(6).map((a) => a.name),
       );
     }
 
@@ -296,7 +308,8 @@ class DailyMixService {
         );
         onlineFavoriteCandidates.addAll(tracks);
       } catch (e) {
-        debugPrint('[DailyMixService] Candidate fetch error for $artistName: $e');
+        debugPrint(
+            '[DailyMixService] Candidate fetch error for $artistName: $e');
       }
     }
 
@@ -318,9 +331,7 @@ class DailyMixService {
       if (mostPlayedIds.contains(normId)) {
         final img = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
             ? event.imageUrl!
-            : (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(normId)
-                ? 'https://i.ytimg.com/vi/$normId/hqdefault.jpg'
-                : '');
+            : '';
         pool1.add(Track(
           id: event.trackId,
           title: event.title,
@@ -333,12 +344,9 @@ class DailyMixService {
 
     // Priority 1C: History tracks
     for (final event in history) {
-      final normId = _normalizeTrackId(event.trackId);
       final img = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
           ? event.imageUrl!
-          : (RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(normId)
-              ? 'https://i.ytimg.com/vi/$normId/hqdefault.jpg'
-              : '');
+          : '';
       pool1.add(Track(
         id: event.trackId,
         title: event.title,
@@ -352,7 +360,8 @@ class DailyMixService {
     pool1.addAll(onlineFavoriteCandidates);
 
     // Priority 1E: Local songs matching favorite artists
-    final favoriteArtistsLower = favoriteArtistNames.map((a) => a.toLowerCase().trim()).toSet();
+    final favoriteArtistsLower =
+        favoriteArtistNames.map((a) => a.toLowerCase().trim()).toSet();
     for (final local in localSongs) {
       if (favoriteArtistsLower.contains(local.artist.toLowerCase().trim())) {
         pool1.add(local);
@@ -387,17 +396,20 @@ class DailyMixService {
 
     final finalMix1Tracks = <Track>[];
     for (final m in mix1Items) {
-      final t = m is Track ? m : Track(
-        id: m.id,
-        title: m.title,
-        artist: m.artist,
-        imageUrl: m.imageUrl,
-        duration: m.duration,
-        filePath: m.filePath,
-      );
+      final t = m is Track
+          ? m
+          : Track(
+              id: m.id,
+              title: m.title,
+              artist: m.artist,
+              imageUrl: m.imageUrl,
+              duration: m.duration,
+              filePath: m.filePath,
+            );
       final id = _normalizeTrackId(t.id);
       final key = SearchDeduplicator.computeRecordingKey(t);
-      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key)) continue;
+      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key))
+        continue;
       assignedTrackIds.add(id);
       assignedRecordingKeys.add(key);
       finalMix1Tracks.add(t);
@@ -432,7 +444,8 @@ class DailyMixService {
     final unassignedPool2 = pool2.where((t) {
       final id = _normalizeTrackId(t.id);
       final key = SearchDeduplicator.computeRecordingKey(t);
-      return !assignedTrackIds.contains(id) && !assignedRecordingKeys.contains(key);
+      return !assignedTrackIds.contains(id) &&
+          !assignedRecordingKeys.contains(key);
     }).toList();
 
     // Apply cross-day rotation
@@ -463,17 +476,20 @@ class DailyMixService {
 
     final finalMix2Tracks = <Track>[];
     for (final m in mix2Items) {
-      final t = m is Track ? m : Track(
-        id: m.id,
-        title: m.title,
-        artist: m.artist,
-        imageUrl: m.imageUrl,
-        duration: m.duration,
-        filePath: m.filePath,
-      );
+      final t = m is Track
+          ? m
+          : Track(
+              id: m.id,
+              title: m.title,
+              artist: m.artist,
+              imageUrl: m.imageUrl,
+              duration: m.duration,
+              filePath: m.filePath,
+            );
       final id = _normalizeTrackId(t.id);
       final key = SearchDeduplicator.computeRecordingKey(t);
-      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key)) continue;
+      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key))
+        continue;
       assignedTrackIds.add(id);
       assignedRecordingKeys.add(key);
       finalMix2Tracks.add(t);
@@ -521,7 +537,8 @@ class DailyMixService {
     final unassignedPool3 = pool3.where((t) {
       final id = _normalizeTrackId(t.id);
       final key = SearchDeduplicator.computeRecordingKey(t);
-      return !assignedTrackIds.contains(id) && !assignedRecordingKeys.contains(key);
+      return !assignedTrackIds.contains(id) &&
+          !assignedRecordingKeys.contains(key);
     }).toList();
 
     // Apply cross-day rotation
@@ -552,17 +569,20 @@ class DailyMixService {
 
     final finalMix3Tracks = <Track>[];
     for (final m in mix3Items) {
-      final t = m is Track ? m : Track(
-        id: m.id,
-        title: m.title,
-        artist: m.artist,
-        imageUrl: m.imageUrl,
-        duration: m.duration,
-        filePath: m.filePath,
-      );
+      final t = m is Track
+          ? m
+          : Track(
+              id: m.id,
+              title: m.title,
+              artist: m.artist,
+              imageUrl: m.imageUrl,
+              duration: m.duration,
+              filePath: m.filePath,
+            );
       final id = _normalizeTrackId(t.id);
       final key = SearchDeduplicator.computeRecordingKey(t);
-      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key)) continue;
+      if (assignedTrackIds.contains(id) || assignedRecordingKeys.contains(key))
+        continue;
       assignedTrackIds.add(id);
       assignedRecordingKeys.add(key);
       finalMix3Tracks.add(t);

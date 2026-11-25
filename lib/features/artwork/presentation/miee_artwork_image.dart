@@ -59,7 +59,8 @@ class MieeArtworkImage extends ConsumerWidget {
     // If no query could be formed, try direct explicit URL or neutral fallback
     if (effectiveQuery == null) {
       if (explicitUrl != null && explicitUrl!.isNotEmpty) {
-        return _renderDirectImage(context, explicitUrl!, effectiveBorderRadius, null);
+        return _renderDirectImage(
+            context, explicitUrl!, effectiveBorderRadius, null);
       }
       return _buildNeutralFallback(context, effectiveBorderRadius);
     }
@@ -78,7 +79,9 @@ class MieeArtworkImage extends ConsumerWidget {
       loading: () {
         // If query already carries high-res studio album artwork, render it immediately
         final albumCover = effectiveQuery.albumArtworkUrl;
-        if (albumCover != null && albumCover.isNotEmpty && !albumCover.contains('ytimg.com')) {
+        if (albumCover != null &&
+            albumCover.isNotEmpty &&
+            !albumCover.contains('ytimg.com')) {
           return _renderDirectImage(
             context,
             albumCover,
@@ -94,7 +97,10 @@ class MieeArtworkImage extends ConsumerWidget {
                       effectiveQuery.fallbackThumbnailUrl!.isNotEmpty
                   ? effectiveQuery.fallbackThumbnailUrl!
                   : null);
-          if (pUrl != null && !pUrl.contains('/vi/placeholder/')) {
+          if (pUrl != null &&
+              !pUrl.contains('/vi/placeholder/') &&
+              !pUrl.contains('ytimg.com') &&
+              !pUrl.contains('youtube.com')) {
             return _renderDirectImage(
               context,
               pUrl,
@@ -107,7 +113,9 @@ class MieeArtworkImage extends ConsumerWidget {
       },
       error: (_, __) {
         final albumCover = effectiveQuery.albumArtworkUrl;
-        if (albumCover != null && albumCover.isNotEmpty && !albumCover.contains('ytimg.com')) {
+        if (albumCover != null &&
+            albumCover.isNotEmpty &&
+            !albumCover.contains('ytimg.com')) {
           return _renderDirectImage(
             context,
             albumCover,
@@ -123,7 +131,10 @@ class MieeArtworkImage extends ConsumerWidget {
                       effectiveQuery.fallbackThumbnailUrl!.isNotEmpty
                   ? effectiveQuery.fallbackThumbnailUrl!
                   : null);
-          if (pUrl != null && !pUrl.contains('/vi/placeholder/')) {
+          if (pUrl != null &&
+              !pUrl.contains('/vi/placeholder/') &&
+              !pUrl.contains('ytimg.com') &&
+              !pUrl.contains('youtube.com')) {
             return _renderDirectImage(
               context,
               pUrl,
@@ -132,7 +143,8 @@ class MieeArtworkImage extends ConsumerWidget {
             );
           }
         }
-        return errorWidget ?? _buildNeutralFallback(context, effectiveBorderRadius);
+        return errorWidget ??
+            _buildNeutralFallback(context, effectiveBorderRadius);
       },
     );
   }
@@ -143,12 +155,13 @@ class MieeArtworkImage extends ConsumerWidget {
     BorderRadius radius,
     ArtworkQuery effectiveQuery,
   ) {
-    final isPlaylist = effectiveQuery.isPlaylist;
     final isYtThumbnail = artwork.source == ArtworkSource.youtube ||
         artwork.imageUrl.contains('ytimg.com') ||
         artwork.imageUrl.contains('youtube.com');
 
-    if (artwork.isNeutralFallback || artwork.imageUrl.isEmpty || (isYtThumbnail && !isPlaylist)) {
+    if (artwork.isNeutralFallback ||
+        artwork.imageUrl.isEmpty ||
+        isYtThumbnail) {
       if (effectiveQuery.albumArtworkUrl != null &&
           effectiveQuery.albumArtworkUrl!.isNotEmpty &&
           !effectiveQuery.albumArtworkUrl!.contains('ytimg.com')) {
@@ -162,14 +175,17 @@ class MieeArtworkImage extends ConsumerWidget {
       }
       if (explicitUrl != null &&
           explicitUrl!.isNotEmpty &&
-          (!explicitUrl!.contains('ytimg.com') || isPlaylist) &&
+          !explicitUrl!.contains('ytimg.com') &&
           !explicitUrl!.contains('youtube.com') &&
           !explicitUrl!.contains('/vi/placeholder/')) {
-        return _renderDirectImage(context, explicitUrl!, radius, effectiveQuery);
+        return _renderDirectImage(
+            context, explicitUrl!, radius, effectiveQuery);
       }
-      if (isPlaylist &&
+      if (effectiveQuery.isPlaylist &&
           effectiveQuery.fallbackThumbnailUrl != null &&
           effectiveQuery.fallbackThumbnailUrl!.isNotEmpty &&
+          !effectiveQuery.fallbackThumbnailUrl!.contains('ytimg.com') &&
+          !effectiveQuery.fallbackThumbnailUrl!.contains('youtube.com') &&
           !effectiveQuery.fallbackThumbnailUrl!.contains('/vi/placeholder/')) {
         return _renderDirectImage(
           context,
@@ -209,7 +225,8 @@ class MieeArtworkImage extends ConsumerWidget {
     ArtworkQuery? query, {
     String? sourceLabel,
   }) {
-    final isNetwork = pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
+    final isNetwork =
+        pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://');
     final isAsset = pathOrUrl.startsWith('assets/');
 
     Widget imageWidget;
@@ -222,7 +239,8 @@ class MieeArtworkImage extends ConsumerWidget {
         gaplessPlayback: true,
         errorBuilder: (context, error, stackTrace) {
           // If a maxres or sd thumbnail failed (e.g. HTTP 404), seamlessly retry with hqdefault
-          if (pathOrUrl.contains('maxresdefault.jpg') || pathOrUrl.contains('sddefault.jpg')) {
+          if (pathOrUrl.contains('maxresdefault.jpg') ||
+              pathOrUrl.contains('sddefault.jpg')) {
             final fallbackYt = pathOrUrl
                 .replaceAll('maxresdefault.jpg', 'hqdefault.jpg')
                 .replaceAll('sddefault.jpg', 'hqdefault.jpg');
@@ -274,7 +292,8 @@ class MieeArtworkImage extends ConsumerWidget {
       String cleanPath;
       try {
         cleanPath = pathOrUrl.startsWith('file://')
-            ? (Uri.tryParse(pathOrUrl)?.toFilePath() ?? pathOrUrl.replaceFirst('file://', ''))
+            ? (Uri.tryParse(pathOrUrl)?.toFilePath() ??
+                pathOrUrl.replaceFirst('file://', ''))
             : pathOrUrl;
       } catch (_) {
         cleanPath = pathOrUrl.replaceFirst('file://', '');
@@ -294,7 +313,8 @@ class MieeArtworkImage extends ConsumerWidget {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fallbackBg = isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
+    final fallbackBg =
+        isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
 
     return ClipRRect(
       borderRadius: radius,
@@ -314,7 +334,8 @@ class MieeArtworkImage extends ConsumerWidget {
                 bottom: 2,
                 left: 2,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.65),
                     borderRadius: BorderRadius.circular(4),
@@ -337,7 +358,8 @@ class MieeArtworkImage extends ConsumerWidget {
 
   Widget _buildPlaceholder(BuildContext context, BorderRadius radius) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fallbackBg = isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
+    final fallbackBg =
+        isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
 
     return ClipRRect(
       borderRadius: radius,
@@ -358,7 +380,8 @@ class MieeArtworkImage extends ConsumerWidget {
 
   Widget _buildNeutralFallback(BuildContext context, BorderRadius radius) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final fallbackBg = isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
+    final fallbackBg =
+        isDark ? const Color(0xFF1E1A24) : AppColors.paleConcrete;
 
     return ClipRRect(
       borderRadius: radius,
@@ -370,7 +393,9 @@ class MieeArtworkImage extends ConsumerWidget {
           child: Icon(
             Icons.album_rounded,
             color: AppColors.industrialSteel.withValues(alpha: 0.6),
-            size: (width != null && height != null) ? (width! * 0.4).clamp(16.0, 48.0) : 28.0,
+            size: (width != null && height != null)
+                ? (width! * 0.4).clamp(16.0, 48.0)
+                : 28.0,
           ),
         ),
       ),

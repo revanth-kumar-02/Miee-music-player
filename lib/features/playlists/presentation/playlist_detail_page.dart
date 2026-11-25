@@ -34,9 +34,8 @@ class PlaylistDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistState = ref.watch(playlistControllerProvider);
-    final playlist = playlistState.playlists
-        .where((p) => p.id == playlistId)
-        .firstOrNull;
+    final playlist =
+        playlistState.playlists.where((p) => p.id == playlistId).firstOrNull;
 
     if (playlist == null) {
       return Scaffold(
@@ -72,7 +71,8 @@ class _PlaylistDetailView extends ConsumerStatefulWidget {
   const _PlaylistDetailView({required this.playlist});
 
   @override
-  ConsumerState<_PlaylistDetailView> createState() => _PlaylistDetailViewState();
+  ConsumerState<_PlaylistDetailView> createState() =>
+      _PlaylistDetailViewState();
 }
 
 class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
@@ -312,7 +312,8 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
           actions: [
             if (playlist.canEdit)
               IconButton(
-                icon: const Icon(Icons.playlist_add, color: AppColors.onSurface),
+                icon:
+                    const Icon(Icons.playlist_add, color: AppColors.onSurface),
                 tooltip: 'Add Songs',
                 onPressed: () => showAddSongsToPlaylistSheet(context, playlist),
                 splashRadius: 20.0,
@@ -325,7 +326,8 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
                 color: AppColors.onSurface,
               ),
               tooltip: 'Collaborate & Share',
-              onPressed: () => showPlaylistCollaborationSheet(context, playlist),
+              onPressed: () =>
+                  showPlaylistCollaborationSheet(context, playlist),
               splashRadius: 20.0,
             ),
             IconButton(
@@ -580,7 +582,8 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
       if (artworkUrl.startsWith('http')) {
         return SizedBox.expand(
           child: MieeArtworkImage(
-            musicItem: playlist.tracks.isNotEmpty ? playlist.tracks.first : null,
+            musicItem:
+                playlist.tracks.isNotEmpty ? playlist.tracks.first : null,
             explicitUrl: artworkUrl,
             fit: BoxFit.cover,
             borderRadius: BorderRadius.zero,
@@ -711,7 +714,7 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Playing "${track.title}" next'),
+                          content: Text('Playing "${track.displayTitle}" next'),
                           behavior: SnackBarBehavior.floating,
                           duration: const Duration(seconds: 2),
                         ),
@@ -735,7 +738,8 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Added "${track.title}" to queue'),
+                          content:
+                              Text('Added "${track.displayTitle}" to queue'),
                           behavior: SnackBarBehavior.floating,
                           duration: const Duration(seconds: 2),
                         ),
@@ -1092,7 +1096,7 @@ class _PlaylistDetailViewState extends ConsumerState<_PlaylistDetailView> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('"${track.title}" removed'),
+          content: Text('"${track.displayTitle}" removed'),
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
             label: 'Undo',

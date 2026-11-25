@@ -23,17 +23,12 @@ class SupabaseListeningHistoryRepository implements ListeningHistoryRepository {
     // Only record genuine listening sessions of at least 3 seconds (excludes 0-2s misclicks / stream stalls)
     if (listenedSec < 3) return;
 
-    final ratio = durationSec > 0 ? (listenedSec / durationSec).clamp(0.0, 1.0) : 0.0;
+    final ratio =
+        durationSec > 0 ? (listenedSec / durationSec).clamp(0.0, 1.0) : 0.0;
     final now = DateTime.now();
 
     // Ensure durable artwork
-    String resolvedImageUrl = track.imageUrl;
-    final normId = track.id.replaceFirst('youtube_', '');
-    if (track.isYoutube && (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http'))) {
-      if (normId.isNotEmpty) {
-        resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
-      }
-    }
+    final resolvedImageUrl = track.imageUrl;
 
     final durableTrack = Track(
       id: track.id,

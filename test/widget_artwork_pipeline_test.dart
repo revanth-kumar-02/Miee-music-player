@@ -180,7 +180,7 @@ void main() {
       expect(methodCalls.length, 1);
       final firstArgs = Map<String, dynamic>.from(methodCalls[0].arguments as Map);
       expect(firstArgs['artworkPath'], '');
-      expect(firstArgs['artworkUrl'], 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg');
+      expect(firstArgs['artworkUrl'], '');
       expect(firstArgs['audioFilePath'], '');
 
       await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -225,7 +225,7 @@ void main() {
 
       expect(methodCalls.length, 1);
       final args = Map<String, dynamic>.from(methodCalls.single.arguments as Map);
-      expect(args['artworkUrl'], 'https://i.ytimg.com/vi/o0LydWpBQts/hqdefault.jpg');
+      expect(args['artworkUrl'], '');
 
       service.dispose();
     });
@@ -276,7 +276,7 @@ void main() {
       expect(methodCalls.length, 3);
       final ytArgs = Map<String, dynamic>.from(methodCalls[1].arguments as Map);
       expect(ytArgs['artworkPath'], '');
-      expect(ytArgs['artworkUrl'], 'https://i.ytimg.com/vi/7wtfhZwyrcc/hqdefault.jpg');
+      expect(ytArgs['artworkUrl'], '');
       expect(ytArgs['audioFilePath'], '');
 
       final backToLocalArgs = Map<String, dynamic>.from(methodCalls[2].arguments as Map);
@@ -398,12 +398,12 @@ void main() {
       expect(favJson[0]['artworkUrl'], '');
       expect(favJson[0]['audioFilePath'], '/music/loc_1.mp3');
       expect(favJson[1]['artworkPath'], '');
-      expect(favJson[1]['artworkUrl'], 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg');
+      expect(favJson[1]['artworkUrl'], '');
       expect(favJson[1]['audioFilePath'], '');
 
       final recentJson = jsonDecode(
           (methodCalls[1].arguments as Map)['itemsJson'] as String) as List;
-      expect(recentJson[0]['artworkUrl'], 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg');
+      expect(recentJson[0]['artworkUrl'], '');
 
       final playlistJson = jsonDecode(
           (methodCalls[2].arguments as Map)['itemsJson'] as String) as List;

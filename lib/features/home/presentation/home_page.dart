@@ -719,7 +719,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    featuredSong.title,
+                                    featuredSong.displayTitle,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.geist(
@@ -819,7 +819,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             left: 6,
                             right: 6,
                             child: Text(
-                              track.title,
+                              track.displayTitle,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.geist(
@@ -1375,7 +1375,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          track.title,
+                          track.displayTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.geist(
@@ -1497,7 +1497,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  track.title,
+                  track.displayTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.geist(
@@ -1616,7 +1616,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        track.title,
+                        track.displayTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.geist(
@@ -1798,19 +1798,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 return s.id == newest.id.replaceFirst('youtube_', '');
               }).firstOrNull;
               if (localMatch != null) return localMatch;
-            } else {
-              if (newest.imageUrl.isEmpty ||
-                  !newest.imageUrl.startsWith('http')) {
-                final vid = newest.id.replaceFirst('youtube_', '');
-                return Track(
-                  id: newest.id,
-                  title: newest.title,
-                  artist: newest.artist,
-                  imageUrl: 'https://i.ytimg.com/vi/$vid/hqdefault.jpg',
-                  duration: newest.duration,
-                  filePath: newest.filePath,
-                );
-              }
             }
             return newest;
           } catch (_) {}
@@ -1832,15 +1819,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
             final m = event.durationSec ~/ 60;
             final s = event.durationSec % 60;
-            final isYoutube = event.source == 'youtube' ||
-                event.trackId.startsWith('youtube_');
-            final vid = event.trackId.replaceFirst('youtube_', '');
             final resolvedArt =
                 (event.imageUrl != null && event.imageUrl!.isNotEmpty)
                     ? event.imageUrl!
-                    : (isYoutube
-                        ? 'https://i.ytimg.com/vi/$vid/hqdefault.jpg'
-                        : '');
+                    : '';
 
             return Track(
               id: event.trackId.startsWith('youtube_')
@@ -1905,12 +1887,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
                 resolvedImageUrl = localMatch.artworkPath;
               }
-            } else {
-              if (resolvedImageUrl.isEmpty ||
-                  !resolvedImageUrl.startsWith('http')) {
-                resolvedImageUrl =
-                    'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
-              }
             }
 
             resolved.add(Track(
@@ -1945,13 +1921,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 event.trackId.startsWith('youtube_');
             String resolvedImageUrl = event.imageUrl ?? '';
 
-            if (isYoutube) {
-              if (resolvedImageUrl.isEmpty ||
-                  !resolvedImageUrl.startsWith('http')) {
-                resolvedImageUrl =
-                    'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
-              }
-            } else {
+            if (!isYoutube) {
               final localMatch = localSongs.where((s) {
                 if (s.id == event.trackId || s.id == normId) return true;
                 return s.title.trim().toLowerCase() ==

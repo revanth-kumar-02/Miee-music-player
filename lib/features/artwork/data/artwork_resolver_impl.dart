@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+import '../../../shared/utils/display_title_normalizer.dart';
 import '../../youtube/domain/youtube_metadata_cleaner.dart';
 import '../domain/artwork_query.dart';
 import '../domain/artwork_source.dart';
@@ -56,11 +57,13 @@ class ArtworkResolver {
   })  : cache = cache ?? ArtworkCache(),
         localProvider = localProvider ?? LocalArtworkProvider(),
         musicBrainzProvider = musicBrainzProvider ?? MusicBrainzProvider(),
-        coverArtArchiveProvider = coverArtArchiveProvider ?? CoverArtArchiveProvider(),
+        coverArtArchiveProvider =
+            coverArtArchiveProvider ?? CoverArtArchiveProvider(),
         deezerProvider = deezerProvider ?? DeezerArtworkProvider(),
         fanartProvider = fanartProvider ?? const FanartArtworkProvider(),
         itunesProvider = itunesProvider ?? const ItunesArtworkProvider(),
-        youtubeFallbackProvider = youtubeFallbackProvider ?? const YouTubeFallbackProvider();
+        youtubeFallbackProvider =
+            youtubeFallbackProvider ?? const YouTubeFallbackProvider();
 
   /// Evicts cached metadata for [query] so the next [resolve] fetches fresh artwork.
   Future<void> invalidate(ArtworkQuery query) async {
@@ -69,7 +72,8 @@ class ArtworkResolver {
   }
 
   /// Resolves artwork for the given [query] following the deterministic priority chain.
-  Future<ResolvedArtwork> resolve(ArtworkQuery query, {bool forceRefresh = false}) {
+  Future<ResolvedArtwork> resolve(ArtworkQuery query,
+      {bool forceRefresh = false}) {
     final key = query.cacheKey;
     final inflightKey = forceRefresh ? '${key}_refresh' : key;
 
@@ -78,7 +82,8 @@ class ArtworkResolver {
       return _inFlight[inflightKey]!;
     }
 
-    final future = _resolveInternal(query, forceRefresh: forceRefresh).whenComplete(() {
+    final future =
+        _resolveInternal(query, forceRefresh: forceRefresh).whenComplete(() {
       _inFlight.remove(inflightKey);
     });
 
@@ -86,7 +91,8 @@ class ArtworkResolver {
     return future;
   }
 
-  Future<ResolvedArtwork> _cacheAndReturn(String key, ResolvedArtwork artwork, {String? canonicalKey}) async {
+  Future<ResolvedArtwork> _cacheAndReturn(String key, ResolvedArtwork artwork,
+      {String? canonicalKey}) async {
     if (artwork.source == ArtworkSource.youtube) {
       return ResolvedArtwork.neutralFallback();
     }
@@ -99,11 +105,14 @@ class ArtworkResolver {
       final localPath = await cache.cacheImageFromUrl(key, artwork.imageUrl);
       if (localPath != null) {
         result = artwork.copyWith(localCachedPath: localPath);
-        debugPrint('[ArtworkDiag] Cached remote image locally on disk: $localPath');
+        debugPrint(
+            '[ArtworkDiag] Cached remote image locally on disk: $localPath');
       }
     }
     await cache.put(key, result);
-    if (canonicalKey != null && canonicalKey.isNotEmpty && canonicalKey != key) {
+    if (canonicalKey != null &&
+        canonicalKey.isNotEmpty &&
+        canonicalKey != key) {
       if (result.source != ArtworkSource.youtube && !result.isNeutralFallback) {
         await cache.put(canonicalKey, result);
       }
@@ -112,9 +121,8 @@ class ArtworkResolver {
   }
 
   ArtworkQuery _cleanYoutubeQueryForCatalog(ArtworkQuery query) {
-    if (!query.isYoutube) return query;
     final cleaned = YouTubeMetadataCleaner.clean(
-      rawTitle: query.title,
+      rawTitle: DisplayTitleNormalizer.normalize(query.title),
       rawChannel: query.artist,
     );
     if (cleaned.title == query.title && cleaned.artist == query.artist) {
@@ -142,7 +150,8 @@ class ArtworkResolver {
     final key = query.cacheKey;
     final canonKey = query.canonicalKey;
 
-    debugPrint('[ArtworkDiag] Track: ${query.id} "${query.title}" by "${query.artist}" | isYoutube: ${query.isYoutube}');
+    debugPrint(
+        '[ArtworkDiag] Track: ${query.id} "${query.title}" by "${query.artist}" | isYoutube: ${query.isYoutube}');
 
     if (forceRefresh) {
       await cache.evict(key);
@@ -163,7 +172,8 @@ class ArtworkResolver {
         attribution: src == ArtworkSource.itunes ? 'Apple iTunes' : 'Deezer',
         resolvedAt: DateTime.now(),
       );
-      debugPrint('[ArtworkDiag] Selected pre-attached external album artwork: ${preResolved.imageUrl} | Source: ${src.name} | Score: 0.95');
+      debugPrint(
+          '[ArtworkDiag] Selected pre-attached external album artwork: ${preResolved.imageUrl} | Source: ${src.name} | Score: 0.95');
       return await _cacheAndReturn(key, preResolved, canonicalKey: canonKey);
     }
 
@@ -172,7 +182,8 @@ class ArtworkResolver {
       try {
         final localArtwork = await localProvider.resolve(query);
         if (localArtwork != null) {
-          debugPrint('[ArtworkDiag] Resolved embedded local artwork for "${query.title}"');
+          debugPrint(
+              '[ArtworkDiag] Resolved embedded local artwork for "${query.title}"');
           await cache.put(key, localArtwork);
           return localArtwork;
         }
@@ -188,7 +199,8 @@ class ArtworkResolver {
           canonCached.source != ArtworkSource.youtube &&
           !canonCached.isNeutralFallback &&
           canonCached.confidence >= 0.80) {
-        debugPrint('[ArtworkDiag] Canonical album cache HIT for "${query.title}": ${canonCached.imageUrl} (${canonCached.source.name})');
+        debugPrint(
+            '[ArtworkDiag] Canonical album cache HIT for "${query.title}": ${canonCached.imageUrl} (${canonCached.source.name})');
         await cache.put(key, canonCached);
         return canonCached;
       }
@@ -203,19 +215,22 @@ class ArtworkResolver {
               !cached.isLocal &&
               cached.imageUrl.startsWith('http') &&
               !ArtworkCache.hasValidLocalFile(cached.localCachedPath)) {
-            final localPath = await cache.cacheImageFromUrl(key, cached.imageUrl);
+            final localPath =
+                await cache.cacheImageFromUrl(key, cached.imageUrl);
             if (localPath != null) {
               final updated = cached.copyWith(localCachedPath: localPath);
               await cache.put(key, updated);
               return updated;
             } else {
               // Remote URL expired/invalid, evict and proceed to fresh resolution
-              debugPrint('[ArtworkDiag] Cached remote URL invalid/expired, evicting ($key)');
+              debugPrint(
+                  '[ArtworkDiag] Cached remote URL invalid/expired, evicting ($key)');
               await cache.evict(key);
               await cache.evict(canonKey);
             }
           } else {
-            debugPrint('[ArtworkDiag] Cache HIT (${cached.source.name}) for "${query.title}": ${cached.imageUrl}');
+            debugPrint(
+                '[ArtworkDiag] Cache HIT (${cached.source.name}) for "${query.title}": ${cached.imageUrl}');
             return cached;
           }
         }
@@ -235,22 +250,28 @@ class ArtworkResolver {
       // Snappy iTunes catalog check (max 3500ms) to upgrade to studio 600x600 artwork
       if (itunesProvider.isEnabled) {
         try {
-          debugPrint('[ArtworkDiag] Provider queried: Apple iTunes for "${catalogQuery.title}" by "${catalogQuery.artist}"');
+          debugPrint(
+              '[ArtworkDiag] Provider queried: Apple iTunes for "${catalogQuery.title}" by "${catalogQuery.artist}"');
           final itunesArtwork = await itunesProvider
               .resolve(catalogQuery, forceRefresh: forceRefresh)
               .timeout(
             const Duration(milliseconds: 3500),
             onTimeout: () {
-              debugPrint('[ArtworkDiag] iTunes provider timed out (>3500ms) for "${catalogQuery.title}"');
+              debugPrint(
+                  '[ArtworkDiag] iTunes provider timed out (>3500ms) for "${catalogQuery.title}"');
               return null;
             },
           );
           if (itunesArtwork != null && itunesArtwork.confidence >= 0.80) {
-            debugPrint('[ArtworkDiag] iTunes response: ${itunesArtwork.imageUrl} | Score: ${itunesArtwork.confidence}');
-            debugPrint('[ArtworkDiag] Selected artwork source: Apple iTunes | URL: ${itunesArtwork.imageUrl}');
-            return await _cacheAndReturn(key, itunesArtwork, canonicalKey: canonKey);
+            debugPrint(
+                '[ArtworkDiag] iTunes response: ${itunesArtwork.imageUrl} | Score: ${itunesArtwork.confidence}');
+            debugPrint(
+                '[ArtworkDiag] Selected artwork source: Apple iTunes | URL: ${itunesArtwork.imageUrl}');
+            return await _cacheAndReturn(key, itunesArtwork,
+                canonicalKey: canonKey);
           } else if (itunesArtwork != null) {
-            debugPrint('[ArtworkDiag] iTunes match rejected: low confidence (${itunesArtwork.confidence} < 0.80)');
+            debugPrint(
+                '[ArtworkDiag] iTunes match rejected: low confidence (${itunesArtwork.confidence} < 0.80)');
           }
         } catch (e) {
           debugPrint('[ArtworkDiag] iTunes provider exception: $e');
@@ -260,18 +281,24 @@ class ArtworkResolver {
       // Secondary catalog check: Deezer (max 3000ms) with cleaned YouTube metadata
       if (deezerProvider.isEnabled) {
         try {
-          debugPrint('[ArtworkDiag] Provider queried: Deezer for "${catalogQuery.title}" by "${catalogQuery.artist}"');
-          final deezerArtwork = await deezerProvider.resolve(catalogQuery).timeout(
+          debugPrint(
+              '[ArtworkDiag] Provider queried: Deezer for "${catalogQuery.title}" by "${catalogQuery.artist}"');
+          final deezerArtwork =
+              await deezerProvider.resolve(catalogQuery).timeout(
             const Duration(milliseconds: 3000),
             onTimeout: () {
-              debugPrint('[ArtworkDiag] Deezer provider timed out (>3000ms) for "${catalogQuery.title}"');
+              debugPrint(
+                  '[ArtworkDiag] Deezer provider timed out (>3000ms) for "${catalogQuery.title}"');
               return null;
             },
           );
           if (deezerArtwork != null && deezerArtwork.confidence >= 0.80) {
-            debugPrint('[ArtworkDiag] Deezer response: ${deezerArtwork.imageUrl} | Score: ${deezerArtwork.confidence}');
-            debugPrint('[ArtworkDiag] Selected artwork source: Deezer | URL: ${deezerArtwork.imageUrl}');
-            return await _cacheAndReturn(key, deezerArtwork, canonicalKey: canonKey);
+            debugPrint(
+                '[ArtworkDiag] Deezer response: ${deezerArtwork.imageUrl} | Score: ${deezerArtwork.confidence}');
+            debugPrint(
+                '[ArtworkDiag] Selected artwork source: Deezer | URL: ${deezerArtwork.imageUrl}');
+            return await _cacheAndReturn(key, deezerArtwork,
+                canonicalKey: canonKey);
           }
         } catch (e) {
           debugPrint('[ArtworkDiag] Deezer provider exception: $e');
@@ -280,31 +307,38 @@ class ArtworkResolver {
 
       // Tertiary catalog check: MusicBrainz / Cover Art Archive
       try {
-        final mbMatch = await musicBrainzProvider.findReleaseMatch(catalogQuery);
+        final mbMatch =
+            await musicBrainzProvider.findReleaseMatch(catalogQuery);
         if (mbMatch != null && mbMatch.releaseMbid.isNotEmpty) {
           final caaArtwork = await coverArtArchiveProvider.fetchCoverArt(
             mbid: mbMatch.releaseMbid,
             confidence: mbMatch.confidence,
           );
           if (caaArtwork != null && caaArtwork.confidence >= 0.80) {
-            debugPrint('[ArtworkDiag] Selected artwork source: CoverArtArchive | URL: ${caaArtwork.imageUrl}');
-            return await _cacheAndReturn(key, caaArtwork, canonicalKey: canonKey);
+            debugPrint(
+                '[ArtworkDiag] Selected artwork source: CoverArtArchive | URL: ${caaArtwork.imageUrl}');
+            return await _cacheAndReturn(key, caaArtwork,
+                canonicalKey: canonKey);
           }
         }
       } catch (e) {
-        debugPrint('[ArtworkDiag] MusicBrainz/CAA lookup failed for YouTube track: $e');
+        debugPrint(
+            '[ArtworkDiag] MusicBrainz/CAA lookup failed for YouTube track: $e');
       }
 
-      debugPrint('[ArtworkDiag] External providers unconfident or unavailable for "${query.title}". Returning neutral fallback (never YouTube thumbnail).');
+      debugPrint(
+          '[ArtworkDiag] External providers unconfident or unavailable for "${query.title}". Returning neutral fallback (never YouTube thumbnail).');
       return ResolvedArtwork.neutralFallback();
     }
 
     // Online resolution cascade wrapped in global timeout for local/standard tracks
     try {
-      return await _executeOnlineCascade(query, forceRefresh: forceRefresh).timeout(
+      return await _executeOnlineCascade(query, forceRefresh: forceRefresh)
+          .timeout(
         timeout,
         onTimeout: () {
-          debugPrint('[ArtworkDiag] Online resolution timed out for "${query.title}" — falling back');
+          debugPrint(
+              '[ArtworkDiag] Online resolution timed out for "${query.title}" — falling back');
           return _fallbackOrNeutral(query);
         },
       );
@@ -324,14 +358,17 @@ class ArtworkResolver {
     // 1. Primary Online Priority: Apple iTunes Search API (Studio 600x600bb from Apple CDN)
     if (itunesProvider.isEnabled) {
       try {
-        debugPrint('[ArtworkDiag] Online cascade: querying iTunes for "${query.title}" by "${query.artist}"');
+        debugPrint(
+            '[ArtworkDiag] Online cascade: querying iTunes for "${query.title}" by "${query.artist}"');
         final itunesArtwork = await itunesProvider.resolve(
           query,
           forceRefresh: forceRefresh,
         );
         if (itunesArtwork != null && itunesArtwork.confidence >= 0.80) {
-          debugPrint('[ArtworkDiag] Selected artwork source: Apple iTunes | URL: ${itunesArtwork.imageUrl} | Score: ${itunesArtwork.confidence}');
-          return await _cacheAndReturn(key, itunesArtwork, canonicalKey: canonKey);
+          debugPrint(
+              '[ArtworkDiag] Selected artwork source: Apple iTunes | URL: ${itunesArtwork.imageUrl} | Score: ${itunesArtwork.confidence}');
+          return await _cacheAndReturn(key, itunesArtwork,
+              canonicalKey: canonKey);
         }
       } catch (e) {
         debugPrint('[ArtworkDiag] iTunes lookup failed: $e');
@@ -341,11 +378,14 @@ class ArtworkResolver {
     // 2. Secondary Priority: Deezer track/album search (Fast, global catalog, high-res 1000x1000)
     if (deezerProvider.isEnabled) {
       try {
-        debugPrint('[ArtworkDiag] Online cascade: querying Deezer for "${query.title}"');
+        debugPrint(
+            '[ArtworkDiag] Online cascade: querying Deezer for "${query.title}"');
         final deezerArtwork = await deezerProvider.resolve(query);
         if (deezerArtwork != null && deezerArtwork.confidence >= 0.80) {
-          debugPrint('[ArtworkDiag] Selected artwork source: Deezer | URL: ${deezerArtwork.imageUrl} | Score: ${deezerArtwork.confidence}');
-          return await _cacheAndReturn(key, deezerArtwork, canonicalKey: canonKey);
+          debugPrint(
+              '[ArtworkDiag] Selected artwork source: Deezer | URL: ${deezerArtwork.imageUrl} | Score: ${deezerArtwork.confidence}');
+          return await _cacheAndReturn(key, deezerArtwork,
+              canonicalKey: canonKey);
         }
       } catch (e) {
         debugPrint('[ArtworkDiag] Deezer lookup failed: $e');
@@ -361,7 +401,8 @@ class ArtworkResolver {
           confidence: mbMatch.confidence,
         );
         if (caaArtwork != null && caaArtwork.confidence >= 0.80) {
-          debugPrint('[ArtworkDiag] Selected artwork source: CoverArtArchive | URL: ${caaArtwork.imageUrl}');
+          debugPrint(
+              '[ArtworkDiag] Selected artwork source: CoverArtArchive | URL: ${caaArtwork.imageUrl}');
           return await _cacheAndReturn(key, caaArtwork, canonicalKey: canonKey);
         }
       }
@@ -374,7 +415,8 @@ class ArtworkResolver {
       try {
         final fanartArtwork = await fanartProvider.resolve(query);
         if (fanartArtwork != null) {
-          return await _cacheAndReturn(key, fanartArtwork, canonicalKey: canonKey);
+          return await _cacheAndReturn(key, fanartArtwork,
+              canonicalKey: canonKey);
         }
       } catch (_) {}
     }
@@ -385,7 +427,8 @@ class ArtworkResolver {
 
   Future<ResolvedArtwork> _fallbackOrNeutral(ArtworkQuery query) async {
     // Return deterministic neutral fallback (never YouTube thumbnails as album artwork)
-    debugPrint('[ArtworkDiag] Selected artwork source: NeutralFallback for "${query.title}"');
+    debugPrint(
+        '[ArtworkDiag] Selected artwork source: NeutralFallback for "${query.title}"');
     return ResolvedArtwork.neutralFallback();
   }
 }
