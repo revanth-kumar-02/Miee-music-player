@@ -58,6 +58,7 @@ abstract class PreferenceKeys {
   static const String gaplessPlaybackEnabled = 'gapless_playback';
   static const String lastScanTime = 'last_scan_time';
   static const String mediaNotificationEnabled = 'media_notification_enabled';
+  static const String lastSignedInUserId = 'last_signed_in_user_id';
   static const String backgroundPlaybackEnabled = 'background_playback_enabled';
   static const String lockScreenControlsEnabled = 'lock_screen_controls_enabled';
   static const String lastSyncTimestamp = 'last_sync_timestamp';

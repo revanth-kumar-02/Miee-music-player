@@ -62,7 +62,8 @@ class MockLiveSearchNotifier extends StateNotifier<SearchState> implements Searc
   Future<void> clearHistory() async {}
 
   @override
-  void enrichArtistsFromSongsForTesting(String query, List<YouTubeVideo> youtube) {}
+  Future<void> enrichArtistsFromSongsForTesting(
+      String query, List<YouTubeVideo> youtube) async {}
 }
 
 void main() {

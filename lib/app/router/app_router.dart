@@ -481,39 +481,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-/// Direct fallback router reference for existing code/tests.
-final GoRouter appRouter = GoRouter(
-  initialLocation: '/',
-  routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const SplashPage(),
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginPage(),
-    ),
-    GoRoute(
-      path: '/register',
-      builder: (context, state) => const RegisterPage(),
-    ),
-    GoRoute(
-      path: '/onboarding',
-      builder: (context, state) => const ArtistSelectionPage(),
-    ),
-    GoRoute(
-      path: '/wrapped',
-      builder: (context, state) => const WrappedStoryPage(),
-    ),
-    ShellRoute(
-      builder: (context, state, child) => MainAppShell(child: child),
-      routes: [
-        GoRoute(
-          path: '/home',
-          builder: (context, state) => const HomePage(),
-        ),
-      ],
-    ),
-  ],
-);

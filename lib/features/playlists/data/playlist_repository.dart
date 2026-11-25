@@ -129,6 +129,7 @@ class PlaylistRepository {
               imageUrl: t.imageUrl,
               duration: t.duration,
               filePath: t.filePath,
+              albumName: t.album,
             );
           } else if (t is Map) {
             track = Track(
@@ -138,17 +139,12 @@ class PlaylistRepository {
               imageUrl: (t['imageUrl'] ?? t['image_url'] ?? '').toString(),
               duration: (t['duration'] ?? '0:00').toString(),
               filePath: t['filePath'] as String?,
+              albumName: t['albumName'] as String? ?? t['album'] as String?,
             );
           }
 
           if (track != null) {
-            final clean = track.artist.trim().toLowerCase();
-            if (!(clean.isEmpty ||
-                clean == 'unknown' ||
-                clean == '<unknown>' ||
-                clean == 'unknown artist')) {
-              tracksList.add(track);
-            }
+            tracksList.add(track);
           }
         }
       }

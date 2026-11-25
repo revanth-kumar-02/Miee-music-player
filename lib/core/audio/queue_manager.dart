@@ -34,7 +34,11 @@ class QueueManager {
     _isShuffled = false;
     _queue.clear();
     _queue.addAll(tracks);
-    _currentIndex = (startIndex >= 0 && startIndex < _queue.length) ? startIndex : 0;
+    if (_queue.isEmpty) {
+      _currentIndex = -1;
+    } else {
+      _currentIndex = (startIndex >= 0 && startIndex < _queue.length) ? startIndex : 0;
+    }
   }
 
   /// Enables shuffle: retains current track at front and shuffles remaining tracks
@@ -175,7 +179,14 @@ class QueueManager {
   void replaceTrackAt(int index, MusicItem newTrack) {
     if (index >= 0 && index < _queue.length) {
       _cachedUnmodifiableQueue = null;
+      final oldId = _queue[index].id;
       _queue[index] = newTrack;
+      if (_isShuffled) {
+        final origIdx = _originalQueue.indexWhere((t) => t.id == oldId);
+        if (origIdx != -1) {
+          _originalQueue[origIdx] = newTrack;
+        }
+      }
     }
   }
 

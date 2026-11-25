@@ -79,7 +79,7 @@ class SearchRepository {
   static const String _prefKey = 'youtube_search_history';
   static const int _maxHistory = 10;
 
-  Box<Object?> get _box => Hive.box<Object?>(HiveBoxes.preferences);
+  Box<dynamic> get _box => Hive.box<dynamic>(HiveBoxes.preferences);
 
   /// Load persistent search history.
   List<String> getRecentSearches() {

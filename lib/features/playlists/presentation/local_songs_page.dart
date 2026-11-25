@@ -277,7 +277,7 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
                                           if (!hasPerm) {
                                             await openAppSettings();
                                           } else {
-                                            ref
+                                            await ref
                                                 .read(mediaLibraryServiceProvider.notifier)
                                                 .scanDevice(forceRefresh: true);
                                           }

@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/storage/hive_boxes.dart';
+import '../../../core/storage/hive_service.dart';
 import '../../../core/sync/supabase_config.dart';
 import '../../../core/sync/sync_manager.dart';
+import '../../library/providers/library_providers.dart';
 import '../../profile/presentation/profile_controller.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../rooms/providers/room_providers.dart';
@@ -39,9 +43,50 @@ class AuthState {
 
 class AuthController extends StateNotifier<AuthState> {
   final Ref _ref;
+  StreamSubscription<dynamic>? _authStateSub;
 
   AuthController(this._ref) : super(const AuthState()) {
     _init();
+  }
+
+  @override
+  void dispose() {
+    _authStateSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleAuthenticatedUser(String userId) async {
+    try {
+      String? previousUserId;
+      Box<dynamic>? prefsBox;
+      if (Hive.isBoxOpen(HiveBoxes.preferences)) {
+        prefsBox = Hive.box<dynamic>(HiveBoxes.preferences);
+        previousUserId = prefsBox.get(PreferenceKeys.lastSignedInUserId) as String?;
+      }
+
+      if (previousUserId != null && previousUserId != userId) {
+        await HiveService.clearUserDataBoxes();
+        _invalidateUserProviders();
+      } else if (previousUserId == null) {
+        await _ref.read(syncManagerProvider).migrateGuestPlaylists(userId);
+      }
+
+      if (prefsBox != null) {
+        await prefsBox.put(PreferenceKeys.lastSignedInUserId, userId);
+      }
+    } catch (e) {
+      debugPrint('[AuthController] Account transition handling error: $e');
+    }
+  }
+
+  void _invalidateUserProviders() {
+    _ref.invalidate(userPlaylistsProvider);
+    _ref.invalidate(favoritesProvider);
+    _ref.invalidate(recentlyPlayedProvider);
+    _ref.invalidate(searchHistoryProvider);
+    _ref.invalidate(userProfileNotifierProvider);
+    _ref.invalidate(currentUserProfileProvider);
+    _ref.invalidate(profileProvider);
   }
 
   void _init() {
@@ -50,7 +95,7 @@ class AuthController extends StateNotifier<AuthState> {
         final client = Supabase.instance.client;
         state = AuthState(user: client.auth.currentUser);
 
-        client.auth.onAuthStateChange.listen((data) {
+        _authStateSub = client.auth.onAuthStateChange.listen((data) {
           if (!mounted) return;
           if (data.event == AuthChangeEvent.signedOut) {
             state = const AuthState(user: null, isLoading: false, isOfflineMock: false);
@@ -58,7 +103,7 @@ class AuthController extends StateNotifier<AuthState> {
             final u = data.session?.user;
             state = state.copyWith(user: u, isLoading: false);
             if (u != null) {
-              unawaited(_ref.read(syncManagerProvider).migrateGuestPlaylists(u.id));
+              unawaited(_handleAuthenticatedUser(u.id));
             }
           }
         });
@@ -92,7 +137,7 @@ class AuthController extends StateNotifier<AuthState> {
         );
         state = AuthState(user: response.user);
         if (response.user != null) {
-          unawaited(_ref.read(syncManagerProvider).migrateGuestPlaylists(response.user!.id));
+          unawaited(_handleAuthenticatedUser(response.user!.id));
         }
         return true;
       } else {
@@ -122,7 +167,7 @@ class AuthController extends StateNotifier<AuthState> {
         );
         state = AuthState(user: response.user);
         if (response.user != null) {
-          unawaited(_ref.read(syncManagerProvider).migrateGuestPlaylists(response.user!.id));
+          unawaited(_handleAuthenticatedUser(response.user!.id));
         }
         return true;
       } else {
@@ -169,18 +214,32 @@ class AuthController extends StateNotifier<AuthState> {
       // 2. Reset guest mode
       _ref.read(guestModeProvider.notifier).state = false;
 
-      // 3. Perform real sign out via Supabase
+      // 3. Best-effort flush of pending offline sync operations before clearing local user data
       if (SupabaseConfig.hasActiveSupabase) {
+        try {
+          await _ref.read(syncManagerProvider).triggerSync(force: true);
+        } catch (e) {
+          debugPrint('[AuthController] Best-effort pre-signOut sync note: $e');
+        }
         await _ref.read(authRepositoryProvider).signOut();
       }
 
-      // 4. Update auth state to fully signed out
+      // 4. Clear user-scoped local Hive caches to prevent cross-account data leakage
+      try {
+        await HiveService.clearUserDataBoxes();
+        if (Hive.isBoxOpen(HiveBoxes.preferences)) {
+          await Hive.box<dynamic>(HiveBoxes.preferences)
+              .delete(PreferenceKeys.lastSignedInUserId);
+        }
+      } catch (e) {
+        debugPrint('[AuthController] Note: Hive cleanup during signOut: $e');
+      }
+
+      // 5. Update auth state to fully signed out
       state = const AuthState(user: null, isLoading: false, isOfflineMock: false);
 
-      // 5. Invalidate profile state so user-specific caches do not linger
-      _ref.invalidate(userProfileNotifierProvider);
-      _ref.invalidate(currentUserProfileProvider);
-      _ref.invalidate(profileProvider);
+      // 6. Invalidate user-scoped providers so stale caches do not linger
+      _invalidateUserProviders();
     } catch (e) {
       if (!mounted) rethrow;
       final errorMsg = e.toString().replaceFirst('Exception: ', '');

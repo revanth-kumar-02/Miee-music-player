@@ -14,6 +14,7 @@ import 'package:Miee/core/storage/adapters/track_hive_model.dart';
 import 'package:Miee/core/audio/audio_handler.dart';
 import 'package:Miee/core/audio/providers.dart';
 import 'package:Miee/core/sync/network_monitor.dart';
+import 'package:Miee/features/media/domain/library_filter_policy.dart';
 import 'package:Miee/features/media/domain/models.dart';
 import 'package:Miee/features/media/domain/media_repository.dart';
 import 'package:Miee/features/media/providers/media_providers.dart';
@@ -75,6 +76,11 @@ class FakeMediaRepository implements MediaRepository {
   Future<List<MediaPlaylist>> getPlaylists({bool forceRefresh = false}) async => [];
   @override
   Future<List<MediaFolder>> getFolders({bool forceRefresh = false}) async => [];
+  @override
+  Future<LibraryFolderPreferences> getFolderPreferences() async =>
+      const LibraryFolderPreferences();
+  @override
+  Future<void> saveFolderPreferences(LibraryFolderPreferences preferences) async {}
 }
 
 void main() {

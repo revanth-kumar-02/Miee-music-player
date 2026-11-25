@@ -101,13 +101,14 @@ class CanonicalMusicRanker {
   }) {
     double score = 0.0;
     final cleanQuery = query.trim().toLowerCase();
-    final normQuery = cleanQuery.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final unicodeAlphaNum = RegExp(r'[^\p{L}\p{N}]', unicode: true);
+    final normQuery = cleanQuery.replaceAll(unicodeAlphaNum, '');
 
     final titleLower = (video.canonicalTitle ?? video.title).trim().toLowerCase();
-    final normTitle = titleLower.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final normTitle = titleLower.replaceAll(unicodeAlphaNum, '');
 
     final artistLower = (video.canonicalArtist ?? video.channelTitle).trim().toLowerCase();
-    final normArtist = artistLower.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final normArtist = artistLower.replaceAll(unicodeAlphaNum, '');
 
     // 1. Exact Title Match & Full Query Coverage
     if (titleLower == cleanQuery || (normTitle.isNotEmpty && normTitle == normQuery)) {
@@ -125,7 +126,7 @@ class CanonicalMusicRanker {
     // 2. Canonical Artist Match from Global Popularity (e.g. Apple Music / Curated #1)
     if (canonicalArtist != null && canonicalArtist.isNotEmpty) {
       final canArtistLower = canonicalArtist.trim().toLowerCase();
-      final normCanArtist = canArtistLower.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final normCanArtist = canArtistLower.replaceAll(unicodeAlphaNum, '');
 
       if (artistLower == canArtistLower || (normArtist.isNotEmpty && normArtist == normCanArtist)) {
         score += 400.0;

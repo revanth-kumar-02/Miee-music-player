@@ -727,6 +727,7 @@ class ProfilePage extends ConsumerWidget {
 
                 Navigator.pop(context);
                 
+                final messenger = ScaffoldMessenger.of(context);
                 bool success = false;
                 if (isSignUp) {
                   success = await authNotifier.signUp(email, pass, nameController.text.trim());
@@ -737,17 +738,18 @@ class ProfilePage extends ConsumerWidget {
                 if (success) {
                   TextInput.finishAutofillContext(shouldSave: true);
                   // Run full remote download on sign in
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Account connected successfully! Loading cloud backup...')),
                   );
                   await syncManager.downloadAllRemoteData();
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Cloud backup restored successfully!')),
                   );
                 } else {
                   TextInput.finishAutofillContext(shouldSave: false);
                   final error = ref.read(authControllerProvider).errorMessage ?? 'Unknown error';
-                  showDialog(
+                  if (!context.mounted) return;
+                  await showDialog<void>(
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('Connection Failed'),

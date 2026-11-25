@@ -33,20 +33,34 @@ class HiveService {
     // Open all boxes eagerly so repositories never need to await box opening.
     debugPrint('STARTUP: Hive opening all boxes eagerly starting');
     await Future.wait([
-      Hive.openBox<TrackHiveModel>(HiveBoxes.favorites).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.favorites}'); return box; }),
-      Hive.openBox<PlaylistHiveModel>(HiveBoxes.playlists).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.playlists}'); return box; }),
-      Hive.openBox<HistoryEntry>(HiveBoxes.recentlyPlayed).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.recentlyPlayed}'); return box; }),
-      Hive.openBox<int>(HiveBoxes.mostPlayed).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.mostPlayed}'); return box; }),
-      Hive.openBox<PlaybackHistoryEntry>(HiveBoxes.playbackHistory).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.playbackHistory}'); return box; }),
-      Hive.openBox<QueueSnapshot>(HiveBoxes.queueState).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.queueState}'); return box; }),
-      Hive.openBox<String>(HiveBoxes.searchHistory).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.searchHistory}'); return box; }),
-      Hive.openBox<dynamic>(HiveBoxes.preferences).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.preferences}'); return box; }),
-      Hive.openBox<dynamic>(HiveBoxes.profile).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.profile}'); return box; }),
-      Hive.openBox<dynamic>(HiveBoxes.offlineQueue).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.offlineQueue}'); return box; }),
-      Hive.openBox<dynamic>(HiveBoxes.dailyMixes).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.dailyMixes}'); return box; }),
-      Hive.openBox<dynamic>(HiveBoxes.artworkCache).then((box) { debugPrint('STARTUP: Hive Box loaded: ${HiveBoxes.artworkCache}'); return box; }),
+      _openBoxSafely<TrackHiveModel>(HiveBoxes.favorites),
+      _openBoxSafely<PlaylistHiveModel>(HiveBoxes.playlists),
+      _openBoxSafely<HistoryEntry>(HiveBoxes.recentlyPlayed),
+      _openBoxSafely<int>(HiveBoxes.mostPlayed),
+      _openBoxSafely<PlaybackHistoryEntry>(HiveBoxes.playbackHistory),
+      _openBoxSafely<QueueSnapshot>(HiveBoxes.queueState),
+      _openBoxSafely<String>(HiveBoxes.searchHistory),
+      _openBoxSafely<dynamic>(HiveBoxes.preferences),
+      _openBoxSafely<dynamic>(HiveBoxes.profile),
+      _openBoxSafely<dynamic>(HiveBoxes.offlineQueue),
+      _openBoxSafely<dynamic>(HiveBoxes.dailyMixes),
+      _openBoxSafely<dynamic>(HiveBoxes.artworkCache),
     ]);
     debugPrint('STARTUP: Hive opening all boxes eagerly done');
+  }
+
+  static Future<Box<T>> _openBoxSafely<T>(String boxName) async {
+    try {
+      final box = await Hive.openBox<T>(boxName);
+      debugPrint('STARTUP: Hive Box loaded: $boxName');
+      return box;
+    } catch (e) {
+      debugPrint('STARTUP: Corrupted Hive box "$boxName" ($e); resetting box.');
+      try {
+        await Hive.deleteBoxFromDisk(boxName);
+      } catch (_) {}
+      return Hive.openBox<T>(boxName);
+    }
   }
 
   static void _registerAdapters() {
@@ -55,5 +69,28 @@ class HiveService {
     if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(HistoryEntryAdapter());
     if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(PlaybackHistoryEntryAdapter());
     if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(QueueSnapshotAdapter());
+  }
+
+  /// Clears user-scoped Hive boxes on sign-out or account switch while
+  /// preserving device-level preferences and artwork cache.
+  static Future<void> clearUserDataBoxes() async {
+    Future<void> clearIfOpen<T>(String boxName) async {
+      if (Hive.isBoxOpen(boxName)) {
+        await Hive.box<T>(boxName).clear();
+      }
+    }
+
+    await Future.wait([
+      clearIfOpen<TrackHiveModel>(HiveBoxes.favorites),
+      clearIfOpen<PlaylistHiveModel>(HiveBoxes.playlists),
+      clearIfOpen<HistoryEntry>(HiveBoxes.recentlyPlayed),
+      clearIfOpen<int>(HiveBoxes.mostPlayed),
+      clearIfOpen<PlaybackHistoryEntry>(HiveBoxes.playbackHistory),
+      clearIfOpen<QueueSnapshot>(HiveBoxes.queueState),
+      clearIfOpen<String>(HiveBoxes.searchHistory),
+      clearIfOpen<dynamic>(HiveBoxes.profile),
+      clearIfOpen<dynamic>(HiveBoxes.offlineQueue),
+      clearIfOpen<dynamic>(HiveBoxes.dailyMixes),
+    ]);
   }
 }

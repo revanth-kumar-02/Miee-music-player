@@ -8,6 +8,7 @@ import 'package:Miee/features/onboarding/domain/artist_model.dart';
 import 'package:Miee/features/recommendations/data/recommendation_service.dart';
 import 'package:Miee/features/recommendations/domain/music_language_service.dart';
 import 'package:Miee/features/search/domain/search_deduplicator.dart';
+import 'package:Miee/features/search/domain/online_playlist.dart';
 import 'package:Miee/features/youtube/data/youtube_repository.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/shared/models/music_item.dart';
@@ -58,6 +59,12 @@ class MockPaginatedYouTubeRepository implements YouTubeRepository {
 
   @override
   Future<List<YouTubeVideo>> getRelatedTracks(YouTubeVideo seed, {int limit = 15}) async => [];
+
+  @override
+  Future<List<OnlinePlaylist>> searchPlaylists(String query) async => [];
+
+  @override
+  Future<List<YouTubeVideo>> getPlaylistVideos(String playlistId, {int limit = 50}) async => [];
 }
 
 void main() {

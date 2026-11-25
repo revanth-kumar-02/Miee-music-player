@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/audio/providers.dart';
+import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 import '../../media/domain/models.dart';
 import '../../media/providers/media_providers.dart';
@@ -841,6 +842,7 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
               title: playlist.name,
               subtitle: '${playlist.songCount} songs',
               imageUrl: playlist.effectiveCoverUrl,
+              fallbackTrack: playlist.tracks.isNotEmpty ? playlist.tracks.first : null,
               onTap: () => context.push('/playlist/${playlist.id}'),
             ),
             const SizedBox(width: 14),
@@ -899,6 +901,7 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
     required String title,
     required String subtitle,
     String? imageUrl,
+    MusicItem? fallbackTrack,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -918,6 +921,7 @@ class _PlaylistsPageState extends ConsumerState<PlaylistsPage> {
           children: [
             MieeArtworkImage(
               explicitUrl: imageUrl,
+              musicItem: fallbackTrack,
               fit: BoxFit.cover,
               width: 146,
               height: 180,

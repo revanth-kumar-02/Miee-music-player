@@ -21,6 +21,11 @@ class _MieeAppState extends ConsumerState<MieeApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _enableImmersiveMode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final router = ref.read(appRouterProvider);
+      ref.read(widgetSyncServiceProvider).attachRouter(router);
+    });
   }
 
   @override
@@ -51,7 +56,6 @@ class _MieeAppState extends ConsumerState<MieeApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     debugPrint('STARTUP: MieeApp.build() entered');
     final router = ref.watch(appRouterProvider);
-    ref.read(widgetSyncServiceProvider).attachRouter(router);
     final isDesktop = (!kIsWeb &&
             (defaultTargetPlatform == TargetPlatform.windows ||
                 defaultTargetPlatform == TargetPlatform.linux ||

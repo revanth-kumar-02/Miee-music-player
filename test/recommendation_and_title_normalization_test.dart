@@ -5,6 +5,7 @@ import 'package:Miee/features/onboarding/data/artist_discovery_repository.dart';
 import 'package:Miee/features/onboarding/domain/artist_model.dart';
 import 'package:Miee/features/profile/domain/user_profile.dart';
 import 'package:Miee/features/recommendations/data/recommendation_service.dart';
+import 'package:Miee/features/search/domain/online_playlist.dart';
 import 'package:Miee/features/youtube/data/youtube_repository.dart';
 import 'package:Miee/features/youtube/domain/youtube_metadata_cleaner.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
@@ -50,6 +51,12 @@ class MockYouTubeRepository implements YouTubeRepository {
     YouTubeVideo seedVideo, {
     int limit = 15,
   }) async => [];
+
+  @override
+  Future<List<OnlinePlaylist>> searchPlaylists(String query) async => [];
+
+  @override
+  Future<List<YouTubeVideo>> getPlaylistVideos(String playlistId, {int limit = 50}) async => [];
 }
 
 class MockArtistRepository implements ArtistRepository {

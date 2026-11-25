@@ -135,8 +135,42 @@ class UpnpDiscoveryService {
     } catch (_) {}
   }
 
+  bool _isAllowedLanHttpUri(Uri? uri) {
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return false;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return false;
+    final host = uri.host.toLowerCase();
+    if (host == 'localhost' || host.endsWith('.local')) return true;
+    final ip = InternetAddress.tryParse(host);
+    if (ip == null) return false;
+    if (ip.isLoopback || ip.isLinkLocal) return true;
+    if (ip.type == InternetAddressType.IPv4) {
+      final b = ip.rawAddress;
+      // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      if (b[0] == 10) return true;
+      if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
+      if (b[0] == 192 && b[1] == 168) return true;
+    }
+    return false;
+  }
+
+  String _escapeXml(String input) {
+    return input
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
+
   Future<void> _fetchDeviceDescription(String locationUrl, String usn) async {
     try {
+      final locationUri = Uri.tryParse(locationUrl);
+      if (!_isAllowedLanHttpUri(locationUri)) {
+        debugPrint('[UpnpDiscoveryService] Rejected non-LAN SSDP LOCATION: $locationUrl');
+        return;
+      }
+
       final response = await _dio.get<String>(locationUrl);
       final xml = response.data;
       if (xml == null) return;
@@ -197,18 +231,19 @@ class UpnpDiscoveryService {
     if (controlUrl == null) return false;
 
     try {
+      final escapedUrl = _escapeXml(mediaUrl);
       final setUriSoap = '''<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body>
     <u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
       <InstanceID>0</InstanceID>
-      <CurrentURI>$mediaUrl</CurrentURI>
+      <CurrentURI>$escapedUrl</CurrentURI>
       <CurrentURIMetaData></CurrentURIMetaData>
     </u:SetAVTransportURI>
   </s:Body>
 </s:Envelope>''';
 
-      await _dio.post(
+      await _dio.post<void>(
         controlUrl,
         data: setUriSoap,
         options: Options(
@@ -229,7 +264,7 @@ class UpnpDiscoveryService {
   </s:Body>
 </s:Envelope>''';
 
-      await _dio.post(
+      await _dio.post<void>(
         controlUrl,
         data: playSoap,
         options: Options(
@@ -249,7 +284,16 @@ class UpnpDiscoveryService {
 
   void clear() {
     _devices.clear();
-    _devicesController.add([]);
+    if (!_devicesController.isClosed) {
+      _devicesController.add([]);
+    }
+  }
+
+  void dispose() {
+    _dio.close();
+    if (!_devicesController.isClosed) {
+      _devicesController.close();
+    }
   }
 }
 

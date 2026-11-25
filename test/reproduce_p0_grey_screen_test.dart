@@ -19,6 +19,7 @@ import 'package:Miee/app/router/app_router.dart';
 import 'package:Miee/features/home/presentation/home_page.dart';
 import 'package:Miee/features/playlists/presentation/playlists_page.dart';
 import 'package:Miee/features/auth/providers/auth_providers.dart';
+import 'package:Miee/features/media/domain/library_filter_policy.dart';
 import 'package:Miee/features/media/domain/models.dart';
 import 'package:Miee/features/media/domain/media_repository.dart';
 import 'package:Miee/features/media/providers/media_providers.dart';
@@ -77,6 +78,11 @@ class FakeMediaRepository implements MediaRepository {
   Future<List<MediaPlaylist>> getPlaylists({bool forceRefresh = false}) async => [];
   @override
   Future<List<MediaFolder>> getFolders({bool forceRefresh = false}) async => [];
+  @override
+  Future<LibraryFolderPreferences> getFolderPreferences() async =>
+      const LibraryFolderPreferences();
+  @override
+  Future<void> saveFolderPreferences(LibraryFolderPreferences preferences) async {}
 }
 
 void main() {

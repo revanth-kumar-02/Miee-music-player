@@ -1123,7 +1123,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     if (mode == 'preferLocal' || mode == 'smart' || mode == 'alwaysLocal') {
       if (!track.isYoutube) return track;
-      final localMatch = _findLocalVersion(track.title, track.artist);
+      final localMatch = _findLocalVersion(
+        track.title,
+        track.artist,
+        expectedDuration: track.duration,
+      );
       if (localMatch != null) return localMatch;
       return track;
     }
@@ -1136,20 +1140,37 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
 
     // Default: prefer local
-    final localMatch = _findLocalVersion(track.title, track.artist);
+    final localMatch = _findLocalVersion(
+      track.title,
+      track.artist,
+      expectedDuration: track.duration,
+    );
     if (localMatch != null) return localMatch;
     return track;
   }
 
-  MediaSong? _findLocalVersion(String title, String artist) {
+  MediaSong? _findLocalVersion(
+    String title,
+    String artist, {
+    String? expectedDuration,
+  }) {
     try {
       final localSongs = _ref.read(songsProvider);
       if (localSongs.isEmpty) return null;
       final cleanTitle = title.trim().toLowerCase();
       final cleanArtist = artist.trim().toLowerCase();
+      final checkDuration = expectedDuration != null &&
+          PlaybackSourceResolver.hasConcreteDuration(expectedDuration);
       for (final song in localSongs) {
         if (song.title.trim().toLowerCase() == cleanTitle &&
             song.artist.trim().toLowerCase() == cleanArtist) {
+          if (checkDuration &&
+              !PlaybackSourceResolver.isDurationCompatible(
+                targetDurationStr: expectedDuration,
+                candidateDurationStr: song.duration,
+              )) {
+            continue;
+          }
           return song;
         }
       }

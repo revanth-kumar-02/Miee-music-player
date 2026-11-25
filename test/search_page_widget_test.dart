@@ -203,5 +203,6 @@ class MockSearchNotifier extends StateNotifier<SearchState> implements SearchNot
   Future<void> clearHistory() async {}
 
   @override
-  void enrichArtistsFromSongsForTesting(String query, List<YouTubeVideo> youtube) {}
+  Future<void> enrichArtistsFromSongsForTesting(
+      String query, List<YouTubeVideo> youtube) async {}
 }

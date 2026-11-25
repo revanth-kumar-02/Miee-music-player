@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'app/app.dart';
@@ -17,17 +20,19 @@ Future<void> main() async {
   await SupabaseConfig.initialize();
 
   // On Android 13+ (API 33+), request POST_NOTIFICATIONS runtime permission
-  // so the OS system media player card and foreground service notification are visible.
+  // asynchronously so it never blocks first-frame rendering.
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    try {
-      final status = await Permission.notification.status;
-      if (!status.isGranted) {
-        debugPrint('[Startup] Requesting notification permission for system media controls');
-        await Permission.notification.request();
+    unawaited(() async {
+      try {
+        final status = await Permission.notification.status;
+        if (!status.isGranted) {
+          debugPrint('[Startup] Requesting notification permission for system media controls');
+          await Permission.notification.request();
+        }
+      } catch (e) {
+        debugPrint('[Startup] Notification permission request error: $e');
       }
-    } catch (e) {
-      debugPrint('[Startup] Notification permission request error: $e');
-    }
+    }());
   }
 
   // On Web and Desktop (Windows, macOS, Linux), native Android foreground
@@ -40,6 +45,9 @@ Future<void> main() async {
 
   if (kIsWeb || isDesktop) {
     debugPrint('Running on non-mobile platform: using direct MieeAudioHandler');
+    if (isDesktop) {
+      JustAudioMediaKit.ensureInitialized();
+    }
     final directHandler = MieeAudioHandler();
     await directHandler.initialize();
 

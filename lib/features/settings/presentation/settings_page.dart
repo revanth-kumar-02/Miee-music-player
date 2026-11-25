@@ -253,7 +253,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         final scanStr =
             '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
         await ref.read(settingsControllerProvider.notifier).updateLastScanTime(scanStr);
-        _loadStats();
+        await _loadStats();
 
         if (!mounted) return;
         messenger.showSnackBar(
@@ -529,7 +529,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
                         onTap: () async {
                           if (_isRefreshingMetadata || ref.read(loadingStateProvider)) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          final messenger = ScaffoldMessenger.of(context);
+                          messenger.showSnackBar(
                             const SnackBar(content: Text('Scanning local library...')),
                           );
                           await ref.read(mediaLibraryServiceProvider.notifier).scanDevice(forceRefresh: true);
@@ -538,7 +539,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
                           await settingsNotifier.updateLastScanTime(scanStr);
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text('Library scan completed! Found ${ref.read(songsProvider).length} songs.'),
                               ),
@@ -641,7 +642,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               return;
                             }
                           }
-                          settingsNotifier.updateMediaNotification(val);
+                          await settingsNotifier.updateMediaNotification(val);
                         },
                       ),
                       const Divider(height: 1, color: AppColors.oatBeige),
@@ -829,9 +830,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           message: 'All your cached and recent search queries will be removed.',
                           actionLabel: 'Clear',
                           onConfirm: () async {
+                            final messenger = ScaffoldMessenger.of(context);
                             await ref.read(searchHistoryProvider.notifier).clearAll();
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              messenger.showSnackBar(
                                 const SnackBar(content: Text('Search history cleared.')),
                               );
                             }
@@ -1331,6 +1333,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   TextButton(
                     child: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                     onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final router = GoRouter.of(context);
                       setDialogState(() {
                         _isSigningOut = true;
                       });
@@ -1340,8 +1344,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           Navigator.pop(dialogCtx);
                         }
                         if (mounted) {
-                          context.go('/login');
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          router.go('/login');
+                          messenger.showSnackBar(
                             const SnackBar(content: Text('Signed out successfully.')),
                           );
                         }
@@ -1355,7 +1359,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           setState(() {
                             _isSigningOut = false;
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             SnackBar(
                               content: Text('Sign out failed: ${e.toString().replaceFirst('Exception: ', '')}'),
                               backgroundColor: Colors.redAccent,

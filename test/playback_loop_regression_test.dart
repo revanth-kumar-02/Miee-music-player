@@ -29,6 +29,15 @@ class _LoopTestTrack implements MusicItem {
   @override
   final bool isYoutube;
 
+  @override
+  String get album => '';
+
+  @override
+  String get displayTitle => title;
+
+  @override
+  String get effectiveArtworkUrl => imageUrl;
+
   const _LoopTestTrack({
     required this.id,
     required this.title,

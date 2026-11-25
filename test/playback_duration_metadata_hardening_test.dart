@@ -148,7 +148,7 @@ void main() {
         targetDurationSec: targetSeconds,
       );
 
-      expect(scoreFull.score, greaterThan(scorePromo.score + 100),
+      expect((scoreFull.score as num).toInt(), greaterThan((scorePromo.score as num).toInt() + 100),
           reason: 'Full 3:59 candidate must overwhelmingly outscore 40s promo clip');
     });
 

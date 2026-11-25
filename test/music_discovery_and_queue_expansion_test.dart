@@ -7,6 +7,7 @@ import 'package:Miee/features/onboarding/domain/artist_model.dart';
 import 'package:Miee/features/profile/domain/user_profile.dart';
 import 'package:Miee/features/recommendations/data/recommendation_service.dart';
 import 'package:Miee/features/recommendations/data/trending_music_service.dart';
+import 'package:Miee/features/search/domain/online_playlist.dart';
 import 'package:Miee/features/youtube/data/youtube_repository.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 import 'package:Miee/shared/models/music_item.dart';
@@ -18,7 +19,11 @@ class TestYouTubeRepository implements YouTubeRepository {
   TestYouTubeRepository({this.responses = const {}});
 
   @override
-  Future<List<YouTubeVideo>> search(String query) async {
+  Future<List<YouTubeVideo>> search(
+    String query, {
+    int page = 1,
+    bool forceFresh = false,
+  }) async {
     for (final entry in responses.entries) {
       if (query.toLowerCase().contains(entry.key.toLowerCase())) {
         return entry.value;
@@ -69,6 +74,36 @@ class TestYouTubeRepository implements YouTubeRepository {
 
   @override
   Future<List<ArtistModel>> searchArtists(String query) async => [];
+
+  @override
+  Future<List<YouTubeVideo>> getArtistTracks(
+    String artistName, {
+    int page = 1,
+    int limit = 15,
+    List<String> preferredLanguages = const [],
+  }) async {
+    final results = await search(artistName, page: page);
+    return results
+        .map(
+          (v) => v.channelTitle == 'Verified Channel'
+              ? YouTubeVideo(
+                  id: v.id,
+                  title: v.title,
+                  channelTitle: artistName,
+                  thumbnailUrl: v.thumbnailUrl,
+                  duration: v.duration,
+                  viewCount: v.viewCount,
+                )
+              : v,
+        )
+        .toList();
+  }
+
+  @override
+  Future<List<OnlinePlaylist>> searchPlaylists(String query) async => [];
+
+  @override
+  Future<List<YouTubeVideo>> getPlaylistVideos(String playlistId, {int limit = 50}) async => [];
 }
 
 class TestArtistRepository implements ArtistRepository {

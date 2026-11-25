@@ -40,6 +40,8 @@ class MockRecommendationService implements RecommendationService {
   Future<List<MusicItem>> getTracksForArtist(
     ArtistSummary artist, {
     int limit = 6,
+    int page = 1,
+    List<String> preferredLanguages = const [],
   }) async {
     return tracksByArtist[artist.id] ?? [];
   }
