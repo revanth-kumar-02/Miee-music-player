@@ -119,17 +119,26 @@ class _LegalDocumentPageState extends State<LegalDocumentPage>
     );
   }
 
+  void _navigateBack(BuildContext context) {
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      if (router.canPop()) {
+        router.pop();
+      } else {
+        router.go('/settings');
+      }
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/settings');
-        }
+        _navigateBack(context);
       },
       child: Scaffold(
         backgroundColor: AppColors.vanillaCream,
@@ -141,13 +150,7 @@ class _LegalDocumentPageState extends State<LegalDocumentPage>
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.cocoaPlum),
             tooltip: 'Back',
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/settings');
-              }
-            },
+            onPressed: () => _navigateBack(context),
           ),
         title: const Text(
           'Legal & Release Info',

@@ -22,8 +22,6 @@ class DesktopMediaRepository implements MediaRepository {
   List<MediaSong>? _cachedSongs;
   List<MediaAlbum>? _cachedAlbums;
   List<MediaArtist>? _cachedArtists;
-  List<MediaGenre>? _cachedGenres;
-  List<MediaPlaylist>? _cachedPlaylists;
   List<MediaFolder>? _cachedFolders;
 
   static const Set<String> _audioExtensions = {
@@ -56,7 +54,8 @@ class DesktopMediaRepository implements MediaRepository {
   }
 
   @override
-  Future<void> saveFolderPreferences(LibraryFolderPreferences preferences) async {
+  Future<void> saveFolderPreferences(
+      LibraryFolderPreferences preferences) async {
     final box = Hive.box(HiveBoxes.preferences);
     await box.put(_kFolderPrefsKey, preferences.toJson());
     _invalidateCache();
@@ -66,8 +65,6 @@ class DesktopMediaRepository implements MediaRepository {
     _cachedSongs = null;
     _cachedAlbums = null;
     _cachedArtists = null;
-    _cachedGenres = null;
-    _cachedPlaylists = null;
     _cachedFolders = null;
   }
 
@@ -207,13 +204,20 @@ class DesktopMediaRepository implements MediaRepository {
     }
 
     // Generate deterministic ID from canonical file path
-    final pathHash = sha256.convert(utf8.encode(filePath)).toString().substring(0, 16);
+    final pathHash =
+        sha256.convert(utf8.encode(filePath)).toString().substring(0, 16);
     final id = 'desktop_$pathHash';
 
     // Check for companion album cover in the same directory (cover.jpg, folder.jpg)
     String artworkPath = '';
     final parent = file.parent;
-    for (final candidate in ['cover.jpg', 'cover.png', 'folder.jpg', 'folder.png', 'album.jpg']) {
+    for (final candidate in [
+      'cover.jpg',
+      'cover.png',
+      'folder.jpg',
+      'folder.png',
+      'album.jpg'
+    ]) {
       final artFile = File(p.join(parent.path, candidate));
       if (artFile.existsSync()) {
         artworkPath = artFile.path;
@@ -246,7 +250,8 @@ class DesktopMediaRepository implements MediaRepository {
     final List<MediaAlbum> albums = [];
     grouped.forEach((albumName, albumSongs) {
       final first = albumSongs.first;
-      final albumId = sha256.convert(utf8.encode(albumName)).toString().substring(0, 12);
+      final albumId =
+          sha256.convert(utf8.encode(albumName)).toString().substring(0, 12);
       albums.add(
         MediaAlbum(
           id: albumId,
@@ -275,7 +280,8 @@ class DesktopMediaRepository implements MediaRepository {
     final List<MediaArtist> artists = [];
     grouped.forEach((artistName, artistSongs) {
       final distinctAlbums = artistSongs.map((s) => s.album).toSet().length;
-      final artistId = sha256.convert(utf8.encode(artistName)).toString().substring(0, 12);
+      final artistId =
+          sha256.convert(utf8.encode(artistName)).toString().substring(0, 12);
       artists.add(
         MediaArtist(
           id: artistId,

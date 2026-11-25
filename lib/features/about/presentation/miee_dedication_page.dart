@@ -26,15 +26,24 @@ class MieeDedicationPage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= 840;
 
+    void navigateBack() {
+      final router = GoRouter.maybeOf(context);
+      if (router != null) {
+        if (router.canPop()) {
+          router.pop();
+        } else {
+          router.go('/home');
+        }
+      } else if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          context.go('/home');
-        }
+        navigateBack();
       },
       child: Scaffold(
         backgroundColor: AppColors.vanillaCream,
@@ -49,13 +58,7 @@ class MieeDedicationPage extends StatelessWidget {
               size: 22,
             ),
             tooltip: 'Back',
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/home');
-              }
-            },
+            onPressed: navigateBack,
           ),
         ),
       body: SafeArea(

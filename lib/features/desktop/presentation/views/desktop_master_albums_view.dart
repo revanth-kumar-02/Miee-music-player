@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/theme/midnight_velvet_tokens.dart';
-import '../../../../core/audio/player_controller.dart';
 import '../../../../core/audio/providers.dart';
-import '../../../../features/media/domain/models.dart';
 import '../../../../features/media/providers/media_providers.dart';
 import '../../../artwork/presentation/miee_artwork_image.dart';
 
@@ -96,7 +94,8 @@ class DesktopMasterAlbumsView extends ConsumerWidget {
                 itemCount: albums.length,
                 itemBuilder: (context, index) {
                   final album = albums[index];
-                  final albumSongs = songs.where((s) => s.album == album.title).toList();
+                  final albumSongs =
+                      songs.where((s) => s.album == album.title).toList();
 
                   return InkWell(
                     onTap: () {
@@ -137,7 +136,8 @@ class DesktopMasterAlbumsView extends ConsumerWidget {
                                         child: Icon(
                                           Icons.album_rounded,
                                           size: 40,
-                                          color: MidnightVelvetTokens.amberChampagne,
+                                          color: MidnightVelvetTokens
+                                              .amberChampagne,
                                         ),
                                       ),
                               ),
@@ -167,7 +167,8 @@ class DesktopMasterAlbumsView extends ConsumerWidget {
                           const SizedBox(height: 4),
                           Text(
                             '${album.trackCount} Tracks',
-                            style: MidnightVelvetTokens.fontMonoTelemetry.copyWith(
+                            style:
+                                MidnightVelvetTokens.fontMonoTelemetry.copyWith(
                               fontSize: 10,
                               color: MidnightVelvetTokens.textMuted,
                             ),

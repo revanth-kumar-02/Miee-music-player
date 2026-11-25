@@ -8,9 +8,6 @@ import '../../../app/theme/app_typography.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/audio/providers.dart';
-import '../../../core/audio/playback_state.dart';
-import '../../../features/library/providers/library_providers.dart';
 
 class AlbumsPage extends ConsumerStatefulWidget {
   const AlbumsPage({super.key});
@@ -49,7 +46,6 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
   @override
   Widget build(BuildContext context) {
     final albums = ref.watch(albumsProvider);
-    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     final query = _searchController.text.toLowerCase().trim();
     final filteredAlbums = albums.where((album) {
@@ -70,109 +66,110 @@ class _AlbumsPageState extends ConsumerState<AlbumsPage> {
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
-                  // Search Bar
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.marginMobile,
-                        vertical: AppSpacing.md,
-                      ),
-                      child: AppSearchBar(
-                        controller: _searchController,
-                        placeholder: 'Search albums...',
-                        onSubmitted: (_) {},
-                      ),
-                    ),
-                  ),
-
-                  if (filteredAlbums.isEmpty)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: EmptyState(
-                        title: 'No albums found',
-                        message: 'Try checking your search query.',
-                        icon: Icons.album_outlined,
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.marginMobile,
-                        right: AppSpacing.marginMobile,
-                        bottom: 120.0,
-                      ),
-                      sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16.0,
-                          mainAxisSpacing: 16.0,
-                          childAspectRatio: 0.75,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final album = filteredAlbums[index];
-                            final hasArt = album.artworkPath.isNotEmpty;
-                            
-                            return GestureDetector(
-                              onTap: () => context.push('/album/${album.id}'),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surfaceContainerHigh,
-                                        borderRadius: BorderRadius.circular(16.0),
-                                        image: hasArt
-                                            ? DecorationImage(
-                                                image: FileImage(File(album.artworkPath)),
-                                                fit: BoxFit.cover,
-                                              )
-                                            : null,
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: !hasArt
-                                          ? const Icon(
-                                              Icons.album,
-                                              size: 48.0,
-                                              color: AppColors.onSurfaceVariant,
-                                            )
-                                          : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8.0),
-                                  Text(
-                                    album.title,
-                                    style: AppTypography.bodyMedium.copyWith(
-                                      color: AppColors.onSurface,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2.0),
-                                  Text(
-                                    '${album.artist} · ${album.trackCount} track${album.trackCount != 1 ? 's' : ''}',
-                                    style: AppTypography.labelSmall.copyWith(
-                                      color: AppColors.onSurfaceVariant,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                          childCount: filteredAlbums.length,
-                        ),
-                      ),
-                    ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 120.0),
-                  ),
-                ],
+            // Search Bar
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.marginMobile,
+                  vertical: AppSpacing.md,
+                ),
+                child: AppSearchBar(
+                  controller: _searchController,
+                  placeholder: 'Search albums...',
+                  onSubmitted: (_) {},
+                ),
               ),
             ),
+
+            if (filteredAlbums.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  title: 'No albums found',
+                  message: 'Try checking your search query.',
+                  icon: Icons.album_outlined,
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.marginMobile,
+                  right: AppSpacing.marginMobile,
+                  bottom: 120.0,
+                ),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16.0,
+                    mainAxisSpacing: 16.0,
+                    childAspectRatio: 0.75,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final album = filteredAlbums[index];
+                      final hasArt = album.artworkPath.isNotEmpty;
+
+                      return GestureDetector(
+                        onTap: () => context.push('/album/${album.id}'),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(16.0),
+                                  image: hasArt
+                                      ? DecorationImage(
+                                          image: FileImage(
+                                              File(album.artworkPath)),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: !hasArt
+                                    ? const Icon(
+                                        Icons.album,
+                                        size: 48.0,
+                                        color: AppColors.onSurfaceVariant,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 8.0),
+                            Text(
+                              album.title,
+                              style: AppTypography.bodyMedium.copyWith(
+                                color: AppColors.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2.0),
+                            Text(
+                              '${album.artist} · ${album.trackCount} track${album.trackCount != 1 ? 's' : ''}',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    childCount: filteredAlbums.length,
+                  ),
+                ),
+              ),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 120.0),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

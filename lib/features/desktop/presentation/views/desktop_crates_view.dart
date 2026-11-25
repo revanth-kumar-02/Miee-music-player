@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/theme/midnight_velvet_tokens.dart';
-import '../../../../core/audio/player_controller.dart';
 import '../../../../core/audio/providers.dart';
 import '../../../playlists/domain/playlist_model.dart';
 import '../../../playlists/providers/playlist_providers.dart';
@@ -54,7 +53,8 @@ class DesktopCratesView extends ConsumerWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
                     color: MidnightVelvetTokens.surfaceCard,
                     borderRadius: BorderRadius.circular(10),
@@ -101,7 +101,8 @@ class DesktopCratesView extends ConsumerWidget {
               data: (snapshot) {
                 final mixes = snapshot.mixes;
                 if (mixes.isEmpty) {
-                  return _buildEmptyState('Generating your daily mixes based on your listening habits...');
+                  return _buildEmptyState(
+                      'Generating your daily mixes based on your listening habits...');
                 }
                 return SizedBox(
                   height: 230,
@@ -125,7 +126,8 @@ class DesktopCratesView extends ConsumerWidget {
                   ),
                 ),
               ),
-              error: (err, _) => _buildEmptyState('Daily mixes currently unavailable.'),
+              error: (err, _) =>
+                  _buildEmptyState('Daily mixes currently unavailable.'),
             ),
 
             const SizedBox(height: 40),
@@ -156,7 +158,8 @@ class DesktopCratesView extends ConsumerWidget {
                 Expanded(
                   child: _buildCrateTile(
                     title: 'Studio Pure Direct',
-                    subtitle: 'Bit-perfect lossless masters and acoustic recordings',
+                    subtitle:
+                        'Bit-perfect lossless masters and acoustic recordings',
                     trackCount: '32 Tracks',
                     color: MidnightVelvetTokens.amberChampagne,
                     icon: Icons.graphic_eq_rounded,
@@ -231,7 +234,8 @@ class DesktopCratesView extends ConsumerWidget {
     final accent = accents[index % accents.length];
 
     return InkWell(
-      onTap: () => ref.read(playerControllerProvider.notifier).playDailyMix(mix),
+      onTap: () =>
+          ref.read(playerControllerProvider.notifier).playDailyMix(mix),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 180,

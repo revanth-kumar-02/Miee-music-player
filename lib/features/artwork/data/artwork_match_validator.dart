@@ -54,7 +54,8 @@ class ArtworkMatchValidator {
         candidateIsrc != null &&
         query.isrc!.trim().isNotEmpty &&
         candidateIsrc.trim().isNotEmpty) {
-      if (query.isrc!.trim().toUpperCase() == candidateIsrc.trim().toUpperCase()) {
+      if (query.isrc!.trim().toUpperCase() ==
+          candidateIsrc.trim().toUpperCase()) {
         return 1.0;
       }
     }
@@ -64,9 +65,6 @@ class ArtworkMatchValidator {
     if (qTitleNorm.isEmpty || cTitleNorm.isEmpty) {
       return 0.0;
     }
-
-    final qArtistNorm = normalize(query.artist);
-    final cArtistNorm = normalize(candidateArtist);
 
     // 2. Strict Version Guard:
     // Reject candidate if one contains a version tag (e.g. remix, live) and the other does not.
@@ -115,7 +113,8 @@ class ArtworkMatchValidator {
     if (missingQueryArtist) {
       // Without artist metadata, require either matching album or matching duration
       // or an exact normalized title match to avoid unrelated false positives.
-      final hasDurationMatch = query.durationMs != null && candidateDurationMs != null;
+      final hasDurationMatch =
+          query.durationMs != null && candidateDurationMs != null;
       if (albumSimilarity > 0.80) {
         return 0.85;
       }
@@ -152,12 +151,19 @@ class ArtworkMatchValidator {
     s = s.replaceAll(RegExp(r'\([^)]*\)'), ' ');
     s = s.replaceAll(RegExp(r'\[[^\]]*\]'), ' ');
     // Remove common film / movie clauses (e.g. 'from "OM Chapter 1: ..."' or 'from <movie>')
-    s = s.replaceAll(RegExp(r'\bfrom\s+["\u201C][^"\u201D]+["\u201D]', caseSensitive: false), ' ');
-    s = s.replaceAll(RegExp(r'\bfrom\s+[a-z0-9\s:]+', caseSensitive: false), ' ');
+    s = s.replaceAll(
+        RegExp(r'\bfrom\s+["\u201C][^"\u201D]+["\u201D]', caseSensitive: false),
+        ' ');
+    s = s.replaceAll(
+        RegExp(r'\bfrom\s+[a-z0-9\s:]+', caseSensitive: false), ' ');
     // Remove common featuring indicators
     s = s.replaceAll(RegExp(r'\b(feat|ft|featuring|with)\b.*'), ' ');
     // Strip standalone promotional/format fluff words
-    s = s.replaceAll(RegExp(r'\b(lyrical|lyric|official|video|audio|song|track|promo|teaser)\b', caseSensitive: false), ' ');
+    s = s.replaceAll(
+        RegExp(
+            r'\b(lyrical|lyric|official|video|audio|song|track|promo|teaser)\b',
+            caseSensitive: false),
+        ' ');
     // Collapse paired initials like "a. r. rahman" -> "ar rahman"
     s = s.replaceAllMapped(
       RegExp(r'\b([a-z])\.\s*([a-z])\.\s*'),
@@ -173,7 +179,9 @@ class ArtworkMatchValidator {
   /// Splits composite artist strings into distinct individual artists.
   static List<String> _splitArtists(String artist) {
     return artist
-        .split(RegExp(r'\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\bwith\b|\/)\s*', caseSensitive: false))
+        .split(RegExp(
+            r'\s*(?:,|&|\band\b|\bfeat\.?\b|\bft\.?\b|\bwith\b|\/)\s*',
+            caseSensitive: false))
         .map((a) => a.trim())
         .where((a) => a.isNotEmpty)
         .toList();
@@ -216,8 +224,14 @@ class ArtworkMatchValidator {
     }
 
     // Decompose composite artist strings (e.g. "Sai Abhyankkar, Tippu & Arun Srinivasan" vs "Sai Abhyankkar & Rokesh")
-    final listA = _splitArtists(artistA).map(normalize).where((s) => s.isNotEmpty).toList();
-    final listB = _splitArtists(artistB).map(normalize).where((s) => s.isNotEmpty).toList();
+    final listA = _splitArtists(artistA)
+        .map(normalize)
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final listB = _splitArtists(artistB)
+        .map(normalize)
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (listA.isNotEmpty && listB.isNotEmpty) {
       final primaryA = listA.first;
       final primaryB = listB.first;
@@ -281,7 +295,8 @@ class ArtworkMatchValidator {
   }
 
   /// Validates candidate image format, aspect ratio, and minimum dimensions.
-  bool validateImageDimensions({int? width, int? height, int minDimension = 150}) {
+  bool validateImageDimensions(
+      {int? width, int? height, int minDimension = 150}) {
     if (width == null || height == null) {
       return true; // Unknown dimensions are evaluated at runtime by image loader
     }
@@ -298,4 +313,3 @@ class ArtworkMatchValidator {
     return true;
   }
 }
-

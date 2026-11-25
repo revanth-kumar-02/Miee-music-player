@@ -60,6 +60,7 @@ void main() {
         null,
         channel: testChannel,
         autoListen: false,
+        isAndroidOverride: true,
         fileExistsProvider: (p) => p == artFile.path,
         artworkResolver: _StubArtworkResolver((q) async => ResolvedArtwork(
               imageUrl: artFile.path,
@@ -105,6 +106,7 @@ void main() {
         null,
         channel: testChannel,
         autoListen: false,
+        isAndroidOverride: true,
         fileExistsProvider: (_) => false,
         artworkResolver: _StubArtworkResolver((q) async => const ResolvedArtwork(
               imageUrl: '',
@@ -146,6 +148,7 @@ void main() {
         null,
         channel: testChannel,
         autoListen: false,
+        isAndroidOverride: true,
         artworkResolver: _StubArtworkResolver((q) async => ResolvedArtwork(
               imageUrl: 'https://is1-ssl.mzstatic.com/image/thumb/cover600.jpg',
               source: ArtworkSource.itunes,
@@ -196,6 +199,7 @@ void main() {
         null,
         channel: testChannel,
         autoListen: false,
+        isAndroidOverride: true,
         artworkResolver: _StubArtworkResolver((q) async {
           throw Exception('Network timeout');
         }),
@@ -232,6 +236,7 @@ void main() {
         null,
         channel: testChannel,
         autoListen: false,
+        isAndroidOverride: true,
         fileExistsProvider: (p) => p == '/data/art/local.png',
         artworkResolver: _StubArtworkResolver((q) async => const ResolvedArtwork(
               imageUrl: '',
@@ -291,6 +296,7 @@ void main() {
         null,
         channel: testChannel,
         autoListen: false,
+        isAndroidOverride: true,
         artworkResolver: _StubArtworkResolver((q) {
           if (q.id == 'youtube_aaaaaaaaaaa') return gateA.future;
           return gateB.future;
@@ -352,6 +358,7 @@ void main() {
         null,
         channel: testChannel,
         autoListen: false,
+        isAndroidOverride: true,
       );
 
       const localFav = Track(

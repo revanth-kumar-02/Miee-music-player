@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/theme/midnight_velvet_tokens.dart';
-import '../../../../core/audio/player_controller.dart';
 import '../../../../core/audio/providers.dart';
 import '../../../artwork/presentation/miee_artwork_image.dart';
 import '../../../library/providers/library_providers.dart';
@@ -60,7 +59,8 @@ class DesktopHeavyRotationView extends ConsumerWidget {
                             playingFrom: 'Heavy Rotation',
                           );
                     },
-                    icon: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 20),
+                    icon: const Icon(Icons.play_arrow_rounded,
+                        color: Colors.black, size: 20),
                     label: Text(
                       'SPIN ROTATION',
                       style: GoogleFonts.inter(
@@ -72,7 +72,8 @@ class DesktopHeavyRotationView extends ConsumerWidget {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: MidnightVelvetTokens.primaryEmber,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -198,10 +199,12 @@ class DesktopHeavyRotationView extends ConsumerWidget {
                           );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isCurrent
-                            ? MidnightVelvetTokens.primaryEmber.withValues(alpha: 0.1)
+                            ? MidnightVelvetTokens.primaryEmber
+                                .withValues(alpha: 0.1)
                             : Colors.transparent,
                         border: const Border(
                           bottom: BorderSide(
@@ -222,7 +225,9 @@ class DesktopHeavyRotationView extends ConsumerWidget {
                                   )
                                 : Text(
                                     '${index + 1}'.padLeft(2, '0'),
-                                    style: MidnightVelvetTokens.fontMonoTelemetry.copyWith(
+                                    style: MidnightVelvetTokens
+                                        .fontMonoTelemetry
+                                        .copyWith(
                                       fontSize: 11,
                                       color: MidnightVelvetTokens.textMuted,
                                     ),
@@ -245,7 +250,9 @@ class DesktopHeavyRotationView extends ConsumerWidget {
                               track.displayTitle,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
-                                fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight: isCurrent
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                                 color: isCurrent
                                     ? MidnightVelvetTokens.primaryEmber
                                     : MidnightVelvetTokens.textDisplay,
@@ -282,7 +289,8 @@ class DesktopHeavyRotationView extends ConsumerWidget {
                             width: 60,
                             child: Text(
                               track.duration,
-                              style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
+                              style: MidnightVelvetTokens.fontMonoTimecode
+                                  .copyWith(
                                 fontSize: 11,
                                 color: MidnightVelvetTokens.textMuted,
                               ),

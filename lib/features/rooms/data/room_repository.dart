@@ -17,12 +17,6 @@ class RoomRepository {
     }
   }
 
-  String _generateJoinCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final random = Random.secure();
-    return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
-  }
-
   /// Creates a listening room atomically via Postgres stored procedure,
   /// enforcing capacity (1-5), host membership, and initial playback state.
   Future<ListeningRoom> createRoom({
@@ -59,12 +53,14 @@ class RoomRepository {
       }
       throw Exception('Unexpected response from room creation service.');
     } on PostgrestException catch (e) {
-      debugPrint('[RoomRepository] createRoom PostgrestException: ${e.message} (code: ${e.code})');
+      debugPrint(
+          '[RoomRepository] createRoom PostgrestException: ${e.message} (code: ${e.code})');
       if (e.code == '22023') {
         throw ArgumentError('Room capacity must be between 1 and 5.');
       }
       if (e.code == '42501') {
-        throw Exception('You are not authorized to create a room. Please sign in again.');
+        throw Exception(
+            'You are not authorized to create a room. Please sign in again.');
       }
       throw Exception(e.message);
     } catch (e) {
@@ -111,7 +107,8 @@ class RoomRepository {
     final client = _client;
     if (client == null) return null;
 
-    final res = await client.from('rooms').select().eq('id', roomId).maybeSingle();
+    final res =
+        await client.from('rooms').select().eq('id', roomId).maybeSingle();
     return res != null ? ListeningRoom.fromMap(res) : null;
   }
 
@@ -120,7 +117,8 @@ class RoomRepository {
     final client = _client;
     if (client == null) return [];
 
-    final res = await client.from('room_members').select().eq('room_id', roomId);
+    final res =
+        await client.from('room_members').select().eq('room_id', roomId);
     final members = (res as List)
         .map((m) => RoomMember.fromMap(m as Map<String, dynamic>))
         .toList();
@@ -161,7 +159,11 @@ class RoomRepository {
     final client = _client;
     if (client == null) return null;
 
-    final res = await client.from('room_state').select().eq('room_id', roomId).maybeSingle();
+    final res = await client
+        .from('room_state')
+        .select()
+        .eq('room_id', roomId)
+        .maybeSingle();
     return res != null ? RoomPlaybackState.fromMap(res) : null;
   }
 
@@ -217,7 +219,8 @@ class RoomRepository {
   }
 
   /// Fetches recent messages for a room ordered chronologically.
-  Future<List<RoomMessage>> getRoomMessages(String roomId, {int limit = 100}) async {
+  Future<List<RoomMessage>> getRoomMessages(String roomId,
+      {int limit = 100}) async {
     final client = _client;
     if (client == null) return [];
 
@@ -276,10 +279,12 @@ class RoomRepository {
         final profDisplayName = profile['display_name'] as String?;
         if (profUsername != null && profUsername.trim().isNotEmpty) {
           displayName = profUsername.trim();
-        } else if (profDisplayName != null && profDisplayName.trim().isNotEmpty) {
+        } else if (profDisplayName != null &&
+            profDisplayName.trim().isNotEmpty) {
           displayName = profDisplayName.trim();
         }
-        if (profile['avatar_url'] != null) avatarUrl = profile['avatar_url'] as String?;
+        if (profile['avatar_url'] != null)
+          avatarUrl = profile['avatar_url'] as String?;
       }
     } catch (e) {
       debugPrint('[RoomRepository] sendMessage profile query fallback: $e');
@@ -301,7 +306,8 @@ class RoomRepository {
       'created_at': now.toIso8601String(),
     };
 
-    final res = await client.from('room_messages').insert(insertData).select().single();
+    final res =
+        await client.from('room_messages').insert(insertData).select().single();
     final message = RoomMessage.fromMap(res);
 
     // Broadcast across realtime channel for immediate low-latency peer delivery
@@ -356,7 +362,8 @@ class RoomRepository {
                 onMessageReceived?.call(RoomMessage.fromMap(msgMap));
               }
             } catch (e) {
-              debugPrint('[RoomRepository] Realtime broadcast message error: $e');
+              debugPrint(
+                  '[RoomRepository] Realtime broadcast message error: $e');
             }
           },
         )
@@ -434,8 +441,9 @@ class RoomRepository {
           },
         )
         .subscribe((status, [error]) {
-          debugPrint('[RoomRepository] Realtime channel $channelName status: $status, error: $error');
-        });
+      debugPrint(
+          '[RoomRepository] Realtime channel $channelName status: $status, error: $error');
+    });
 
     _activeChannels[roomId] = channel;
     return channel;
@@ -448,7 +456,8 @@ class RoomRepository {
     if (channel != null && client != null) {
       try {
         await client.removeChannel(channel);
-        debugPrint('[RoomRepository] Cleaned up realtime channel for room: $roomId');
+        debugPrint(
+            '[RoomRepository] Cleaned up realtime channel for room: $roomId');
       } catch (e) {
         debugPrint('[RoomRepository] removeChannel error: $e');
       }

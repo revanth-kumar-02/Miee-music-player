@@ -44,8 +44,6 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  int _heroSlideIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     final localSongs = ref.watch(songsProvider);
@@ -108,7 +106,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── 1. Editorial Hero Banner ────────────────────────────────────
-            _buildEditorialHeroBanner(context, greetingPrefix, recsAsync, localSongs),
+            _buildEditorialHeroBanner(
+                context, greetingPrefix, recsAsync, localSongs),
 
             const SizedBox(height: 24),
 
@@ -130,7 +129,8 @@ class _HomePageState extends ConsumerState<HomePage> {
             const SizedBox(height: 32),
 
             // ── 4. "Made for you" Section ───────────────────────────────────
-            _buildMadeForYouSection(context, playlists, favorites, recsAsync.valueOrNull),
+            _buildMadeForYouSection(
+                context, playlists, favorites, recsAsync.valueOrNull),
 
             const SizedBox(height: 28),
 
@@ -165,7 +165,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               loading: () => const SizedBox.shrink(),
               error: (e, _) => _buildDiscoveryErrorBanner(context, e),
             ),
-
 
             // ── 5. Local Music Spotlight (if present) ───────────────────────
             if (localSongs.isNotEmpty) ...[
@@ -217,7 +216,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   color: AppColors.dustyRose.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.groups_rounded, color: AppColors.dustyRose, size: 22),
+                child: const Icon(Icons.groups_rounded,
+                    color: AppColors.dustyRose, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -258,7 +258,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.vanillaCream, size: 14),
+              const Icon(Icons.arrow_forward_ios_rounded,
+                  color: AppColors.vanillaCream, size: 14),
             ],
           ),
         ),
@@ -290,7 +291,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 color: AppColors.dustyRose.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.groups_outlined, color: AppColors.dustyRose, size: 22),
+              child: const Icon(Icons.groups_outlined,
+                  color: AppColors.dustyRose, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -338,41 +340,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   // ── EDITORIAL HERO BANNER ──────────────────────────────────────────────────
-
-  void _handleBannerTap(int index) {
-    switch (index % 3) {
-      case 0:
-        // Slide 1: Discover Music -> Search
-        context.go('/search');
-        break;
-      case 1:
-        // Slide 2: Your Music -> Library / Playlists
-        context.go('/playlists');
-        break;
-      case 2:
-        // Slide 3: Listen Together -> Listening Room entrance
-        context.push('/rooms');
-        break;
-    }
-  }
-
-  Widget _buildBannerArtwork(int slideIndex, bool isNarrow) {
-    final assetPath = switch (slideIndex % 3) {
-      0 => 'assets/images/banner_discover.png',
-      1 => 'assets/images/banner_your_music.png',
-      2 => 'assets/images/banner_listen_together.png',
-      _ => 'assets/images/banner_discover.png',
-    };
-
-    return Image.asset(
-      assetPath,
-      fit: BoxFit.cover,
-      alignment: Alignment.centerRight,
-      errorBuilder: (context, error, stackTrace) {
-        return const SizedBox.shrink();
-      },
-    );
-  }
 
   Widget _buildEditorialHeroBanner(
     BuildContext context,
@@ -521,7 +488,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       color: AppColors.electricCobalt,
                       shape: const CircleBorder(),
                       elevation: 4,
-                      shadowColor: AppColors.electricCobalt.withValues(alpha: 0.4),
+                      shadowColor:
+                          AppColors.electricCobalt.withValues(alpha: 0.4),
                       child: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: () {
@@ -616,13 +584,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     // Candidates for adjacent cards
     final adjacentCandidates = <MusicItem>[];
     for (final t in recentlyPlayedTracks) {
-      if (featuredSong != null && isSameTrackId(t.id, featuredSong.id)) continue;
+      if (featuredSong != null && isSameTrackId(t.id, featuredSong.id))
+        continue;
       adjacentCandidates.add(t);
     }
     if (adjacentCandidates.length < 3 && recsAsync.valueOrNull != null) {
       for (final t in recsAsync.valueOrNull!.popularTracks) {
         if (adjacentCandidates.length >= 4) break;
-        if (featuredSong != null && isSameTrackId(t.id, featuredSong.id)) continue;
+        if (featuredSong != null && isSameTrackId(t.id, featuredSong.id))
+          continue;
         if (!adjacentCandidates.any((c) => isSameTrackId(c.id, t.id))) {
           adjacentCandidates.add(t);
         }
@@ -691,7 +661,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                     if (isThisTrackPlaying) {
                       ref.read(playerControllerProvider.notifier).pause();
                     } else if (currentPlayingTrack != null &&
-                        isSameTrackId(currentPlayingTrack.id, featuredSong.id)) {
+                        isSameTrackId(
+                            currentPlayingTrack.id, featuredSong.id)) {
                       ref.read(playerControllerProvider.notifier).play();
                     } else {
                       ref.read(playerControllerProvider.notifier).selectTrack(
@@ -706,13 +677,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                   child: Container(
                     width: 178,
                     height: 88,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       color: AppColors.electricCobalt,
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.electricCobalt.withValues(alpha: 0.3),
+                          color:
+                              AppColors.electricCobalt.withValues(alpha: 0.3),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -781,10 +754,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                           activeColor: Colors.white,
                           inactiveColor: Colors.white.withValues(alpha: 0.35),
                           onScrub: (val) {
-                            if (duration.inMilliseconds > 0 && isThisTrackPlaying) {
+                            if (duration.inMilliseconds > 0 &&
+                                isThisTrackPlaying) {
                               ref.read(playerControllerProvider.notifier).seek(
-                                Duration(milliseconds: (val * duration.inMilliseconds).round()),
-                              );
+                                    Duration(
+                                        milliseconds:
+                                            (val * duration.inMilliseconds)
+                                                .round()),
+                                  );
                             }
                           },
                         ),
@@ -984,7 +961,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                             playlist.effectiveCoverUrl!.isNotEmpty)
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(14),
-                            child: _buildCoverImage(playlist.effectiveCoverUrl!),
+                            child:
+                                _buildCoverImage(playlist.effectiveCoverUrl!),
                           )
                         : const Center(
                             child: Icon(
@@ -1317,7 +1295,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
 
         // ── 3. From Your Artists (Cross-Platform Dynamic Rotation) ──────────
-        if (sections.favoriteArtists.isNotEmpty || sections.fromYourArtists.isNotEmpty) ...[
+        if (sections.favoriteArtists.isNotEmpty ||
+            sections.fromYourArtists.isNotEmpty) ...[
           ArtistRotationSection(
             artists: sections.favoriteArtists,
             initialTracks: sections.fromYourArtists,
@@ -1349,9 +1328,9 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                 return GestureDetector(
                   onTap: () {
-                    ref
-                        .read(playerControllerProvider.notifier)
-                        .selectTrack(track, sections.discoverMore, playingFrom: 'Discover More');
+                    ref.read(playerControllerProvider.notifier).selectTrack(
+                        track, sections.discoverMore,
+                        playingFrom: 'Discover More');
                   },
                   child: SizedBox(
                     width: 144,
@@ -1371,7 +1350,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                                 width: 144,
                                 height: 144,
                                 color: AppColors.softClay,
-                                child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
+                                child: const Icon(Icons.music_note,
+                                    color: AppColors.cocoaPlum),
                               ),
                             ),
                             if (isPlaying)
@@ -1401,7 +1381,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                           style: GoogleFonts.geist(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: isPlaying ? AppColors.dustyRose : AppColors.cocoaPlum,
+                            color: isPlaying
+                                ? AppColors.dustyRose
+                                : AppColors.cocoaPlum,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1469,14 +1451,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                         width: 144,
                         height: 144,
                         color: AppColors.softClay,
-                        child: const Icon(Icons.music_note, color: AppColors.cocoaPlum),
+                        child: const Icon(Icons.music_note,
+                            color: AppColors.cocoaPlum),
                       ),
                     ),
                     Positioned(
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: AppColors.cocoaPlum.withOpacity(0.75),
                           borderRadius: BorderRadius.circular(6),
@@ -1519,7 +1503,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   style: GoogleFonts.geist(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isPlaying ? AppColors.dustyRose : AppColors.cocoaPlum,
+                    color:
+                        isPlaying ? AppColors.dustyRose : AppColors.cocoaPlum,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1689,9 +1674,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
                           size: 20,
-                          color: isPlaying
-                              ? AppColors.white
-                              : AppColors.cocoaPlum,
+                          color:
+                              isPlaying ? AppColors.white : AppColors.cocoaPlum,
                         ),
                 ),
               ],
@@ -1801,22 +1785,22 @@ class _HomePageState extends ConsumerState<HomePage> {
       // 1. Check local Hive recently played entries (sorted newest first)
       if (recentEntries.isNotEmpty) {
         final sorted = List<HistoryEntry>.from(recentEntries)
-          ..sort((a, b) => (b.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(a.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+          ..sort((a, b) => b.playedAt.compareTo(a.playedAt));
 
         for (final entry in sorted) {
           try {
-            if (entry.track == null) continue;
             final newest = entry.track.toTrack();
             if (!newest.isYoutube) {
               final localMatch = localSongs.where((s) {
                 if (s.id == newest.id) return true;
-                if (s.filePath.isNotEmpty && s.filePath == newest.filePath) return true;
+                if (s.filePath.isNotEmpty && s.filePath == newest.filePath)
+                  return true;
                 return s.id == newest.id.replaceFirst('youtube_', '');
               }).firstOrNull;
               if (localMatch != null) return localMatch;
             } else {
-              if (newest.imageUrl.isEmpty || !newest.imageUrl.startsWith('http')) {
+              if (newest.imageUrl.isEmpty ||
+                  !newest.imageUrl.startsWith('http')) {
                 final vid = newest.id.replaceFirst('youtube_', '');
                 return Track(
                   id: newest.id,
@@ -1836,8 +1820,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       // 2. Check cloud listening history
       if (cloudHistory.isNotEmpty) {
         final sortedCloud = List<ListeningEvent>.from(cloudHistory)
-          ..sort((a, b) => (b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0)));
+          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
         for (final event in sortedCloud) {
           try {
@@ -1849,11 +1832,15 @@ class _HomePageState extends ConsumerState<HomePage> {
 
             final m = event.durationSec ~/ 60;
             final s = event.durationSec % 60;
-            final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
+            final isYoutube = event.source == 'youtube' ||
+                event.trackId.startsWith('youtube_');
             final vid = event.trackId.replaceFirst('youtube_', '');
-            final resolvedArt = (event.imageUrl != null && event.imageUrl!.isNotEmpty)
-                ? event.imageUrl!
-                : (isYoutube ? 'https://i.ytimg.com/vi/$vid/hqdefault.jpg' : '');
+            final resolvedArt =
+                (event.imageUrl != null && event.imageUrl!.isNotEmpty)
+                    ? event.imageUrl!
+                    : (isYoutube
+                        ? 'https://i.ytimg.com/vi/$vid/hqdefault.jpg'
+                        : '');
 
             return Track(
               id: event.trackId.startsWith('youtube_')
@@ -1888,16 +1875,15 @@ class _HomePageState extends ConsumerState<HomePage> {
       // 1. Process local Hive recently played entries (reactive, immediate, offline-ready)
       if (recentEntries.isNotEmpty) {
         final sorted = List<HistoryEntry>.from(recentEntries)
-          ..sort((a, b) => (b.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(a.playedAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+          ..sort((a, b) => b.playedAt.compareTo(a.playedAt));
 
         for (final entry in sorted) {
           if (resolved.length >= limit) break;
           try {
-            if (entry.track == null) continue;
             final rawTrack = entry.track.toTrack();
             final normId = rawTrack.id.replaceFirst('youtube_', '');
-            if (seenTrackIds.contains(rawTrack.id) || seenTrackIds.contains(normId)) {
+            if (seenTrackIds.contains(rawTrack.id) ||
+                seenTrackIds.contains(normId)) {
               continue;
             }
             seenTrackIds.add(rawTrack.id);
@@ -1908,17 +1894,22 @@ class _HomePageState extends ConsumerState<HomePage> {
             if (!rawTrack.isYoutube) {
               final localMatch = localSongs.where((s) {
                 if (s.id == rawTrack.id || s.id == normId) return true;
-                if (s.filePath.isNotEmpty && s.filePath == rawTrack.filePath) return true;
-                return s.title.trim().toLowerCase() == rawTrack.title.trim().toLowerCase() &&
-                    s.artist.trim().toLowerCase() == rawTrack.artist.trim().toLowerCase();
+                if (s.filePath.isNotEmpty && s.filePath == rawTrack.filePath)
+                  return true;
+                return s.title.trim().toLowerCase() ==
+                        rawTrack.title.trim().toLowerCase() &&
+                    s.artist.trim().toLowerCase() ==
+                        rawTrack.artist.trim().toLowerCase();
               }).firstOrNull;
 
               if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
                 resolvedImageUrl = localMatch.artworkPath;
               }
             } else {
-              if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
-                resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
+              if (resolvedImageUrl.isEmpty ||
+                  !resolvedImageUrl.startsWith('http')) {
+                resolvedImageUrl =
+                    'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
               }
             }
 
@@ -1937,31 +1928,36 @@ class _HomePageState extends ConsumerState<HomePage> {
       // 2. Process cloud listening history if we haven't reached the limit
       if (resolved.length < limit && cloudHistory.isNotEmpty) {
         final sortedCloud = List<ListeningEvent>.from(cloudHistory)
-          ..sort((a, b) => (b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0))
-              .compareTo(a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0)));
+          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
         for (final event in sortedCloud) {
           if (resolved.length >= limit) break;
           try {
             final normId = event.trackId.replaceFirst('youtube_', '');
-            if (seenTrackIds.contains(event.trackId) || seenTrackIds.contains(normId)) {
+            if (seenTrackIds.contains(event.trackId) ||
+                seenTrackIds.contains(normId)) {
               continue;
             }
             seenTrackIds.add(event.trackId);
             seenTrackIds.add(normId);
 
-            final isYoutube = event.source == 'youtube' || event.trackId.startsWith('youtube_');
+            final isYoutube = event.source == 'youtube' ||
+                event.trackId.startsWith('youtube_');
             String resolvedImageUrl = event.imageUrl ?? '';
 
             if (isYoutube) {
-              if (resolvedImageUrl.isEmpty || !resolvedImageUrl.startsWith('http')) {
-                resolvedImageUrl = 'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
+              if (resolvedImageUrl.isEmpty ||
+                  !resolvedImageUrl.startsWith('http')) {
+                resolvedImageUrl =
+                    'https://i.ytimg.com/vi/$normId/hqdefault.jpg';
               }
             } else {
               final localMatch = localSongs.where((s) {
                 if (s.id == event.trackId || s.id == normId) return true;
-                return s.title.trim().toLowerCase() == event.title.trim().toLowerCase() &&
-                    s.artist.trim().toLowerCase() == event.artist.trim().toLowerCase();
+                return s.title.trim().toLowerCase() ==
+                        event.title.trim().toLowerCase() &&
+                    s.artist.trim().toLowerCase() ==
+                        event.artist.trim().toLowerCase();
               }).firstOrNull;
               if (localMatch != null && localMatch.artworkPath.isNotEmpty) {
                 resolvedImageUrl = localMatch.artworkPath;
@@ -2057,8 +2053,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
 
     // 2. If target is in localSongs, use localSongs queue
-    final localIndex = localSongs.indexWhere(
-        (s) => s.id == targetTrack.id || s.id == normTargetId);
+    final localIndex = localSongs
+        .indexWhere((s) => s.id == targetTrack.id || s.id == normTargetId);
     if (localIndex >= 0) {
       return localSongs;
     }
@@ -2068,9 +2064,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       final list = <MusicItem>[];
       for (final e in recentEntries) {
         try {
-          if (e.track != null) {
-            list.add(e.track.toTrack());
-          }
+          list.add(e.track.toTrack());
         } catch (_) {}
       }
       if (list.isNotEmpty) return list;
@@ -2080,143 +2074,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     return [targetTrack];
   }
 
-  Widget _buildContinueListeningCard({
-    required BuildContext context,
-    required MusicItem? recentSong,
-    required List<MusicItem> resolvedQueue,
-  }) {
-    if (recentSong == null) {
-      return const SizedBox.shrink();
-    }
-
-    final imageUrl = recentSong.imageUrl;
-    final hasHttpArt =
-        imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
-    final hasFileArt = !hasHttpArt && imageUrl.isNotEmpty;
-
-    Widget artworkWidget = Container(
-      width: 54,
-      height: 54,
-      color: AppColors.softClay,
-      child: const Icon(
-        Icons.music_note_rounded,
-        color: AppColors.cocoaPlum,
-      ),
-    );
-
-    if (hasHttpArt) {
-      artworkWidget = MieeArtworkImage(
-        explicitUrl: imageUrl,
-        width: 54,
-        height: 54,
-        borderRadius: BorderRadius.zero,
-        fit: BoxFit.cover,
-        errorWidget: Container(
-          width: 54,
-          height: 54,
-          color: AppColors.softClay,
-          child: const Icon(
-            Icons.music_note_rounded,
-            color: AppColors.cocoaPlum,
-          ),
-        ),
-      );
-    } else if (hasFileArt) {
-      try {
-        final normPath = imageUrl.startsWith('file://')
-            ? Uri.parse(imageUrl).toFilePath()
-            : imageUrl;
-        artworkWidget = Image.file(
-          File(normPath),
-          width: 54,
-          height: 54,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            width: 54,
-            height: 54,
-            color: AppColors.softClay,
-            child: const Icon(
-              Icons.music_note_rounded,
-              color: AppColors.cocoaPlum,
-            ),
-          ),
-        );
-      } catch (_) {
-        // Fallback assigned by default
-      }
-    }
-
-    return GestureDetector(
-      onTap: () {
-        ref.read(playerControllerProvider.notifier).selectTrack(
-              recentSong,
-              resolvedQueue,
-              playingFrom: 'Continue Listening',
-            );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.oatBeige),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: artworkWidget,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    recentSong.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.geist(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.cocoaPlum,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    recentSong.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.geist(
-                      fontSize: 12,
-                      color: AppColors.mutedMauve,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Material(
-              color: AppColors.dustyRose,
-              shape: const CircleBorder(),
-              child: Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  size: 22,
-                  color: AppColors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocalTracksList(
-      List<MediaAlbum> albums, List<MediaSong> songs) {
+  Widget _buildLocalTracksList(List<MediaAlbum> albums, List<MediaSong> songs) {
     final activeTrackId =
         ref.watch(playerControllerProvider.select((s) => s.currentTrack?.id));
     return ListView.separated(
@@ -2365,7 +2223,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     try {
       final normalizedPath = rawUrl.startsWith('file://')
-          ? (Uri.tryParse(rawUrl)?.toFilePath() ?? rawUrl.replaceFirst('file://', ''))
+          ? (Uri.tryParse(rawUrl)?.toFilePath() ??
+              rawUrl.replaceFirst('file://', ''))
           : rawUrl;
       return Image.file(
         File(normalizedPath),
@@ -2391,4 +2250,3 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 }
-

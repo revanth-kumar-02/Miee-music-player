@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:Miee/core/audio/audio_handler.dart';
 import 'package:Miee/core/audio/playback_state.dart' as pb;
 import 'package:Miee/core/audio/player_controller.dart';
 import 'package:Miee/core/audio/providers.dart';
@@ -71,6 +72,7 @@ class FakePlayerController extends StateNotifier<pb.PlaybackState>
 Widget createSettingsScreen() {
   return ProviderScope(
     overrides: [
+      audioHandlerProvider.overrideWithValue(MieeAudioHandler()),
       playerControllerProvider.overrideWith(
         (ref) => FakePlayerController(const pb.PlaybackState(status: pb.PlaybackStatus.idle)),
       ),

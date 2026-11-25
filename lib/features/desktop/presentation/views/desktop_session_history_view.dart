@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../app/theme/midnight_velvet_tokens.dart';
-import '../../../../core/audio/player_controller.dart';
 import '../../../../core/audio/providers.dart';
 import '../../../artwork/presentation/miee_artwork_image.dart';
 import '../../../library/providers/library_providers.dart';
@@ -96,16 +95,18 @@ class DesktopSessionHistoryView extends ConsumerWidget {
                   return InkWell(
                     onTap: () {
                       ref.read(playerControllerProvider.notifier).setQueue(
-                            [track],
-                            startIndex: 0,
-                            playingFrom: 'Session History',
-                          );
+                        [track],
+                        startIndex: 0,
+                        playingFrom: 'Session History',
+                      );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isCurrent
-                            ? MidnightVelvetTokens.primaryEmber.withValues(alpha: 0.1)
+                            ? MidnightVelvetTokens.primaryEmber
+                                .withValues(alpha: 0.1)
                             : Colors.transparent,
                         border: const Border(
                           bottom: BorderSide(
@@ -126,7 +127,9 @@ class DesktopSessionHistoryView extends ConsumerWidget {
                                   )
                                 : Text(
                                     '${index + 1}'.padLeft(2, '0'),
-                                    style: MidnightVelvetTokens.fontMonoTelemetry.copyWith(
+                                    style: MidnightVelvetTokens
+                                        .fontMonoTelemetry
+                                        .copyWith(
                                       fontSize: 11,
                                       color: MidnightVelvetTokens.textMuted,
                                     ),
@@ -149,7 +152,9 @@ class DesktopSessionHistoryView extends ConsumerWidget {
                               entry.track.title,
                               style: GoogleFonts.inter(
                                 fontSize: 13,
-                                fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight: isCurrent
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                                 color: isCurrent
                                     ? MidnightVelvetTokens.primaryEmber
                                     : MidnightVelvetTokens.textDisplay,
@@ -186,7 +191,8 @@ class DesktopSessionHistoryView extends ConsumerWidget {
                             width: 60,
                             child: Text(
                               entry.track.duration,
-                              style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
+                              style: MidnightVelvetTokens.fontMonoTimecode
+                                  .copyWith(
                                 fontSize: 11,
                                 color: MidnightVelvetTokens.textMuted,
                               ),

@@ -8,7 +8,6 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../../core/audio/providers.dart';
-import '../../../core/audio/playback_state.dart';
 import '../../media/providers/media_providers.dart';
 import '../../library/providers/library_providers.dart';
 import 'widgets/add_to_playlist_sheet.dart';
@@ -68,7 +67,6 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
       playerControllerProvider.select((s) => s.currentTrack?.id),
     );
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final favorites = ref.watch(favoritesProvider);
 
     final hasPermission = ref.watch(permissionStateProvider);
     final isLoading = ref.watch(loadingStateProvider);
@@ -83,12 +81,12 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
     // 2. Sort filtered local songs
     switch (_sortOption) {
       case _SortOption.title:
-        filteredSongs.sort((a, b) =>
-            a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        filteredSongs.sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
         break;
       case _SortOption.artist:
-        filteredSongs.sort((a, b) =>
-            a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
+        filteredSongs.sort(
+            (a, b) => a.artist.toLowerCase().compareTo(b.artist.toLowerCase()));
         break;
       case _SortOption.duration:
         filteredSongs.sort((a, b) =>
@@ -124,273 +122,273 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
             splashRadius: 20.0,
           ),
           actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref
-                .read(mediaLibraryServiceProvider.notifier)
-                .scanDevice(forceRefresh: true),
-            splashRadius: 20.0,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-                children: [
-                  // Search & Sorting Controls
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.marginMobile,
-                      vertical: AppSpacing.sm,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            style: AppTypography.bodyMedium
-                                .copyWith(color: AppColors.onSurface),
-                            decoration: InputDecoration(
-                              hintText: 'Search songs...',
-                              hintStyle: AppTypography.bodyMedium
-                                  .copyWith(color: AppColors.onSurfaceVariant),
-                              prefixIcon: const Icon(Icons.search,
-                                  size: 20.0,
-                                  color: AppColors.onSurfaceVariant),
-                              suffixIcon: _searchController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear,
-                                          size: 18.0,
-                                          color: AppColors.onSurfaceVariant),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() {});
-                                      },
-                                    )
-                                  : null,
-                              filled: true,
-                              fillColor: AppColors.surfaceContainerLowest,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 8.0),
-                            ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-                        const SizedBox(width: 12.0),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerLowest,
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                          child: PopupMenuButton<_SortOption>(
-                            icon: const Icon(Icons.sort,
-                                color: AppColors.onSurface),
-                            tooltip: 'Sort songs',
-                            color: AppColors.surfaceContainerLowest,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0),
-                            ),
-                            onSelected: (opt) =>
-                                setState(() => _sortOption = opt),
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: _SortOption.title,
-                                child: Text('Sort by Title',
-                                    style: TextStyle(
-                                        color: AppColors.onSurface)),
-                              ),
-                              const PopupMenuItem(
-                                value: _SortOption.artist,
-                                child: Text('Sort by Artist',
-                                    style: TextStyle(
-                                        color: AppColors.onSurface)),
-                              ),
-                              const PopupMenuItem(
-                                value: _SortOption.duration,
-                                child: Text('Sort by Duration',
-                                    style: TextStyle(
-                                        color: AppColors.onSurface)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Song list
-                  Expanded(
-                    child: isLoading
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const CircularProgressIndicator(
-                                    color: AppColors.primary),
-                                AppSpacing.heightMd,
-                                Text(
-                                  'Scanning device for music...',
-                                  style: AppTypography.bodyMedium.copyWith(
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => ref
+                  .read(mediaLibraryServiceProvider.notifier)
+                  .scanDevice(forceRefresh: true),
+              splashRadius: 20.0,
+            ),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          bottom: false,
+          child: Column(
+            children: [
+              // Search & Sorting Controls
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.marginMobile,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        style: AppTypography.bodyMedium
+                            .copyWith(color: AppColors.onSurface),
+                        decoration: InputDecoration(
+                          hintText: 'Search songs...',
+                          hintStyle: AppTypography.bodyMedium
+                              .copyWith(color: AppColors.onSurfaceVariant),
+                          prefixIcon: const Icon(Icons.search,
+                              size: 20.0, color: AppColors.onSurfaceVariant),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear,
+                                      size: 18.0,
                                       color: AppColors.onSurfaceVariant),
-                                ),
-                              ],
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {});
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: AppColors.surfaceContainerLowest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 8.0),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 12.0),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      child: PopupMenuButton<_SortOption>(
+                        icon:
+                            const Icon(Icons.sort, color: AppColors.onSurface),
+                        tooltip: 'Sort songs',
+                        color: AppColors.surfaceContainerLowest,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        onSelected: (opt) => setState(() => _sortOption = opt),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: _SortOption.title,
+                            child: Text('Sort by Title',
+                                style: TextStyle(color: AppColors.onSurface)),
+                          ),
+                          const PopupMenuItem(
+                            value: _SortOption.artist,
+                            child: Text('Sort by Artist',
+                                style: TextStyle(color: AppColors.onSurface)),
+                          ),
+                          const PopupMenuItem(
+                            value: _SortOption.duration,
+                            child: Text('Sort by Duration',
+                                style: TextStyle(color: AppColors.onSurface)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Song list
+              Expanded(
+                child: isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(
+                                color: AppColors.primary),
+                            AppSpacing.heightMd,
+                            Text(
+                              'Scanning device for music...',
+                              style: AppTypography.bodyMedium
+                                  .copyWith(color: AppColors.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      )
+                    : !hasPermission
+                        ? Center(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.security_outlined,
+                                    size: 64.0,
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                  AppSpacing.heightMd,
+                                  Text(
+                                    'Storage Permission Required',
+                                    style:
+                                        AppTypography.headlineMedium.copyWith(
+                                      color: AppColors.onSurface,
+                                    ),
+                                  ),
+                                  AppSpacing.heightSm,
+                                  Text(
+                                    'Miee needs permission to scan your device for local audio files.',
+                                    textAlign: TextAlign.center,
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  AppSpacing.heightLg,
+                                  FilledButton.icon(
+                                    onPressed: () async {
+                                      final hasPerm = await ref
+                                          .read(mediaRepositoryProvider)
+                                          .checkAndRequestPermissions();
+                                      if (!hasPerm) {
+                                        await openAppSettings();
+                                      } else {
+                                        await ref
+                                            .read(mediaLibraryServiceProvider
+                                                .notifier)
+                                            .scanDevice(forceRefresh: true);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.settings,
+                                        color: Colors.white),
+                                    label: const Text('Grant Permission',
+                                        style: TextStyle(color: Colors.white)),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 24.0, vertical: 12.0),
+                                    ),
+                                  ),
+                                  SizedBox(height: 120.0 + bottomInset),
+                                ],
+                              ),
                             ),
                           )
-                        : !hasPermission
+                        : filteredSongs.isEmpty
                             ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.security_outlined,
-                                        size: 64.0,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.music_note_outlined,
+                                      size: 64.0,
+                                      color: AppColors.onSurfaceVariant,
+                                    ),
+                                    AppSpacing.heightMd,
+                                    Text(
+                                      _searchController.text.isNotEmpty
+                                          ? 'No search results'
+                                          : 'No local songs',
+                                      style:
+                                          AppTypography.headlineMedium.copyWith(
+                                        color: AppColors.onSurface,
+                                      ),
+                                    ),
+                                    AppSpacing.heightSm,
+                                    Text(
+                                      _searchController.text.isNotEmpty
+                                          ? 'Try a different search query.'
+                                          : 'Scanned songs on your device will appear here.',
+                                      textAlign: TextAlign.center,
+                                      style: AppTypography.bodyMedium.copyWith(
                                         color: AppColors.onSurfaceVariant,
                                       ),
-                                      AppSpacing.heightMd,
-                                      Text(
-                                        'Storage Permission Required',
-                                        style: AppTypography.headlineMedium.copyWith(
-                                          color: AppColors.onSurface,
-                                        ),
-                                      ),
-                                      AppSpacing.heightSm,
-                                      Text(
-                                        'Miee needs permission to scan your device for local audio files.',
-                                        textAlign: TextAlign.center,
-                                        style: AppTypography.bodyMedium.copyWith(
-                                          color: AppColors.onSurfaceVariant,
-                                        ),
-                                      ),
+                                    ),
+                                    if (_searchController.text.isEmpty) ...[
                                       AppSpacing.heightLg,
                                       FilledButton.icon(
-                                        onPressed: () async {
-                                          final hasPerm = await ref
-                                              .read(mediaRepositoryProvider)
-                                              .checkAndRequestPermissions();
-                                          if (!hasPerm) {
-                                            await openAppSettings();
-                                          } else {
-                                            await ref
-                                                .read(mediaLibraryServiceProvider.notifier)
-                                                .scanDevice(forceRefresh: true);
-                                          }
-                                        },
-                                        icon: const Icon(Icons.settings, color: Colors.white),
-                                        label: const Text('Grant Permission', style: TextStyle(color: Colors.white)),
+                                        onPressed: () => ref
+                                            .read(mediaLibraryServiceProvider
+                                                .notifier)
+                                            .scanDevice(forceRefresh: true),
+                                        icon: const Icon(Icons.sync,
+                                            color: Colors.white),
+                                        label: const Text('Scan Device',
+                                            style:
+                                                TextStyle(color: Colors.white)),
                                         style: FilledButton.styleFrom(
                                           backgroundColor: AppColors.primary,
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 24.0, vertical: 12.0),
                                         ),
                                       ),
-                                      SizedBox(height: 120.0 + bottomInset),
                                     ],
-                                  ),
+                                    SizedBox(height: 120.0 + bottomInset),
+                                  ],
                                 ),
                               )
-                            : filteredSongs.isEmpty
-                                ? Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.music_note_outlined,
-                                          size: 64.0,
-                                          color: AppColors.onSurfaceVariant,
-                                        ),
-                                        AppSpacing.heightMd,
-                                        Text(
-                                          _searchController.text.isNotEmpty
-                                              ? 'No search results'
-                                              : 'No local songs',
-                                          style: AppTypography.headlineMedium
-                                              .copyWith(
-                                            color: AppColors.onSurface,
-                                          ),
-                                        ),
-                                        AppSpacing.heightSm,
-                                        Text(
-                                          _searchController.text.isNotEmpty
-                                              ? 'Try a different search query.'
-                                              : 'Scanned songs on your device will appear here.',
-                                          textAlign: TextAlign.center,
-                                          style: AppTypography.bodyMedium.copyWith(
-                                            color: AppColors.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        if (_searchController.text.isEmpty) ...[
-                                          AppSpacing.heightLg,
-                                          FilledButton.icon(
-                                            onPressed: () => ref
-                                                .read(
-                                                    mediaLibraryServiceProvider
-                                                        .notifier)
-                                                .scanDevice(forceRefresh: true),
-                                            icon: const Icon(Icons.sync,
-                                                color: Colors.white),
-                                            label: const Text('Scan Device',
-                                                style:
-                                                    TextStyle(color: Colors.white)),
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor: AppColors.primary,
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 24.0, vertical: 12.0),
-                                            ),
-                                          ),
-                                        ],
-                                        SizedBox(height: 120.0 + bottomInset),
-                                      ],
-                                    ),
-                                  )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            physics: const BouncingScrollPhysics(),
-                            padding: EdgeInsets.only(
-                              left: AppSpacing.marginMobile,
-                              right: AppSpacing.marginMobile,
-                              top: AppSpacing.sm,
-                              bottom: 120.0 + bottomInset,
-                            ),
-                            itemCount: filteredSongs.length,
-                            itemBuilder: (context, index) {
-                              final song = filteredSongs[index];
-                              final isCurrentTrack =
-                                  currentPlayingSongId == song.id;
-
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 2.0),
-                                child: SongTile(
-                                  title: song.title,
-                                  artist: song.artist,
-                                  duration: song.duration,
-                                  imageUrl: song.artworkPath,
-                                  isPlaying: isCurrentTrack,
-                                  onTap: () {
-                                    ref
-                                        .read(playerControllerProvider.notifier)
-                                        .selectTrack(song, filteredSongs);
-                                    context.push('/player');
-                                  },
-                                  onMoreTap: () =>
-                                      showAddToPlaylistSheet(context, song),
-                                  onLongPress: () =>
-                                      showAddToPlaylistSheet(context, song),
+                            : ListView.builder(
+                                controller: _scrollController,
+                                physics: const BouncingScrollPhysics(),
+                                padding: EdgeInsets.only(
+                                  left: AppSpacing.marginMobile,
+                                  right: AppSpacing.marginMobile,
+                                  top: AppSpacing.sm,
+                                  bottom: 120.0 + bottomInset,
                                 ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
+                                itemCount: filteredSongs.length,
+                                itemBuilder: (context, index) {
+                                  final song = filteredSongs[index];
+                                  final isCurrentTrack =
+                                      currentPlayingSongId == song.id;
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2.0),
+                                    child: SongTile(
+                                      title: song.title,
+                                      artist: song.artist,
+                                      duration: song.duration,
+                                      imageUrl: song.artworkPath,
+                                      isPlaying: isCurrentTrack,
+                                      onTap: () {
+                                        ref
+                                            .read(playerControllerProvider
+                                                .notifier)
+                                            .selectTrack(song, filteredSongs);
+                                        context.push('/player');
+                                      },
+                                      onMoreTap: () =>
+                                          showAddToPlaylistSheet(context, song),
+                                      onLongPress: () =>
+                                          showAddToPlaylistSheet(context, song),
+                                    ),
+                                  );
+                                },
+                              ),
               ),
-            ),
+            ],
+          ),
+        ),
       ),
     );
   }

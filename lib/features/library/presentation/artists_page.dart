@@ -8,9 +8,6 @@ import '../../../app/theme/app_typography.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/audio/providers.dart';
-import '../../../core/audio/playback_state.dart';
-import '../../../features/library/providers/library_providers.dart';
 
 class ArtistsPage extends ConsumerStatefulWidget {
   const ArtistsPage({super.key});
@@ -49,7 +46,6 @@ class _ArtistsPageState extends ConsumerState<ArtistsPage> {
   @override
   Widget build(BuildContext context) {
     final artists = ref.watch(artistsProvider);
-    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     final query = _searchController.text.toLowerCase().trim();
     final filteredArtists = artists.where((artist) {
@@ -69,82 +65,87 @@ class _ArtistsPageState extends ConsumerState<ArtistsPage> {
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
-                  // Search Bar
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.marginMobile,
-                        vertical: AppSpacing.md,
-                      ),
-                      child: AppSearchBar(
-                        controller: _searchController,
-                        placeholder: 'Search artists...',
-                        onSubmitted: (_) {},
-                      ),
-                    ),
-                  ),
-
-                  if (filteredArtists.isEmpty)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: EmptyState(
-                        title: 'No artists found',
-                        message: 'Try checking your search query.',
-                        icon: Icons.person_outline,
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.marginMobile,
-                        right: AppSpacing.marginMobile,
-                        bottom: 120.0,
-                      ),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final artist = filteredArtists[index];
-                            final hasArt = artist.artworkPath != null && artist.artworkPath!.isNotEmpty;
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  radius: 28.0,
-                                  backgroundColor: AppColors.surfaceContainerHigh,
-                                  backgroundImage: hasArt ? FileImage(File(artist.artworkPath!)) : null,
-                                  child: !hasArt
-                                      ? const Icon(Icons.person, color: AppColors.onSurfaceVariant)
-                                      : null,
-                                ),
-                                title: Text(
-                                  artist.name,
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: AppColors.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${artist.trackCount} track${artist.trackCount != 1 ? 's' : ''} · ${artist.albumCount} album${artist.albumCount != 1 ? 's' : ''}',
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                                trailing: const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
-                                onTap: () => context.push('/artist/${artist.id}'),
-                              ),
-                            );
-                          },
-                          childCount: filteredArtists.length,
-                        ),
-                      ),
-                    ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 120.0),
-                  ),
-                ],
+            // Search Bar
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.marginMobile,
+                  vertical: AppSpacing.md,
+                ),
+                child: AppSearchBar(
+                  controller: _searchController,
+                  placeholder: 'Search artists...',
+                  onSubmitted: (_) {},
+                ),
               ),
             ),
+
+            if (filteredArtists.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  title: 'No artists found',
+                  message: 'Try checking your search query.',
+                  icon: Icons.person_outline,
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.marginMobile,
+                  right: AppSpacing.marginMobile,
+                  bottom: 120.0,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final artist = filteredArtists[index];
+                      final hasArt = artist.artworkPath != null &&
+                          artist.artworkPath!.isNotEmpty;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            radius: 28.0,
+                            backgroundColor: AppColors.surfaceContainerHigh,
+                            backgroundImage: hasArt
+                                ? FileImage(File(artist.artworkPath!))
+                                : null,
+                            child: !hasArt
+                                ? const Icon(Icons.person,
+                                    color: AppColors.onSurfaceVariant)
+                                : null,
+                          ),
+                          title: Text(
+                            artist.name,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.onSurface,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${artist.trackCount} track${artist.trackCount != 1 ? 's' : ''} · ${artist.albumCount} album${artist.albumCount != 1 ? 's' : ''}',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.onSurfaceVariant),
+                          onTap: () => context.push('/artist/${artist.id}'),
+                        ),
+                      );
+                    },
+                    childCount: filteredArtists.length,
+                  ),
+                ),
+              ),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 120.0),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

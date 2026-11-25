@@ -7,9 +7,6 @@ import '../../../app/theme/app_typography.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../../media/providers/media_providers.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/audio/providers.dart';
-import '../../../core/audio/playback_state.dart';
-import '../../../features/library/providers/library_providers.dart';
 
 class GenresPage extends ConsumerStatefulWidget {
   const GenresPage({super.key});
@@ -48,7 +45,6 @@ class _GenresPageState extends ConsumerState<GenresPage> {
   @override
   Widget build(BuildContext context) {
     final genres = ref.watch(genresProvider);
-    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     final query = _searchController.text.toLowerCase().trim();
     final filteredGenres = genres.where((genre) {
@@ -68,82 +64,84 @@ class _GenresPageState extends ConsumerState<GenresPage> {
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
-                  // Search Bar
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.marginMobile,
-                        vertical: AppSpacing.md,
-                      ),
-                      child: AppSearchBar(
-                        controller: _searchController,
-                        placeholder: 'Search genres...',
-                        onSubmitted: (_) {},
-                      ),
-                    ),
-                  ),
-
-                  if (filteredGenres.isEmpty)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: EmptyState(
-                        title: 'No genres found',
-                        message: 'Try checking your search query.',
-                        icon: Icons.music_note_outlined,
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.marginMobile,
-                        right: AppSpacing.marginMobile,
-                        bottom: 120.0,
-                      ),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final genre = filteredGenres[index];
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4.0),
-                              child: ListTile(
-                                leading: Container(
-                                  width: 48.0,
-                                  height: 48.0,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceContainerHigh,
-                                    borderRadius: BorderRadius.circular(12.0),
-                                  ),
-                                  child: const Icon(Icons.music_note, color: AppColors.onSurfaceVariant),
-                                ),
-                                title: Text(
-                                  genre.name,
-                                  style: AppTypography.bodyMedium.copyWith(
-                                    color: AppColors.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${genre.trackCount} track${genre.trackCount != 1 ? 's' : ''}',
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.onSurfaceVariant,
-                                  ),
-                                ),
-                                trailing: const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
-                                onTap: () => context.push('/genre/${genre.id}'),
-                              ),
-                            );
-                          },
-                          childCount: filteredGenres.length,
-                        ),
-                      ),
-                    ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 120.0),
-                  ),
-                ],
+            // Search Bar
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.marginMobile,
+                  vertical: AppSpacing.md,
+                ),
+                child: AppSearchBar(
+                  controller: _searchController,
+                  placeholder: 'Search genres...',
+                  onSubmitted: (_) {},
+                ),
               ),
             ),
+
+            if (filteredGenres.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  title: 'No genres found',
+                  message: 'Try checking your search query.',
+                  icon: Icons.music_note_outlined,
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.marginMobile,
+                  right: AppSpacing.marginMobile,
+                  bottom: 120.0,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final genre = filteredGenres[index];
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: ListTile(
+                          leading: Container(
+                            width: 48.0,
+                            height: 48.0,
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                            child: const Icon(Icons.music_note,
+                                color: AppColors.onSurfaceVariant),
+                          ),
+                          title: Text(
+                            genre.name,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.onSurface,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${genre.trackCount} track${genre.trackCount != 1 ? 's' : ''}',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.onSurfaceVariant),
+                          onTap: () => context.push('/genre/${genre.id}'),
+                        ),
+                      );
+                    },
+                    childCount: filteredGenres.length,
+                  ),
+                ),
+              ),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 120.0),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
