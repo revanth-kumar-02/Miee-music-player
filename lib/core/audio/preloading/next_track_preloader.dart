@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../shared/models/music_item.dart';
+import '../../../shared/models/track.dart';
+import '../../../features/search/data/playback_source_resolver.dart';
 import '../youtube_audio_service.dart';
 import 'preload_cache_manager.dart';
 import 'preload_models.dart';
@@ -41,7 +43,8 @@ class NextTrackPreloader {
   final PreloadConfig config;
   final PreloadCacheManager cacheManager;
   final YouTubeStreamResolver _resolveYouTubeStream;
-  final YouTubeQueryResolver _resolveYouTubeQuery;
+  final YouTubeQueryResolver? _customResolveYouTubeQuery;
+  final PlaybackSourceResolver _sourceResolver;
   final YouTubeUrlValidator _isYouTubeUrlValid;
   final YouTubeCacheInvalidator _invalidateYouTubeCache;
   final ConnectivityProvider _connectivityProvider;
@@ -69,6 +72,7 @@ class NextTrackPreloader {
     PreloadCacheManager? cacheManager,
     YouTubeStreamResolver? resolveYouTubeStream,
     YouTubeQueryResolver? resolveYouTubeQuery,
+    PlaybackSourceResolver? sourceResolver,
     YouTubeUrlValidator? isYouTubeUrlValid,
     YouTubeCacheInvalidator? invalidateYouTubeCache,
     ConnectivityProvider? connectivityProvider,
@@ -80,8 +84,8 @@ class NextTrackPreloader {
   })  : cacheManager = cacheManager ?? PreloadCacheManager(config: config),
         _resolveYouTubeStream =
             resolveYouTubeStream ?? YouTubeAudioService().getAudioStream,
-        _resolveYouTubeQuery =
-            resolveYouTubeQuery ?? YouTubeAudioService().resolveVideoIdForQuery,
+        _customResolveYouTubeQuery = resolveYouTubeQuery,
+        _sourceResolver = sourceResolver ?? PlaybackSourceResolver(),
         _isYouTubeUrlValid =
             isYouTubeUrlValid ?? YouTubeAudioService().isUrlValid,
         _invalidateYouTubeCache =
@@ -589,16 +593,42 @@ class NextTrackPreloader {
         } else {
           String videoIdOrUrl = trackId;
           final cleanId = normalizePreloadTrackId(track.id);
-          if (cleanId.isEmpty ||
-              cleanId.startsWith('itunes_') ||
-              cleanId.startsWith('mb_') ||
-              cleanId.startsWith('wm_') ||
-              cleanId.length != 11 ||
-              !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(cleanId)) {
-            final query = '${track.artist} - ${track.title}'.trim();
-            final matchedId = await _resolveYouTubeQuery(query);
-            if (matchedId != null && matchedId.isNotEmpty) {
+          if (!PlaybackSourceResolver.isValidYouTubeVideoId(cleanId)) {
+            String? matchedId;
+            if (_customResolveYouTubeQuery != null) {
+              final query = '${track.artist} - ${track.title}'.trim();
+              matchedId = await _customResolveYouTubeQuery!(query);
+            } else {
+              final rawT =
+                  (track is Track) ? (track.rawTitle ?? track.title) : track.title;
+              final rawA =
+                  (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
+              final canonicalDur =
+                  PlaybackSourceResolver.hasConcreteDuration(track.duration) &&
+                          track.duration.trim() != '3:30' &&
+                          track.duration.trim() != '03:30'
+                      ? track.duration
+                      : null;
+              final resolvedCand = await _sourceResolver.resolveCandidate(
+                title: rawT,
+                artist: rawA,
+                durationStr: canonicalDur,
+                album: (track is Track) ? track.albumName : track.album,
+              );
+              if (resolvedCand != null &&
+                  PlaybackSourceResolver.isValidYouTubeVideoId(resolvedCand.id) &&
+                  PlaybackSourceResolver.isDurationCompatible(
+                    targetDurationStr: canonicalDur,
+                    candidateDurationStr: resolvedCand.duration,
+                  )) {
+                matchedId = resolvedCand.id;
+              }
+            }
+            if (matchedId != null &&
+                PlaybackSourceResolver.isValidYouTubeVideoId(matchedId)) {
               videoIdOrUrl = matchedId;
+            } else {
+              throw Exception('No verified recording found for preload');
             }
           } else {
             videoIdOrUrl = cleanId;

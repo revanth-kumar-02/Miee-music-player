@@ -9,6 +9,7 @@ import '../../features/media/domain/models.dart';
 import '../../features/youtube/domain/youtube_model.dart';
 import '../../features/youtube/domain/music_result_classifier.dart';
 import '../../features/youtube/data/web_music_discovery_source.dart';
+import '../../features/search/data/playback_source_resolver.dart';
 import 'youtube_audio_service.dart';
 import 'playback_diagnostics.dart';
 import 'playback_state.dart' show isSameTrackId;
@@ -157,6 +158,13 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   /// Rolling two-track audio preloader for upcoming queue items.
   final NextTrackPreloader _preloader;
+
+  /// Canonical playback source resolver shared with PlayerController.
+  final PlaybackSourceResolver _sourceResolver;
+
+  /// Maps external catalog track IDs (e.g. `youtube_itunes_...`) to their resolved
+  /// 11-character YouTube video ID for mid-stream error recovery and preload lookup.
+  final Map<String, String> _resolvedVideoIdByTrackId = {};
 
   /// Exposes the preloader instance for diagnostics and testing.
   NextTrackPreloader get preloader => _preloader;
@@ -370,8 +378,12 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   static bool get shouldUseProxyForRequestHeaders =>
       kIsWeb || defaultTargetPlatform != TargetPlatform.android;
 
-  MieeAudioHandler({AudioPlayer? player, NextTrackPreloader? preloader})
-      : _preloader = preloader ?? NextTrackPreloader(),
+  MieeAudioHandler({
+    AudioPlayer? player,
+    NextTrackPreloader? preloader,
+    PlaybackSourceResolver? sourceResolver,
+  })  : _preloader = preloader ?? NextTrackPreloader(sourceResolver: sourceResolver),
+        _sourceResolver = sourceResolver ?? PlaybackSourceResolver(),
         _player = player ??
             AudioPlayer(
               handleInterruptions: false,
@@ -612,7 +624,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     _lastHandledErrorAt = now;
 
     if (current.isYoutube) {
-      final videoId = _extractYouTubeVideoId(current.id);
+      final videoId = _resolveEffectiveVideoId(current);
       debugPrint(
         '[StreamCache] Invalidating cache for $videoId due to $sourceChannel failure (code=$code)',
       );
@@ -800,6 +812,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
   void _onDurationChanged(Duration? duration) {
     if (duration != null && duration > Duration.zero) {
+      // Do not overwrite playback metadata with a lingering/previous stream's
+      // duration while a new track or stream recovery is actively loading.
+      if (_isLoadingTrack || _isRecovering) {
+        return;
+      }
+      if (_currentIndex >= 0 &&
+          _currentIndex < _queue.length &&
+          _loadedAudioTrackId != null &&
+          !isSameTrackId(_loadedAudioTrackId, _queue[_currentIndex].id)) {
+        return;
+      }
       _logDiagnosticTransition(
         'DURATION_CHANGED',
         extra: 'newDurationMs=${duration.inMilliseconds}',
@@ -819,11 +842,9 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         if (current.duration != duration) {
           mediaItem.add(current.copyWith(duration: duration));
         }
-      } else if (_currentIndex >= 0 && _currentIndex < _queue.length) {
-        mediaItem.add(_trackToMediaItem(_queue[_currentIndex], overrideDuration: duration));
       }
 
-      // Synchronize active track in _queue with the real ground-truth duration
+      // Synchronize active track in _queue with actual duration only when consistent
       if (_currentIndex >= 0 && _currentIndex < _queue.length) {
         final currentTrack = _queue[_currentIndex];
         final formatted = '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -834,13 +855,21 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
                 currentTrack.metadataProvider == 'musicbrainz' ||
                 (currentTrack.albumName != null && currentTrack.albumName!.isNotEmpty)));
 
-        // If track has verified album/studio duration and stream deviates drastically (> 15s),
-        // do not overwrite the canonical track duration with an anomalous stream length.
+        final isShortDeviation = currentDurSec > 0 && currentDurSec < 90
+            ? (streamDurSec - currentDurSec).abs() <= 15
+            : (streamDurSec - currentDurSec).abs() <= 25;
+
+        // If track has verified album/studio duration and stream deviates significantly,
+        // keep mediaItem duration truthful (above) while preserving canonical track metadata.
         final shouldUpdateDuration = currentDurSec <= 0 ||
             !hasVerifiedDuration ||
-            (streamDurSec - currentDurSec).abs() <= 15;
+            isShortDeviation;
 
-        if (shouldUpdateDuration && currentTrack.duration != formatted) {
+        if (!shouldUpdateDuration) {
+          debugPrint(
+            '[Playback] WARNING: Loaded stream duration (${streamDurSec}s) differs from verified track duration (${currentDurSec}s) for "${currentTrack.title}"',
+          );
+        } else if (currentTrack.duration != formatted) {
           if (currentTrack is Track) {
             _queue[_currentIndex] = currentTrack.copyWith(duration: formatted);
           } else if (currentTrack is YouTubeVideo) {
@@ -928,24 +957,41 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       MediaAction.stop,
     };
 
-    // Ensure mediaItem duration is strictly synchronized with active player duration
+    // Ensure mediaItem duration is synchronized ONLY when the active track's verified audio container
+    // is loaded (never stamp a previous track's lingering player duration onto a newly loading track).
     final activeDur = _player.duration;
     final currentItem = mediaItem.value;
-    if (activeDur != null && activeDur > Duration.zero) {
-      if (_currentIndex >= 0 && _currentIndex < _queue.length) {
-        final activeTrack = _queue[_currentIndex];
-        if (currentItem == null || currentItem.id != activeTrack.id) {
-          debugPrint(
-              '[Playback] Updating mediaItem for active track in _pushPlaybackState: "${activeTrack.title}" (${activeDur.inSeconds}s)');
-          mediaItem.add(_trackToMediaItem(activeTrack, overrideDuration: activeDur));
-        } else if (currentItem.duration != activeDur) {
-          debugPrint(
-              '[Playback] Resynchronizing mediaItem duration in _pushPlaybackState: ${activeDur.inSeconds}s (was: ${currentItem.duration?.inSeconds}s)');
-          mediaItem.add(currentItem.copyWith(duration: activeDur));
-        }
-      } else if (currentItem != null && currentItem.duration != activeDur) {
+    final hasLoadedActiveTrack = !_isLoadingTrack &&
+        !_isRecovering &&
+        _currentIndex >= 0 &&
+        _currentIndex < _queue.length &&
+        _loadedAudioTrackId != null &&
+        isSameTrackId(_loadedAudioTrackId, _queue[_currentIndex].id);
+
+    if (_currentIndex >= 0 && _currentIndex < _queue.length) {
+      final activeTrack = _queue[_currentIndex];
+      if (currentItem == null || currentItem.id != activeTrack.id) {
+        final overrideDur = (hasLoadedActiveTrack && activeDur != null && activeDur > Duration.zero)
+            ? activeDur
+            : null;
+        debugPrint(
+            '[Playback] Updating mediaItem for active track in _pushPlaybackState: "${activeTrack.title}" (loaded=$hasLoadedActiveTrack, dur=${overrideDur?.inSeconds}s)');
+        mediaItem.add(_trackToMediaItem(activeTrack, overrideDuration: overrideDur));
+      } else if (hasLoadedActiveTrack &&
+          activeDur != null &&
+          activeDur > Duration.zero &&
+          currentItem.duration != activeDur) {
+        debugPrint(
+            '[Playback] Resynchronizing mediaItem duration in _pushPlaybackState: ${activeDur.inSeconds}s (was: ${currentItem.duration?.inSeconds}s)');
         mediaItem.add(currentItem.copyWith(duration: activeDur));
       }
+    } else if (!_isLoadingTrack &&
+        !_isRecovering &&
+        activeDur != null &&
+        activeDur > Duration.zero &&
+        currentItem != null &&
+        currentItem.duration != activeDur) {
+      mediaItem.add(currentItem.copyWith(duration: activeDur));
     }
 
     playbackState.add(
@@ -1152,10 +1198,25 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         if (activeDur != null && activeDur > Duration.zero) {
           final formatted =
               '${activeDur.inMinutes}:${(activeDur.inSeconds % 60).toString().padLeft(2, '0')}';
-          if (track is Track) {
-            _queue[_currentIndex] = track.copyWith(duration: formatted);
-          } else if (track is YouTubeVideo) {
-            _queue[_currentIndex] = track.copyWith(duration: formatted);
+          final currentDurSec = MusicResultClassifier.parseDurationSeconds(track.duration);
+          final streamDurSec = activeDur.inSeconds;
+          final hasVerifiedDuration = (track is Track &&
+              (track.metadataProvider == 'itunes' ||
+                  track.metadataProvider == 'musicbrainz' ||
+                  (track.albumName != null && track.albumName!.isNotEmpty)));
+          final isWithinTolerance = currentDurSec > 0 && currentDurSec < 90
+              ? (streamDurSec - currentDurSec).abs() <= 15
+              : (streamDurSec - currentDurSec).abs() <= 25;
+          if (currentDurSec <= 0 || !hasVerifiedDuration || isWithinTolerance) {
+            if (track is Track) {
+              _queue[_currentIndex] = track.copyWith(duration: formatted);
+            } else if (track is YouTubeVideo) {
+              _queue[_currentIndex] = track.copyWith(duration: formatted);
+            }
+          } else {
+            debugPrint(
+              '[Playback] WARNING: Post-load audio duration (${streamDurSec}s) differs from verified track duration (${currentDurSec}s) for "${track.title}"',
+            );
           }
         }
         _syncRollingPreload();
@@ -1295,17 +1356,40 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     }
 
-    var videoId = _extractYouTubeVideoId(track.id);
-    // If ID is from discovery metadata catalog (e.g. wm_1440818780), resolve real YouTube video ID for "$title $artist"
-    if (videoId.startsWith('wm_') || videoId.length != 11 || !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(videoId)) {
-      final query = '${track.title} ${track.artist}'.trim();
-      debugPrint('[AudioHandler] Resolving YouTube video ID for metadata track "$query"');
-      final resolvedId = await YouTubeAudioService().resolveVideoIdForQuery(query);
-      if (resolvedId != null && resolvedId.isNotEmpty && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(resolvedId)) {
-        videoId = resolvedId;
+    var videoId = _resolveEffectiveVideoId(track);
+    final rawT = (track is Track) ? (track.rawTitle ?? track.title) : track.title;
+    final rawA = (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
+    final albumName = (track is Track) ? track.albumName : track.album;
+    final canonicalDur = PlaybackSourceResolver.hasConcreteDuration(track.duration) &&
+            track.duration.trim() != '3:30' &&
+            track.duration.trim() != '03:30'
+        ? track.duration
+        : null;
+
+    // If ID is from discovery metadata catalog (e.g. wm_..., itunes_..., mb_...) or non-11-char ID,
+    // resolve via shared PlaybackSourceResolver with canonical title, artist, album, and duration.
+    if (!PlaybackSourceResolver.isValidYouTubeVideoId(videoId)) {
+      debugPrint(
+          '[AudioHandler] Resolving YouTube video ID via PlaybackSourceResolver for "$rawT" by "$rawA" (dur=${canonicalDur ?? "unknown"})');
+      final resolvedCandidate = await _sourceResolver.resolveCandidate(
+        title: rawT,
+        artist: rawA,
+        durationStr: canonicalDur,
+        album: albumName,
+      );
+      if (token != _activeLoadToken) return;
+      if (resolvedCandidate != null &&
+          PlaybackSourceResolver.isValidYouTubeVideoId(resolvedCandidate.id) &&
+          PlaybackSourceResolver.isDurationCompatible(
+            targetDurationStr: canonicalDur,
+            candidateDurationStr: resolvedCandidate.duration,
+          )) {
+        videoId = resolvedCandidate.id;
+        _resolvedVideoIdByTrackId[track.id] = videoId;
       } else {
-        debugPrint('[AudioHandler] Pre-search failed to find verified music video for "$query"');
-        throw Exception('No verified music stream available for "$query"');
+        debugPrint(
+            '[AudioHandler] PlaybackSourceResolver failed to find verified recording for "$rawT" by "$rawA"');
+        throw Exception('No verified music stream available for "${track.title}"');
       }
     }
 
@@ -1354,19 +1438,32 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
 
     // Fallback: If direct stream resolution for this videoId failed (e.g. video deleted, cipher error, or geo-restricted),
-    // attempt verified search fallback using track title and artist to locate an authentic alternate recording.
+    // attempt verified search fallback using PlaybackSourceResolver to locate an authentic matching upload
+    // of the exact same song (never substituting a different song from the same album/artist).
     if ((resolved == null ||
             resolved.url.isEmpty ||
             !YouTubeAudioService().isUrlValid(resolved.url)) &&
-        track.title.isNotEmpty) {
-      final query = '${track.title} ${track.artist}'.trim();
-      debugPrint('[AudioHandler] Direct resolution for $videoId failed. Attempting verified search fallback for "$query"');
-      final fallbackId = await YouTubeAudioService().resolveVideoIdForQuery(query);
-      if (fallbackId != null && fallbackId.isNotEmpty && fallbackId != videoId) {
-        debugPrint('[AudioHandler] Resolved alternate verified video ID $fallbackId for "${track.title}"');
-        videoId = fallbackId;
+        rawT.isNotEmpty) {
+      debugPrint(
+          '[AudioHandler] Direct stream for $videoId failed. Attempting validated PlaybackSourceResolver fallback for "$rawT" by "$rawA"');
+      final fallbackCandidate = await _sourceResolver.resolveCandidate(
+        title: rawT,
+        artist: rawA,
+        durationStr: canonicalDur,
+        album: albumName,
+      );
+      if (token != _activeLoadToken) return;
+      if (fallbackCandidate != null &&
+          PlaybackSourceResolver.isValidYouTubeVideoId(fallbackCandidate.id) &&
+          fallbackCandidate.id != videoId &&
+          PlaybackSourceResolver.isDurationCompatible(
+            targetDurationStr: canonicalDur,
+            candidateDurationStr: fallbackCandidate.duration,
+          )) {
+        debugPrint('[AudioHandler] Resolved alternate verified video ID ${fallbackCandidate.id} for "${track.title}"');
+        videoId = fallbackCandidate.id;
         resolved = await YouTubeAudioService().getAudioStream(
-          fallbackId,
+          videoId,
           forceRefresh: true,
           title: track.title,
           artist: track.artist,
@@ -1652,7 +1749,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       if (token == _activeLoadToken) _isLoadingTrack = false;
       return;
     }
-    if (_extractYouTubeVideoId(_queue[_currentIndex].id) != videoId) {
+    if (_resolveEffectiveVideoId(_queue[_currentIndex]) != videoId) {
       if (token == _activeLoadToken) _isLoadingTrack = false;
       debugPrint('[Playback] Aborting recovery: track changed ($videoId vs ${_queue[_currentIndex].id})');
       return;
@@ -1679,7 +1776,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
 
       if (_currentIndex < 0 ||
           _currentIndex >= _queue.length ||
-          _extractYouTubeVideoId(_queue[_currentIndex].id) != videoId) {
+          _resolveEffectiveVideoId(_queue[_currentIndex]) != videoId) {
         _isLoadingTrack = false;
         return;
       }
@@ -1808,7 +1905,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     }
 
     if (currentTrack.isYoutube) {
-      final videoId = _extractYouTubeVideoId(currentTrack.id);
+      final videoId = _resolveEffectiveVideoId(currentTrack);
       debugPrint(
         '[PlaybackWatchdog] Buffering stall detected (>12s) on "$videoId" at '
         '${_bufferingStartPosition?.inSeconds}s — initiating automatic stream recovery',
@@ -1826,6 +1923,23 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  String _resolveEffectiveVideoId(MusicItem track) {
+    final extracted = _extractYouTubeVideoId(track.id);
+    if (PlaybackSourceResolver.isValidYouTubeVideoId(extracted)) {
+      return extracted;
+    }
+    if (track is Track &&
+        track.sourceId != null &&
+        PlaybackSourceResolver.isValidYouTubeVideoId(track.sourceId!)) {
+      return track.sourceId!;
+    }
+    final mapped = _resolvedVideoIdByTrackId[track.id];
+    if (mapped != null && PlaybackSourceResolver.isValidYouTubeVideoId(mapped)) {
+      return mapped;
+    }
+    return extracted;
+  }
 
   String _extractYouTubeVideoId(String trackId) {
     var id = trackId.trim();
@@ -1845,8 +1959,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     Uri? artUri;
     String rawImg = track.imageUrl.trim();
     if (rawImg.isEmpty && track.isYoutube) {
-      final vid = _extractYouTubeVideoId(track.id);
-      if (vid.isNotEmpty && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(vid)) {
+      final vid = _resolveEffectiveVideoId(track);
+      if (PlaybackSourceResolver.isValidYouTubeVideoId(vid)) {
         rawImg = 'https://i.ytimg.com/vi/$vid/hqdefault.jpg';
       }
     }
@@ -1863,21 +1977,15 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     if (overrideDuration != null && overrideDuration > Duration.zero) {
       effectiveDuration = overrideDuration;
     }
-    // 2. Active player container duration if this track is currently loaded
-    else if (_loadedAudioTrackId == track.id &&
+    // 2. Active player container duration ONLY if this exact track is currently loaded
+    else if (!_isLoadingTrack &&
+        _loadedAudioTrackId != null &&
+        isSameTrackId(_loadedAudioTrackId, track.id) &&
         _player.duration != null &&
         _player.duration! > Duration.zero) {
       effectiveDuration = _player.duration;
     }
-    // 3. Fallback to active player duration if this is the current queue track
-    else if (_player.duration != null &&
-        _player.duration! > Duration.zero &&
-        _currentIndex >= 0 &&
-        _currentIndex < _queue.length &&
-        _queue[_currentIndex].id == track.id) {
-      effectiveDuration = _player.duration;
-    }
-    // 4. Genuine duration from track (excluding any placeholder '3:30', '03:30', '0:00', or '00:00')
+    // 3. Genuine duration from track (excluding any placeholder '3:30', '03:30', '0:00', or '00:00')
     else if (track.duration.trim().isNotEmpty) {
       final rawDur = track.duration.trim();
       final isPlaceholder = rawDur == '3:30' ||

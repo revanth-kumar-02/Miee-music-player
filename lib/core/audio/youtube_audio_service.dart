@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../features/youtube/domain/youtube_model.dart';
 import '../../features/youtube/domain/music_result_classifier.dart';
+import '../../features/search/data/playback_source_resolver.dart';
 import 'playback_diagnostics.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,9 +137,13 @@ class YouTubeAudioService {
       fallbackReadabilityValidatorForTesting;
 
   @visibleForTesting
+  Future<List<YouTubeVideo>> Function(String query)? searchFetcherForTesting;
+
+  @visibleForTesting
   void resetTestingHooks() {
     manifestFetcherForTesting = null;
     fallbackReadabilityValidatorForTesting = null;
+    searchFetcherForTesting = null;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -329,17 +334,42 @@ class YouTubeAudioService {
   @visibleForTesting
   int get cachedCandidateCountForTesting => _queryCandidateCache.length;
 
-  /// Resolves a full verified [YouTubeVideo] candidate for a track [query] (e.g. "West Coast Lana Del Rey").
-  Future<YouTubeVideo?> resolveCandidateForQuery(String query) async {
+  /// Resolves a verified [YouTubeVideo] candidate for a track [query] (e.g. "West Coast Lana Del Rey").
+  ///
+  /// Uses [MusicResultClassifier.isValidIndividualSong] plus the shared
+  /// [PlaybackSourceResolver] title-token and duration validation rules so unrelated
+  /// recordings sharing the same artist or album are never substituted blindly.
+  Future<YouTubeVideo?> resolveCandidateForQuery(
+    String query, {
+    String? expectedTitle,
+    String? expectedArtist,
+    String? expectedDuration,
+    String? expectedAlbum,
+  }) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return null;
-    final cacheKey = cleanQuery.toLowerCase();
+
+    final hasStructuredContext = (expectedTitle != null && expectedTitle.trim().isNotEmpty) ||
+        (expectedArtist != null && expectedArtist.trim().isNotEmpty) ||
+        (expectedDuration != null && expectedDuration.trim().isNotEmpty);
+    final cacheKey = hasStructuredContext
+        ? '${cleanQuery.toLowerCase()}|t=${(expectedTitle ?? '').trim().toLowerCase()}|a=${(expectedArtist ?? '').trim().toLowerCase()}|d=${(expectedDuration ?? '').trim()}'
+        : cleanQuery.toLowerCase();
+
     if (_queryCandidateCache.containsKey(cacheKey)) {
-      debugPrint('[YouTubeAudioService] Query candidate cache HIT for "$cleanQuery" -> ${_queryCandidateCache[cacheKey]!.id}');
-      return _queryCandidateCache[cacheKey];
+      final cached = _queryCandidateCache[cacheKey]!;
+      debugPrint('[YouTubeAudioService] Query candidate cache HIT for "$cleanQuery" -> ${cached.id}');
+      return cached;
     }
 
-    if (kIsWeb) {
+    final candidates = <YouTubeVideo>[];
+    if (searchFetcherForTesting != null) {
+      try {
+        candidates.addAll(await searchFetcherForTesting!(cleanQuery));
+      } catch (e) {
+        debugPrint('[YouTubeAudioService] Test search fetcher failed for "$cleanQuery": $e');
+      }
+    } else if (kIsWeb) {
       final webProxies = [
         'http://127.0.0.1:8089',
         if (Uri.base.host.isNotEmpty && Uri.base.host != '127.0.0.1') 'http://${Uri.base.host}:8089',
@@ -353,40 +383,34 @@ class YouTubeAudioService {
           ));
           final res = await dio.get<dynamic>(
             '$baseUrl/api/yt/search',
-            queryParameters: {'q': cleanQuery, 'limit': 5},
+            queryParameters: {'q': cleanQuery, 'limit': 10},
           );
           if (res.statusCode == 200 && res.data != null) {
             final data = res.data is String
                 ? jsonDecode(res.data as String) as Map<String, dynamic>
                 : Map<String, dynamic>.from(res.data as Map);
             final list = data['results'] as List<dynamic>? ?? [];
-            final candidates = <YouTubeVideo>[];
             for (final raw in list) {
               if (raw is Map) {
                 final id = (raw['id'] ?? '').toString();
                 final title = (raw['title'] ?? '').toString();
                 final artist = (raw['artist'] ?? '').toString();
-                if (id.isNotEmpty && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id)) {
-                  final candidate = YouTubeVideo(
+                final duration = (raw['duration'] ?? '').toString();
+                if (PlaybackSourceResolver.isValidYouTubeVideoId(id)) {
+                  candidates.add(YouTubeVideo(
                     id: id,
                     title: title,
                     channelTitle: artist,
                     thumbnailUrl: '',
-                    duration: '',
+                    duration: duration,
                     viewCount: '',
                     rawTitle: title,
                     rawChannelTitle: artist,
-                  );
-                  candidates.add(candidate);
-                  if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
-                    debugPrint('[YouTubeAudioService] Resolved valid video ID "$id" for query "$cleanQuery" via web proxy ($baseUrl)');
-                    _cacheCandidate(cacheKey, candidate);
-                    return candidate;
-                  }
+                  ));
                 }
               }
             }
-            debugPrint('[YouTubeAudioService] No valid music tracks found for query "$cleanQuery" among ${candidates.length} web proxy candidates');
+            if (candidates.isNotEmpty) break;
           }
         } catch (e) {
           debugPrint('[YouTubeAudioService] Web proxy query search failed at $baseUrl for "$cleanQuery": $e');
@@ -395,9 +419,8 @@ class YouTubeAudioService {
     } else {
       try {
         final results = await _yt.search.search(cleanQuery);
-        final candidates = <YouTubeVideo>[];
         for (final video in results) {
-          final candidate = YouTubeVideo(
+          candidates.add(YouTubeVideo(
             id: video.id.value,
             title: video.title,
             channelTitle: video.author,
@@ -408,37 +431,99 @@ class YouTubeAudioService {
             viewCount: '',
             rawTitle: video.title,
             rawChannelTitle: video.author,
-          );
-          candidates.add(candidate);
-          final candSec = MusicResultClassifier.parseDurationSeconds(candidate.duration);
-          final isShortForm = cleanQuery.toLowerCase().contains('intro') ||
-              cleanQuery.toLowerCase().contains('interlude') ||
-              cleanQuery.toLowerCase().contains('skit') ||
-              cleanQuery.toLowerCase().contains('prelude') ||
-              cleanQuery.toLowerCase().contains('outro') ||
-              cleanQuery.toLowerCase().contains('theme');
-          // Only skip ultra-short non-musical clips (< 20s) that lack short-form markers
-          if (candSec > 0 && candSec < 20 && !isShortForm) {
-            continue;
-          }
-          if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
-            final id = video.id.value;
-            debugPrint('[YouTubeAudioService] Resolved valid music video ID "$id" for query "$cleanQuery" via YoutubeExplode');
-            _cacheCandidate(cacheKey, candidate);
-            return candidate;
-          }
+          ));
         }
-        debugPrint('[YouTubeAudioService] No valid music tracks found for query "$cleanQuery" among ${candidates.length} candidates');
       } catch (e) {
         debugPrint('[YouTubeAudioService] Native query search failed for "$cleanQuery": $e');
       }
     }
+
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    final queryForShortCheck = (expectedTitle ?? cleanQuery).toLowerCase();
+    final isShortForm = queryForShortCheck.contains('intro') ||
+        queryForShortCheck.contains('interlude') ||
+        queryForShortCheck.contains('skit') ||
+        queryForShortCheck.contains('prelude') ||
+        queryForShortCheck.contains('outro') ||
+        queryForShortCheck.contains('theme');
+
+    // Step 1: Retain music-only screening via MusicResultClassifier.isValidIndividualSong
+    final validMusicCandidates = <YouTubeVideo>[];
+    for (final candidate in candidates) {
+      if (!PlaybackSourceResolver.isValidYouTubeVideoId(candidate.id)) {
+        continue;
+      }
+      final candSec = MusicResultClassifier.parseDurationSeconds(candidate.duration);
+      // Skip ultra-short non-musical clips (< 20s) unless short-form markers or compatible target duration exist
+      if (candSec > 0 && candSec < 20 && !isShortForm) {
+        final targetSec = expectedDuration != null
+            ? MusicResultClassifier.parseDurationSeconds(expectedDuration)
+            : 0;
+        if (targetSec <= 0 || targetSec >= 35) {
+          continue;
+        }
+      }
+      if (MusicResultClassifier.isValidIndividualSong(candidate, query: cleanQuery)) {
+        validMusicCandidates.add(candidate);
+      }
+    }
+
+    if (validMusicCandidates.isEmpty) {
+      debugPrint(
+          '[YouTubeAudioService] No valid individual music tracks found for "$cleanQuery" among ${candidates.length} candidates');
+      return null;
+    }
+
+    // Step 2: Validate requested track title identity and duration using shared PlaybackSourceResolver policy
+    final resolver = PlaybackSourceResolver();
+    final YouTubeVideo? verifiedMatch;
+    if (expectedTitle != null && expectedTitle.trim().isNotEmpty) {
+      verifiedMatch = resolver.selectBestCandidate(
+        validMusicCandidates,
+        title: expectedTitle,
+        artist: expectedArtist ?? '',
+        durationStr: expectedDuration,
+        album: expectedAlbum,
+      );
+    } else {
+      verifiedMatch = resolver.selectBestCandidateForRawQuery(
+        validMusicCandidates,
+        query: cleanQuery,
+        expectedDuration: expectedDuration,
+        album: expectedAlbum,
+      );
+    }
+
+    if (verifiedMatch != null && PlaybackSourceResolver.isValidYouTubeVideoId(verifiedMatch.id)) {
+      debugPrint(
+          '[YouTubeAudioService] Verified identity match "${verifiedMatch.title}" (${verifiedMatch.id}) for "$cleanQuery"');
+      _cacheCandidate(cacheKey, verifiedMatch);
+      return verifiedMatch;
+    }
+
+    debugPrint(
+        '[YouTubeAudioService] Rejected all ${validMusicCandidates.length} music candidates for "$cleanQuery": none matched requested track identity');
     return null;
   }
 
-  /// Resolves a YouTube video ID for a track [query] (e.g. "West Coast Lana Del Rey").
-  Future<String?> resolveVideoIdForQuery(String query) async {
-    final candidate = await resolveCandidateForQuery(query);
+  /// Resolves a verified YouTube video ID for a track [query] (e.g. "West Coast Lana Del Rey").
+  Future<String?> resolveVideoIdForQuery(
+    String query, {
+    String? expectedTitle,
+    String? expectedArtist,
+    String? expectedDuration,
+    String? expectedAlbum,
+  }) async {
+    final candidate = await resolveCandidateForQuery(
+      query,
+      expectedTitle: expectedTitle,
+      expectedArtist: expectedArtist,
+      expectedDuration: expectedDuration,
+      expectedAlbum: expectedAlbum,
+    );
     return candidate?.id;
   }
 

@@ -234,7 +234,11 @@ class WebMusicDiscoverySource {
 
     try {
       final query = '$title $artist'.trim();
-      final videoId = await YouTubeAudioService().resolveVideoIdForQuery(query);
+      final videoId = await YouTubeAudioService().resolveVideoIdForQuery(
+        query,
+        expectedTitle: title,
+        expectedArtist: artist,
+      );
       if (videoId != null && videoId.isNotEmpty) {
         final fullStreamUrl = await YouTubeAudioService().getAudioStreamUrl(videoId);
         if (fullStreamUrl != null && fullStreamUrl.isNotEmpty) {

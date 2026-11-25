@@ -27,7 +27,6 @@ import '../../features/artwork/presentation/artwork_providers.dart';
 import '../../features/artwork/domain/artwork_query.dart';
 import '../../features/artwork/domain/artwork_source.dart';
 import '../../features/search/data/playback_source_resolver.dart';
-import 'youtube_audio_service.dart';
 
 import 'playback_diagnostics.dart';
 import 'queue_diagnostics.dart';
@@ -46,6 +45,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
   final MieeAudioHandler _handler;
   final QueueManager _queueManager;
   final Ref _ref;
+  final PlaybackSourceResolver _sourceResolver;
   late final PlaybackAnalyticsTracker _analyticsTracker;
 
   /// Monotonically increasing token to ignore stale async playTrack calls.
@@ -95,8 +95,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
   StreamSubscription<MediaItem?>? _mediaItemSub;
   StreamSubscription<String>? _errorSub;
 
-  PlayerController(this._handler, this._queueManager, this._ref)
-      : super(PlaybackState.initial()) {
+  PlayerController(
+    this._handler,
+    this._queueManager,
+    this._ref, {
+    PlaybackSourceResolver? sourceResolver,
+  })  : _sourceResolver = sourceResolver ?? PlaybackSourceResolver(),
+        super(PlaybackState.initial()) {
     _init();
   }
 
@@ -196,13 +201,43 @@ class PlayerController extends StateNotifier<PlaybackState> {
     // ── Duration stream ───────────────────────────────────────────────────────
     _durationSub = _handler.durationStream.listen((dur) {
       if (dur != null && dur > Duration.zero) {
+        // Never allow lingering durations from an unloading/unverified previous
+        // track to overwrite the newly selected track's canonical duration.
+        if (_handler.isLoadingTrack || _handler.isRecovering) {
+          return;
+        }
+        if (state.loadingTrackId != null &&
+            (_handler.loadedAudioTrackId == null ||
+                !isSameTrackId(
+                    _handler.loadedAudioTrackId, state.loadingTrackId))) {
+          return;
+        }
+        if (state.currentTrack != null &&
+            _handler.loadedAudioTrackId != null &&
+            !isSameTrackId(
+                _handler.loadedAudioTrackId, state.currentTrack!.id)) {
+          return;
+        }
+
         state = state.copyWith(duration: dur);
-        // Also ensure currentTrack model has the updated duration string
+        // Update currentTrack duration string only when compatible with verified metadata
         if (state.currentTrack != null) {
           final formatted =
               '${dur.inMinutes}:${(dur.inSeconds % 60).toString().padLeft(2, '0')}';
           final curr = state.currentTrack!;
-          if (curr.duration != formatted) {
+          final currSec = MusicResultClassifier.parseDurationSeconds(curr.duration);
+          final streamSec = dur.inSeconds;
+          final hasVerifiedDur = (curr is Track &&
+              (curr.metadataProvider == 'itunes' ||
+                  curr.metadataProvider == 'musicbrainz' ||
+                  (curr.albumName != null && curr.albumName!.isNotEmpty)));
+          final isWithinTol = currSec > 0 && currSec < 90
+              ? (streamSec - currSec).abs() <= 15
+              : (streamSec - currSec).abs() <= 25;
+          final shouldSyncTrackDur =
+              currSec <= 0 || !hasVerifiedDur || isWithinTol;
+
+          if (shouldSyncTrackDur && curr.duration != formatted) {
             if (curr is Track) {
               final updated = curr.copyWith(duration: formatted);
               state = state.copyWith(currentTrack: updated);
@@ -243,6 +278,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
     // ── MediaItem stream (track metadata sync) ────────────────────────────────
     _mediaItemSub = _handler.mediaItem.listen((mediaItem) {
       if (mediaItem != null) {
+        // Prevent late mediaItem emissions from a previous track load from
+        // clobbering a newer track selection currently resolving in playTrack.
+        if (state.loadingTrackId != null &&
+            !isSameTrackId(mediaItem.id, state.loadingTrackId)) {
+          return;
+        }
         final queueList = _queueManager.queue;
         final targetId = _normalizeTrackId(mediaItem.id);
         final index = queueList.indexWhere(
@@ -253,7 +294,18 @@ class PlayerController extends StateNotifier<PlaybackState> {
           if (mediaItem.duration != null && mediaItem.duration! > Duration.zero) {
             final formatted =
                 '${mediaItem.duration!.inMinutes}:${(mediaItem.duration!.inSeconds % 60).toString().padLeft(2, '0')}';
-            if (track.duration != formatted) {
+            final currSec =
+                MusicResultClassifier.parseDurationSeconds(track.duration);
+            final itemSec = mediaItem.duration!.inSeconds;
+            final hasVerifiedDur = (track is Track &&
+                (track.metadataProvider == 'itunes' ||
+                    track.metadataProvider == 'musicbrainz' ||
+                    (track.albumName != null && track.albumName!.isNotEmpty)));
+            final isWithinTol = currSec > 0 && currSec < 90
+                ? (itemSec - currSec).abs() <= 15
+                : (itemSec - currSec).abs() <= 25;
+            if ((currSec <= 0 || !hasVerifiedDur || isWithinTol) &&
+                track.duration != formatted) {
               if (track is Track) {
                 track = track.copyWith(duration: formatted);
                 _queueManager.replaceTrackAt(index, track);
@@ -700,6 +752,20 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
   // ── Playback ──────────────────────────────────────────────────────────────
 
+  Duration _parseNonPlaceholderDuration(String durationStr) {
+    final clean = durationStr.trim();
+    if (clean.isEmpty ||
+        clean == '0:00' ||
+        clean == '00:00' ||
+        clean == '00:00:00' ||
+        clean == '3:30' ||
+        clean == '03:30') {
+      return Duration.zero;
+    }
+    final sec = MusicResultClassifier.parseDurationSeconds(clean);
+    return sec > 0 ? Duration(seconds: sec) : Duration.zero;
+  }
+
   Future<void> playTrack(
     MusicItem track, {
     String? playingFrom,
@@ -716,127 +782,43 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     final originalTrackId = track.id;
 
-    // Validate that online YouTube content represents genuine music
+    // Validate music authenticity synchronously for already-identified items before starting request
     if (track.isYoutube) {
       final rawT =
           (track is Track) ? (track.rawTitle ?? track.title) : track.title;
       final rawA =
           (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
-      var candidateId = track.id.replaceFirst('youtube_', '');
-      YouTubeVideo? verifiedCandidate;
-
-      // If the ID is a discovery/chart metadata ID (e.g. wm_chart_... or itunes_... or mb_...), resolve verified YouTube video ID.
-      // Legitimate short tracks (e.g. 43s) with verified artist/album context must preserve their canonical duration.
-      final rawDurSec = MusicResultClassifier.parseDurationSeconds(track.duration);
-      final isExplicitPromoKeyword = rawT.toLowerCase().contains('promo') ||
-          rawT.toLowerCase().contains('teaser') ||
-          rawT.toLowerCase().contains('trailer') ||
-          rawT.toLowerCase().contains('glimpse');
-      final isSuspiciousShortPromo = rawDurSec > 0 && rawDurSec < 25 && isExplicitPromoKeyword;
-
-      if (candidateId.startsWith('wm_') ||
-          candidateId.startsWith('itunes_') ||
-          candidateId.startsWith('mb_') ||
-          candidateId.startsWith('saavn_') ||
-          isSuspiciousShortPromo ||
-          !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(candidateId)) {
-        // Targeted Music-First Resolution
-        final resolvedId = await PlaybackSourceResolver().resolveVideoId(
-          title: rawT,
-          artist: rawA,
-          durationStr: isSuspiciousShortPromo ? null : (rawDurSec > 0 ? track.duration : null),
-          album: (track is Track) ? track.albumName : null,
-        );
-
-        if (resolvedId != null && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(resolvedId)) {
-          candidateId = resolvedId;
-          track = (track is Track)
-              ? track.copyWith(
-                  id: 'youtube_$candidateId',
-                  filePath: 'https://www.youtube.com/watch?v=$candidateId',
-                  sourceId: candidateId,
-                )
-              : track;
-        } else {
-          final query = '$rawT $rawA'.trim();
-          verifiedCandidate =
-              await YouTubeAudioService().resolveCandidateForQuery(query);
-          if (verifiedCandidate != null &&
-              RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(verifiedCandidate.id)) {
-            candidateId = verifiedCandidate.id;
-            track = (track is Track)
-                ? track.copyWith(
-                    id: 'youtube_$candidateId',
-                    rawTitle:
-                        verifiedCandidate.rawTitle ?? verifiedCandidate.title,
-                    rawArtist: verifiedCandidate.rawChannelTitle ??
-                        verifiedCandidate.channelTitle,
-                    duration: (track.duration.isNotEmpty &&
-                            track.duration != '3:30' &&
-                            track.duration != '03:30' &&
-                            track.duration != '0:00' &&
-                            track.duration != '00:00')
-                        ? track.duration
-                        : (verifiedCandidate.duration.isNotEmpty
-                            ? verifiedCandidate.duration
-                            : track.duration),
-                    imageUrl: (track.albumArtworkUrl != null && track.albumArtworkUrl!.isNotEmpty)
-                        ? track.albumArtworkUrl!
-                        : ((track.imageUrl.isNotEmpty &&
-                                !track.imageUrl.contains('default') &&
-                                !track.imageUrl.contains('ytimg.com'))
-                            ? track.imageUrl
-                            : ''),
-                    youtubeThumbnailUrl: verifiedCandidate.thumbnailUrl,
-                  )
-                : track;
-          } else {
-            debugLog(
-                '[Playback] Pre-validation failed: no verified YouTube stream found for "$query"');
-            state = state.copyWith(
-              status: PlaybackStatus.error,
-              clearLoadingTrackId: true,
-              errorMessage: 'No authentic playback source found for this recording.',
-            );
-            return;
-          }
-        }
-      }
-
-      final candidate = verifiedCandidate ??
-          YouTubeVideo(
-            id: candidateId,
-            title: track.title,
-            channelTitle: (track is Track &&
-                    track.rawArtist != null &&
-                    track.rawArtist!.isNotEmpty)
-                ? track.rawArtist!
-                : track.artist,
-            thumbnailUrl: (track.imageUrl.isNotEmpty && track.imageUrl.startsWith('http'))
+      final candidateId = track.id.replaceFirst('youtube_', '');
+      final initialCandidate = YouTubeVideo(
+        id: candidateId,
+        title: track.title,
+        channelTitle: (track is Track &&
+                track.rawArtist != null &&
+                track.rawArtist!.isNotEmpty)
+            ? track.rawArtist!
+            : track.artist,
+        thumbnailUrl:
+            (track.imageUrl.isNotEmpty && track.imageUrl.startsWith('http'))
                 ? track.imageUrl
-                : 'https://i.ytimg.com/vi/$candidateId/hqdefault.jpg',
-            duration: track.duration,
-            viewCount: (track is Track && track.viewCount != null)
-                ? track.viewCount!
                 : '',
-            rawViewCount: (track is Track) ? track.rawViewCount : null,
-            rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
-            rawChannelTitle:
-                (track is Track) ? (track.rawArtist ?? rawA) : rawA,
-            metadataProvider: (track is Track) ? track.metadataProvider : null,
-          );
-      final isApprovedMusic = (track is Track &&
+        duration: track.duration,
+        viewCount:
+            (track is Track && track.viewCount != null) ? track.viewCount! : '',
+        rawViewCount: (track is Track) ? track.rawViewCount : null,
+        rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
+        rawChannelTitle: (track is Track) ? (track.rawArtist ?? rawA) : rawA,
+        metadataProvider: (track is Track) ? track.metadataProvider : null,
+      );
+      final isApprovedInitial = (track is Track &&
               (track.metadataProvider == 'itunes' ||
                   track.metadataProvider == 'musicbrainz' ||
                   (track.albumName != null && track.albumName!.isNotEmpty) ||
                   track.artist.isNotEmpty)) ||
-          candidate.metadataProvider == 'itunes' ||
-          candidate.metadataProvider == 'musicbrainz' ||
-          MusicResultClassifier.isValidIndividualSong(candidate,
+          MusicResultClassifier.isValidIndividualSong(initialCandidate,
               query: '$rawT $rawA'.trim()) ||
-          MusicResultClassifier.isValidMusicTrack(candidate,
+          MusicResultClassifier.isValidMusicTrack(initialCandidate,
               query: '$rawT $rawA'.trim());
-      if (!isApprovedMusic) {
+      if (!isApprovedInitial) {
         debugLog(
             '[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
         state = state.copyWith(
@@ -846,25 +828,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
         );
         return;
       }
-
-      // Ensure active track preserves external album artwork while saving verified YouTube thumbnail
-      if (track is Track) {
-        track = track.copyWith(
-          youtubeThumbnailUrl: candidate.thumbnailUrl,
-          imageUrl: (track.albumArtworkUrl != null &&
-                  track.albumArtworkUrl!.isNotEmpty &&
-                  !track.albumArtworkUrl!.contains('ytimg.com'))
-              ? track.albumArtworkUrl!
-              : (track.imageUrl.isNotEmpty &&
-                      !track.imageUrl.contains('default') &&
-                      !track.imageUrl.contains('ytimg.com') &&
-                      !track.imageUrl.contains('youtube.com')
-                  ? track.imageUrl
-                  : ''),
-        );
-      }
     }
 
+    // Acquire monotonic token BEFORE ANY async await so stale delayed resolutions
+    // from earlier taps can NEVER replace newer track selections.
     final token = ++_playRequestToken;
 
     PlaybackDiagnostics().recordTap(
@@ -883,17 +850,150 @@ class PlayerController extends StateNotifier<PlaybackState> {
                 ? _handler.lastValidPosition
                 : Duration.zero));
 
-    // 1. Immediately update UI state with selected track and loading status for instant feedback (<15ms)
+    // 1. Immediately update UI state with selected track and loading status (<15ms feedback)
     state = state.copyWith(
       status: PlaybackStatus.loading,
       currentTrack: track,
       loadingTrackId: isOnline ? track.id : null,
       clearLoadingTrackId: !isOnline,
       position: resumePos,
+      duration: _parseNonPlaceholderDuration(track.duration),
       playingFrom: playingFrom ?? state.playingFrom,
       clearErrorMessage: true,
     );
     PlaybackDiagnostics().recordSelectedTrackUpdated(track.id);
+
+    // Resolve authentic YouTube recording ID via PlaybackSourceResolver when external ID or promo
+    if (track.isYoutube) {
+      final rawT =
+          (track is Track) ? (track.rawTitle ?? track.title) : track.title;
+      final rawA =
+          (track is Track) ? (track.rawArtist ?? track.artist) : track.artist;
+      var candidateId = track.id.replaceFirst('youtube_', '');
+      YouTubeVideo? verifiedCandidate;
+
+      final rawDurSec =
+          MusicResultClassifier.parseDurationSeconds(track.duration);
+      final isExplicitPromoKeyword = rawT.toLowerCase().contains('promo') ||
+          rawT.toLowerCase().contains('teaser') ||
+          rawT.toLowerCase().contains('trailer') ||
+          rawT.toLowerCase().contains('glimpse');
+      final isSuspiciousShortPromo =
+          rawDurSec > 0 && rawDurSec < 25 && isExplicitPromoKeyword;
+
+      if (!PlaybackSourceResolver.isValidYouTubeVideoId(candidateId) ||
+          isSuspiciousShortPromo) {
+        final canonicalDur = (!isSuspiciousShortPromo &&
+                rawDurSec > 0 &&
+                track.duration.trim() != '3:30' &&
+                track.duration.trim() != '03:30')
+            ? track.duration
+            : null;
+
+        verifiedCandidate = await _sourceResolver.resolveCandidate(
+          title: rawT,
+          artist: rawA,
+          durationStr: canonicalDur,
+          album: (track is Track) ? track.albumName : track.album,
+        );
+
+        if (token != _playRequestToken) {
+          debugLog(
+              '[Playback] Superseded during PlaybackSourceResolver (token $token vs $_playRequestToken)');
+          return;
+        }
+
+        if (verifiedCandidate != null &&
+            PlaybackSourceResolver.isValidYouTubeVideoId(verifiedCandidate.id) &&
+            PlaybackSourceResolver.isDurationCompatible(
+              targetDurationStr: canonicalDur,
+              candidateDurationStr: verifiedCandidate.duration,
+            )) {
+          candidateId = verifiedCandidate.id;
+          track = (track is Track)
+              ? track.copyWith(
+                  id: 'youtube_$candidateId',
+                  filePath: 'https://www.youtube.com/watch?v=$candidateId',
+                  sourceId: candidateId,
+                  duration: (track.duration.isNotEmpty &&
+                          track.duration != '3:30' &&
+                          track.duration != '03:30' &&
+                          track.duration != '0:00' &&
+                          track.duration != '00:00')
+                      ? track.duration
+                      : (verifiedCandidate.duration.isNotEmpty
+                          ? verifiedCandidate.duration
+                          : track.duration),
+                  imageUrl: (track.albumArtworkUrl != null &&
+                          track.albumArtworkUrl!.isNotEmpty)
+                      ? track.albumArtworkUrl!
+                      : ((track.imageUrl.isNotEmpty &&
+                              !track.imageUrl.contains('default') &&
+                              !track.imageUrl.contains('ytimg.com'))
+                          ? track.imageUrl
+                          : ''),
+                  youtubeThumbnailUrl: verifiedCandidate.thumbnailUrl,
+                )
+              : track;
+        } else {
+          debugLog(
+              '[Playback] Pre-validation failed: PlaybackSourceResolver found no matching recording for "$rawT" by "$rawA"');
+          state = state.copyWith(
+            status: PlaybackStatus.error,
+            clearLoadingTrackId: true,
+            errorMessage:
+                'No authentic playback source found for this recording.',
+          );
+          return;
+        }
+      }
+
+      final candidate = verifiedCandidate ??
+          YouTubeVideo(
+            id: candidateId,
+            title: track.title,
+            channelTitle: (track is Track &&
+                    track.rawArtist != null &&
+                    track.rawArtist!.isNotEmpty)
+                ? track.rawArtist!
+                : track.artist,
+            thumbnailUrl:
+                (track.imageUrl.isNotEmpty && track.imageUrl.startsWith('http'))
+                    ? track.imageUrl
+                    : 'https://i.ytimg.com/vi/$candidateId/hqdefault.jpg',
+            duration: track.duration,
+            viewCount: (track is Track && track.viewCount != null)
+                ? track.viewCount!
+                : '',
+            rawViewCount: (track is Track) ? track.rawViewCount : null,
+            rawTitle: (track is Track) ? (track.rawTitle ?? rawT) : rawT,
+            rawChannelTitle: (track is Track) ? (track.rawArtist ?? rawA) : rawA,
+            metadataProvider: (track is Track) ? track.metadataProvider : null,
+          );
+
+      // Ensure active track preserves external album artwork while saving verified YouTube thumbnail
+      if (track is Track) {
+        track = track.copyWith(
+          youtubeThumbnailUrl: candidate.thumbnailUrl,
+          imageUrl: (track.albumArtworkUrl != null &&
+                  track.albumArtworkUrl!.isNotEmpty &&
+                  !track.albumArtworkUrl!.contains('ytimg.com'))
+              ? track.albumArtworkUrl!
+              : (track.imageUrl.isNotEmpty &&
+                      !track.imageUrl.contains('default') &&
+                      !track.imageUrl.contains('ytimg.com') &&
+                      !track.imageUrl.contains('youtube.com')
+                  ? track.imageUrl
+                  : ''),
+        );
+      }
+
+      if (token != _playRequestToken) return;
+      state = state.copyWith(
+        currentTrack: track,
+        loadingTrackId: isOnline ? track.id : null,
+      );
+    }
 
     // Resolve authentic studio album cover asynchronously if not already verified
     final hasVerifiedAlbumArt = (track is Track &&
@@ -926,6 +1026,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       }
 
       final targetId = _normalizeTrackId(track.id);
+      final origNormId = _normalizeTrackId(originalTrackId);
       int targetIndex = -1;
 
       // Check if currentIndex already points to this track (e.g. from skipToQueueItem)
@@ -933,21 +1034,24 @@ class PlayerController extends StateNotifier<PlaybackState> {
           _queueManager.currentIndex < _queueManager.queue.length) {
         final currentAtPointer =
             _queueManager.queue[_queueManager.currentIndex];
+        final pointerNormId = _normalizeTrackId(currentAtPointer.id);
         if (currentAtPointer.id == track.id ||
             currentAtPointer.id == originalTrackId ||
-            _normalizeTrackId(currentAtPointer.id) == targetId) {
+            pointerNormId == targetId ||
+            pointerNormId == origNormId) {
           targetIndex = _queueManager.currentIndex;
         }
       }
 
       // If not at currentIndex, find it in the queue
       if (targetIndex == -1) {
-        targetIndex = _queueManager.queue.indexWhere(
-          (t) =>
-              t.id == track.id ||
+        targetIndex = _queueManager.queue.indexWhere((t) {
+          final tNorm = _normalizeTrackId(t.id);
+          return t.id == track.id ||
               t.id == originalTrackId ||
-              _normalizeTrackId(t.id) == targetId,
-        );
+              tNorm == targetId ||
+              tNorm == origNormId;
+        });
       }
 
       if (targetIndex >= 0) {
@@ -970,7 +1074,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
         }
       }
 
-      state = state.copyWith(currentTrack: resolvedTrack);
+      state = state.copyWith(
+        currentTrack: resolvedTrack,
+        loadingTrackId: resolvedTrack.isYoutube ? resolvedTrack.id : null,
+        clearLoadingTrackId: !resolvedTrack.isYoutube,
+      );
 
       if (resolvedTrack.id != originalTrackId) {
         _persistQueueSnapshot();
@@ -985,6 +1093,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       );
       if (token != _playRequestToken) return;
       await _handler.play();
+      if (token != _playRequestToken) return;
       _recordRecentlyPlayed(resolvedTrack);
       _enrichActiveTrackArtwork(resolvedTrack, token);
     } catch (e) {

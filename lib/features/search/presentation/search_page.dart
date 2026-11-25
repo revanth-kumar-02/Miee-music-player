@@ -44,6 +44,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   late final ScrollController _scrollController;
   late final TextEditingController _searchController;
   String _searchQuery = '';
+  int _playTapToken = 0;
 
   final List<String> _filters = const [
     'All',
@@ -127,20 +128,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         s.loadingTrackId != null && isSameTrackId(s.loadingTrackId, playableVideo.id)));
     if (isLoading) return;
 
+    final tapToken = ++_playTapToken;
+
     // If audio playback source (YouTube video ID) is not yet resolved:
-    if (playableVideo.id.startsWith('itunes_') ||
-        playableVideo.id.startsWith('mb_') ||
-        !RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(playableVideo.id)) {
+    if (!PlaybackSourceResolver.isValidYouTubeVideoId(playableVideo.id)) {
       final resolvedId = await PlaybackSourceResolver().resolveVideoId(
         title: playableVideo.canonicalTitle ?? playableVideo.title,
         artist: playableVideo.canonicalArtist ?? playableVideo.channelTitle,
         durationStr: playableVideo.duration,
         album: playableVideo.albumName,
       );
-      if (resolvedId != null && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(resolvedId)) {
+      if (!mounted || tapToken != _playTapToken) return;
+      if (resolvedId != null && PlaybackSourceResolver.isValidYouTubeVideoId(resolvedId)) {
         playableVideo = playableVideo.copyWith(id: resolvedId);
       } else {
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No authentic playback source found for this recording.'),
