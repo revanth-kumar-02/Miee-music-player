@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:Miee/core/audio/queue_manager.dart';
+import 'package:Miee/core/network/network_request_coordinator.dart';
 import 'package:Miee/features/onboarding/domain/artist_model.dart';
 import 'package:Miee/features/profile/domain/user_profile.dart';
 import 'package:Miee/features/recommendations/data/recommendation_service.dart';
@@ -32,6 +33,7 @@ class _FakeYouTubeRepository extends YouTubeRepository {
     int page = 1,
     int limit = 15,
     List<String> preferredLanguages = const [],
+    NetworkPriority priority = NetworkPriority.userSearch,
   }) async {
     return (artistTracksByArtist[artistName] ?? const []).take(limit).toList();
   }
@@ -41,6 +43,7 @@ class _FakeYouTubeRepository extends YouTubeRepository {
     String query, {
     int page = 1,
     bool forceFresh = false,
+    NetworkPriority priority = NetworkPriority.userSearch,
   }) async {
     return searchResultsByQuery[query] ?? const [];
   }
