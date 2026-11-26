@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 import '../../../core/storage/hive_boxes.dart';
 import '../domain/search_deduplicator.dart';
@@ -43,9 +44,19 @@ class SearchRepository {
 
   /// In-memory LRU cache for online search results with 10-minute TTL.
   final Map<String, _CachedSearchResults> _searchCache = {};
+  final Map<String, ({List<ArtistModel> data, DateTime ts})>
+      _artistSearchCache = {};
+  final Map<String, ({List<ArtistAlbum> data, DateTime ts})> _albumSearchCache =
+      {};
+  final Map<String, ({List<OnlinePlaylist> data, DateTime ts})>
+      _playlistSearchCache = {};
 
   /// In-flight deduplication to avoid redundant parallel network requests.
   final Map<String, Future<List<YouTubeVideo>>> _inFlightYouTubeSearches = {};
+  final Map<String, Future<List<ArtistModel>>> _inFlightArtistSearches = {};
+  final Map<String, Future<List<ArtistAlbum>>> _inFlightAlbumSearches = {};
+  final Map<String, Future<List<OnlinePlaylist>>> _inFlightPlaylistSearches =
+      {};
 
   SearchRepository({
     LocalSearchService? localSearch,
@@ -131,9 +142,10 @@ class SearchRepository {
     String query, {
     SearchRankingConfig? config,
     bool enrichSynchronously = false,
+    CancelToken? cancelToken,
   }) async {
     final clean = query.trim();
-    if (clean.isEmpty) return const [];
+    if (clean.isEmpty || (cancelToken?.isCancelled ?? false)) return const [];
     final cacheKey = clean.toLowerCase();
 
     // 1. Check in-memory cache
@@ -150,12 +162,19 @@ class SearchRepository {
       return await _inFlightYouTubeSearches[cacheKey]!;
     }
 
-    final searchFuture = _executeYouTubeSearch(clean, config: config, enrichSynchronously: enrichSynchronously);
+    final searchFuture = _executeYouTubeSearch(
+      clean,
+      config: config,
+      enrichSynchronously: enrichSynchronously,
+      cancelToken: cancelToken,
+    );
     _inFlightYouTubeSearches[cacheKey] = searchFuture;
 
     try {
       final results = await searchFuture;
-      _cacheResults(cacheKey, results);
+      if (!(cancelToken?.isCancelled ?? false) && results.isNotEmpty) {
+        _cacheResults(cacheKey, results);
+      }
       return results;
     } finally {
       _inFlightYouTubeSearches.remove(cacheKey); // ignore: unawaited_futures
@@ -174,7 +193,9 @@ class SearchRepository {
     String clean, {
     SearchRankingConfig? config,
     bool enrichSynchronously = false,
+    CancelToken? cancelToken,
   }) async {
+    if (cancelToken?.isCancelled ?? false) return const [];
     // 1. Stage B: Dual-Authority Music Discovery (MusicBrainz + Apple iTunes + Deezer Curated Artists)
     // Run structured metadata lookups concurrently to discover both open canonical metadata (MBID/CAA)
     // and commercial popularity / studio release prominence signals.
@@ -296,10 +317,9 @@ class SearchRepository {
         );
 
         // Launch non-blocking background cover art resolution from Cover Art Archive
-        _enrichRecordingsWithCoverArt(clean, mbRecordings, rankedRecordings);
-
-        // Launch non-blocking background pre-resolution of YouTube audio streams for top 5 candidates
-        _preResolvePlaybackSources(rankedRecordings.take(5).toList());
+        if (!(cancelToken?.isCancelled ?? false)) {
+          _enrichRecordingsWithCoverArt(clean, mbRecordings, rankedRecordings);
+        }
 
         // Controlled Supplemental Search:
         // If the query explicitly seeks an alternate version (e.g. "live", "remix", "acoustic", "unplugged", "cover")
@@ -442,9 +462,42 @@ class SearchRepository {
   /// Searches verified online artists via Curated catalog, MusicBrainz, Deezer, and Apple iTunes.
   ///
   /// Completely eliminates random YouTube channel uploaders from artist discovery.
-  Future<List<ArtistModel>> searchArtists(String query) async {
+  Future<List<ArtistModel>> searchArtists(
+    String query, {
+    CancelToken? cancelToken,
+  }) async {
     final cleanQuery = query.trim();
-    if (cleanQuery.isEmpty) return const [];
+    if (cleanQuery.isEmpty || (cancelToken?.isCancelled ?? false)) {
+      return const [];
+    }
+    final cacheKey = cleanQuery.toLowerCase();
+
+    final cached = _artistSearchCache[cacheKey];
+    if (cached != null && DateTime.now().difference(cached.ts) <= _cacheTtl) {
+      return cached.data;
+    }
+
+    if (_inFlightArtistSearches.containsKey(cacheKey)) {
+      return await _inFlightArtistSearches[cacheKey]!;
+    }
+
+    final future = _executeSearchArtists(cleanQuery);
+    _inFlightArtistSearches[cacheKey] = future;
+    try {
+      final results = await future;
+      if (results.isNotEmpty) {
+        if (_artistSearchCache.length >= _maxCacheEntries) {
+          _artistSearchCache.remove(_artistSearchCache.keys.first);
+        }
+        _artistSearchCache[cacheKey] = (data: results, ts: DateTime.now());
+      }
+      return results;
+    } finally {
+      _inFlightArtistSearches.remove(cacheKey);
+    }
+  }
+
+  Future<List<ArtistModel>> _executeSearchArtists(String cleanQuery) async {
 
     final results = await Future.wait([
       artistRepository.searchArtists(cleanQuery).catchError((_) => <ArtistModel>[]),
@@ -649,8 +702,48 @@ class SearchRepository {
   }
 
   /// Searches verified online albums for matching artist entities via Apple iTunes and Deezer.
-  Future<List<ArtistAlbum>> searchAlbums(String query, {List<ArtistModel>? matchedArtists}) async {
+  Future<List<ArtistAlbum>> searchAlbums(
+    String query, {
+    List<ArtistModel>? matchedArtists,
+    CancelToken? cancelToken,
+  }) async {
     final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty || (cancelToken?.isCancelled ?? false)) {
+      return const [];
+    }
+
+    final cached = _albumSearchCache[cleanQuery];
+    if (cached != null && DateTime.now().difference(cached.ts) <= _cacheTtl) {
+      return cached.data;
+    }
+
+    if (_inFlightAlbumSearches.containsKey(cleanQuery)) {
+      return await _inFlightAlbumSearches[cleanQuery]!;
+    }
+
+    final future = _executeSearchAlbums(
+      cleanQuery,
+      matchedArtists: matchedArtists,
+    );
+    _inFlightAlbumSearches[cleanQuery] = future;
+    try {
+      final results = await future;
+      if (results.isNotEmpty) {
+        if (_albumSearchCache.length >= _maxCacheEntries) {
+          _albumSearchCache.remove(_albumSearchCache.keys.first);
+        }
+        _albumSearchCache[cleanQuery] = (data: results, ts: DateTime.now());
+      }
+      return results;
+    } finally {
+      _inFlightAlbumSearches.remove(cleanQuery);
+    }
+  }
+
+  Future<List<ArtistAlbum>> _executeSearchAlbums(
+    String cleanQuery, {
+    List<ArtistModel>? matchedArtists,
+  }) async {
     final artists = (matchedArtists != null && matchedArtists.isNotEmpty)
         ? matchedArtists
         : await searchArtists(cleanQuery);
@@ -689,13 +782,40 @@ class SearchRepository {
   }
 
   /// Searches online YouTube Music playlists.
-  Future<List<OnlinePlaylist>> searchPlaylists(String query) async {
+  Future<List<OnlinePlaylist>> searchPlaylists(
+    String query, {
+    CancelToken? cancelToken,
+  }) async {
     final cleanQuery = query.trim();
-    if (cleanQuery.isEmpty) return const [];
-    try {
-      return await youtubeRepository.searchPlaylists(cleanQuery);
-    } catch (_) {
+    if (cleanQuery.isEmpty || (cancelToken?.isCancelled ?? false)) {
       return const [];
+    }
+    final cacheKey = cleanQuery.toLowerCase();
+
+    final cached = _playlistSearchCache[cacheKey];
+    if (cached != null && DateTime.now().difference(cached.ts) <= _cacheTtl) {
+      return cached.data;
+    }
+
+    if (_inFlightPlaylistSearches.containsKey(cacheKey)) {
+      return await _inFlightPlaylistSearches[cacheKey]!;
+    }
+
+    final future = youtubeRepository
+        .searchPlaylists(cleanQuery)
+        .catchError((_) => <OnlinePlaylist>[]);
+    _inFlightPlaylistSearches[cacheKey] = future;
+    try {
+      final results = await future;
+      if (results.isNotEmpty) {
+        if (_playlistSearchCache.length >= _maxCacheEntries) {
+          _playlistSearchCache.remove(_playlistSearchCache.keys.first);
+        }
+        _playlistSearchCache[cacheKey] = (data: results, ts: DateTime.now());
+      }
+      return results;
+    } finally {
+      _inFlightPlaylistSearches.remove(cacheKey);
     }
   }
 

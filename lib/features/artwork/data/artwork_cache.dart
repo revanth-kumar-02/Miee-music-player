@@ -148,8 +148,8 @@ class ArtworkCache {
     final dio = _dio ??
         Dio(
           BaseOptions(
-            connectTimeout: const Duration(seconds: 5),
-            receiveTimeout: const Duration(seconds: 8),
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 10),
             followRedirects: true,
             maxRedirects: 5,
             headers: const {
@@ -159,42 +159,58 @@ class ArtworkCache {
           ),
         );
 
-    try {
-      final response = await dio.get<List<int>>(
-        url,
-        options: Options(responseType: ResponseType.bytes),
-      );
+    const maxAttempts = 2;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final response = await dio.get<List<int>>(
+          url,
+          options: Options(responseType: ResponseType.bytes),
+        );
 
-      if (response.statusCode == null ||
-          response.statusCode! < 200 ||
-          response.statusCode! >= 300 ||
-          response.data == null) {
+        if (response.statusCode == null ||
+            response.statusCode! < 200 ||
+            response.statusCode! >= 300 ||
+            response.data == null) {
+          return null;
+        }
+
+        final contentType =
+            response.headers.value('content-type')?.toLowerCase() ?? '';
+        if (contentType.isNotEmpty &&
+            !contentType.startsWith('image/') &&
+            !contentType.contains('octet-stream')) {
+          return null;
+        }
+
+        final bytes = response.data!;
+        if (!isValidImageBytes(bytes)) {
+          return null;
+        }
+
+        final partFile = File('${targetFile.path}.part');
+        await partFile.writeAsBytes(bytes, flush: true);
+        if (await targetFile.exists()) {
+          await targetFile.delete();
+        }
+        await partFile.rename(targetFile.path);
+        return targetFile.path;
+      } on DioException catch (e) {
+        final isTransient = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.connectionError;
+        if (isTransient && attempt < maxAttempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          continue;
+        }
+        debugPrint('[ArtworkCache] Image download/validation failed for $url: $e');
+        return null;
+      } catch (e) {
+        debugPrint('[ArtworkCache] Image download/validation failed for $url: $e');
         return null;
       }
-
-      final contentType = response.headers.value('content-type')?.toLowerCase() ?? '';
-      if (contentType.isNotEmpty &&
-          !contentType.startsWith('image/') &&
-          !contentType.contains('octet-stream')) {
-        return null;
-      }
-
-      final bytes = response.data!;
-      if (!isValidImageBytes(bytes)) {
-        return null;
-      }
-
-      final partFile = File('${targetFile.path}.part');
-      await partFile.writeAsBytes(bytes, flush: true);
-      if (await targetFile.exists()) {
-        await targetFile.delete();
-      }
-      await partFile.rename(targetFile.path);
-      return targetFile.path;
-    } catch (e) {
-      debugPrint('[ArtworkCache] Image download/validation failed for $url: $e');
-      return null;
     }
+    return null;
   }
 
   Box<dynamic>? get _box {

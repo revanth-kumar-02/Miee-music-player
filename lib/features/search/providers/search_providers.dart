@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../media/providers/media_providers.dart';
@@ -22,6 +23,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
   final Ref _ref;
   Timer? _debounceTimer;
   Timer? _suggestionDebounceTimer;
+  CancelToken? _activeSearchCancelToken;
   int _searchRequestId = 0;
 
   SearchNotifier(this._repo, this._ref) : super(const SearchState()) {
@@ -37,10 +39,12 @@ class SearchNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(activeFilter: filter);
   }
 
-  /// Updates search text query, running debounced suggestions (150ms) and searches (300ms).
+  /// Updates search text query, running debounced suggestions (120ms) and searches (250ms).
   void updateQuery(String query) {
     _debounceTimer?.cancel();
     _suggestionDebounceTimer?.cancel();
+    _activeSearchCancelToken?.cancel('Superseded by new query');
+    _activeSearchCancelToken = null;
 
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
@@ -175,6 +179,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
   void searchNow(String query) {
     _debounceTimer?.cancel();
     _suggestionDebounceTimer?.cancel();
+    _activeSearchCancelToken?.cancel('Superseded by immediate search');
+    _activeSearchCancelToken = null;
 
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
@@ -211,6 +217,9 @@ class SearchNotifier extends StateNotifier<SearchState> {
   }
 
   Future<void> _runSearch(String query, int reqId) async {
+    final cancelToken = CancelToken();
+    _activeSearchCancelToken = cancelToken;
+
     // 1. Run Local Database Search (In-memory, instant <10ms)
     SearchDiagnostics().recordLocalQueryStart(reqId);
     final library = _ref.read(mediaLibraryServiceProvider);
@@ -235,7 +244,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
       SearchDiagnostics().recordYouTubeRequestStart(reqId);
       final fromCache = _repo.isCached(query);
       try {
-        final youtube = await _repo.searchYouTube(query);
+        final youtube =
+            await _repo.searchYouTube(query, cancelToken: cancelToken);
         if (reqId == _searchRequestId) {
           SearchDiagnostics().recordYouTubeRequestEnd(
             reqId,
@@ -284,7 +294,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     final artistsTask = () async {
       try {
-        final onlineArtists = await _repo.searchArtists(query);
+        final onlineArtists =
+            await _repo.searchArtists(query, cancelToken: cancelToken);
         if (reqId == _searchRequestId) {
           state = state.copyWith(
             onlineArtists: onlineArtists,
@@ -292,7 +303,11 @@ class SearchNotifier extends StateNotifier<SearchState> {
           );
         }
 
-        final onlineAlbums = await _repo.searchAlbums(query, matchedArtists: onlineArtists);
+        final onlineAlbums = await _repo.searchAlbums(
+          query,
+          matchedArtists: onlineArtists,
+          cancelToken: cancelToken,
+        );
         if (reqId == _searchRequestId) {
           state = state.copyWith(
             onlineAlbums: onlineAlbums,
@@ -307,7 +322,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     final playlistsTask = () async {
       try {
-        final playlists = await _repo.searchPlaylists(query);
+        final playlists =
+            await _repo.searchPlaylists(query, cancelToken: cancelToken);
         if (reqId == _searchRequestId) {
           state = state.copyWith(
             onlinePlaylists: playlists,

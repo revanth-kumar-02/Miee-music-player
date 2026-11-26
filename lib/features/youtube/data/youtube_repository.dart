@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yte;
+import '../../../core/network/network_request_coordinator.dart';
 import '../domain/youtube_model.dart';
 import '../domain/youtube_metadata_cleaner.dart';
 import '../domain/youtube_failures.dart';
@@ -20,12 +21,26 @@ class YouTubeRepository {
   final YouTubeDataSource _dataSource;
   final WebMusicDiscoverySource _webDiscoverySource;
 
-  /// In-memory search cache (bounded to 50 queries)
+  /// In-memory search cache (bounded to 50 queries, keyed lowercase)
   final Map<String, List<YouTubeVideo>> _searchCache = {};
+  final Map<String, Future<List<YouTubeVideo>>> _inFlightSearches = {};
   final Map<String, List<ArtistModel>> _artistSearchCache = {};
   final Map<String, List<OnlinePlaylist>> _playlistSearchCache = {};
   final Map<String, List<YouTubeVideo>> _playlistVideosCache = {};
   static const int _maxCacheSize = 50;
+
+  /// Circuit breaker state for structural YoutubeExplode InnerTube parse failures
+  /// (e.g. NoSuchMethodError: getT). Transient network errors do not trip it.
+  final Duration explodeCircuitCooldown;
+  final DateTime Function() _now;
+  final Future<List<YouTubeVideo>> Function(String query, {int page})?
+      _explodeSearchOverride;
+  DateTime? _explodeCircuitOpenUntil;
+
+  /// Whether the YoutubeExplode search circuit breaker is currently open.
+  bool get isExplodeCircuitOpen =>
+      _explodeCircuitOpenUntil != null &&
+      _now().isBefore(_explodeCircuitOpenUntil!);
 
   /// Active search lists to support continuous pagination across batches
   final Map<String, yte.VideoSearchList> _activeSearchLists = {};
@@ -35,8 +50,14 @@ class YouTubeRepository {
   YouTubeRepository({
     YouTubeDataSource? dataSource,
     WebMusicDiscoverySource? webDiscoverySource,
+    this.explodeCircuitCooldown = const Duration(minutes: 5),
+    DateTime Function()? now,
+    Future<List<YouTubeVideo>> Function(String query, {int page})?
+        explodeSearchOverride,
   })  : _dataSource = dataSource ?? YouTubeDataSource(),
-        _webDiscoverySource = webDiscoverySource ?? WebMusicDiscoverySource();
+        _webDiscoverySource = webDiscoverySource ?? WebMusicDiscoverySource(),
+        _now = now ?? DateTime.now,
+        _explodeSearchOverride = explodeSearchOverride;
 
   /// Searches for music tracks matching [query].
   ///
@@ -48,31 +69,55 @@ class YouTubeRepository {
     String query, {
     int page = 1,
     bool forceFresh = false,
+    NetworkPriority priority = NetworkPriority.userSearch,
   }) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
-    final cacheKey = '$cleanQuery:p$page';
-    if (!forceFresh && page == 1 && _searchCache.containsKey(cleanQuery)) {
-      debugPrint('YouTubeRepository: Cache hit for "$cleanQuery"');
-      final cached = _searchCache[cleanQuery]!;
-      // Re-validate cached entries against music classification rules
-      final validCached = MusicResultClassifier.filterAndRankMusicTracks(cached,
-          query: cleanQuery, individualOnly: true);
-      if (validCached.isNotEmpty) {
-        return validCached;
-      }
-      _searchCache.remove(cleanQuery);
-    }
+    final normQuery = cleanQuery.toLowerCase();
+    final cacheKey = page == 1 ? normQuery : '$normQuery:p$page';
 
-    if (!forceFresh && page > 1 && _searchCache.containsKey(cacheKey)) {
+    if (!forceFresh && _searchCache.containsKey(cacheKey)) {
+      debugPrint('YouTubeRepository: Cache hit for "$cleanQuery" (p$page)');
       final cached = _searchCache[cacheKey]!;
-      if (cached.isNotEmpty) {
+      if (page == 1) {
+        final validCached = MusicResultClassifier.filterAndRankMusicTracks(
+            cached,
+            query: cleanQuery,
+            individualOnly: true);
+        if (validCached.isNotEmpty) {
+          return validCached;
+        }
+        _searchCache.remove(cacheKey);
+      } else if (cached.isNotEmpty) {
         return cached;
+      } else {
+        _searchCache.remove(cacheKey);
       }
-      _searchCache.remove(cacheKey);
     }
 
+    if (!forceFresh && _inFlightSearches.containsKey(cacheKey)) {
+      return await _inFlightSearches[cacheKey]!;
+    }
+
+    final future = NetworkRequestCoordinator.instance.run<List<YouTubeVideo>>(
+      () => _executeSearch(cleanQuery, page: page, cacheKey: cacheKey),
+      priority: priority,
+    );
+    _inFlightSearches[cacheKey] = future;
+
+    try {
+      return await future;
+    } finally {
+      _inFlightSearches.remove(cacheKey);
+    }
+  }
+
+  Future<List<YouTubeVideo>> _executeSearch(
+    String cleanQuery, {
+    required int page,
+    required String cacheKey,
+  }) async {
     List<YouTubeVideo> results = [];
 
     // 1. Primary: YouTube Data API v3 if configured
@@ -104,31 +149,34 @@ class YouTubeRepository {
               'Web music discovery failed for "$cleanQuery": $e');
         }
       } else {
-        try {
+        final bypassExplode = isExplodeCircuitOpen;
+        if (bypassExplode) {
           debugPrint(
-              'YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery" (p$page)');
-          results = await _searchWithExplode(cleanQuery, page: page);
-        } catch (e, stack) {
-          debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
-          if (kDebugMode) debugPrintStack(stackTrace: stack);
-          // Fallback to WebMusicDiscoverySource on native if explode fails
+              '[YouTubeRepository] Explode circuit open; bypassing to WebMusicDiscoverySource for "$cleanQuery"');
+        } else {
+          if (_explodeCircuitOpenUntil != null) {
+            // Cooldown expired: allow controlled retry
+            _explodeCircuitOpenUntil = null;
+          }
+          try {
+            debugPrint(
+                'YouTubeRepository: Searching YouTube via YoutubeExplode for "$cleanQuery" (p$page)');
+            results = await _searchWithExplode(cleanQuery, page: page);
+          } catch (e, stack) {
+            debugPrint('YouTubeRepository: YoutubeExplode search failed ($e)');
+            if (kDebugMode) debugPrintStack(stackTrace: stack);
+          }
+        }
+
+        // Fallback to WebMusicDiscoverySource if Explode returned 0 candidates or circuit is open
+        if (results.isEmpty) {
           try {
             debugPrint(
                 'YouTubeRepository: Falling back to WebMusicDiscoverySource for "$cleanQuery"');
             results = await _webDiscoverySource.searchVideos(cleanQuery);
-          } catch (_) {
-            rethrow;
-          }
-        }
-
-        // Fallback to WebMusicDiscoverySource if Explode returned 0 candidates
-        if (results.isEmpty) {
-          try {
-            debugPrint(
-                'YouTubeRepository: Explode returned no results, falling back to WebMusicDiscoverySource for "$cleanQuery"');
-            results = await _webDiscoverySource.searchVideos(cleanQuery);
           } catch (e) {
-            debugPrint('YouTubeRepository: WebMusicDiscoverySource fallback failed: $e');
+            debugPrint(
+                'YouTubeRepository: WebMusicDiscoverySource fallback failed: $e');
           }
         }
       }
@@ -142,8 +190,7 @@ class YouTubeRepository {
       if (_searchCache.length >= _maxCacheSize) {
         _searchCache.remove(_searchCache.keys.first);
       }
-      final keyToStore = page == 1 ? cleanQuery : cacheKey;
-      _searchCache[keyToStore] = validResults;
+      _searchCache[cacheKey] = validResults;
     }
 
     return validResults;
@@ -369,6 +416,21 @@ class YouTubeRepository {
 
   Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery,
       {int page = 1}) async {
+    if (_explodeSearchOverride != null) {
+      try {
+        return await _explodeSearchOverride!(cleanQuery, page: page);
+      } catch (e) {
+        if (e is NoSuchMethodError || e is TypeError || e is FormatException) {
+          _explodeCircuitOpenUntil = _now().add(explodeCircuitCooldown);
+          debugPrint(
+              '[YouTubeRepository] Structural Explode failure ($e); circuit open for ${explodeCircuitCooldown.inSeconds}s');
+        } else {
+          debugPrint('[YouTubeRepository] _searchWithExplode transient error: $e');
+        }
+        return const [];
+      }
+    }
+
     final candidateVideos = <YouTubeVideo>[];
     final seenVideoIds = <String>{};
 
@@ -426,7 +488,13 @@ class YouTubeRepository {
         }
       }
     } catch (e) {
-      debugPrint('[YouTubeRepository] _searchWithExplode error: $e');
+      if (e is NoSuchMethodError || e is TypeError || e is FormatException) {
+        _explodeCircuitOpenUntil = _now().add(explodeCircuitCooldown);
+        debugPrint(
+            '[YouTubeRepository] Structural Explode parse error ($e); opening circuit for ${explodeCircuitCooldown.inSeconds}s');
+      } else {
+        debugPrint('[YouTubeRepository] _searchWithExplode error: $e');
+      }
     }
 
     return candidateVideos;

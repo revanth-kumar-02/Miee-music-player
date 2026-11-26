@@ -505,7 +505,15 @@ class RecommendationService {
 
     // ── 2. From Your Artists (Multi-Artist Rotation & Depth - Parallel) ──────
     final fromYourArtists = <MusicItem>[];
-    final selectedArtistsToQuery = effectiveArtists.take(4).toList();
+    // Deduplicate selectedArtists by normalized name within one recommendation session
+    final seenSelectedNames = <String>{};
+    final selectedArtistsToQuery = <ArtistSummary>[];
+    for (final artist in effectiveArtists) {
+      final normName = artist.name.trim().toLowerCase();
+      if (normName.isEmpty || !seenSelectedNames.add(normName)) continue;
+      selectedArtistsToQuery.add(artist);
+      if (selectedArtistsToQuery.length >= 4) break;
+    }
 
     // Fetch tracks for each selected artist concurrently to avoid slow sequential waterfalls
     final artistTrackBatches = <String, List<MusicItem>>{};
@@ -751,37 +759,11 @@ class RecommendationService {
         continue;
       }
 
-      // If it's a chart or metadata track (wm_chart_...), resolve and verify genuine music candidate
-      try {
-        final query = '$rawT $rawA'.trim();
-        final searchResults = await _youtubeRepo.search(query);
-        final validCandidate = searchResults
-            .where((v) =>
-                MusicResultClassifier.isValidIndividualSong(v, query: query))
-            .firstOrNull;
-
-        if (validCandidate != null) {
-          verified.add(
-            track.copyWith(
-              id: 'youtube_${validCandidate.id}',
-              duration: validCandidate.duration.isNotEmpty
-                  ? validCandidate.duration
-                  : track.duration,
-              imageUrl: validCandidate.thumbnailUrl.isNotEmpty
-                  ? validCandidate.thumbnailUrl
-                  : track.imageUrl,
-              rawTitle: validCandidate.rawTitle ?? validCandidate.title,
-              rawArtist:
-                  validCandidate.rawChannelTitle ?? validCandidate.channelTitle,
-            ),
-          );
-        } else {
-          debugPrint(
-              '[RecommendationService] Excluded unverified recent release: "${track.title}"');
-        }
-      } catch (e) {
-        debugPrint(
-            '[RecommendationService] Error verifying recent release "${track.title}": $e');
+      // Defer YouTube video-ID resolution until playback is actually requested
+      // for chart/metadata tracks (wm_chart_..., itunes_...) that already have
+      // verified title and artist metadata. This eliminates the Home startup search storm.
+      if (track.title.trim().isNotEmpty && track.artist.trim().isNotEmpty) {
+        verified.add(track);
       }
     }
     return verified;
