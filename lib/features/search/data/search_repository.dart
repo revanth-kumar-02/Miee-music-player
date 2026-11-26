@@ -68,9 +68,11 @@ class SearchRepository {
   })  : localSearch = localSearch ?? LocalSearchService(),
         youtubeRepository = youtubeRepository ?? YouTubeRepository(),
         artistRepository = artistRepository ?? DeezerArtistRepository(),
-        itunesMetadataService = itunesMetadataService ?? ItunesMetadataService(),
+        itunesMetadataService =
+            itunesMetadataService ?? ItunesMetadataService(),
         musicBrainzService = musicBrainzService ?? MusicBrainzService(),
-        playbackSourceResolver = playbackSourceResolver ?? PlaybackSourceResolver();
+        playbackSourceResolver =
+            playbackSourceResolver ?? PlaybackSourceResolver();
 
   /// Checks if valid unexpired search results are cached for [query].
   bool isCached(String query) {
@@ -199,12 +201,20 @@ class SearchRepository {
     // 1. Stage B: Dual-Authority Music Discovery (MusicBrainz + Apple iTunes + Deezer Curated Artists)
     // Run structured metadata lookups concurrently to discover both open canonical metadata (MBID/CAA)
     // and commercial popularity / studio release prominence signals.
-    final mbFuture = musicBrainzService.searchRecordings(clean, limit: 15).catchError((_) => <MusicBrainzRecording>[]);
-    final itunesFuture = itunesMetadataService.searchSongs(clean, limit: 15).catchError((_) => <ItunesSong>[]);
-    final artistsFuture = searchArtists(clean).catchError((_) => <ArtistModel>[]);
-    final albumsFuture = itunesMetadataService.searchAlbums(clean, limit: 3).catchError((_) => <ArtistAlbum>[]);
+    final mbFuture = musicBrainzService
+        .searchRecordings(clean, limit: 15)
+        .catchError((_) => <MusicBrainzRecording>[]);
+    final itunesFuture = itunesMetadataService
+        .searchSongs(clean, limit: 15)
+        .catchError((_) => <ItunesSong>[]);
+    final artistsFuture =
+        searchArtists(clean).catchError((_) => <ArtistModel>[]);
+    final albumsFuture = itunesMetadataService
+        .searchAlbums(clean, limit: 3)
+        .catchError((_) => <ArtistAlbum>[]);
 
-    final discovery = await Future.wait([mbFuture, itunesFuture, artistsFuture, albumsFuture]);
+    final discovery = await Future.wait(
+        [mbFuture, itunesFuture, artistsFuture, albumsFuture]);
     final mbRecordings = discovery[0] as List<MusicBrainzRecording>;
     final itunesSongs = List<ItunesSong>.from(discovery[1] as List<ItunesSong>);
     final artists = discovery[2] as List<ArtistModel>;
@@ -240,7 +250,8 @@ class SearchRepository {
 
       if (collectionIds.isNotEmpty) {
         try {
-          final trackFutures = collectionIds.map((id) => itunesMetadataService.getAlbumTracks(id));
+          final trackFutures = collectionIds
+              .map((id) => itunesMetadataService.getAlbumTracks(id));
           final trackLists = await Future.wait(trackFutures).timeout(
             const Duration(milliseconds: 1800),
             onTimeout: () => <List<ItunesSong>>[],
@@ -262,7 +273,8 @@ class SearchRepository {
       // Convert MusicBrainz recordings that pass relevance check
       for (final rec in mbRecordings) {
         final mbVideo = YouTubeVideo.fromMusicBrainzRecording(rec);
-        if (QueryRelevanceEvaluator.isCandidateRelevant(mbVideo, query: clean)) {
+        if (QueryRelevanceEvaluator.isCandidateRelevant(mbVideo,
+            query: clean)) {
           candidatePool.add(mbVideo);
         }
       }
@@ -270,7 +282,8 @@ class SearchRepository {
       // Convert iTunes songs that pass relevance check
       for (final song in itunesSongs) {
         final itVideo = YouTubeVideo.fromItunesSong(song);
-        if (QueryRelevanceEvaluator.isCandidateRelevant(itVideo, query: clean)) {
+        if (QueryRelevanceEvaluator.isCandidateRelevant(itVideo,
+            query: clean)) {
           candidatePool.add(itVideo);
         }
       }
@@ -331,20 +344,28 @@ class SearchRepository {
             cleanLower.contains('acoustic') ||
             cleanLower.contains('unplugged') ||
             cleanLower.contains('cover');
-        final lacksFullMatch = !rankedRecordings.any(
-            (r) => QueryRelevanceEvaluator.hasFullQueryCoverage(r, query: clean));
+        final lacksFullMatch = !rankedRecordings.any((r) =>
+            QueryRelevanceEvaluator.hasFullQueryCoverage(r, query: clean));
 
-        if (rankedRecordings.length < 3 || isSpecificVersionQuery || lacksFullMatch) {
+        if (rankedRecordings.length < 3 ||
+            isSpecificVersionQuery ||
+            lacksFullMatch) {
           try {
             final supplemental = await youtubeRepository.search(clean);
-            final validSupplemental = supplemental.where((yt) {
-              if (!MusicResultClassifier.isValidMusicTrack(yt, query: clean)) return false;
-              if (!QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean)) return false;
-              for (final r in rankedRecordings) {
-                if (SearchDeduplicator.isSameCanonicalSong(yt, r)) return false;
-              }
-              return true;
-            }).take(4).toList();
+            final validSupplemental = supplemental
+                .where((yt) {
+                  if (!MusicResultClassifier.isValidMusicTrack(yt,
+                      query: clean)) return false;
+                  if (!QueryRelevanceEvaluator.isCandidateRelevant(yt,
+                      query: clean)) return false;
+                  for (final r in rankedRecordings) {
+                    if (SearchDeduplicator.isSameCanonicalSong(yt, r))
+                      return false;
+                  }
+                  return true;
+                })
+                .take(4)
+                .toList();
 
             if (validSupplemental.isNotEmpty) {
               return CanonicalMusicRanker.rankVideos(
@@ -366,8 +387,10 @@ class SearchRepository {
     // fall back to YouTube search with strict music and query relevance filtering
     final rawVideos = await youtubeRepository.search(clean);
     final validYt = rawVideos
-        .where((yt) => MusicResultClassifier.isValidMusicTrack(yt, query: clean))
-        .where((yt) => QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean))
+        .where(
+            (yt) => MusicResultClassifier.isValidMusicTrack(yt, query: clean))
+        .where((yt) =>
+            QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean))
         .toList();
 
     if (validYt.isNotEmpty) {
@@ -385,7 +408,10 @@ class SearchRepository {
     }
 
     final ranked = SearchDeduplicator.deduplicateAndRank(
-      rawVideos.where((yt) => QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean)).toList(),
+      rawVideos
+          .where((yt) =>
+              QueryRelevanceEvaluator.isCandidateRelevant(yt, query: clean))
+          .toList(),
       query: clean,
       config: config ?? const SearchRankingConfig(filterDerivativeEdits: true),
     );
@@ -409,7 +435,8 @@ class SearchRepository {
 
       for (var i = 0; i < updatedList.length && i < 5; i++) {
         final video = updatedList[i];
-        if (video.metadataProvider == 'musicbrainz' && (video.mbid != null && video.mbid!.isNotEmpty)) {
+        if (video.metadataProvider == 'musicbrainz' &&
+            (video.mbid != null && video.mbid!.isNotEmpty)) {
           MusicBrainzRecording? rec;
           for (final r in recordings) {
             if (r.mbid == video.mbid) {
@@ -436,23 +463,14 @@ class SearchRepository {
     }).catchError((_) {});
   }
 
-  void _preResolvePlaybackSources(List<YouTubeVideo> videos) {
-    for (final v in videos) {
-      playbackSourceResolver.resolveVideoId(
-        title: v.canonicalTitle ?? v.title,
-        artist: v.canonicalArtist ?? v.channelTitle,
-        durationStr: v.duration,
-        album: v.albumName,
-      );
-    }
-  }
-
   /// Asynchronously enriches top YouTube results with studio iTunes metadata and 600x600 artwork.
-  Future<List<YouTubeVideo>> enrichYouTubeResults(List<YouTubeVideo> videos) async {
+  Future<List<YouTubeVideo>> enrichYouTubeResults(
+      List<YouTubeVideo> videos) async {
     if (videos.isEmpty) return videos;
     try {
       final topToEnrich = videos.take(15).toList();
-      final enrichedTop = await itunesMetadataService.enrichYouTubeResults(topToEnrich);
+      final enrichedTop =
+          await itunesMetadataService.enrichYouTubeResults(topToEnrich);
       return [...enrichedTop, ...videos.skip(15)];
     } catch (_) {
       return videos;
@@ -498,11 +516,16 @@ class SearchRepository {
   }
 
   Future<List<ArtistModel>> _executeSearchArtists(String cleanQuery) async {
-
     final results = await Future.wait([
-      artistRepository.searchArtists(cleanQuery).catchError((_) => <ArtistModel>[]),
-      musicBrainzService.searchArtistsAsArtistModels(cleanQuery).catchError((_) => <ArtistModel>[]),
-      itunesMetadataService.searchArtists(cleanQuery).catchError((_) => <ArtistModel>[]),
+      artistRepository
+          .searchArtists(cleanQuery)
+          .catchError((_) => <ArtistModel>[]),
+      musicBrainzService
+          .searchArtistsAsArtistModels(cleanQuery)
+          .catchError((_) => <ArtistModel>[]),
+      itunesMetadataService
+          .searchArtists(cleanQuery)
+          .catchError((_) => <ArtistModel>[]),
     ]);
 
     final deezerCurated = results[0];
@@ -516,18 +539,22 @@ class SearchRepository {
 
     if (!QueryRelevanceEvaluator.isCollectionQuery(cleanQuery)) {
       try {
-        final itunesTop = await itunesMetadataService.searchSongs(cleanQuery, limit: 3);
+        final itunesTop =
+            await itunesMetadataService.searchSongs(cleanQuery, limit: 3);
         for (final song in itunesTop) {
           final itVideo = YouTubeVideo.fromItunesSong(song);
           if (song.artistName.isNotEmpty &&
-              QueryRelevanceEvaluator.isCandidateRelevant(itVideo, query: cleanQuery)) {
-            final curated = DeezerArtistRepository.findCuratedByName(song.artistName);
+              QueryRelevanceEvaluator.isCandidateRelevant(itVideo,
+                  query: cleanQuery)) {
+            final curated =
+                DeezerArtistRepository.findCuratedByName(song.artistName);
             if (curated != null) {
               inferredSongArtists.add(curated);
               verifiedInferredIds.add(curated.id);
             } else {
-              final resolved =
-                  await artistRepository.searchArtists(song.artistName).catchError((_) => <ArtistModel>[]);
+              final resolved = await artistRepository
+                  .searchArtists(song.artistName)
+                  .catchError((_) => <ArtistModel>[]);
               if (resolved.isNotEmpty) {
                 inferredSongArtists.add(resolved.first);
                 verifiedInferredIds.add(resolved.first.id);
@@ -539,7 +566,11 @@ class SearchRepository {
     }
 
     return mergeAndDeduplicateArtists(
-      curatedAndDeezer: [...inferredSongArtists, ...deezerCurated, ...mbArtists],
+      curatedAndDeezer: [
+        ...inferredSongArtists,
+        ...deezerCurated,
+        ...mbArtists
+      ],
       itunesArtists: itunesArtists,
       query: cleanQuery,
       verifiedInferredArtistIds: verifiedInferredIds,
@@ -561,17 +592,20 @@ class SearchRepository {
     final seenCanonicalNames = <String>{};
     final merged = <ArtistModel>[];
 
-    String canonical(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    String canonical(String s) =>
+        s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     final cleanQuery = query.trim().toLowerCase();
     final queryCanonical = canonical(cleanQuery);
 
     // 1. Process Curated / Deezer artists first (they have verified discography metadata & fan counts)
     for (final artist in curatedAndDeezer) {
       if (artist.id.isEmpty) continue;
-      final isCurated = DeezerArtistRepository.findCuratedByName(artist.name) != null;
+      final isCurated =
+          DeezerArtistRepository.findCuratedByName(artist.name) != null;
       if (!isCurated &&
           !verifiedInferredArtistIds.contains(artist.id) &&
-          !QueryRelevanceEvaluator.isArtistRelevant(artist.name, query: cleanQuery)) {
+          !QueryRelevanceEvaluator.isArtistRelevant(artist.name,
+              query: cleanQuery)) {
         continue;
       }
       if (!ArtistClassifier.isLegitimateMusicArtist(
@@ -601,7 +635,8 @@ class SearchRepository {
     for (final itArtist in itunesArtists) {
       if (itArtist.id.isEmpty) continue;
       if (!verifiedInferredArtistIds.contains(itArtist.id) &&
-          !QueryRelevanceEvaluator.isArtistRelevant(itArtist.name, query: cleanQuery)) {
+          !QueryRelevanceEvaluator.isArtistRelevant(itArtist.name,
+              query: cleanQuery)) {
         continue;
       }
       if (!ArtistClassifier.isLegitimateMusicArtist(
@@ -615,7 +650,9 @@ class SearchRepository {
       // If an artist with the exact same canonical name is already present from Deezer/curated
       if (cName.isNotEmpty && seenCanonicalNames.contains(cName)) {
         final index = merged.indexWhere((a) => canonical(a.name) == cName);
-        if (index >= 0 && !merged[index].hasValidImage && itArtist.hasValidImage) {
+        if (index >= 0 &&
+            !merged[index].hasValidImage &&
+            itArtist.hasValidImage) {
           merged[index] = merged[index].copyWith(imageUrl: itArtist.imageUrl);
         }
         continue;
@@ -625,8 +662,11 @@ class SearchRepository {
       final curated = DeezerArtistRepository.findCuratedByName(itArtist.name);
       if (curated != null) {
         effectiveArtist = itArtist.copyWith(
-          imageUrl: curated.hasValidImage ? curated.imageUrl : itArtist.imageUrl,
-          languages: curated.languages.isNotEmpty ? curated.languages : itArtist.languages,
+          imageUrl:
+              curated.hasValidImage ? curated.imageUrl : itArtist.imageUrl,
+          languages: curated.languages.isNotEmpty
+              ? curated.languages
+              : itArtist.languages,
           fanCount: curated.fanCount > 0 ? curated.fanCount : itArtist.fanCount,
         );
       }
@@ -658,8 +698,10 @@ class SearchRepository {
 
     // Prioritize prominent artists and verified curated artists over obscure homonyms
     merged.sort((a, b) {
-      final aIsCurated = DeezerArtistRepository.findCuratedByName(a.name) != null;
-      final bIsCurated = DeezerArtistRepository.findCuratedByName(b.name) != null;
+      final aIsCurated =
+          DeezerArtistRepository.findCuratedByName(a.name) != null;
+      final bIsCurated =
+          DeezerArtistRepository.findCuratedByName(b.name) != null;
 
       // Curated/verified performing artists take precedence over obscure entities (< 5000 fans)
       if (aIsCurated && !bIsCurated && b.fanCount < 5000) return -1;
@@ -753,7 +795,8 @@ class SearchRepository {
 
     // 1. Direct Apple iTunes Album Search for verified studio releases
     try {
-      final itunesAlbums = await itunesMetadataService.searchAlbums(cleanQuery, limit: 6);
+      final itunesAlbums =
+          await itunesMetadataService.searchAlbums(cleanQuery, limit: 6);
       for (final alb in itunesAlbums) {
         if (seenAlbumTitles.add(alb.title.toLowerCase())) {
           resultAlbums.add(alb);
@@ -916,18 +959,25 @@ class SearchRepository {
 
     try {
       final results = await Future.wait([
-        searchArtists(cleanQuery).timeout(
-          const Duration(milliseconds: 2500),
-          onTimeout: () => <ArtistModel>[],
-        ).catchError((_) => <ArtistModel>[]),
-        youtubeRepository.search(cleanQuery).timeout(
-          const Duration(milliseconds: 3000),
-          onTimeout: () => <YouTubeVideo>[],
-        ).catchError((_) => <YouTubeVideo>[]),
-        searchPlaylists(cleanQuery).timeout(
-          const Duration(milliseconds: 2000),
-          onTimeout: () => <OnlinePlaylist>[],
-        ).catchError((_) => <OnlinePlaylist>[]),
+        searchArtists(cleanQuery)
+            .timeout(
+              const Duration(milliseconds: 2500),
+              onTimeout: () => <ArtistModel>[],
+            )
+            .catchError((_) => <ArtistModel>[]),
+        youtubeRepository
+            .search(cleanQuery)
+            .timeout(
+              const Duration(milliseconds: 3000),
+              onTimeout: () => <YouTubeVideo>[],
+            )
+            .catchError((_) => <YouTubeVideo>[]),
+        searchPlaylists(cleanQuery)
+            .timeout(
+              const Duration(milliseconds: 2000),
+              onTimeout: () => <OnlinePlaylist>[],
+            )
+            .catchError((_) => <OnlinePlaylist>[]),
       ]);
 
       onlineArtists = results[0] as List<ArtistModel>;
@@ -939,25 +989,34 @@ class SearchRepository {
     List<ArtistAlbum> onlineAlbums = const [];
     if (onlineArtists.isNotEmpty) {
       try {
-        onlineAlbums = await searchAlbums(cleanQuery, matchedArtists: onlineArtists.take(1).toList())
-            .timeout(const Duration(milliseconds: 1500), onTimeout: () => <ArtistAlbum>[]);
+        onlineAlbums = await searchAlbums(cleanQuery,
+                matchedArtists: onlineArtists.take(1).toList())
+            .timeout(const Duration(milliseconds: 1500),
+                onTimeout: () => <ArtistAlbum>[]);
       } catch (_) {}
     }
 
     // 3. Determine Query Intent & Map Online Candidates
     final exactArtistMatch = onlineArtists.cast<ArtistModel?>().firstWhere(
-      (a) => a != null && (a.name.toLowerCase() == lowerQuery ||
-          a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '') == normQuery),
-      orElse: () => null,
-    );
+          (a) =>
+              a != null &&
+              (a.name.toLowerCase() == lowerQuery ||
+                  a.name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '') ==
+                      normQuery),
+          orElse: () => null,
+        );
 
     final prefixArtistMatch = onlineArtists.cast<ArtistModel?>().firstWhere(
-      (a) => a != null && (a.name.toLowerCase().startsWith(lowerQuery) ||
-          lowerQuery.startsWith(a.name.toLowerCase())),
-      orElse: () => null,
-    );
+          (a) =>
+              a != null &&
+              (a.name.toLowerCase().startsWith(lowerQuery) ||
+                  lowerQuery.startsWith(a.name.toLowerCase())),
+          orElse: () => null,
+        );
 
-    final topArtist = exactArtistMatch ?? prefixArtistMatch ?? (onlineArtists.isNotEmpty ? onlineArtists.first : null);
+    final topArtist = exactArtistMatch ??
+        prefixArtistMatch ??
+        (onlineArtists.isNotEmpty ? onlineArtists.first : null);
 
     final isArtistQuery = topArtist != null &&
         (topArtist == exactArtistMatch ||

@@ -206,6 +206,7 @@ class YouTubeRepository {
     int page = 1,
     int limit = 15,
     List<String> preferredLanguages = const [],
+    NetworkPriority priority = NetworkPriority.userSearch,
   }) async {
     final cleanArtist = artistName.trim();
     if (cleanArtist.isEmpty) return const [];
@@ -218,13 +219,21 @@ class YouTubeRepository {
     if (page == 1 &&
         topLang != null &&
         MusicLanguageService.isArtistMultilingualInLang(cleanArtist, topLang)) {
-      final langVideos = await search('$cleanArtist $topLang songs', page: 1);
+      final langVideos = await search(
+        '$cleanArtist $topLang songs',
+        page: 1,
+        priority: priority,
+      );
       candidateVideos.addAll(langVideos);
     }
 
     // 2. Fetch page of artist songs
-    final mainVideos =
-        await search('$cleanArtist songs', page: page, forceFresh: page > 1);
+    final mainVideos = await search(
+      '$cleanArtist songs',
+      page: page,
+      forceFresh: page > 1,
+      priority: priority,
+    );
     candidateVideos.addAll(mainVideos);
 
     // 3. If page > 1, filter out tracks already returned in earlier pages for this artist
@@ -425,7 +434,8 @@ class YouTubeRepository {
           debugPrint(
               '[YouTubeRepository] Structural Explode failure ($e); circuit open for ${explodeCircuitCooldown.inSeconds}s');
         } else {
-          debugPrint('[YouTubeRepository] _searchWithExplode transient error: $e');
+          debugPrint(
+              '[YouTubeRepository] _searchWithExplode transient error: $e');
         }
         return const [];
       }
@@ -1030,7 +1040,8 @@ class YouTubeRepository {
         void scan(dynamic obj) {
           if (obj is Map<String, dynamic>) {
             if (obj.containsKey('musicResponsiveListItemRenderer')) {
-              items.add(obj['musicResponsiveListItemRenderer'] as Map<String, dynamic>);
+              items.add(obj['musicResponsiveListItemRenderer']
+                  as Map<String, dynamic>);
             }
             for (final v in obj.values) {
               scan(v);
@@ -1050,12 +1061,16 @@ class YouTubeRepository {
           String? title;
           String? artist;
           if (flexCols != null && flexCols.isNotEmpty) {
-            final col0 = flexCols[0]?['musicResponsiveListItemFlexColumnRenderer']?['text']?['runs'];
+            final col0 = flexCols[0]
+                    ?['musicResponsiveListItemFlexColumnRenderer']?['text']
+                ?['runs'];
             if (col0 != null && col0 is List && col0.isNotEmpty) {
               title = col0[0]?['text']?.toString();
             }
             if (flexCols.length > 1) {
-              final col1 = flexCols[1]?['musicResponsiveListItemFlexColumnRenderer']?['text']?['runs'];
+              final col1 = flexCols[1]
+                      ?['musicResponsiveListItemFlexColumnRenderer']?['text']
+                  ?['runs'];
               if (col1 != null && col1 is List && col1.isNotEmpty) {
                 artist = col1.map((r) => r['text']).join('');
               }
@@ -1065,7 +1080,9 @@ class YouTubeRepository {
           final fixedCols = item['fixedColumns'] as List?;
           String? duration;
           if (fixedCols != null && fixedCols.isNotEmpty) {
-            final col0 = fixedCols[0]?['musicResponsiveListItemFixedColumnRenderer']?['text']?['runs'];
+            final col0 = fixedCols[0]
+                    ?['musicResponsiveListItemFixedColumnRenderer']?['text']
+                ?['runs'];
             if (col0 != null && col0 is List && col0.isNotEmpty) {
               duration = col0[0]?['text']?.toString();
             }
@@ -1073,9 +1090,13 @@ class YouTubeRepository {
 
           final playlistItemData = item['playlistItemData'];
           final videoId = playlistItemData?['videoId']?.toString() ??
-              item['doubleTapCommand']?['watchEndpoint']?['videoId']?.toString();
+              item['doubleTapCommand']?['watchEndpoint']?['videoId']
+                  ?.toString();
 
-          if (videoId != null && videoId.isNotEmpty && title != null && title.isNotEmpty) {
+          if (videoId != null &&
+              videoId.isNotEmpty &&
+              title != null &&
+              title.isNotEmpty) {
             final cleaned = YouTubeMetadataCleaner.clean(
               rawTitle: title,
               rawChannel: artist ?? '',

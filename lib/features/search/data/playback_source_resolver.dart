@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import '../../../core/network/network_request_coordinator.dart';
 import '../../youtube/domain/youtube_metadata_cleaner.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/data/youtube_repository.dart';
@@ -342,7 +343,8 @@ class PlaybackSourceResolver {
       }
     }
 
-    final targetSec = _parseTargetDurationSeconds(durationStr: expectedDuration);
+    final targetSec =
+        _parseTargetDurationSeconds(durationStr: expectedDuration);
     final queryTokens = _tokenizeTitle(cleanQuery)
         .where((t) => !_packagingDescriptors.contains(t))
         .toList();
@@ -369,9 +371,8 @@ class PlaybackSourceResolver {
 
       // Exclude tokens from the query that identify the artist/channel so we verify
       // the remaining track-title tokens actually match the candidate's song title.
-      final titleOnlyTokens = queryTokens
-          .where((t) => !candChanTokens.contains(t))
-          .toList();
+      final titleOnlyTokens =
+          queryTokens.where((t) => !candChanTokens.contains(t)).toList();
       final effectiveTitleTokens =
           titleOnlyTokens.isNotEmpty ? titleOnlyTokens : queryTokens;
 
@@ -390,8 +391,8 @@ class PlaybackSourceResolver {
 
       // Extra guard: if no explicit expectedTitle was passed and inferredTitle collapsed,
       // require at least one concrete song token match inside candSongTokens.
-      final hasDirectTitleTokenMatch = effectiveTitleTokens
-          .any((t) => !_glueStopWords.contains(t) && candSongTokens.contains(t));
+      final hasDirectTitleTokenMatch = effectiveTitleTokens.any(
+          (t) => !_glueStopWords.contains(t) && candSongTokens.contains(t));
 
       if (!hasDirectTitleTokenMatch && candScore.titleScore < 50) {
         continue;
@@ -407,7 +408,8 @@ class PlaybackSourceResolver {
             candScore.score > best.score ||
             (candScore.score == best.score &&
                 candScore.titleScore > best.titleScore)) {
-          best = _ScoredCandidate(candidate, candScore.score, candScore.titleScore);
+          best = _ScoredCandidate(
+              candidate, candScore.score, candScore.titleScore);
         }
       }
     }
@@ -428,8 +430,9 @@ class PlaybackSourceResolver {
           durationStr: targetDurationStr,
           durationMs: targetDurationMs,
         );
-    final candSec =
-        candidateDurationStr != null ? _parseDurationSeconds(candidateDurationStr) : 0;
+    final candSec = candidateDurationStr != null
+        ? _parseDurationSeconds(candidateDurationStr)
+        : 0;
 
     if (targetSec <= 0 || candSec <= 0) return true;
 
@@ -528,7 +531,8 @@ class PlaybackSourceResolver {
     final coreTitle = extractCoreTitle(cleanTitle);
     final effectiveTitle = coreTitle.isNotEmpty ? coreTitle : cleanTitle;
     final artistTokens = _extractArtistTokens(cleanArtist);
-    final primaryArtist = artistTokens.isNotEmpty ? artistTokens.first : cleanArtist;
+    final primaryArtist =
+        artistTokens.isNotEmpty ? artistTokens.first : cleanArtist;
 
     final rawQueries = <String>[
       // 1. Primary Targeted Query: Artist + Core Title + Official Audio
@@ -539,7 +543,10 @@ class PlaybackSourceResolver {
 
       // 2. Clean Natural Query without synthetic "(Official Audio)" noise
       // (often resolves exact Topic uploads or short interludes missed by Query 1)
-      if (cleanArtist.isNotEmpty) '$cleanArtist $effectiveTitle' else effectiveTitle,
+      if (cleanArtist.isNotEmpty)
+        '$cleanArtist $effectiveTitle'
+      else
+        effectiveTitle,
 
       // 3. Primary Artist + Core Title (when multi-artist metadata has feat/commas)
       if (primaryArtist.isNotEmpty &&
@@ -549,7 +556,8 @@ class PlaybackSourceResolver {
       // 4. Title + Album (helps soundtrack recordings uploaded under label channels)
       if (album != null && album.isNotEmpty) ...[
         if (extractCoreTitle(album).isNotEmpty &&
-            extractCoreTitle(album).toLowerCase() != effectiveTitle.toLowerCase())
+            extractCoreTitle(album).toLowerCase() !=
+                effectiveTitle.toLowerCase())
           '$effectiveTitle ${extractCoreTitle(album)}'
               '${primaryArtist.isNotEmpty ? ' $primaryArtist' : ''}',
       ],
@@ -608,7 +616,8 @@ class PlaybackSourceResolver {
             candScore.score > best.score ||
             (candScore.score == best.score &&
                 candScore.titleScore > best.titleScore)) {
-          best = _ScoredCandidate(candidate, candScore.score, candScore.titleScore);
+          best = _ScoredCandidate(
+              candidate, candScore.score, candScore.titleScore);
         }
       }
     }
@@ -617,9 +626,15 @@ class PlaybackSourceResolver {
 
   Future<List<YouTubeVideo>> _executeSearch(String query) async {
     try {
-      return await _youtubeRepository.search(query, page: 1, forceFresh: false);
+      return await _youtubeRepository.search(
+        query,
+        page: 1,
+        forceFresh: false,
+        priority: NetworkPriority.playbackResolution,
+      );
     } catch (e) {
-      debugPrint('[PlaybackSourceResolver] YouTube search error for "$query": $e');
+      debugPrint(
+          '[PlaybackSourceResolver] YouTube search error for "$query": $e');
       return const [];
     }
   }
@@ -694,7 +709,8 @@ class PlaybackSourceResolver {
         }
 
         if (candidateSec < 60) {
-          score -= 150; // Heavy penalty for teaser/promo clips when resolving full song
+          score -=
+              150; // Heavy penalty for teaser/promo clips when resolving full song
         }
       }
     }
@@ -725,7 +741,8 @@ class PlaybackSourceResolver {
         (channelLower.contains(normArtist) ||
             (normChannelNoSpace.length >= 5 &&
                 _normalizeForComparison(normArtist).length >= 5 &&
-                normChannelNoSpace.contains(_normalizeForComparison(normArtist))))) {
+                normChannelNoSpace
+                    .contains(_normalizeForComparison(normArtist))))) {
       score += 40;
       artistMatchedChannel = true;
     } else {
@@ -749,7 +766,8 @@ class PlaybackSourceResolver {
     }
 
     if (channelLower.endsWith('- topic') || channelLower.contains('- topic')) {
-      score += 90; // YouTube Music official auto-generated topic channel (studio audio)
+      score +=
+          90; // YouTube Music official auto-generated topic channel (studio audio)
     }
     if (channelLower.contains('vevo') || channelLower.contains('official')) {
       score += 40;
@@ -803,8 +821,7 @@ class PlaybackSourceResolver {
         _containsWordOrToken(titleLower, 'instrumental')) {
       score -= 80;
     }
-    if (!isExplicitUnplugged &&
-        _containsWordOrToken(titleLower, 'unplugged')) {
+    if (!isExplicitUnplugged && _containsWordOrToken(titleLower, 'unplugged')) {
       score -= 40;
     }
     if (!isExplicitAcoustic && _containsWordOrToken(titleLower, 'acoustic')) {
@@ -934,15 +951,15 @@ class PlaybackSourceResolver {
     }
 
     // 4. Whole-token overlap evaluation (NEVER substring .contains())
-    final matchedTokens = targetTokenSet
-        .where((w) => expandedCandTokens.contains(w))
-        .toSet();
+    final matchedTokens =
+        targetTokenSet.where((w) => expandedCandTokens.contains(w)).toSet();
 
     if (matchedTokens.isEmpty) {
       // Last-chance check for Indian YouTube titles formatted as "Movie | Song Name | Artist"
       // ONLY allowed when the candidate has pipe separators AND another clause matches the exact song phrase!
       if (rawCandidateTitle.contains('|') &&
-          _matchesExactPipeClause(rawCandidateTitle, normCoreTarget, cleanArtist)) {
+          _matchesExactPipeClause(
+              rawCandidateTitle, normCoreTarget, cleanArtist)) {
         return 60;
       }
       return -100;
@@ -953,8 +970,9 @@ class PlaybackSourceResolver {
     // 5. Album / Artist Overlap Compensation Guard:
     // If target shares a word with the album or artist name (e.g. "Dude" inside "Who Is This Dude?"),
     // matching ONLY that album/artist token while missing all distinctive song words MUST be rejected.
-    final albumTokens =
-        album != null ? _tokenizeTitle(extractCoreTitle(album)).toSet() : const <String>{};
+    final albumTokens = album != null
+        ? _tokenizeTitle(extractCoreTitle(album)).toSet()
+        : const <String>{};
     final artistTokens = _tokenizeTitle(cleanArtist).toSet();
 
     final nonAlbumNonGlueMatched = matchedTokens.where((t) =>
@@ -968,7 +986,8 @@ class PlaybackSourceResolver {
 
     if (matchedTokens.length == targetTokenSet.length) {
       // All target tokens appear as whole words in the candidate's song title
-      if (candTokens.length > targetTokens.length * 3 && candTokens.length >= 8) {
+      if (candTokens.length > targetTokens.length * 3 &&
+          candTokens.length >= 8) {
         // Likely compilation / medley
         return 20;
       }
@@ -1076,10 +1095,7 @@ class PlaybackSourceResolver {
         .replaceAll(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true), ' ')
         .trim();
     if (normalized.isEmpty) return const [];
-    return normalized
-        .split(RegExp(r'\s+'))
-        .where((t) => t.isNotEmpty)
-        .toList();
+    return normalized.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
   }
 
   static Set<String> _expandInitials(List<String> tokens) {
@@ -1116,9 +1132,26 @@ class PlaybackSourceResolver {
   ) {
     // Detect numeric / side / part mismatches (e.g. target has "2", candidate has "1", or "side a" vs "side b")
     const numerals = {
-      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
-      'i', 'ii', 'iii', 'iv', 'v',
-      'one', 'two', 'three', 'four', 'five',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+      'i',
+      'ii',
+      'iii',
+      'iv',
+      'v',
+      'one',
+      'two',
+      'three',
+      'four',
+      'five',
     };
     final targetNums = targetTokens.intersection(numerals);
     final candNums = candTokens.intersection(numerals);
@@ -1181,7 +1214,8 @@ class PlaybackSourceResolver {
     return false;
   }
 
-  static int _parseTargetDurationSeconds({String? durationStr, int? durationMs}) {
+  static int _parseTargetDurationSeconds(
+      {String? durationStr, int? durationMs}) {
     if (durationMs != null && durationMs > 0) {
       return durationMs ~/ 1000;
     }

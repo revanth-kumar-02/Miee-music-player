@@ -76,10 +76,14 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     // Fast local scan for instant feedback while typing
     final library = _ref.read(mediaLibraryServiceProvider);
-    final instantLocalSongs = _repo.localSearch.searchSongs(library.songs, trimmed);
-    final instantLocalArtists = _repo.localSearch.searchArtists(library.artists, trimmed);
-    final instantLocalAlbums = _repo.localSearch.searchAlbums(library.albums, trimmed);
-    final instantLocalPlaylists = _repo.localSearch.searchPlaylists(library.playlists, trimmed);
+    final instantLocalSongs =
+        _repo.localSearch.searchSongs(library.songs, trimmed);
+    final instantLocalArtists =
+        _repo.localSearch.searchArtists(library.artists, trimmed);
+    final instantLocalAlbums =
+        _repo.localSearch.searchAlbums(library.albums, trimmed);
+    final instantLocalPlaylists =
+        _repo.localSearch.searchPlaylists(library.playlists, trimmed);
 
     final initialSuggestions = <MusicSuggestion>[];
     for (final a in instantLocalArtists.take(2)) {
@@ -144,7 +148,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
     );
 
     // Live music-first suggestions (debounced 120ms)
-    _suggestionDebounceTimer = Timer(const Duration(milliseconds: 120), () async {
+    _suggestionDebounceTimer =
+        Timer(const Duration(milliseconds: 120), () async {
       if (currentReqId != _searchRequestId) return;
       try {
         final liveMusic = await _repo.getLiveMusicSuggestions(
@@ -226,7 +231,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
     final songs = _repo.localSearch.searchSongs(library.songs, query);
     final albums = _repo.localSearch.searchAlbums(library.albums, query);
     final artists = _repo.localSearch.searchArtists(library.artists, query);
-    final playlists = _repo.localSearch.searchPlaylists(library.playlists, query);
+    final playlists =
+        _repo.localSearch.searchPlaylists(library.playlists, query);
 
     if (reqId == _searchRequestId) {
       SearchDiagnostics().recordLocalQueryEnd(reqId, resultCount: songs.length);
@@ -353,8 +359,9 @@ class SearchNotifier extends StateNotifier<SearchState> {
       final enriched = await _repo.enrichYouTubeResults(rawResults);
       stopwatch.stop();
       if (reqId == _searchRequestId) {
-        final enrichedCount =
-            enriched.where((v) => v.albumName != null && v.albumName!.isNotEmpty).length;
+        final enrichedCount = enriched
+            .where((v) => v.albumName != null && v.albumName!.isNotEmpty)
+            .length;
         SearchDiagnostics().recordEnrichmentEnd(
           reqId,
           durationMs: stopwatch.elapsedMilliseconds,
@@ -407,9 +414,9 @@ class SearchNotifier extends StateNotifier<SearchState> {
       } else {
         // Also check if existing online artists already have this artist
         final match = existingArtists.cast<ArtistModel?>().firstWhere(
-          (a) => a != null && a.name.toLowerCase() == name.toLowerCase(),
-          orElse: () => null,
-        );
+              (a) => a != null && a.name.toLowerCase() == name.toLowerCase(),
+              orElse: () => null,
+            );
         if (match != null && !resolvedArtists.any((a) => a.id == match.id)) {
           resolvedArtists.add(match);
         }
@@ -418,12 +425,14 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     // If candidate artist is not yet in resolvedArtists, query online artist repo
     for (final name in candidateNames.take(2)) {
-      if (!resolvedArtists.any((a) => a.name.toLowerCase() == name.toLowerCase())) {
+      if (!resolvedArtists
+          .any((a) => a.name.toLowerCase() == name.toLowerCase())) {
         try {
           final online = await _repo.artistRepository.searchArtists(name);
           if (online.isNotEmpty) {
             final top = online.first;
-            if (top.fanCount > 100 || DeezerArtistRepository.findCuratedByName(top.name) != null) {
+            if (top.fanCount > 100 ||
+                DeezerArtistRepository.findCuratedByName(top.name) != null) {
               if (!resolvedArtists.any((a) => a.id == top.id)) {
                 resolvedArtists.add(top);
               }
@@ -444,7 +453,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
   }
 
   @visibleForTesting
-  Future<void> enrichArtistsFromSongsForTesting(String query, List<YouTubeVideo> youtube) async {
+  Future<void> enrichArtistsFromSongsForTesting(
+      String query, List<YouTubeVideo> youtube) async {
     await _enrichArtistsFromSongs(query, youtube, _searchRequestId);
   }
 

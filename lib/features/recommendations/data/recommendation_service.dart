@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../core/network/network_request_coordinator.dart';
 import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 import '../../history/data/supabase_listening_history_repository.dart';
@@ -428,6 +429,7 @@ class RecommendationService {
         page: page,
         limit: limit,
         preferredLanguages: preferredLanguages,
+        priority: NetworkPriority.backgroundDiscovery,
       );
 
       final seenIds = <String>{};

@@ -35,7 +35,10 @@ class ArtworkCache {
     // JPEG: FF D8 FF
     if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return true;
     // PNG: 89 50 4E 47
-    if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+    if (bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
       return true;
     }
     // WEBP: RIFF....WEBP
@@ -203,10 +206,12 @@ class ArtworkCache {
           await Future<void>.delayed(const Duration(milliseconds: 300));
           continue;
         }
-        debugPrint('[ArtworkCache] Image download/validation failed for $url: $e');
+        debugPrint(
+            '[ArtworkCache] Image download/validation failed for $url: $e');
         return null;
       } catch (e) {
-        debugPrint('[ArtworkCache] Image download/validation failed for $url: $e');
+        debugPrint(
+            '[ArtworkCache] Image download/validation failed for $url: $e');
         return null;
       }
     }
@@ -240,7 +245,8 @@ class ArtworkCache {
       if (box != null && box.containsKey(cacheKey)) {
         final raw = box.get(cacheKey);
         if (raw is Map) {
-          final resolved = ResolvedArtwork.fromJson(Map<String, dynamic>.from(raw));
+          final resolved =
+              ResolvedArtwork.fromJson(Map<String, dynamic>.from(raw));
           _putInMemory(cacheKey, resolved);
           return resolved;
         }
@@ -270,7 +276,8 @@ class ArtworkCache {
           artwork.source == ArtworkSource.neutralFallback ||
           artwork.confidence < 0.70;
       if (existingIsAuthoritative && newIsFallback) {
-        debugPrint('[ArtworkDiag] Overwrite blocked: Preserving authoritative ${existing.source.name} album artwork against ${artwork.source.name} fallback for key: $cacheKey');
+        debugPrint(
+            '[ArtworkDiag] Overwrite blocked: Preserving authoritative ${existing.source.name} album artwork against ${artwork.source.name} fallback for key: $cacheKey');
         return;
       }
     }

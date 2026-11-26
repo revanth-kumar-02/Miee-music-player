@@ -52,9 +52,9 @@ class NetworkRequestCoordinator {
   NetworkRequestCoordinator({
     this.maxConcurrent = 4,
     this.reservedInteractiveSlots = 1,
-  }) : assert(maxConcurrent >= 2),
-       assert(reservedInteractiveSlots >= 0 &&
-           reservedInteractiveSlots < maxConcurrent);
+  })  : assert(maxConcurrent >= 2),
+        assert(reservedInteractiveSlots >= 0 &&
+            reservedInteractiveSlots < maxConcurrent);
 
   int get activeCount => _activeCount;
   int get pendingCount => _pending.length;
@@ -86,8 +86,7 @@ class NetworkRequestCoordinator {
 
   bool _canStartImmediately(NetworkPriority priority) {
     if (_activeCount >= maxConcurrent) return false;
-    final isBackground =
-        priority == NetworkPriority.backgroundDiscovery ||
+    final isBackground = priority == NetworkPriority.backgroundDiscovery ||
         priority == NetworkPriority.suggestionsAndEnrichment;
     if (!isBackground) return true;
 
