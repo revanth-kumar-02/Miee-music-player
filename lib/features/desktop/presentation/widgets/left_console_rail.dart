@@ -73,22 +73,28 @@ class LeftConsoleRail extends ConsumerWidget {
                       icon: Icons.album_outlined,
                       activeIcon: Icons.album,
                       label: 'Now Spinning',
-                      isSelected: activeSection == DesktopNavSection.nowSpinning,
-                      onTap: () => onSectionChanged(DesktopNavSection.nowSpinning),
+                      isSelected:
+                          activeSection == DesktopNavSection.nowSpinning,
+                      onTap: () =>
+                          onSectionChanged(DesktopNavSection.nowSpinning),
                     ),
                     _buildNavItem(
                       icon: Icons.graphic_eq_rounded,
                       activeIcon: Icons.graphic_eq_rounded,
                       label: 'Crates & Mixes',
-                      isSelected: activeSection == DesktopNavSection.cratesAndMixes,
-                      onTap: () => onSectionChanged(DesktopNavSection.cratesAndMixes),
+                      isSelected:
+                          activeSection == DesktopNavSection.cratesAndMixes,
+                      onTap: () =>
+                          onSectionChanged(DesktopNavSection.cratesAndMixes),
                     ),
                     _buildNavItem(
                       icon: Icons.grid_view_rounded,
                       activeIcon: Icons.grid_view_rounded,
                       label: 'Studio Catalog',
-                      isSelected: activeSection == DesktopNavSection.studioCatalog,
-                      onTap: () => onSectionChanged(DesktopNavSection.studioCatalog),
+                      isSelected:
+                          activeSection == DesktopNavSection.studioCatalog,
+                      onTap: () =>
+                          onSectionChanged(DesktopNavSection.studioCatalog),
                     ),
 
                     const SizedBox(height: 24),
@@ -100,22 +106,28 @@ class LeftConsoleRail extends ConsumerWidget {
                       activeIcon: Icons.favorite_rounded,
                       label: 'Heavy Rotation',
                       badge: favoritesCount > 0 ? '$favoritesCount' : null,
-                      isSelected: activeSection == DesktopNavSection.heavyRotation,
-                      onTap: () => onSectionChanged(DesktopNavSection.heavyRotation),
+                      isSelected:
+                          activeSection == DesktopNavSection.heavyRotation,
+                      onTap: () =>
+                          onSectionChanged(DesktopNavSection.heavyRotation),
                     ),
                     _buildNavItem(
                       icon: Icons.history_rounded,
                       activeIcon: Icons.history_rounded,
                       label: 'Session History',
-                      isSelected: activeSection == DesktopNavSection.sessionHistory,
-                      onTap: () => onSectionChanged(DesktopNavSection.sessionHistory),
+                      isSelected:
+                          activeSection == DesktopNavSection.sessionHistory,
+                      onTap: () =>
+                          onSectionChanged(DesktopNavSection.sessionHistory),
                     ),
                     _buildNavItem(
                       icon: Icons.radio_button_checked_rounded,
                       activeIcon: Icons.radio_button_checked_rounded,
                       label: 'Master Albums',
-                      isSelected: activeSection == DesktopNavSection.masterAlbums,
-                      onTap: () => onSectionChanged(DesktopNavSection.masterAlbums),
+                      isSelected:
+                          activeSection == DesktopNavSection.masterAlbums,
+                      onTap: () =>
+                          onSectionChanged(DesktopNavSection.masterAlbums),
                     ),
 
                     const SizedBox(height: 24),
@@ -140,7 +152,12 @@ class LeftConsoleRail extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    ...playlists.take(8).map((p) => _buildCrateItem(p.name, p.tracks.length)),
+                    ...playlists.take(8).map((p) => _buildCrateItem(
+                          p.name,
+                          p.tracks.length,
+                          onTap: () =>
+                              onSectionChanged(DesktopNavSection.cratesAndMixes),
+                        )),
                   ],
                 ),
               ),
@@ -191,10 +208,12 @@ class LeftConsoleRail extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
             decoration: BoxDecoration(
-              color: MidnightVelvetTokens.amberChampagne.withValues(alpha: 0.15),
+              color:
+                  MidnightVelvetTokens.amberChampagne.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(4),
               border: Border.all(
-                color: MidnightVelvetTokens.amberChampagne.withValues(alpha: 0.4),
+                color:
+                    MidnightVelvetTokens.amberChampagne.withValues(alpha: 0.4),
                 width: 0.8,
               ),
             ),
@@ -243,10 +262,14 @@ class LeftConsoleRail extends ConsumerWidget {
             height: 40,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: isSelected ? MidnightVelvetTokens.surfaceCard : Colors.transparent,
+              color: isSelected
+                  ? MidnightVelvetTokens.surfaceCard
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
               border: isSelected
-                  ? Border.all(color: MidnightVelvetTokens.hairlineRimHighlight, width: 1.0)
+                  ? Border.all(
+                      color: MidnightVelvetTokens.hairlineRimHighlight,
+                      width: 1.0)
                   : null,
             ),
             child: Row(
@@ -283,7 +306,8 @@ class LeftConsoleRail extends ConsumerWidget {
                       color: isSelected
                           ? MidnightVelvetTokens.textDisplay
                           : MidnightVelvetTokens.textSecondary,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -291,9 +315,11 @@ class LeftConsoleRail extends ConsumerWidget {
                 ),
                 if (badge != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: MidnightVelvetTokens.primaryEmber.withValues(alpha: 0.15),
+                      color: MidnightVelvetTokens.primaryEmber
+                          .withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -312,11 +338,11 @@ class LeftConsoleRail extends ConsumerWidget {
     );
   }
 
-  Widget _buildCrateItem(String name, int trackCount) {
+  Widget _buildCrateItem(String name, int trackCount, {VoidCallback? onTap}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 8),
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         hoverColor: MidnightVelvetTokens.surfaceCardHover,
         child: Padding(

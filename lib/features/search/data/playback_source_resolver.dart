@@ -198,6 +198,7 @@ class PlaybackSourceResolver {
     String? durationStr,
     int? durationMs,
     String? album,
+    Set<String> excludeVideoIds = const {},
   }) async {
     final cleanTitle = _cleanQueryText(title);
     final cleanArtist = _cleanQueryText(artist);
@@ -216,12 +217,16 @@ class PlaybackSourceResolver {
 
     if (_resolvedCandidateCache.containsKey(cacheKey)) {
       final cached = _resolvedCandidateCache[cacheKey]!;
+      if (!excludeVideoIds.contains(cached.id)) {
+        debugPrint(
+            '[PlaybackSourceResolver] Cache HIT for $cacheKey -> ${cached.id}');
+        return cached;
+      }
       debugPrint(
-          '[PlaybackSourceResolver] Cache HIT for $cacheKey -> ${cached.id}');
-      return cached;
+          '[PlaybackSourceResolver] Cache SKIPPED for $cacheKey (excluded ${cached.id})');
     }
 
-    if (_inFlightResolutions.containsKey(cacheKey)) {
+    if (excludeVideoIds.isEmpty && _inFlightResolutions.containsKey(cacheKey)) {
       return await _inFlightResolutions[cacheKey]!;
     }
 
@@ -230,14 +235,21 @@ class PlaybackSourceResolver {
       cleanArtist: cleanArtist,
       targetSec: targetSec,
       album: cleanAlbum,
+      excludeVideoIds: excludeVideoIds,
     ).whenComplete(() {
-      _inFlightResolutions.remove(cacheKey);
+      if (excludeVideoIds.isEmpty) {
+        _inFlightResolutions.remove(cacheKey);
+      }
     });
 
-    _inFlightResolutions[cacheKey] = future;
+    if (excludeVideoIds.isEmpty) {
+      _inFlightResolutions[cacheKey] = future;
+    }
     final resolved = await future;
 
-    if (resolved != null && isValidYouTubeVideoId(resolved.id)) {
+    if (resolved != null &&
+        isValidYouTubeVideoId(resolved.id) &&
+        !excludeVideoIds.contains(resolved.id)) {
       if (_resolvedCandidateCache.length >= _maxCacheSize) {
         _resolvedCandidateCache.remove(_resolvedCandidateCache.keys.first);
       }
@@ -454,6 +466,7 @@ class PlaybackSourceResolver {
     required String cleanArtist,
     required int targetSec,
     String? album,
+    Set<String> excludeVideoIds = const {},
   }) async {
     final queries = _buildSearchQueries(
       cleanTitle: cleanTitle,
@@ -489,6 +502,7 @@ class PlaybackSourceResolver {
         cleanArtist: cleanArtist,
         targetDurationSec: targetSec,
         album: album,
+        excludeVideoIds: excludeVideoIds,
       );
 
       if (batchBest != null) {
@@ -588,10 +602,12 @@ class PlaybackSourceResolver {
     required String cleanArtist,
     required int targetDurationSec,
     String? album,
+    Set<String> excludeVideoIds = const {},
   }) {
     _ScoredCandidate? best;
     for (final candidate in candidates) {
       if (!isValidYouTubeVideoId(candidate.id)) continue;
+      if (excludeVideoIds.contains(candidate.id)) continue;
 
       final candScore = _evaluateCandidate(
         candidate: candidate,

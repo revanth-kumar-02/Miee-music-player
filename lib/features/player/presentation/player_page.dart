@@ -73,6 +73,10 @@ class PlayerPage extends ConsumerWidget {
         ref.watch(playerControllerProvider.select((s) => s.repeatMode));
     final playingFrom =
         ref.watch(playerControllerProvider.select((s) => s.playingFrom));
+    final playbackError =
+        ref.watch(playerControllerProvider.select((s) => s.errorMessage));
+    final playbackStatus =
+        ref.watch(playerControllerProvider.select((s) => s.status));
     final controller = ref.read(playerControllerProvider.notifier);
 
     final hasTrack = currentTrack != null;
@@ -316,6 +320,68 @@ class PlayerPage extends ConsumerWidget {
                               ),
                             ],
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    if ((playbackStatus == PlaybackStatus.error ||
+                            (playbackError != null &&
+                                playbackError.isNotEmpty)) &&
+                        playbackError != null &&
+                        playbackError.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.redAccent.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: Colors.redAccent,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                playbackError,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.geist(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.denseObsidian,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: hasTrack
+                                  ? () => controller.playTrack(currentTrack)
+                                  : () => controller.play(),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                foregroundColor: AppColors.electricCobalt,
+                              ),
+                              child: Text(
+                                'Retry',
+                                style: GoogleFonts.geist(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -570,6 +636,10 @@ class PlayerPage extends ConsumerWidget {
         ref.watch(playerControllerProvider.select((s) => s.position));
     final duration =
         ref.watch(playerControllerProvider.select((s) => s.duration));
+    final playbackError =
+        ref.watch(playerControllerProvider.select((s) => s.errorMessage));
+    final playbackStatus =
+        ref.watch(playerControllerProvider.select((s) => s.status));
     final hasTrack = currentTrack != null;
     final progress = (duration.inMilliseconds > 0)
         ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
@@ -1014,6 +1084,64 @@ class PlayerPage extends ConsumerWidget {
                             SizedBox(height: metaBottomGap),
 
                             // 4. Discrete Waveform Audio Scrubber (Aligned with artwork width)
+                            if ((playbackStatus == PlaybackStatus.error ||
+                                    (playbackError != null &&
+                                        playbackError.isNotEmpty)) &&
+                                playbackError != null &&
+                                playbackError.isNotEmpty) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                margin: const EdgeInsets.only(bottom: 10),
+                                decoration: BoxDecoration(
+                                  color:
+                                      Colors.redAccent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.redAccent
+                                        .withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline_rounded,
+                                      color: Colors.redAccent,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        playbackError,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: MieeWebColors.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextButton(
+                                      onPressed: hasTrack
+                                          ? () =>
+                                              controller.playTrack(currentTrack)
+                                          : () => controller.play(),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             Column(
                               children: [
                                 DiscreteWaveformScrubber(

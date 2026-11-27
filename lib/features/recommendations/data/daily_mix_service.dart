@@ -278,7 +278,20 @@ class DailyMixService {
       ...profileArtists,
     }.take(8).toList();
 
-    // Fallback to static curated artists if cold start
+    // Derive artists from live trending charts before falling back to static curated list
+    if (favoriteArtistNames.isEmpty && trendingTracks.isNotEmpty) {
+      for (final t in trendingTracks) {
+        final a = t.artist.trim();
+        if (a.isNotEmpty &&
+            a.toLowerCase() != 'unknown artist' &&
+            !favoriteArtistNames.contains(a)) {
+          favoriteArtistNames.add(a);
+          if (favoriteArtistNames.length >= 6) break;
+        }
+      }
+    }
+
+    // Last-resort offline fallback if both user affinity and live charts are empty
     if (favoriteArtistNames.isEmpty) {
       favoriteArtistNames.addAll(
         DeezerArtistRepository.staticCuratedArtists.take(6).map((a) => a.name),

@@ -19,6 +19,7 @@ import '../../youtube/presentation/widgets/youtube_result_tile.dart';
 import '../../recommendations/providers/recommendation_providers.dart';
 import '../../recommendations/data/recommendation_service.dart';
 import '../../library/providers/library_providers.dart';
+import '../../../shared/models/music_item.dart';
 import '../../../shared/models/track.dart';
 import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
@@ -110,10 +111,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     // Validation: Canonical MusicBrainz, iTunes, and verified album entries are verified studio recordings.
     final isApprovedMusic = playableVideo.metadataProvider == 'musicbrainz' ||
         playableVideo.metadataProvider == 'itunes' ||
-        (playableVideo.albumName != null && playableVideo.albumName!.isNotEmpty) ||
+        (playableVideo.albumName != null &&
+            playableVideo.albumName!.isNotEmpty) ||
         MusicResultClassifier.isValidIndividualSong(playableVideo,
             query: _searchQuery) ||
-        MusicResultClassifier.isValidMusicTrack(playableVideo, query: _searchQuery);
+        MusicResultClassifier.isValidMusicTrack(playableVideo,
+            query: _searchQuery);
     if (!isApprovedMusic) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -125,7 +128,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
 
     final isLoading = ref.read(playerControllerProvider.select((s) =>
-        s.loadingTrackId != null && isSameTrackId(s.loadingTrackId, playableVideo.id)));
+        s.loadingTrackId != null &&
+        isSameTrackId(s.loadingTrackId, playableVideo.id)));
     if (isLoading) return;
 
     final tapToken = ++_playTapToken;
@@ -139,12 +143,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         album: playableVideo.albumName,
       );
       if (!mounted || tapToken != _playTapToken) return;
-      if (resolvedId != null && PlaybackSourceResolver.isValidYouTubeVideoId(resolvedId)) {
+      if (resolvedId != null &&
+          PlaybackSourceResolver.isValidYouTubeVideoId(resolvedId)) {
         playableVideo = playableVideo.copyWith(id: resolvedId);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No authentic playback source found for this recording.'),
+            content:
+                Text('No authentic playback source found for this recording.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -511,23 +517,47 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     List<Track> favorites,
     RecommendationSections? recs,
   ) {
-    const popularSearches = [
-      (
-        title: 'Lo-fi Beats',
-        asset: 'assets/images/banner_discover.png',
-        query: 'Lo-fi Beats chill study'
-      ),
-      (
-        title: 'Focus Mix',
-        asset: 'assets/images/banner_your_music.png',
-        query: 'Deep focus ambient instrumental'
-      ),
-      (
-        title: 'Anime OST',
-        asset: 'assets/images/banner_listen_together.png',
-        query: 'Anime soundtrack orchestral'
-      ),
-    ];
+    final recentSearches = ref.watch(searchHistoryProvider);
+    final dynamicPopular = <({String title, String query, MusicItem? item})>[];
+    final seenPopular = <String>{};
+
+    if (recs != null) {
+      for (final track in [...recs.popularTracks, ...recs.recentReleases]) {
+        final cleanTitle = track.displayTitle.trim();
+        if (cleanTitle.isEmpty) continue;
+        final key = cleanTitle.toLowerCase();
+        if (seenPopular.add(key)) {
+          dynamicPopular.add((
+            title: cleanTitle,
+            query: '${track.artist} $cleanTitle'.trim(),
+            item: track,
+          ));
+        }
+        if (dynamicPopular.length >= 4) break;
+      }
+    }
+
+    if (dynamicPopular.length < 4) {
+      for (final q in recentSearches) {
+        final trimmed = q.trim();
+        if (trimmed.isEmpty) continue;
+        if (seenPopular.add(trimmed.toLowerCase())) {
+          dynamicPopular.add((title: trimmed, query: trimmed, item: null));
+        }
+        if (dynamicPopular.length >= 4) break;
+      }
+    }
+
+    if (dynamicPopular.isEmpty) {
+      for (final fallback in const [
+        (title: 'Top Charts', query: 'Top Global Charts'),
+        (title: 'New Releases', query: 'New Music Releases'),
+        (title: 'Acoustic', query: 'Acoustic Chill'),
+      ]) {
+        dynamicPopular
+            .add((title: fallback.title, query: fallback.query, item: null));
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,10 +750,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: popularSearches.length,
+          itemCount: dynamicPopular.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            final item = popularSearches[index];
+            final item = dynamicPopular[index];
             return InkWell(
               onTap: () => _applyHistoryQuery(item.query),
               borderRadius: BorderRadius.circular(14),
@@ -737,15 +767,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         width: 40,
                         height: 40,
                         color: AppColors.paleConcrete,
-                        child: Image.asset(
-                          item.asset,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.music_note_rounded,
-                            color: AppColors.industrialSteel,
-                            size: 20,
-                          ),
-                        ),
+                        child: item.item != null
+                            ? MieeArtworkImage(
+                                musicItem: item.item,
+                                width: 40,
+                                height: 40,
+                                borderRadius: BorderRadius.circular(10),
+                              )
+                            : const Icon(
+                                Icons.trending_up_rounded,
+                                color: AppColors.electricCobalt,
+                                size: 20,
+                              ),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -869,14 +902,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  String? _findMatchingAlbumCover(String playlistTitle, List<ArtistAlbum> onlineAlbums) {
-    final cleanTitle = playlistTitle.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  String? _findMatchingAlbumCover(
+      String playlistTitle, List<ArtistAlbum> onlineAlbums) {
+    final cleanTitle =
+        playlistTitle.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     if (cleanTitle.isEmpty) return null;
     for (final album in onlineAlbums) {
-      final albumTitle = album.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final albumTitle =
+          album.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
       if (albumTitle.isNotEmpty) {
-        if (albumTitle == cleanTitle || cleanTitle.contains(albumTitle) || albumTitle.contains(cleanTitle)) {
-          if (album.coverUrl.isNotEmpty && !album.coverUrl.contains('ytimg.com')) {
+        if (albumTitle == cleanTitle ||
+            cleanTitle.contains(albumTitle) ||
+            albumTitle.contains(cleanTitle)) {
+          if (album.coverUrl.isNotEmpty &&
+              !album.coverUrl.contains('ytimg.com')) {
             return album.coverUrl;
           }
         }
@@ -902,35 +941,36 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: ((imageUrl != null && imageUrl.isNotEmpty) || query != null)
-                  ? MieeArtworkImage(
-                      query: query,
-                      explicitUrl: imageUrl,
-                      width: 130,
-                      height: 130,
-                      borderRadius: BorderRadius.circular(12),
-                      fit: BoxFit.cover,
-                      errorWidget: Container(
-                        width: 130,
-                        height: 130,
-                        color: AppColors.softClay,
-                        child: const Icon(
-                          Icons.queue_music_rounded,
-                          color: AppColors.mutedMauve,
-                          size: 36,
+              child:
+                  ((imageUrl != null && imageUrl.isNotEmpty) || query != null)
+                      ? MieeArtworkImage(
+                          query: query,
+                          explicitUrl: imageUrl,
+                          width: 130,
+                          height: 130,
+                          borderRadius: BorderRadius.circular(12),
+                          fit: BoxFit.cover,
+                          errorWidget: Container(
+                            width: 130,
+                            height: 130,
+                            color: AppColors.softClay,
+                            child: const Icon(
+                              Icons.queue_music_rounded,
+                              color: AppColors.mutedMauve,
+                              size: 36,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 130,
+                          height: 130,
+                          color: AppColors.softClay,
+                          child: const Icon(
+                            Icons.queue_music_rounded,
+                            color: AppColors.mutedMauve,
+                            size: 36,
+                          ),
                         ),
-                      ),
-                    )
-                  : Container(
-                      width: 130,
-                      height: 130,
-                      color: AppColors.softClay,
-                      child: const Icon(
-                        Icons.queue_music_rounded,
-                        color: AppColors.mutedMauve,
-                        size: 36,
-                      ),
-                    ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -988,35 +1028,36 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: ((imageUrl != null && imageUrl.isNotEmpty) || query != null)
-                    ? MieeArtworkImage(
-                        query: query,
-                        explicitUrl: imageUrl,
-                        width: 52,
-                        height: 52,
-                        borderRadius: BorderRadius.circular(10),
-                        fit: BoxFit.cover,
-                        errorWidget: Container(
-                          width: 52,
-                          height: 52,
-                          color: AppColors.softClay,
-                          child: const Icon(
-                            Icons.queue_music_rounded,
-                            color: AppColors.mutedMauve,
-                            size: 24,
+                child:
+                    ((imageUrl != null && imageUrl.isNotEmpty) || query != null)
+                        ? MieeArtworkImage(
+                            query: query,
+                            explicitUrl: imageUrl,
+                            width: 52,
+                            height: 52,
+                            borderRadius: BorderRadius.circular(10),
+                            fit: BoxFit.cover,
+                            errorWidget: Container(
+                              width: 52,
+                              height: 52,
+                              color: AppColors.softClay,
+                              child: const Icon(
+                                Icons.queue_music_rounded,
+                                color: AppColors.mutedMauve,
+                                size: 24,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: 52,
+                            height: 52,
+                            color: AppColors.softClay,
+                            child: const Icon(
+                              Icons.queue_music_rounded,
+                              color: AppColors.mutedMauve,
+                              size: 24,
+                            ),
                           ),
-                        ),
-                      )
-                    : Container(
-                        width: 52,
-                        height: 52,
-                        color: AppColors.softClay,
-                        child: const Icon(
-                          Icons.queue_music_rounded,
-                          color: AppColors.mutedMauve,
-                          size: 24,
-                        ),
-                      ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1263,36 +1304,37 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     // Exact or direct artist match
     final matchingArtist = allArtists.cast<ArtistModel?>().firstWhere(
-          (a) {
-            if (a == null) return false;
-            final aNorm = normalizeWords(a.name);
-            return aNorm == normQueryWords ||
-                a.name.toLowerCase() == cleanQuery ||
-                (a.name.toLowerCase().startsWith(cleanQuery) && a.fanCount >= 50000);
-          },
-          orElse: () => (filter == 'Artists' && allArtists.isNotEmpty
-              ? allArtists.first
-              : null),
-        );
+      (a) {
+        if (a == null) return false;
+        final aNorm = normalizeWords(a.name);
+        return aNorm == normQueryWords ||
+            a.name.toLowerCase() == cleanQuery ||
+            (a.name.toLowerCase().startsWith(cleanQuery) &&
+                a.fanCount >= 50000);
+      },
+      orElse: () => (filter == 'Artists' && allArtists.isNotEmpty
+          ? allArtists.first
+          : null),
+    );
 
     final matchingSong = state.youtubeResults.cast<YouTubeVideo?>().firstWhere(
-          (v) {
-            if (v == null) return false;
-            final t = (v.canonicalTitle ?? v.title).toLowerCase();
-            final tNorm = normalizeWords(t);
-            return tNorm == normQueryWords ||
-                t == cleanQuery ||
-                t.startsWith(cleanQuery) ||
-                cleanQuery.startsWith(t);
-          },
-          orElse: () => (state.youtubeResults.isNotEmpty
-              ? state.youtubeResults.first
-              : null),
-        );
+      (v) {
+        if (v == null) return false;
+        final t = (v.canonicalTitle ?? v.title).toLowerCase();
+        final tNorm = normalizeWords(t);
+        return tNorm == normQueryWords ||
+            t == cleanQuery ||
+            t.startsWith(cleanQuery) ||
+            cleanQuery.startsWith(t);
+      },
+      orElse: () =>
+          (state.youtubeResults.isNotEmpty ? state.youtubeResults.first : null),
+    );
 
     final hasExactArtistQuery = matchingArtist != null &&
         normalizeWords(matchingArtist.name) == normQueryWords &&
-        (DeezerArtistRepository.findCuratedByName(matchingArtist.name) != null ||
+        (DeezerArtistRepository.findCuratedByName(matchingArtist.name) !=
+                null ||
             matchingArtist.fanCount >= 50000);
 
     final hasSongMatch = matchingSong != null;
@@ -1340,7 +1382,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ],
 
         // 1. Top Result Card (Rendered in 'All' overview tab or 'Artists' tab for top artist)
-        if (filter == 'All' || (filter == 'Artists' && matchingArtist != null)) ...[
+        if (filter == 'All' ||
+            (filter == 'Artists' && matchingArtist != null)) ...[
           if (filter == 'Artists' && matchingArtist != null) ...[
             _buildTopResultCard(
               name: matchingArtist.name,
@@ -1579,102 +1622,103 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         if (showAlbums) ...[
           if (state.onlineAlbums.isNotEmpty ||
               state.localAlbums.isNotEmpty) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Albums',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.cocoaPlum,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Albums',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.cocoaPlum,
+                  ),
+                ),
+                Text(
+                  '${state.totalAlbumsCount} ${filter == 'Albums' ? 'FOUND' : 'found'}',
+                  style: GoogleFonts.geist(
+                    fontSize: 12,
+                    fontWeight: filter == 'Albums'
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: AppColors.mutedMauve,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (filter == 'Albums') ...[
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 0.78,
+                ),
+                itemCount: state.onlineAlbums.length + state.localAlbums.length,
+                itemBuilder: (context, idx) {
+                  if (idx < state.onlineAlbums.length) {
+                    final album = state.onlineAlbums[idx];
+                    return _buildAlbumCard(
+                      album.title,
+                      album.releaseDate.isNotEmpty
+                          ? album.releaseDate.split('-').first
+                          : album.artistName,
+                      album.coverUrl,
+                      isGrid: true,
+                    );
+                  } else {
+                    final album =
+                        state.localAlbums[idx - state.onlineAlbums.length];
+                    return _buildAlbumCard(
+                      album.title,
+                      album.artist,
+                      album.artworkPath,
+                      isGrid: true,
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 24),
+            ] else ...[
+              SizedBox(
+                height: 180,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    ...state.onlineAlbums.map(
+                      (album) => Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: _buildAlbumCard(
+                          album.title,
+                          album.releaseDate.isNotEmpty
+                              ? album.releaseDate.split('-').first
+                              : album.artistName,
+                          album.coverUrl,
+                        ),
+                      ),
+                    ),
+                    ...state.localAlbums.map(
+                      (album) => Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: _buildAlbumCard(
+                          album.title,
+                          album.artist,
+                          album.artworkPath,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '${state.totalAlbumsCount} ${filter == 'Albums' ? 'FOUND' : 'found'}',
-                style: GoogleFonts.geist(
-                  fontSize: 12,
-                  fontWeight:
-                      filter == 'Albums' ? FontWeight.w600 : FontWeight.normal,
-                  color: AppColors.mutedMauve,
-                ),
-              ),
+              const SizedBox(height: 24),
             ],
-          ),
-          const SizedBox(height: 12),
-          if (filter == 'Albums') ...[
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-                childAspectRatio: 0.78,
-              ),
-              itemCount: state.onlineAlbums.length + state.localAlbums.length,
-              itemBuilder: (context, idx) {
-                if (idx < state.onlineAlbums.length) {
-                  final album = state.onlineAlbums[idx];
-                  return _buildAlbumCard(
-                    album.title,
-                    album.releaseDate.isNotEmpty
-                        ? album.releaseDate.split('-').first
-                        : album.artistName,
-                    album.coverUrl,
-                    isGrid: true,
-                  );
-                } else {
-                  final album =
-                      state.localAlbums[idx - state.onlineAlbums.length];
-                  return _buildAlbumCard(
-                    album.title,
-                    album.artist,
-                    album.artworkPath,
-                    isGrid: true,
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 24),
-          ] else ...[
-            SizedBox(
-              height: 180,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  ...state.onlineAlbums.map(
-                    (album) => Padding(
-                      padding: const EdgeInsets.only(right: 14),
-                      child: _buildAlbumCard(
-                        album.title,
-                        album.releaseDate.isNotEmpty
-                            ? album.releaseDate.split('-').first
-                            : album.artistName,
-                        album.coverUrl,
-                      ),
-                    ),
-                  ),
-                  ...state.localAlbums.map(
-                    (album) => Padding(
-                      padding: const EdgeInsets.only(right: 14),
-                      child: _buildAlbumCard(
-                        album.title,
-                        album.artist,
-                        album.artworkPath,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+          ] else if (state.isArtistsLoading || state.isYouTubeLoading) ...[
+            _buildAlbumsLoadingSkeleton(),
           ],
-        ] else if (state.isArtistsLoading || state.isYouTubeLoading) ...[
-          _buildAlbumsLoadingSkeleton(),
         ],
-      ],
 
         // 5. Playlists Section
         if (showPlaylists) ...[
@@ -1721,7 +1765,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
               ...state.onlinePlaylists.map(
                 (playlist) {
-                  final matchedCover = _findMatchingAlbumCover(playlist.title, state.onlineAlbums);
+                  final matchedCover = _findMatchingAlbumCover(
+                      playlist.title, state.onlineAlbums);
                   final pQuery = ArtworkQuery.forPlaylist(
                     id: playlist.id,
                     title: playlist.title,
@@ -1731,7 +1776,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   );
                   return _buildPlaylistListTile(
                     title: playlist.title,
-                    subtitle: '${playlist.trackCount} tracks · ${playlist.author}',
+                    subtitle:
+                        '${playlist.trackCount} tracks · ${playlist.author}',
                     imageUrl: matchedCover ?? playlist.thumbnailUrl,
                     query: pQuery,
                     onTap: () => context.push(
@@ -1791,7 +1837,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     ),
                     ...state.onlinePlaylists.map(
                       (playlist) {
-                        final matchedCover = _findMatchingAlbumCover(playlist.title, state.onlineAlbums);
+                        final matchedCover = _findMatchingAlbumCover(
+                            playlist.title, state.onlineAlbums);
                         final pQuery = ArtworkQuery.forPlaylist(
                           id: playlist.id,
                           title: playlist.title,
@@ -2701,7 +2748,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   playingFrom: 'Search: ${track.artist}',
                 );
           } else {
-            ref.read(playerControllerProvider.notifier).selectTrack(track, [track]);
+            ref
+                .read(playerControllerProvider.notifier)
+                .selectTrack(track, [track]);
           }
         }
         break;

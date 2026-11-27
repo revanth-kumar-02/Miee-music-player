@@ -29,7 +29,8 @@ class DesktopSidebar extends ConsumerWidget {
       width: sidebarWidth,
       height: double.infinity,
       decoration: const BoxDecoration(
-        color: Color(0xF02A272B), // Warmer graphite with subtle bronze undertone
+        color:
+            Color(0xF02A272B), // Warmer graphite with subtle bronze undertone
         border: Border(
           right: BorderSide(
             color: Color(0x1FFFFFFF), // Subtle 1px graphite separator
@@ -53,12 +54,15 @@ class DesktopSidebar extends ConsumerWidget {
                 style: GoogleFonts.inter(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFFBA9B7B), // Warm muted champagne beige gold (measured RGB 163, 136, 111)
+                  color: const Color(
+                      0xFFBA9B7B), // Warm muted champagne beige gold (measured RGB 163, 136, 111)
                   letterSpacing: -0.2,
                 ),
               ),
 
-              const SizedBox(height: 52), // Refined vertical gap matching reference header alignment
+              const SizedBox(
+                  height:
+                      52), // Refined vertical gap matching reference header alignment
 
               // ── Core Navigation Icons ──────────────────────────────────
               Expanded(
@@ -68,7 +72,8 @@ class DesktopSidebar extends ConsumerWidget {
                   children: [
                     _buildNavItem(
                       icon: Icons.home_outlined,
-                      activeIcon: Icons.home_outlined, // Delicate thin outline matching reference
+                      activeIcon: Icons
+                          .home_outlined, // Delicate thin outline matching reference
                       section: DesktopNavSection.dashboard,
                       tooltip: 'Dashboard',
                     ),
@@ -123,7 +128,7 @@ class DesktopSidebar extends ConsumerWidget {
                 icon: Icons.info_outline_rounded,
                 tooltip: 'System Info & Diagnostics',
                 hasBadge: true,
-                onTap: () {},
+                onTap: () => onSectionChanged(DesktopNavSection.settings),
               ),
               const SizedBox(height: 12),
               _buildUtilityItem(
@@ -159,7 +164,8 @@ class DesktopSidebar extends ConsumerWidget {
               width: 2.5,
               height: 18,
               decoration: const BoxDecoration(
-                color: Color(0xFFD5AD8A), // Refined warm champagne gold (RGB 213, 173, 138)
+                color: Color(
+                    0xFFD5AD8A), // Refined warm champagne gold (RGB 213, 173, 138)
                 borderRadius: BorderRadius.horizontal(
                   right: Radius.circular(2),
                 ),
@@ -189,16 +195,19 @@ class DesktopSidebar extends ConsumerWidget {
                 height: 32,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0x385A3F2C) // Refined translucent warm bronze (measured RGB 75, 58, 48)
+                      ? const Color(
+                          0x385A3F2C) // Refined translucent warm bronze (measured RGB 75, 58, 48)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(9.5),
                 ),
                 child: Center(
                   child: Icon(
                     isSelected ? activeIcon : icon,
-                    size: 16.5, // Delicate refined outline stroke matching reference
+                    size:
+                        16.5, // Delicate refined outline stroke matching reference
                     color: isSelected
-                        ? const Color(0xFFE5C29F) // Champagne gold (never saturated orange)
+                        ? const Color(
+                            0xFFE5C29F) // Champagne gold (never saturated orange)
                         : const Color(0xFF78716C), // Muted graphite
                   ),
                 ),

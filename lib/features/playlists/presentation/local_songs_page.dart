@@ -111,7 +111,7 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
           title: 'Local Songs',
           isScrolled: _isScrolled,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: AppColors.cocoaPlum),
             onPressed: () {
               if (context.canPop()) {
                 context.pop();
@@ -123,7 +123,7 @@ class _LocalSongsPageState extends ConsumerState<LocalSongsPage> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh, color: AppColors.cocoaPlum),
               onPressed: () => ref
                   .read(mediaLibraryServiceProvider.notifier)
                   .scanDevice(forceRefresh: true),

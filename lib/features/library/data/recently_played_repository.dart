@@ -60,13 +60,8 @@ class RecentlyPlayedRepository {
       } catch (_) {}
     }
 
-    final durableTrack = Track(
-      id: track.id,
-      title: track.title,
-      artist: track.artist,
+    final durableTrack = track.copyWith(
       imageUrl: resolvedImageUrl,
-      duration: track.duration,
-      filePath: track.filePath,
     );
 
     await _box.add(HistoryEntry(
@@ -122,12 +117,8 @@ class RecentlyPlayedRepository {
                       rawTrack.artist.trim().toLowerCase()))
           .firstOrNull;
       if (match != null && match.artworkPath.isNotEmpty) {
-        return Track(
-          id: rawTrack.id,
-          title: rawTrack.title,
-          artist: rawTrack.artist,
+        return rawTrack.copyWith(
           imageUrl: match.artworkPath,
-          duration: rawTrack.duration,
           filePath:
               rawTrack.filePath.isNotEmpty ? rawTrack.filePath : match.filePath,
         );

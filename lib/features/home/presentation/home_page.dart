@@ -181,7 +181,10 @@ class _HomePageState extends ConsumerState<HomePage> {
               const SizedBox(height: 32),
             ],
 
-            const SizedBox(height: 80),
+            SizedBox(
+                height: isDesktop
+                    ? 32.0
+                    : 120.0 + MediaQuery.of(context).padding.bottom),
           ],
         ),
       ),

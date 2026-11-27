@@ -85,20 +85,35 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<int> _calculateCacheSize() async {
     if (kIsWeb) return 0;
+    int total = 0;
     try {
-      final tempDir = await getTemporaryDirectory();
-      int total = 0;
-      if (await tempDir.exists()) {
-        await for (final file in tempDir.list(recursive: false, followLinks: false)) {
-          if (file is File && (file.path.endsWith('.png') || file.path.endsWith('.cache'))) {
+      final docDir = await getApplicationDocumentsDirectory();
+      final artDir = Directory('${docDir.path}/artwork_cache');
+      if (await artDir.exists()) {
+        await for (final file
+            in artDir.list(recursive: true, followLinks: false)) {
+          if (file is File) {
             total += await file.length();
           }
         }
       }
-      return total;
-    } catch (_) {
-      return 0;
-    }
+    } catch (_) {}
+    try {
+      final tempDir = await getTemporaryDirectory();
+      if (await tempDir.exists()) {
+        await for (final file
+            in tempDir.list(recursive: false, followLinks: false)) {
+          if (file is File &&
+              (file.path.endsWith('.png') ||
+                  file.path.endsWith('.jpg') ||
+                  file.path.endsWith('.img') ||
+                  file.path.endsWith('.cache'))) {
+            total += await file.length();
+          }
+        }
+      }
+    } catch (_) {}
+    return total;
   }
 
   Future<int> _calculateDatabaseSize() async {
@@ -107,8 +122,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       final docDir = await getApplicationDocumentsDirectory();
       int total = 0;
       if (await docDir.exists()) {
-        await for (final file in docDir.list(recursive: false, followLinks: false)) {
-          if (file is File && (file.path.endsWith('.hive') || file.path.endsWith('.box'))) {
+        await for (final file
+            in docDir.list(recursive: false, followLinks: false)) {
+          if (file is File &&
+              (file.path.endsWith('.hive') || file.path.endsWith('.box'))) {
             total += await file.length();
           }
         }
@@ -122,10 +139,26 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Future<void> _clearArtworkCache() async {
     if (kIsWeb) return;
     try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final artDir = Directory('${docDir.path}/artwork_cache');
+      if (await artDir.exists()) {
+        await for (final file
+            in artDir.list(recursive: true, followLinks: false)) {
+          if (file is File) {
+            try {
+              await file.delete();
+            } catch (_) {}
+          }
+        }
+      }
       final tempDir = await getTemporaryDirectory();
       if (await tempDir.exists()) {
-        await for (final file in tempDir.list(recursive: true, followLinks: false)) {
-          if (file is File && file.path.endsWith('.png')) {
+        await for (final file
+            in tempDir.list(recursive: true, followLinks: false)) {
+          if (file is File &&
+              (file.path.endsWith('.png') ||
+                  file.path.endsWith('.jpg') ||
+                  file.path.endsWith('.img'))) {
             try {
               await file.delete();
             } catch (_) {}
@@ -151,7 +184,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     try {
       final tempDir = await getTemporaryDirectory();
       if (await tempDir.exists()) {
-        await for (final file in tempDir.list(recursive: true, followLinks: false)) {
+        await for (final file
+            in tempDir.list(recursive: true, followLinks: false)) {
           if (file is File) {
             try {
               await file.delete();
@@ -181,7 +215,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       await ref.read(searchHistoryProvider.notifier).clearAll();
       final tempDir = await getTemporaryDirectory();
       if (await tempDir.exists()) {
-        await for (final file in tempDir.list(recursive: true, followLinks: false)) {
+        await for (final file
+            in tempDir.list(recursive: true, followLinks: false)) {
           if (file is File) {
             try {
               await file.delete();
@@ -192,7 +227,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       await _loadStats();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All databases, cache, and preferences have been reset.')),
+          const SnackBar(
+              content: Text(
+                  'All databases, cache, and preferences have been reset.')),
         );
       }
     } catch (e) {
@@ -228,7 +265,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       );
 
-      await ref.read(mediaLibraryServiceProvider.notifier).scanDevice(forceRefresh: true);
+      await ref
+          .read(mediaLibraryServiceProvider.notifier)
+          .scanDevice(forceRefresh: true);
 
       if (!mounted) return;
 
@@ -252,7 +291,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         final now = DateTime.now();
         final scanStr =
             '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-        await ref.read(settingsControllerProvider.notifier).updateLastScanTime(scanStr);
+        await ref
+            .read(settingsControllerProvider.notifier)
+            .updateLastScanTime(scanStr);
         await _loadStats();
 
         if (!mounted) return;
@@ -301,7 +342,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final authUser = ref.watch(currentAuthUserProvider);
     final isGuest = ref.watch(guestModeProvider);
 
-    final isGuestSession = isGuest || authUser == null || authUser.isAnonymous || profile.isGuest;
+    final isGuestSession =
+        isGuest || authUser == null || authUser.isAnonymous || profile.isGuest;
 
     final String resolvedDisplayName;
     final String? resolvedUsername;
@@ -313,31 +355,37 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       isUserAuthenticated = false;
     } else {
       isUserAuthenticated = true;
-      resolvedDisplayName = (cloudProfile?.displayName.trim().isNotEmpty == true &&
-              cloudProfile?.displayName != 'Miee Listener' &&
-              cloudProfile?.displayName != 'Miee User')
-          ? cloudProfile!.displayName
-          : (authUser.displayName != null &&
-                  authUser.displayName!.trim().isNotEmpty &&
-                  authUser.displayName != 'Miee Listener' &&
-                  authUser.displayName != 'Miee User')
-              ? authUser.displayName!
-              : (profile.displayName.isNotEmpty &&
-                      profile.displayName != 'Miee User' &&
-                      profile.displayName != 'Miee Listener')
-                  ? profile.displayName
-                  : (authUser.email.isNotEmpty
-                      ? authUser.email.split('@').first
-                      : 'Miee User');
+      resolvedDisplayName =
+          (cloudProfile?.displayName.trim().isNotEmpty == true &&
+                  cloudProfile?.displayName != 'Miee Listener' &&
+                  cloudProfile?.displayName != 'Miee User')
+              ? cloudProfile!.displayName
+              : (authUser.displayName != null &&
+                      authUser.displayName!.trim().isNotEmpty &&
+                      authUser.displayName != 'Miee Listener' &&
+                      authUser.displayName != 'Miee User')
+                  ? authUser.displayName!
+                  : (profile.displayName.isNotEmpty &&
+                          profile.displayName != 'Miee User' &&
+                          profile.displayName != 'Miee Listener')
+                      ? profile.displayName
+                      : (authUser.email.isNotEmpty
+                          ? authUser.email.split('@').first
+                          : 'Miee User');
 
-      resolvedUsername = (profile.username != null && profile.username!.isNotEmpty)
-          ? profile.username!
-          : (resolvedDisplayName != 'Miee User' && resolvedDisplayName != 'Miee Listener')
-              ? resolvedDisplayName.toLowerCase().replaceAll(RegExp(r'\s+'), '_')
-              : null;
+      resolvedUsername =
+          (profile.username != null && profile.username!.isNotEmpty)
+              ? profile.username!
+              : (resolvedDisplayName != 'Miee User' &&
+                      resolvedDisplayName != 'Miee Listener')
+                  ? resolvedDisplayName
+                      .toLowerCase()
+                      .replaceAll(RegExp(r'\s+'), '_')
+                  : null;
     }
 
-    final resolvedAvatarUrl = (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
+    final resolvedAvatarUrl = (profile.profilePicturePath != null &&
+            profile.profilePicturePath!.isNotEmpty)
         ? profile.profilePicturePath
         : (!isGuestSession && cloudProfile?.avatarUrl?.isNotEmpty == true
             ? cloudProfile!.avatarUrl
@@ -361,7 +409,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         appBar: AppHeader(
           title: 'Settings',
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.cocoaPlum),
+            icon: const Icon(Icons.arrow_back_rounded,
+                color: AppColors.cocoaPlum),
             tooltip: 'Back',
             onPressed: () {
               if (context.canPop()) {
@@ -372,96 +421,107 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             },
           ),
         ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 820),
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 24.0 : 16.0,
-                vertical: 12.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── 1. ACCOUNT ──
-                  _buildSectionHeader('Account'),
-                  _buildSectionCard(
-                    children: [
-                      _buildAccountProfileTile(
-                        context,
-                        profile: profile,
-                        avatarUrl: resolvedAvatarUrl,
-                        displayName: resolvedDisplayName,
-                        username: resolvedUsername,
-                        email: isUserAuthenticated ? authUser?.email : null,
-                        isAuthenticated: isUserAuthenticated,
-                      ),
-                      if (!isUserAuthenticated) ...[
-                        const Divider(height: 1, color: AppColors.oatBeige),
-                        ListTile(
-                          leading: const Icon(Icons.login_rounded, color: AppColors.cocoaPlum),
-                          title: const Text(
-                            'Sign In or Register',
-                            style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                          ),
-                          subtitle: const Text(
-                            'Sync favorites and playlists across all your devices',
-                            style: TextStyle(color: AppColors.mutedMauve),
-                          ),
-                          trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                          onTap: () => context.push('/login'),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 24.0 : 16.0,
+                  vertical: 12.0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── 1. ACCOUNT ──
+                    _buildSectionHeader('Account'),
+                    _buildSectionCard(
+                      children: [
+                        _buildAccountProfileTile(
+                          context,
+                          profile: profile,
+                          avatarUrl: resolvedAvatarUrl,
+                          displayName: resolvedDisplayName,
+                          username: resolvedUsername,
+                          email: isUserAuthenticated ? authUser?.email : null,
+                          isAuthenticated: isUserAuthenticated,
                         ),
-                      ] else ...[
-                        const Divider(height: 1, color: AppColors.oatBeige),
+                        if (!isUserAuthenticated) ...[
+                          const Divider(height: 1, color: AppColors.oatBeige),
+                          ListTile(
+                            leading: const Icon(Icons.login_rounded,
+                                color: AppColors.cocoaPlum),
+                            title: const Text(
+                              'Sign In or Register',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.cocoaPlum),
+                            ),
+                            subtitle: const Text(
+                              'Sync favorites and playlists across all your devices',
+                              style: TextStyle(color: AppColors.mutedMauve),
+                            ),
+                            trailing: const Icon(Icons.chevron_right,
+                                color: AppColors.mutedMauve),
+                            onTap: () => context.push('/login'),
+                          ),
+                        ] else ...[
+                          const Divider(height: 1, color: AppColors.oatBeige),
+                          ListTile(
+                            leading: const Icon(Icons.logout_rounded,
+                                color: Colors.redAccent),
+                            title: const Text(
+                              'Sign Out',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.redAccent),
+                            ),
+                            subtitle: Text(
+                              'Signed in as ${authUser?.email}',
+                              style:
+                                  const TextStyle(color: AppColors.mutedMauve),
+                            ),
+                            onTap: () => _confirmSignOut(context),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    // ── 2. PERSONALIZATION ──
+                    _buildSectionHeader('Personalization'),
+                    _buildSectionCard(
+                      children: [
                         ListTile(
-                          leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                          leading: const Icon(Icons.mic_external_on_outlined,
+                              color: AppColors.cocoaPlum),
                           title: const Text(
-                            'Sign Out',
-                            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent),
+                            'Favourite Artists',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
                           ),
                           subtitle: Text(
-                            'Signed in as ${authUser?.email}',
+                            selectedArtists.isNotEmpty
+                                ? '${selectedArtists.length} artists selected for your feed'
+                                : (profile.favoriteArtist.isNotEmpty &&
+                                        profile.favoriteArtist !=
+                                            'Unknown Artist'
+                                    ? 'Primary: ${profile.favoriteArtist}'
+                                    : 'Select artists to tailor your recommendations'),
                             style: const TextStyle(color: AppColors.mutedMauve),
                           ),
-                          onTap: () => _confirmSignOut(context),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.mutedMauve),
+                          onTap: () => context.push('/favourite-artists'),
                         ),
-                      ],
-                    ],
-                  ),
-
-                  // ── 2. PERSONALIZATION ──
-                  _buildSectionHeader('Personalization'),
-                  _buildSectionCard(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.mic_external_on_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Favourite Artists',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: Text(
-                          selectedArtists.isNotEmpty
-                              ? '${selectedArtists.length} artists selected for your feed'
-                              : (profile.favoriteArtist.isNotEmpty && profile.favoriteArtist != 'Unknown Artist'
-                                  ? 'Primary: ${profile.favoriteArtist}'
-                                  : 'Select artists to tailor your recommendations'),
-                          style: const TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () => context.push('/favourite-artists'),
-                      ),
-                      if (selectedArtists.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 12.0),
-                          child: SizedBox(
-                            height: 36.0,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: selectedArtists.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 8.0),
-                              itemBuilder: (context, index) {
-                                final artist = selectedArtists[index];
+                        if (selectedArtists.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                                16.0, 0.0, 16.0, 12.0),
+                            child: Wrap(
+                              spacing: 8.0,
+                              runSpacing: 8.0,
+                              children: selectedArtists.map((artist) {
                                 return Chip(
                                   label: Text(
                                     artist.name,
@@ -472,486 +532,631 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                     ),
                                   ),
                                   backgroundColor: AppColors.surfaceContainer,
-                                  side: BorderSide(color: AppColors.oatBeige.withOpacity(0.8)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                  side: BorderSide(
+                                      color:
+                                          AppColors.oatBeige.withOpacity(0.8)),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6.0, vertical: 2.0),
                                 );
-                              },
+                              }).toList(),
                             ),
                           ),
-                        ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.tune_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Preferred Playback Source',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: Text(
-                          settings.preferredSource == 'preferLocal'
-                              ? 'Prefer Local Audio'
-                              : settings.preferredSource == 'preferYouTube'
-                                  ? 'Prefer YouTube Music'
-                                  : 'Ask Every Time',
-                          style: const TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        trailing: DropdownButton<String>(
-                          value: settings.preferredSource,
-                          underline: const SizedBox(),
-                          icon: const Icon(Icons.arrow_drop_down, color: AppColors.cocoaPlum),
-                          items: const [
-                            DropdownMenuItem(value: 'preferLocal', child: Text('Prefer Local')),
-                            DropdownMenuItem(value: 'preferYouTube', child: Text('Prefer YouTube')),
-                            DropdownMenuItem(value: 'askEveryTime', child: Text('Ask Every Time')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) settingsNotifier.updatePreferredSource(val);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // ── 3. MUSIC LIBRARY ──
-                  _buildSectionHeader('Music Library'),
-                  _buildSectionCard(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.sync_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Rescan Music Library',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: settings.lastScanTime != null
-                            ? Text('Last scanned: ${settings.lastScanTime}',
-                                style: const TextStyle(color: AppColors.mutedMauve))
-                            : const Text('Scan directories for offline audio files',
-                                style: TextStyle(color: AppColors.mutedMauve)),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () async {
-                          if (_isRefreshingMetadata || ref.read(loadingStateProvider)) return;
-                          final messenger = ScaffoldMessenger.of(context);
-                          messenger.showSnackBar(
-                            const SnackBar(content: Text('Scanning local library...')),
-                          );
-                          await ref.read(mediaLibraryServiceProvider.notifier).scanDevice(forceRefresh: true);
-                          final now = DateTime.now();
-                          final scanStr =
-                              '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-                          await settingsNotifier.updateLastScanTime(scanStr);
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Library scan completed! Found ${ref.read(songsProvider).length} songs.'),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.refresh_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Refresh Metadata',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Reload tags and local file information',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        trailing: _isRefreshingMetadata
-                            ? const SizedBox(
-                                width: 18.0,
-                                height: 18.0,
-                                child: CircularProgressIndicator(strokeWidth: 2.0, color: AppColors.dustyRose),
-                              )
-                            : const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: _isRefreshingMetadata ? null : _refreshMetadata,
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatBadge('Songs', localSongs.length.toString()),
-                            _buildStatBadge('Albums', localAlbums.length.toString()),
-                            _buildStatBadge('Artists', localArtists.length.toString()),
-                          ],
-                        ),
-                      ),
-                      if (!kIsWeb && Platform.isAndroid && _permissionStatus != PermissionStatus.granted) ...[
                         const Divider(height: 1, color: AppColors.oatBeige),
                         ListTile(
-                          leading: const Icon(Icons.folder_shared_outlined, color: AppColors.dustyRose),
-                          title: const Text('Audio Storage Permission', style: TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: const Text('Permission is needed to discover songs on your device'),
-                          trailing: TextButton(
-                            onPressed: () async {
-                              final status = await Permission.audio.request();
-                              if (mounted) setState(() => _permissionStatus = status);
-                              if (status.isPermanentlyDenied) {
-                                await openAppSettings();
-                              }
+                          leading: const Icon(Icons.tune_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Preferred Playback Source',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: Text(
+                            settings.preferredSource == 'preferLocal'
+                                ? 'Prefer Local Audio'
+                                : settings.preferredSource == 'preferYouTube'
+                                    ? 'Prefer YouTube Music'
+                                    : 'Ask Every Time',
+                            style: const TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          trailing: DropdownButton<String>(
+                            value: settings.preferredSource,
+                            underline: const SizedBox(),
+                            dropdownColor: Colors.white,
+                            style: const TextStyle(
+                              color: AppColors.cocoaPlum,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            icon: const Icon(Icons.arrow_drop_down,
+                                color: AppColors.cocoaPlum),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 'preferLocal',
+                                  child: Text('Prefer Local')),
+                              DropdownMenuItem(
+                                  value: 'preferYouTube',
+                                  child: Text('Prefer YouTube')),
+                              DropdownMenuItem(
+                                  value: 'askEveryTime',
+                                  child: Text('Ask Every Time')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null)
+                                settingsNotifier.updatePreferredSource(val);
                             },
-                            child: const Text('Grant', style: TextStyle(color: AppColors.dustyRose, fontWeight: FontWeight.bold)),
                           ),
                         ),
                       ],
-                    ],
-                  ),
+                    ),
 
-                  // ── 4. PLAYBACK & NOTIFICATIONS ──
-                  _buildSectionHeader('Playback & Notifications'),
-                  _buildSectionCard(
-                    children: [
-                      SwitchListTile(
-                        secondary: const Icon(Icons.play_circle_outline, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Background Playback',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Allow music to continue when app is minimized',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        activeColor: AppColors.dustyRose,
-                        value: settings.backgroundPlayback,
-                        onChanged: (val) => settingsNotifier.updateBackgroundPlayback(val),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      SwitchListTile(
-                        secondary: const Icon(Icons.notifications_active_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Media Notification',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Display playback controls in notification drawer',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        activeColor: AppColors.dustyRose,
-                        value: settings.mediaNotification,
-                        onChanged: (val) async {
-                          if (val && !kIsWeb && Platform.isAndroid) {
-                            final status = await Permission.notification.status;
-                            if (status.isDenied) {
-                              final res = await Permission.notification.request();
-                              if (!res.isGranted) return;
-                            } else if (status.isPermanentlyDenied) {
-                              await openAppSettings();
-                              return;
-                            }
-                          }
-                          await settingsNotifier.updateMediaNotification(val);
-                        },
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      SwitchListTile(
-                        secondary: const Icon(Icons.screen_lock_portrait_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Lock Screen Controls',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Show playback controls on device lock screen',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        activeColor: AppColors.dustyRose,
-                        value: settings.lockScreenControls,
-                        onChanged: (val) => settingsNotifier.updateLockScreenControls(val),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      SwitchListTile(
-                        secondary: const Icon(Icons.restore_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Resume Playback on Startup',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Restore last active song state when Miee starts',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        activeColor: AppColors.dustyRose,
-                        value: settings.resumePlayback,
-                        onChanged: (val) => settingsNotifier.updateResumePlayback(val),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.bedtime_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Sleep Timer',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: Text(
-                          sleepTimerState.statusDescription,
-                          style: TextStyle(
-                            color: sleepTimerState.isActive
-                                ? AppColors.dustyRose
-                                : AppColors.mutedMauve,
-                            fontWeight: sleepTimerState.isActive
-                                ? FontWeight.w600
-                                : FontWeight.normal,
+                    // ── 3. MUSIC LIBRARY ──
+                    _buildSectionHeader('Music Library'),
+                    _buildSectionCard(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.sync_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Rescan Music Library',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
                           ),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (sleepTimerState.isActive)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.dustyRose.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  sleepTimerState.isCountdown
-                                      ? sleepTimerState.formattedRemainingTime
-                                      : '1 Song',
+                          subtitle: settings.lastScanTime != null
+                              ? Text('Last scanned: ${settings.lastScanTime}',
                                   style: const TextStyle(
-                                    color: AppColors.dustyRose,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                          ],
-                        ),
-                        onTap: () => SleepTimerSheet.show(context),
-                      ),
-                    ],
-                  ),
-
-                  // ── 5. STORAGE & CACHE ──
-                  _buildSectionHeader('Storage & Cache'),
-                  _buildSectionCard(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-                        child: Column(
-                          children: [
-                            _buildStorageRow('Artwork Cache Size', _artworkCacheSize),
-                            const SizedBox(height: 8.0),
-                            _buildStorageRow('Playlist Database Size', _databaseSize),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.image_not_supported_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Clear Artwork Cache',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: Text(
-                          'Free up image storage ($_artworkCacheSize)',
-                          style: const TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        onTap: () => _confirmAction(
-                          context,
-                          title: 'Clear Artwork Cache?',
-                          message: 'Locally cached album covers will be deleted. They will automatically re-download when needed.',
-                          actionLabel: 'Clear Cache',
-                          onConfirm: _clearArtworkCache,
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.cleaning_services_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Clear App Cache',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Delete temporary application cache files',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        onTap: () => _confirmAction(
-                          context,
-                          title: 'Clear App Cache?',
-                          message: 'This clears temporary media files and scratch storage.',
-                          actionLabel: 'Clear Cache',
-                          onConfirm: _clearAppCache,
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.delete_forever_outlined, color: Colors.redAccent),
-                        title: const Text(
-                          'Reset Library & Data',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.redAccent),
-                        ),
-                        subtitle: const Text(
-                          'Wipe all custom playlists, favorites, and history',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        onTap: () => _confirmAction(
-                          context,
-                          title: 'Reset Library?',
-                          message: 'Are you sure you want to delete all custom playlists, favorites, search history, and stored preferences? This is a destructive action that cannot be undone.',
-                          actionLabel: 'Wipe Everything',
-                          isDestructive: true,
-                          onConfirm: _resetLibrary,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // ── 6. SEARCH HISTORY ──
-                  _buildSectionHeader('Search History'),
-                  _buildSectionCard(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.manage_search_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Search History',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: Text(
-                          '$searchHistoryCount cached queries in local search history',
-                          style: const TextStyle(color: AppColors.mutedMauve),
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.delete_sweep_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Clear Search History',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Remove all recent search queries and suggestions',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        onTap: () => _confirmAction(
-                          context,
-                          title: 'Clear Search History?',
-                          message: 'All your cached and recent search queries will be removed.',
-                          actionLabel: 'Clear',
-                          onConfirm: () async {
+                                      color: AppColors.mutedMauve))
+                              : const Text(
+                                  'Scan directories for offline audio files',
+                                  style:
+                                      TextStyle(color: AppColors.mutedMauve)),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.mutedMauve),
+                          onTap: () async {
+                            if (_isRefreshingMetadata ||
+                                ref.read(loadingStateProvider)) return;
                             final messenger = ScaffoldMessenger.of(context);
-                            await ref.read(searchHistoryProvider.notifier).clearAll();
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                  content: Text('Scanning local library...')),
+                            );
+                            await ref
+                                .read(mediaLibraryServiceProvider.notifier)
+                                .scanDevice(forceRefresh: true);
+                            final now = DateTime.now();
+                            final scanStr =
+                                '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+                            await settingsNotifier.updateLastScanTime(scanStr);
                             if (mounted) {
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('Search history cleared.')),
+                                SnackBar(
+                                  content: Text(
+                                      'Library scan completed! Found ${ref.read(songsProvider).length} songs.'),
+                                ),
                               );
                             }
                           },
                         ),
-                      ),
-                    ],
-                  ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.refresh_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Refresh Metadata',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                            'Reload tags and local file information',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          trailing: _isRefreshingMetadata
+                              ? const SizedBox(
+                                  width: 18.0,
+                                  height: 18.0,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.0,
+                                      color: AppColors.dustyRose),
+                                )
+                              : const Icon(Icons.chevron_right,
+                                  color: AppColors.mutedMauve),
+                          onTap:
+                              _isRefreshingMetadata ? null : _refreshMetadata,
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14.0, horizontal: 16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatBadge(
+                                  'Songs', localSongs.length.toString()),
+                              _buildStatBadge(
+                                  'Albums', localAlbums.length.toString()),
+                              _buildStatBadge(
+                                  'Artists', localArtists.length.toString()),
+                            ],
+                          ),
+                        ),
+                        if (!kIsWeb &&
+                            Platform.isAndroid &&
+                            _permissionStatus != PermissionStatus.granted) ...[
+                          const Divider(height: 1, color: AppColors.oatBeige),
+                          ListTile(
+                            leading: const Icon(Icons.folder_shared_outlined,
+                                color: AppColors.dustyRose),
+                            title: const Text('Audio Storage Permission',
+                                style: TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: const Text(
+                                'Permission is needed to discover songs on your device'),
+                            trailing: TextButton(
+                              onPressed: () async {
+                                final status = await Permission.audio.request();
+                                if (mounted)
+                                  setState(() => _permissionStatus = status);
+                                if (status.isPermanentlyDenied) {
+                                  await openAppSettings();
+                                }
+                              },
+                              child: const Text('Grant',
+                                  style: TextStyle(
+                                      color: AppColors.dustyRose,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
 
-                  // ── 7. ABOUT MIEE ──
-                  _buildSectionHeader('About Miee'),
-                  _buildSectionCard(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.bookmark_outline_rounded, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'About Miee',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'A quiet note on how this space came to be',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const MieeDedicationPage(),
+                    // ── 4. PLAYBACK & NOTIFICATIONS ──
+                    _buildSectionHeader('Playback & Notifications'),
+                    _buildSectionCard(
+                      children: [
+                        SwitchListTile(
+                          secondary: const Icon(Icons.play_circle_outline,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Background Playback',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
                           ),
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.info_outline, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Miee Version',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text('v2.0.0 (Build 2) • Production Release', style: TextStyle(color: AppColors.mutedMauve)),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.about),
+                          subtitle: const Text(
+                            'Allow music to continue when app is minimized',
+                            style: TextStyle(color: AppColors.mutedMauve),
                           ),
+                          activeColor: AppColors.dustyRose,
+                          value: settings.backgroundPlayback,
+                          onChanged: (val) =>
+                              settingsNotifier.updateBackgroundPlayback(val),
                         ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.library_books_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Open Source Licenses',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text(
-                          'Review third-party library notices and license terms',
-                          style: TextStyle(color: AppColors.mutedMauve),
-                        ),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.licenses),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        SwitchListTile(
+                          secondary: const Icon(
+                              Icons.notifications_active_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Media Notification',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
                           ),
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Privacy Policy',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text('Review data handling, cloud sync, and user rights', style: TextStyle(color: AppColors.mutedMauve)),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.privacyPolicy),
+                          subtitle: const Text(
+                            'Display playback controls in notification drawer',
+                            style: TextStyle(color: AppColors.mutedMauve),
                           ),
+                          activeColor: AppColors.dustyRose,
+                          value: settings.mediaNotification,
+                          onChanged: (val) async {
+                            if (val && !kIsWeb && Platform.isAndroid) {
+                              final status =
+                                  await Permission.notification.status;
+                              if (status.isDenied) {
+                                final res =
+                                    await Permission.notification.request();
+                                if (!res.isGranted) return;
+                              } else if (status.isPermanentlyDenied) {
+                                await openAppSettings();
+                                return;
+                              }
+                            }
+                            await settingsNotifier.updateMediaNotification(val);
+                          },
                         ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.gavel_outlined, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Terms of Service',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
-                        ),
-                        subtitle: const Text('Review conditions of usage, content rights, and disclaimers', style: TextStyle(color: AppColors.mutedMauve)),
-                        trailing: const Icon(Icons.chevron_right, color: AppColors.mutedMauve),
-                        onTap: () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const LegalDocumentPage(initialTab: LegalTab.termsOfService),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        SwitchListTile(
+                          secondary: const Icon(
+                              Icons.screen_lock_portrait_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Lock Screen Controls',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
                           ),
+                          subtitle: const Text(
+                            'Show playback controls on device lock screen',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          activeColor: AppColors.dustyRose,
+                          value: settings.lockScreenControls,
+                          onChanged: (val) =>
+                              settingsNotifier.updateLockScreenControls(val),
                         ),
-                      ),
-                      const Divider(height: 1, color: AppColors.oatBeige),
-                      ListTile(
-                        leading: const Icon(Icons.mail_outline_rounded, color: AppColors.cocoaPlum),
-                        title: const Text(
-                          'Contact Support',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.cocoaPlum),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        SwitchListTile(
+                          secondary: const Icon(Icons.restore_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Resume Playback on Startup',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                            'Restore last active song state when Miee starts',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          activeColor: AppColors.dustyRose,
+                          value: settings.resumePlayback,
+                          onChanged: (val) =>
+                              settingsNotifier.updateResumePlayback(val),
                         ),
-                        subtitle: const Text('imposterz.rev02@gmail.com', style: TextStyle(color: AppColors.mutedMauve)),
-                        trailing: const Icon(Icons.open_in_new_rounded, size: 18.0, color: AppColors.mutedMauve),
-                        onTap: () => _contactSupport(context),
-                      ),
-                    ],
-                  ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.bedtime_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Sleep Timer',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: Text(
+                            sleepTimerState.statusDescription,
+                            style: TextStyle(
+                              color: sleepTimerState.isActive
+                                  ? AppColors.dustyRose
+                                  : AppColors.mutedMauve,
+                              fontWeight: sleepTimerState.isActive
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (sleepTimerState.isActive)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.dustyRose
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    sleepTimerState.isCountdown
+                                        ? sleepTimerState.formattedRemainingTime
+                                        : '1 Song',
+                                    style: const TextStyle(
+                                      color: AppColors.dustyRose,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.chevron_right,
+                                  color: AppColors.mutedMauve),
+                            ],
+                          ),
+                          onTap: () => SleepTimerSheet.show(context),
+                        ),
+                      ],
+                    ),
 
-                  // Bottom padding allowing clean scroll above bottom navigation bar
-                  SizedBox(height: 96.0 + bottomInset),
-                ],
+                    // ── 5. STORAGE & CACHE ──
+                    _buildSectionHeader('Storage & Cache'),
+                    _buildSectionCard(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14.0, horizontal: 16.0),
+                          child: Column(
+                            children: [
+                              _buildStorageRow(
+                                  'Artwork Cache Size', _artworkCacheSize),
+                              const SizedBox(height: 8.0),
+                              _buildStorageRow(
+                                  'Playlist Database Size', _databaseSize),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(
+                              Icons.image_not_supported_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Clear Artwork Cache',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: Text(
+                            'Free up image storage ($_artworkCacheSize)',
+                            style: const TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          onTap: () => _confirmAction(
+                            context,
+                            title: 'Clear Artwork Cache?',
+                            message:
+                                'Locally cached album covers will be deleted. They will automatically re-download when needed.',
+                            actionLabel: 'Clear Cache',
+                            onConfirm: _clearArtworkCache,
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.cleaning_services_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Clear App Cache',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                            'Delete temporary application cache files',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          onTap: () => _confirmAction(
+                            context,
+                            title: 'Clear App Cache?',
+                            message:
+                                'This clears temporary media files and scratch storage.',
+                            actionLabel: 'Clear Cache',
+                            onConfirm: _clearAppCache,
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.delete_forever_outlined,
+                              color: Colors.redAccent),
+                          title: const Text(
+                            'Reset Library & Data',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.redAccent),
+                          ),
+                          subtitle: const Text(
+                            'Wipe all custom playlists, favorites, and history',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          onTap: () => _confirmAction(
+                            context,
+                            title: 'Reset Library?',
+                            message:
+                                'Are you sure you want to delete all custom playlists, favorites, search history, and stored preferences? This is a destructive action that cannot be undone.',
+                            actionLabel: 'Wipe Everything',
+                            isDestructive: true,
+                            onConfirm: _resetLibrary,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // ── 6. SEARCH HISTORY ──
+                    _buildSectionHeader('Search History'),
+                    _buildSectionCard(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.manage_search_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Search History',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: Text(
+                            '$searchHistoryCount cached queries in local search history',
+                            style: const TextStyle(color: AppColors.mutedMauve),
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.delete_sweep_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Clear Search History',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                            'Remove all recent search queries and suggestions',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          onTap: () => _confirmAction(
+                            context,
+                            title: 'Clear Search History?',
+                            message:
+                                'All your cached and recent search queries will be removed.',
+                            actionLabel: 'Clear',
+                            onConfirm: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              await ref
+                                  .read(searchHistoryProvider.notifier)
+                                  .clearAll();
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Search history cleared.')),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // ── 7. ABOUT MIEE ──
+                    _buildSectionHeader('About Miee'),
+                    _buildSectionCard(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.bookmark_outline_rounded,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'About Miee',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                            'A quiet note on how this space came to be',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.mutedMauve),
+                          onTap: () =>
+                              Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const MieeDedicationPage(),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.info_outline,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Miee Version',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                              'v2.0.0 (Build 2) • Production Release',
+                              style: TextStyle(color: AppColors.mutedMauve)),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.mutedMauve),
+                          onTap: () =>
+                              Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const LegalDocumentPage(
+                                  initialTab: LegalTab.about),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.library_books_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Open Source Licenses',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                            'Review third-party library notices and license terms',
+                            style: TextStyle(color: AppColors.mutedMauve),
+                          ),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.mutedMauve),
+                          onTap: () =>
+                              Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const LegalDocumentPage(
+                                  initialTab: LegalTab.licenses),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.privacy_tip_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Privacy Policy',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                              'Review data handling, cloud sync, and user rights',
+                              style: TextStyle(color: AppColors.mutedMauve)),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.mutedMauve),
+                          onTap: () =>
+                              Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const LegalDocumentPage(
+                                  initialTab: LegalTab.privacyPolicy),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.gavel_outlined,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Terms of Service',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text(
+                              'Review conditions of usage, content rights, and disclaimers',
+                              style: TextStyle(color: AppColors.mutedMauve)),
+                          trailing: const Icon(Icons.chevron_right,
+                              color: AppColors.mutedMauve),
+                          onTap: () =>
+                              Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const LegalDocumentPage(
+                                  initialTab: LegalTab.termsOfService),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.oatBeige),
+                        ListTile(
+                          leading: const Icon(Icons.mail_outline_rounded,
+                              color: AppColors.cocoaPlum),
+                          title: const Text(
+                            'Contact Support',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cocoaPlum),
+                          ),
+                          subtitle: const Text('imposterz.rev02@gmail.com',
+                              style: TextStyle(color: AppColors.mutedMauve)),
+                          trailing: const Icon(Icons.open_in_new_rounded,
+                              size: 18.0, color: AppColors.mutedMauve),
+                          onTap: () => _contactSupport(context),
+                        ),
+                      ],
+                    ),
+
+                    // Bottom padding allowing clean scroll above bottom navigation bar
+                    SizedBox(height: 96.0 + bottomInset),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // ── REUSABLE UI BUILDERS ───────────────────────────────────────────────────
 
@@ -979,7 +1184,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(color: AppColors.oatBeige.withOpacity(0.6), width: 1.0),
+          border: Border.all(
+              color: AppColors.oatBeige.withOpacity(0.6), width: 1.0),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -998,7 +1204,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     String? email,
     required bool isAuthenticated,
   }) {
-
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
@@ -1009,7 +1214,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               alignment: Alignment.bottomRight,
               children: [
                 ProfileAvatar(
-                  imageUrl: avatarUrl ?? (profile.profilePicturePath as String?),
+                  imageUrl:
+                      avatarUrl ?? (profile.profilePicturePath as String?),
                   size: 60.0,
                 ),
                 Container(
@@ -1019,7 +1225,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     color: AppColors.dustyRose,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.camera_alt, size: 11.0, color: Colors.white),
+                  child: const Icon(Icons.camera_alt,
+                      size: 11.0, color: Colors.white),
                 ),
               ],
             ),
@@ -1045,7 +1252,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                     const SizedBox(width: 8.0),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6.0, vertical: 2.0),
                       decoration: BoxDecoration(
                         color: isAuthenticated
                             ? AppColors.dustyRose.withOpacity(0.12)
@@ -1057,7 +1265,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         style: TextStyle(
                           fontSize: 11.0,
                           fontWeight: FontWeight.w600,
-                          color: isAuthenticated ? AppColors.dustyRose : AppColors.mutedMauve,
+                          color: isAuthenticated
+                              ? AppColors.dustyRose
+                              : AppColors.mutedMauve,
                         ),
                       ),
                     ),
@@ -1068,7 +1278,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     padding: const EdgeInsets.only(top: 2.0),
                     child: Text(
                       '@$username',
-                      style: const TextStyle(fontSize: 13.0, color: AppColors.mutedMauve),
+                      style: const TextStyle(
+                          fontSize: 13.0, color: AppColors.mutedMauve),
                     ),
                   )
                 else if (email != null && email.isNotEmpty)
@@ -1076,7 +1287,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     padding: const EdgeInsets.only(top: 2.0),
                     child: Text(
                       email,
-                      style: const TextStyle(fontSize: 13.0, color: AppColors.mutedMauve),
+                      style: const TextStyle(
+                          fontSize: 13.0, color: AppColors.mutedMauve),
                     ),
                   ),
                 const SizedBox(height: 8.0),
@@ -1093,7 +1305,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                     child: const Text(
                       'Manage Profile',
-                      style: TextStyle(fontSize: 12.0, color: AppColors.cocoaPlum, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 12.0,
+                          color: AppColors.cocoaPlum,
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -1134,30 +1349,46 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 padding: EdgeInsets.symmetric(vertical: 12.0),
                 child: Text(
                   'Profile Photo',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.0, color: AppColors.cocoaPlum),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18.0,
+                      color: AppColors.cocoaPlum),
                 ),
               ),
               const Divider(color: AppColors.oatBeige, height: 1),
               ListTile(
-                leading: const Icon(Icons.photo_camera_outlined, color: AppColors.cocoaPlum),
-                title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
+                leading: const Icon(Icons.photo_camera_outlined,
+                    color: AppColors.cocoaPlum),
+                title: const Text('Take Photo',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.cocoaPlum)),
                 onTap: () {
                   Navigator.pop(bottomSheetCtx);
                   _pickSettingsProfileImage(ImageSource.camera);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_outlined, color: AppColors.cocoaPlum),
-                title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w500, color: AppColors.cocoaPlum)),
+                leading: const Icon(Icons.photo_library_outlined,
+                    color: AppColors.cocoaPlum),
+                title: const Text('Choose from Gallery',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.cocoaPlum)),
                 onTap: () {
                   Navigator.pop(bottomSheetCtx);
                   _pickSettingsProfileImage(ImageSource.gallery);
                 },
               ),
-              if (profile.profilePicturePath != null && profile.profilePicturePath!.isNotEmpty)
+              if (profile.profilePicturePath != null &&
+                  profile.profilePicturePath!.isNotEmpty)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                  title: const Text('Remove Photo', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.redAccent)),
+                  leading:
+                      const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: const Text('Remove Photo',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.redAccent)),
                   onTap: () {
                     Navigator.pop(bottomSheetCtx);
                     _removeSettingsProfileImage();
@@ -1265,12 +1496,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: AppColors.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
-        content: Text(message, style: const TextStyle(color: AppColors.mutedMauve)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        title: Text(title,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
+        content:
+            Text(message, style: const TextStyle(color: AppColors.mutedMauve)),
         actions: [
           TextButton(
-            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedMauve)),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppColors.mutedMauve)),
             onPressed: () => Navigator.pop(dialogCtx),
           ),
           TextButton(
@@ -1300,15 +1536,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (dialogCtx) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
           backgroundColor: AppColors.surfaceContainerLowest,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          title: const Text('Sign Out',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
           content: _isSigningOut
               ? const Row(
                   children: [
                     SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.primary),
                     ),
                     SizedBox(width: 16),
                     Expanded(
@@ -1327,11 +1567,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ? null
               : [
                   TextButton(
-                    child: const Text('Cancel', style: TextStyle(color: AppColors.mutedMauve)),
+                    child: const Text('Cancel',
+                        style: TextStyle(color: AppColors.mutedMauve)),
                     onPressed: () => Navigator.pop(dialogCtx),
                   ),
                   TextButton(
-                    child: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                    child: const Text('Sign Out',
+                        style: TextStyle(
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.bold)),
                     onPressed: () async {
                       final messenger = ScaffoldMessenger.of(context);
                       final router = GoRouter.of(context);
@@ -1339,14 +1583,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         _isSigningOut = true;
                       });
                       try {
-                        await ref.read(authControllerProvider.notifier).signOut();
+                        await ref
+                            .read(authControllerProvider.notifier)
+                            .signOut();
                         if (mounted && dialogCtx.mounted) {
                           Navigator.pop(dialogCtx);
                         }
                         if (mounted) {
                           router.go('/login');
                           messenger.showSnackBar(
-                            const SnackBar(content: Text('Signed out successfully.')),
+                            const SnackBar(
+                                content: Text('Signed out successfully.')),
                           );
                         }
                       } catch (e) {
@@ -1361,7 +1608,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           });
                           messenger.showSnackBar(
                             SnackBar(
-                              content: Text('Sign out failed: ${e.toString().replaceFirst('Exception: ', '')}'),
+                              content: Text(
+                                  'Sign out failed: ${e.toString().replaceFirst('Exception: ', '')}'),
                               backgroundColor: Colors.redAccent,
                             ),
                           );
@@ -1386,12 +1634,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
-        content: Text(body, style: const TextStyle(color: AppColors.mutedMauve, height: 1.4)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        title: Text(title,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: AppColors.cocoaPlum)),
+        content: Text(body,
+            style: const TextStyle(color: AppColors.mutedMauve, height: 1.4)),
         actions: [
           TextButton(
-            child: const Text('OK', style: TextStyle(color: AppColors.dustyRose, fontWeight: FontWeight.bold)),
+            child: const Text('OK',
+                style: TextStyle(
+                    color: AppColors.dustyRose, fontWeight: FontWeight.bold)),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -1428,4 +1682,3 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 }
-

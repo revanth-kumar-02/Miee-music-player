@@ -21,10 +21,12 @@ class DesktopLocalLibraryView extends ConsumerStatefulWidget {
   const DesktopLocalLibraryView({super.key});
 
   @override
-  ConsumerState<DesktopLocalLibraryView> createState() => _DesktopLocalLibraryViewState();
+  ConsumerState<DesktopLocalLibraryView> createState() =>
+      _DesktopLocalLibraryViewState();
 }
 
-class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryView> {
+class _DesktopLocalLibraryViewState
+    extends ConsumerState<DesktopLocalLibraryView> {
   CatalogTab _activeTab = CatalogTab.tracks;
   final TextEditingController _filterController = TextEditingController();
   String _filterQuery = '';
@@ -56,7 +58,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
           backgroundColor: MidnightVelvetTokens.canvasBase,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: MidnightVelvetTokens.hairlineRimHighlight),
+            side: const BorderSide(
+                color: MidnightVelvetTokens.hairlineRimHighlight),
           ),
           title: Text(
             'ADD LOCAL MUSIC FOLDER',
@@ -73,7 +76,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
               children: [
                 Text(
                   'Enter the absolute path to a folder containing audio files on this machine:',
-                  style: MidnightVelvetTokens.fontBodyMedium.copyWith(fontSize: 13),
+                  style: MidnightVelvetTokens.fontBodyMedium
+                      .copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: 14),
                 Container(
@@ -117,13 +121,16 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: MidnightVelvetTokens.primaryEmber,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () async {
                 final input = folderController.text.trim();
                 if (input.isNotEmpty) {
                   Navigator.of(ctx).pop();
-                  await ref.read(mediaLibraryServiceProvider.notifier).includeFolder(input);
+                  await ref
+                      .read(mediaLibraryServiceProvider.notifier)
+                      .includeFolder(input);
                 }
               },
               child: Text(
@@ -148,8 +155,10 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
     final folders = ref.watch(foldersProvider);
     final isLoading = ref.watch(loadingStateProvider);
     final controller = ref.read(playerControllerProvider.notifier);
-    final currentTrack = ref.watch(playerControllerProvider.select((s) => s.currentTrack));
-    final isPlaying = ref.watch(playerControllerProvider.select((s) => s.status == PlaybackStatus.playing));
+    final currentTrack =
+        ref.watch(playerControllerProvider.select((s) => s.currentTrack));
+    final isPlaying = ref.watch(playerControllerProvider
+        .select((s) => s.status == PlaybackStatus.playing));
 
     final filteredSongs = _filterQuery.isEmpty
         ? songs
@@ -178,21 +187,25 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                         children: [
                           Text(
                             'STUDIO CATALOG',
-                            style: MidnightVelvetTokens.fontDisplayMedium.copyWith(
+                            style:
+                                MidnightVelvetTokens.fontDisplayMedium.copyWith(
                               fontSize: 22,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: MidnightVelvetTokens.surfaceCard,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: MidnightVelvetTokens.hairlineRim),
+                              border: Border.all(
+                                  color: MidnightVelvetTokens.hairlineRim),
                             ),
                             child: Text(
                               '${songs.length} TRACKS • ${albums.length} ALBUMS',
-                              style: MidnightVelvetTokens.fontMonoTelemetry.copyWith(
+                              style: MidnightVelvetTokens.fontMonoTelemetry
+                                  .copyWith(
                                 fontSize: 10,
                               ),
                             ),
@@ -224,13 +237,18 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: MidnightVelvetTokens.textDisplay,
-                      side: const BorderSide(color: MidnightVelvetTokens.hairlineRim),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      side: const BorderSide(
+                          color: MidnightVelvetTokens.hairlineRim),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                     ),
                     onPressed: isLoading
                         ? null
-                        : () => ref.read(mediaLibraryServiceProvider.notifier).scanDevice(forceRefresh: true),
+                        : () => ref
+                            .read(mediaLibraryServiceProvider.notifier)
+                            .scanDevice(forceRefresh: true),
                     icon: isLoading
                         ? const SizedBox(
                             width: 14,
@@ -255,11 +273,14 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: MidnightVelvetTokens.primaryEmber,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                     ),
                     onPressed: () => _showAddFolderDialog(context),
-                    icon: const Icon(Icons.folder_open_rounded, size: 16, color: Colors.white),
+                    icon: const Icon(Icons.folder_open_rounded,
+                        size: 16, color: Colors.white),
                     label: Text(
                       'ADD MUSIC FOLDER',
                       style: MidnightVelvetTokens.fontLabelSmall.copyWith(
@@ -285,13 +306,17 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                   physics: const BouncingScrollPhysics(),
                   child: Row(
                     children: [
-                      _buildTabPill('TRACKS (${songs.length})', CatalogTab.tracks),
+                      _buildTabPill(
+                          'TRACKS (${songs.length})', CatalogTab.tracks),
                       const SizedBox(width: 8),
-                      _buildTabPill('ALBUMS (${albums.length})', CatalogTab.albums),
+                      _buildTabPill(
+                          'ALBUMS (${albums.length})', CatalogTab.albums),
                       const SizedBox(width: 8),
-                      _buildTabPill('ARTISTS (${artists.length})', CatalogTab.artists),
+                      _buildTabPill(
+                          'ARTISTS (${artists.length})', CatalogTab.artists),
                       const SizedBox(width: 8),
-                      _buildTabPill('FOLDERS (${folders.length})', CatalogTab.folders),
+                      _buildTabPill(
+                          'FOLDERS (${folders.length})', CatalogTab.folders),
                     ],
                   ),
                 ),
@@ -326,7 +351,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                         ),
                         decoration: InputDecoration(
                           hintText: 'Filter catalog...',
-                          hintStyle: MidnightVelvetTokens.fontBodyMedium.copyWith(
+                          hintStyle:
+                              MidnightVelvetTokens.fontBodyMedium.copyWith(
                             fontSize: 12,
                             color: MidnightVelvetTokens.textMuted,
                           ),
@@ -361,7 +387,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                 surfaceColor: MidnightVelvetTokens.surfaceCard,
               ),
               child: _activeTab == CatalogTab.tracks
-                  ? _buildTracksTable(filteredSongs, currentTrack, isPlaying, controller)
+                  ? _buildTracksTable(
+                      filteredSongs, currentTrack, isPlaying, controller)
                   : _activeTab == CatalogTab.albums
                       ? _buildAlbumsGrid(albums, controller)
                       : _activeTab == CatalogTab.artists
@@ -384,17 +411,22 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? MidnightVelvetTokens.surfaceElevated : Colors.transparent,
+          color: isSelected
+              ? MidnightVelvetTokens.surfaceElevated
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: isSelected
-              ? Border.all(color: MidnightVelvetTokens.hairlineRimHighlight, width: 1.0)
+              ? Border.all(
+                  color: MidnightVelvetTokens.hairlineRimHighlight, width: 1.0)
               : null,
         ),
         child: Text(
           title,
           style: MidnightVelvetTokens.fontLabelSmall.copyWith(
             fontSize: 11,
-            color: isSelected ? MidnightVelvetTokens.textDisplay : MidnightVelvetTokens.textMuted,
+            color: isSelected
+                ? MidnightVelvetTokens.textDisplay
+                : MidnightVelvetTokens.textMuted,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
@@ -455,23 +487,29 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
               ),
               Expanded(
                 flex: 4,
-                child: Text('TITLE', style: MidnightVelvetTokens.fontLabelSmall),
+                child:
+                    Text('TITLE', style: MidnightVelvetTokens.fontLabelSmall),
               ),
               Expanded(
                 flex: 3,
-                child: Text('ARTIST', style: MidnightVelvetTokens.fontLabelSmall),
+                child:
+                    Text('ARTIST', style: MidnightVelvetTokens.fontLabelSmall),
               ),
               Expanded(
                 flex: 3,
-                child: Text('ALBUM', style: MidnightVelvetTokens.fontLabelSmall),
+                child:
+                    Text('ALBUM', style: MidnightVelvetTokens.fontLabelSmall),
               ),
               SizedBox(
                 width: 80,
-                child: Text('FORMAT', style: MidnightVelvetTokens.fontLabelSmall),
+                child:
+                    Text('FORMAT', style: MidnightVelvetTokens.fontLabelSmall),
               ),
               SizedBox(
                 width: 60,
-                child: Text('TIME', style: MidnightVelvetTokens.fontLabelSmall, textAlign: TextAlign.right),
+                child: Text('TIME',
+                    style: MidnightVelvetTokens.fontLabelSmall,
+                    textAlign: TextAlign.right),
               ),
               const SizedBox(width: 50),
             ],
@@ -501,12 +539,14 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: isActive
                           ? MidnightVelvetTokens.surfaceCardHover
                           : isHovered
-                              ? MidnightVelvetTokens.surfaceCardHover.withValues(alpha: 0.5)
+                              ? MidnightVelvetTokens.surfaceCardHover
+                                  .withValues(alpha: 0.5)
                               : Colors.transparent,
                     ),
                     child: Row(
@@ -522,7 +562,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                                 )
                               : Text(
                                   '${index + 1}',
-                                  style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
+                                  style: MidnightVelvetTokens.fontMonoTimecode
+                                      .copyWith(
                                     fontSize: 11,
                                     color: isActive
                                         ? MidnightVelvetTokens.amberChampagne
@@ -551,9 +592,12 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                               Expanded(
                                 child: Text(
                                   song.displayTitle,
-                                  style: MidnightVelvetTokens.fontBodyMedium.copyWith(
+                                  style: MidnightVelvetTokens.fontBodyMedium
+                                      .copyWith(
                                     fontSize: 13,
-                                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                                    fontWeight: isActive
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
                                     color: isActive
                                         ? MidnightVelvetTokens.amberChampagne
                                         : MidnightVelvetTokens.textDisplay,
@@ -598,15 +642,18 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                         SizedBox(
                           width: 80,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
                             decoration: BoxDecoration(
                               color: MidnightVelvetTokens.canvasBase,
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: MidnightVelvetTokens.hairlineRim),
+                              border: Border.all(
+                                  color: MidnightVelvetTokens.hairlineRim),
                             ),
                             child: Text(
                               _resolveFormatLabel(song.filePath),
-                              style: MidnightVelvetTokens.fontMonoTelemetry.copyWith(
+                              style: MidnightVelvetTokens.fontMonoTelemetry
+                                  .copyWith(
                                 fontSize: 9,
                                 color: MidnightVelvetTokens.textSecondary,
                               ),
@@ -620,7 +667,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                           width: 60,
                           child: Text(
                             song.duration,
-                            style: MidnightVelvetTokens.fontMonoTimecode.copyWith(
+                            style:
+                                MidnightVelvetTokens.fontMonoTimecode.copyWith(
                               fontSize: 11,
                               color: MidnightVelvetTokens.textSecondary,
                             ),
@@ -645,7 +693,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                               if (isActive) {
                                 controller.togglePlayPause();
                               } else {
-                                controller.selectTrack(song, songs, playingFrom: 'Studio Catalog');
+                                controller.selectTrack(song, songs,
+                                    playingFrom: 'Studio Catalog');
                               }
                             },
                             splashRadius: 16,
@@ -663,12 +712,14 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
     );
   }
 
-  Widget _buildAlbumsGrid(List<MediaAlbum> albums, PlayerController controller) {
+  Widget _buildAlbumsGrid(
+      List<MediaAlbum> albums, PlayerController controller) {
     if (albums.isEmpty) {
       return Center(
         child: Text(
           'NO ALBUMS FOUND',
-          style: MidnightVelvetTokens.fontBodyMedium.copyWith(color: MidnightVelvetTokens.textMuted),
+          style: MidnightVelvetTokens.fontBodyMedium
+              .copyWith(color: MidnightVelvetTokens.textMuted),
         ),
       );
     }
@@ -685,7 +736,21 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
       itemBuilder: (context, index) {
         final album = albums[index];
         return InkWell(
-          onTap: () {},
+          onTap: () {
+            final allSongs = ref.read(songsProvider);
+            final albumSongs = allSongs
+                .where((s) =>
+                    s.album.trim().toLowerCase() ==
+                    album.title.trim().toLowerCase())
+                .toList();
+            if (albumSongs.isNotEmpty) {
+              ref.read(playerControllerProvider.notifier).selectTrack(
+                    albumSongs.first,
+                    albumSongs,
+                    playingFrom: album.title,
+                  );
+            }
+          },
           borderRadius: BorderRadius.circular(10),
           hoverColor: MidnightVelvetTokens.surfaceCardHover,
           child: Container(
@@ -702,7 +767,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
                   borderRadius: BorderRadius.circular(8),
                   child: AspectRatio(
                     aspectRatio: 1.0,
-                    child: album.artworkPath.isNotEmpty && File(album.artworkPath).existsSync()
+                    child: album.artworkPath.isNotEmpty &&
+                            File(album.artworkPath).existsSync()
                         ? Image.file(File(album.artworkPath), fit: BoxFit.cover)
                         : Container(
                             color: MidnightVelvetTokens.canvasBase,
@@ -746,7 +812,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
       return Center(
         child: Text(
           'NO ARTISTS FOUND',
-          style: MidnightVelvetTokens.fontBodyMedium.copyWith(color: MidnightVelvetTokens.textMuted),
+          style: MidnightVelvetTokens.fontBodyMedium
+              .copyWith(color: MidnightVelvetTokens.textMuted),
         ),
       );
     }
@@ -815,7 +882,8 @@ class _DesktopLocalLibraryViewState extends ConsumerState<DesktopLocalLibraryVie
       return Center(
         child: Text(
           'NO FOLDERS INDEXED',
-          style: MidnightVelvetTokens.fontBodyMedium.copyWith(color: MidnightVelvetTokens.textMuted),
+          style: MidnightVelvetTokens.fontBodyMedium
+              .copyWith(color: MidnightVelvetTokens.textMuted),
         ),
       );
     }

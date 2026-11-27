@@ -45,6 +45,20 @@ class DisplayTitleNormalizer {
     caseSensitive: false,
   );
 
+  // Download-site / ripper / Topic-channel suffixes (e.g. "- MassTamilan.com", "- Video", "- Topic")
+  static final RegExp _siteRipperRegex = RegExp(
+    r'(?:\s*[\-\–\—\|\/]\s*)?(?:masstamilan(?:\.[a-z]{2,4})?|starmusiq(?:\.[a-z]{2,4})?|'
+    r'isaimini(?:\.[a-z]{2,4})?|tamilrockers(?:\.[a-z]{2,4})?|pagalworld(?:\.[a-z]{2,4})?|'
+    r'mrjatt(?:\.[a-z]{2,4})?|songspk(?:\.[a-z]{2,4})?|djpunjab(?:\.[a-z]{2,4})?|'
+    r'sensongs(?:\.[a-z]{2,4})?|320\s*kbps|128\s*kbps|192\s*kbps)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _trailingMediaSuffixRegex = RegExp(
+    r'\s*[\-\–\—]\s*(?:video|audio|topic|lyric\s*video|lyrics)\s*$',
+    caseSensitive: false,
+  );
+
   // Trailing or slash-delimited source labels like "/ Music", "/ Official Audio", "/ Lyrics"
   static final RegExp _slashSourceTagRegex = RegExp(
     r'\s*/\s*(?:music|official\s+music|audio|video|lyrics?|lyrical|topic|vevo)\b.*$',
@@ -117,8 +131,10 @@ class DisplayTitleNormalizer {
     // 3. Remove standalone resolution tags (e.g. "Song Name 8K Ultra HD" -> "Song Name")
     t = t.replaceAll(_resolutionRegex, ' ');
 
-    // 4. Remove unbracketed video noise keywords (e.g. "Official Video", "Full Video Song")
+    // 4. Remove unbracketed video noise keywords & ripper tags (e.g. "Official Video", "- MassTamilan.com")
     t = t.replaceAll(_videoNoiseRegex, ' ');
+    t = t.replaceAll(_siteRipperRegex, ' ');
+    t = t.replaceAll(_trailingMediaSuffixRegex, '');
 
     // 4b. Remove slash-delimited platform/source labels (e.g. "Song / Music")
     t = t.replaceAll(_slashSourceTagRegex, ' ');
@@ -136,6 +152,24 @@ class DisplayTitleNormalizer {
     t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
 
     return t.isNotEmpty ? t : title.trim();
+  }
+
+  /// Normalizes an artist name for clean UI presentation, stripping "- Topic"
+  /// and download-site suffixes (e.g. "- MassTamilan.com") while preserving genuine credits.
+  static String normalizeArtist(String artist) {
+    if (artist.trim().isEmpty) return '';
+    var a = _stripInvisibleChars(_unescapeHtml(artist.trim()));
+    a = a.replaceAll(_siteRipperRegex, ' ');
+    a = a.replaceAll(
+      RegExp(r'\s*[\-\–\—]\s*topic\s*$', caseSensitive: false),
+      '',
+    );
+    a = a
+        .replaceAll(
+            RegExp(r'^[\s\-\–\—\|\:\/\•\,]+|[\s\-\–\—\|\:\/\•\,]+$'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return a.isNotEmpty ? a : artist.trim();
   }
 
   static String _cleanDanglingClauses(String text) {

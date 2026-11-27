@@ -598,7 +598,29 @@ class RecommendationService {
       }
     }
 
-    // If still need more to explore, add non-selected curated artists
+    // If still need more to explore, derive artists from live trending/recent releases
+    // before falling back to curated artists
+    if (relatedArtists.length < 8) {
+      for (final t in [...trendingTracks, ...recentReleases]) {
+        final name = t.artist.trim();
+        final lower = name.toLowerCase();
+        if (name.isEmpty ||
+            lower == 'unknown artist' ||
+            selectedNames.contains(lower) ||
+            relatedArtists.any((r) => r.name.toLowerCase().trim() == lower)) {
+          continue;
+        }
+        relatedArtists.add(
+          ArtistModel(
+            id: 'trend_${lower.hashCode}',
+            name: name,
+            imageUrl: t.imageUrl,
+          ),
+        );
+        if (relatedArtists.length >= 8) break;
+      }
+    }
+
     if (relatedArtists.length < 8) {
       final curated = DeezerArtistRepository.staticCuratedArtists
           .where((a) =>

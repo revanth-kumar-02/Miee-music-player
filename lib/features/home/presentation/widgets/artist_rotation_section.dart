@@ -83,12 +83,36 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
   }
 
   void _initArtists() {
-    _effectiveArtists = widget.artists.isNotEmpty
-        ? widget.artists
-        : DeezerArtistRepository.staticCuratedArtists
-            .take(8)
-            .map((a) => a.toSummary())
-            .toList();
+    if (widget.artists.isNotEmpty) {
+      _effectiveArtists = widget.artists;
+    } else if (widget.initialTracks.isNotEmpty) {
+      final seen = <String>{};
+      final derived = <ArtistSummary>[];
+      for (final t in widget.initialTracks) {
+        final name = t.artist.trim();
+        if (name.isNotEmpty &&
+            name.toLowerCase() != 'unknown artist' &&
+            seen.add(name.toLowerCase())) {
+          derived.add(ArtistSummary(
+            id: 'init_${name.toLowerCase().hashCode}',
+            name: name,
+            imageUrl: t.imageUrl,
+          ));
+          if (derived.length >= 8) break;
+        }
+      }
+      _effectiveArtists = derived.isNotEmpty
+          ? derived
+          : DeezerArtistRepository.staticCuratedArtists
+              .take(8)
+              .map((a) => a.toSummary())
+              .toList();
+    } else {
+      _effectiveArtists = DeezerArtistRepository.staticCuratedArtists
+          .take(8)
+          .map((a) => a.toSummary())
+          .toList();
+    }
 
     if (_effectiveArtists.isNotEmpty) {
       final initialArtist = _effectiveArtists.first;
@@ -198,8 +222,8 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
     if (_effectiveArtists.length <= 1 || _isTransitioning) return;
     if (manual) _resetTimer();
 
-    final prevIndex =
-        (_currentIndex - 1 + _effectiveArtists.length) % _effectiveArtists.length;
+    final prevIndex = (_currentIndex - 1 + _effectiveArtists.length) %
+        _effectiveArtists.length;
     await _navigateToIndex(prevIndex);
   }
 
@@ -349,7 +373,8 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
                 _buildNavButton(
                   icon: Icons.chevron_left_rounded,
                   tooltip: 'Previous artist',
-                  enabled: hasMultiple && !_isTransitioning && !_isLoadingTarget,
+                  enabled:
+                      hasMultiple && !_isTransitioning && !_isLoadingTarget,
                   isDesktop: isDesktop,
                   onPressed: () => _rotateToPrevious(manual: true),
                 ),
@@ -357,7 +382,8 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
                 _buildNavButton(
                   icon: Icons.chevron_right_rounded,
                   tooltip: 'Next artist',
-                  enabled: hasMultiple && !_isTransitioning && !_isLoadingTarget,
+                  enabled:
+                      hasMultiple && !_isTransitioning && !_isLoadingTarget,
                   isDesktop: isDesktop,
                   onPressed: () => _rotateToNext(manual: true),
                 ),
@@ -391,9 +417,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
             : AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDesktop
-              ? MieeWebColors.subtleBorder
-              : AppColors.oatBeige,
+          color: isDesktop ? MieeWebColors.subtleBorder : AppColors.oatBeige,
           width: 1,
         ),
       ),
@@ -410,9 +434,8 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
                 errorBuilder: (_, __, ___) => Icon(
                   Icons.person_rounded,
                   size: 14,
-                  color: isDesktop
-                      ? MieeWebColors.outline
-                      : AppColors.mutedMauve,
+                  color:
+                      isDesktop ? MieeWebColors.outline : AppColors.mutedMauve,
                 ),
               ),
             ),
@@ -427,9 +450,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isDesktop
-                    ? MieeWebColors.textDark
-                    : AppColors.onSurface,
+                color: isDesktop ? MieeWebColors.textDark : AppColors.onSurface,
               ),
             ),
           ),
@@ -440,9 +461,7 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
               style: GoogleFonts.geist(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
-                color: isDesktop
-                    ? MieeWebColors.outline
-                    : AppColors.mutedMauve,
+                color: isDesktop ? MieeWebColors.outline : AppColors.mutedMauve,
               ),
             ),
           ],
@@ -558,10 +577,9 @@ class _ArtistRotationSectionState extends ConsumerState<ArtistRotationSection>
               onTap: isTrackLoading
                   ? null
                   : () {
-                      ref
-                          .read(playerControllerProvider.notifier)
-                          .selectTrack(track, tracks,
-                              playingFrom: 'From Your Artists');
+                      ref.read(playerControllerProvider.notifier).selectTrack(
+                          track, tracks,
+                          playingFrom: 'From Your Artists');
                     },
             );
           },

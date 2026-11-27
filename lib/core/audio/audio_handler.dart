@@ -1516,24 +1516,31 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             resolved.url.isEmpty ||
             !YouTubeAudioService().isUrlValid(resolved.url)) &&
         rawT.isNotEmpty) {
-      debugPrint(
-          '[AudioHandler] Direct stream for $videoId failed. Attempting validated PlaybackSourceResolver fallback for "$rawT" by "$rawA"');
-      final fallbackCandidate = await _sourceResolver.resolveCandidate(
-        title: rawT,
-        artist: rawA,
-        durationStr: canonicalDur,
-        album: albumName,
-      );
-      if (token != _activeLoadToken) return;
-      if (fallbackCandidate != null &&
-          PlaybackSourceResolver.isValidYouTubeVideoId(fallbackCandidate.id) &&
-          fallbackCandidate.id != videoId &&
-          PlaybackSourceResolver.isDurationCompatible(
-            targetDurationStr: canonicalDur,
-            candidateDurationStr: fallbackCandidate.duration,
-          )) {
+      final excludedIds = <String>{if (videoId.isNotEmpty) videoId};
+      for (var attempt = 0; attempt < 2; attempt++) {
+        debugPrint(
+            '[AudioHandler] Direct stream for $videoId failed. Attempting validated PlaybackSourceResolver fallback #${attempt + 1} for "$rawT" by "$rawA" (excluding: $excludedIds)');
+        final fallbackCandidate = await _sourceResolver.resolveCandidate(
+          title: rawT,
+          artist: rawA,
+          durationStr: canonicalDur,
+          album: albumName,
+          excludeVideoIds: excludedIds,
+        );
+        if (token != _activeLoadToken) return;
+        if (fallbackCandidate == null ||
+            !PlaybackSourceResolver.isValidYouTubeVideoId(
+                fallbackCandidate.id) ||
+            excludedIds.contains(fallbackCandidate.id) ||
+            !PlaybackSourceResolver.isDurationCompatible(
+              targetDurationStr: canonicalDur,
+              candidateDurationStr: fallbackCandidate.duration,
+            )) {
+          break;
+        }
         debugPrint(
             '[AudioHandler] Resolved alternate verified video ID ${fallbackCandidate.id} for "${track.title}"');
+        excludedIds.add(fallbackCandidate.id);
         videoId = fallbackCandidate.id;
         resolved = await YouTubeAudioService().getAudioStream(
           videoId,
@@ -1541,8 +1548,13 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           title: track.title,
           artist: track.artist,
         );
+        if (token != _activeLoadToken) return;
+        if (resolved != null &&
+            resolved.url.isNotEmpty &&
+            YouTubeAudioService().isUrlValid(resolved.url)) {
+          break;
+        }
       }
-      if (token != _activeLoadToken) return;
     }
     if (resolved == null ||
         resolved.url.isEmpty ||

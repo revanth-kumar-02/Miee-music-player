@@ -48,18 +48,27 @@ class PlaylistsRepository {
       _box.watch().map((_) => getPlaylists());
 
   /// Creates a new empty playlist with [name].
-  /// Returns the generated playlist id.
+  /// If a playlist with the same case-insensitive name already exists, returns
+  /// its existing id instead of creating a duplicate.
   Future<String> createPlaylist(
     String name, {
     PlaylistType type = PlaylistType.private,
     String description = '',
   }) async {
+    final trimmedName = name.trim();
+    final lower = trimmedName.toLowerCase();
+    for (final existing in _box.values) {
+      if (existing.name.trim().toLowerCase() == lower) {
+        return existing.id;
+      }
+    }
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     final now = DateTime.now();
-    final currentUserId = _ref.read(authControllerProvider.notifier).currentUserId;
+    final currentUserId =
+        _ref.read(authControllerProvider.notifier).currentUserId;
     final playlist = PlaylistHiveModel(
       id: id,
-      name: name,
+      name: trimmedName,
       tracks: [],
       createdAt: now,
       lastModified: now,
@@ -112,7 +121,8 @@ class PlaylistsRepository {
   }
 
   /// Updates the [description] of [playlistId].
-  Future<void> updatePlaylistDescription(String playlistId, String description) async {
+  Future<void> updatePlaylistDescription(
+      String playlistId, String description) async {
     final playlist = _box.get(playlistId);
     if (playlist == null) return;
     playlist.description = description;
@@ -136,8 +146,8 @@ class PlaylistsRepository {
   /// excluding the playlist with [excludeId].
   bool nameExists(String name, {String? excludeId}) {
     final lower = name.trim().toLowerCase();
-    return _box.values.any((p) =>
-        p.name.toLowerCase() == lower && p.id != excludeId);
+    return _box.values
+        .any((p) => p.name.toLowerCase() == lower && p.id != excludeId);
   }
 
   /// Renames the playlist with [playlistId] to [newName].
@@ -176,9 +186,8 @@ class PlaylistsRepository {
           await coversDir.create(recursive: true);
         }
 
-        final normalized = path.startsWith('file://')
-            ? Uri.parse(path).toFilePath()
-            : path;
+        final normalized =
+            path.startsWith('file://') ? Uri.parse(path).toFilePath() : path;
         final srcFile = File(normalized);
 
         if (await srcFile.exists()) {
@@ -186,8 +195,11 @@ class PlaylistsRepository {
           final isAlreadyInCovers = standardPath.contains('/playlist_covers/');
 
           if (!isAlreadyInCovers) {
-            final ext = standardPath.contains('.') ? standardPath.split('.').last : 'jpg';
-            final dest = File('${coversDir.path}/cover_${playlistId}_${DateTime.now().millisecondsSinceEpoch}.$ext');
+            final ext = standardPath.contains('.')
+                ? standardPath.split('.').last
+                : 'jpg';
+            final dest = File(
+                '${coversDir.path}/cover_${playlistId}_${DateTime.now().millisecondsSinceEpoch}.$ext');
             await srcFile.copy(dest.path);
             durablePath = dest.path;
           } else {
@@ -227,7 +239,6 @@ class PlaylistsRepository {
     );
     await _ref.read(syncManagerProvider).queueOperation(op);
   }
-
 
   /// Creates a deep copy of [playlistId] with " (Copy)" appended to the name.
   Future<String> duplicatePlaylist(String playlistId) async {
@@ -273,7 +284,8 @@ class PlaylistsRepository {
             'imageUrl': track.imageUrl,
             'duration': track.duration,
             'filePath': track.filePath,
-            'isYoutube': track.filePath == null || track.filePath!.startsWith('http'),
+            'isYoutube':
+                track.filePath == null || track.filePath!.startsWith('http'),
           }
         },
         timestamp: DateTime.now(),
@@ -292,14 +304,17 @@ class PlaylistsRepository {
   /// Appends a batch of [tracks] to playlist [playlistId].
   /// Ignores duplicates already present in the playlist.
   /// Returns the count of tracks actually added.
-  Future<int> addTracksToPlaylist(String playlistId, List<MusicItem> tracks) async {
+  Future<int> addTracksToPlaylist(
+      String playlistId, List<MusicItem> tracks) async {
     final playlist = _box.get(playlistId);
     if (playlist == null || tracks.isEmpty) return 0;
 
     final existingIds = playlist.tracks.map((t) {
       return t.id.startsWith('youtube_')
           ? t.id
-          : (t.filePath?.contains('youtube.com') == true ? 'youtube_${t.id}' : t.id);
+          : (t.filePath?.contains('youtube.com') == true
+              ? 'youtube_${t.id}'
+              : t.id);
     }).toSet();
 
     final currentTracks = List<TrackHiveModel>.from(playlist.tracks);
@@ -329,7 +344,9 @@ class PlaylistsRepository {
               'imageUrl': hiveTrack.imageUrl,
               'duration': hiveTrack.duration,
               'filePath': hiveTrack.filePath,
-              'isYoutube': hiveTrack.filePath?.contains('youtube.com') == true || hiveTrack.id.startsWith('youtube_'),
+              'isYoutube':
+                  hiveTrack.filePath?.contains('youtube.com') == true ||
+                      hiveTrack.id.startsWith('youtube_'),
             }
           },
           timestamp: DateTime.now(),
@@ -349,7 +366,8 @@ class PlaylistsRepository {
   }
 
   /// Removes the track with [trackId] from playlist [playlistId].
-  Future<void> removeTrackFromPlaylist(String playlistId, String trackId) async {
+  Future<void> removeTrackFromPlaylist(
+      String playlistId, String trackId) async {
     final playlist = _box.get(playlistId);
     if (playlist == null) return;
     playlist.tracks.removeWhere((t) => t.id == trackId);
@@ -382,7 +400,7 @@ class PlaylistsRepository {
     tracks.insert(insertAt.clamp(0, tracks.length), track);
     playlist.lastModified = DateTime.now();
     await playlist.save();
-    
+
     // Push the updated track positions so Supabase playlist_tracks position order resolves on sync
     final op = OfflineOperation(
       id: 'pl_reorder_${playlistId}_${DateTime.now().millisecondsSinceEpoch}',
@@ -443,15 +461,12 @@ class PlaylistsRepository {
   List<Track> getPlaylistTracks(String playlistId) {
     final playlist = _box.get(playlistId);
     if (playlist == null) return [];
-    return playlist.tracks
-        .map((m) => m.toTrack())
-        .where((t) {
-          final clean = t.artist.trim().toLowerCase();
-          return !(clean.isEmpty ||
-              clean == 'unknown' ||
-              clean == '<unknown>' ||
-              clean == 'unknown artist');
-        })
-        .toList(growable: false);
+    return playlist.tracks.map((m) => m.toTrack()).where((t) {
+      final clean = t.artist.trim().toLowerCase();
+      return !(clean.isEmpty ||
+          clean == 'unknown' ||
+          clean == '<unknown>' ||
+          clean == 'unknown artist');
+    }).toList(growable: false);
   }
 }

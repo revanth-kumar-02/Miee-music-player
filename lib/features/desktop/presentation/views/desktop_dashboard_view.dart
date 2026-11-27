@@ -12,6 +12,7 @@ import '../../../../shared/models/track.dart';
 import '../../../artwork/presentation/miee_artwork_image.dart';
 import '../../../library/presentation/artist_detail_page.dart';
 import '../../../library/providers/library_providers.dart';
+import '../../../notifications/presentation/widgets/notification_sheet.dart';
 import '../../../media/domain/models.dart';
 import '../../../media/providers/media_providers.dart';
 import '../../../onboarding/domain/artist_model.dart';
@@ -48,7 +49,8 @@ class DesktopDashboardView extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DesktopDashboardView> createState() => _DesktopDashboardViewState();
+  ConsumerState<DesktopDashboardView> createState() =>
+      _DesktopDashboardViewState();
 }
 
 class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
@@ -64,49 +66,65 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
     'New Releases',
   ];
 
-  static const List<({String id, String name, String imageUrl, String listeners})> _curatedPopularArtists = [
+  static const List<
+          ({String id, String name, String imageUrl, String listeners})>
+      _curatedPopularArtists = [
     (
       id: '223843195',
       name: 'Sai Abhyankkar',
-      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/234646e93d6ab2923f3bdc363f53d330/500x500-000000-80-0-0.jpg',
+      imageUrl:
+          'https://cdn-images.dzcdn.net/images/artist/234646e93d6ab2923f3bdc363f53d330/500x500-000000-80-0-0.jpg',
       listeners: '3.2M monthly',
     ),
     (
       id: '491',
       name: 'A. R. Rahman',
-      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/bd34315ef977a62a9e28c1ab19bb8ac4/500x500-000000-80-0-0.jpg',
+      imageUrl:
+          'https://cdn-images.dzcdn.net/images/artist/bd34315ef977a62a9e28c1ab19bb8ac4/500x500-000000-80-0-0.jpg',
       listeners: '14.8M monthly',
     ),
     (
       id: '1516162',
       name: 'Anirudh Ravichander',
-      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/9da0a547b39e99bc35c6a9724aef91bf/500x500-000000-80-0-0.jpg',
+      imageUrl:
+          'https://cdn-images.dzcdn.net/images/artist/9da0a547b39e99bc35c6a9724aef91bf/500x500-000000-80-0-0.jpg',
       listeners: '18.4M monthly',
     ),
     (
       id: '362663',
       name: 'Harris Jayaraj',
-      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/b10caf45eae518a2b16997874ded7143/500x500-000000-80-0-0.jpg',
+      imageUrl:
+          'https://cdn-images.dzcdn.net/images/artist/b10caf45eae518a2b16997874ded7143/500x500-000000-80-0-0.jpg',
       listeners: '8.6M monthly',
     ),
     (
       id: '3847661',
       name: 'Yuvan Shankar Raja',
-      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/1dbf7d81a2e964d9c707e53478407974/500x500-000000-80-0-0.jpg',
+      imageUrl:
+          'https://cdn-images.dzcdn.net/images/artist/1dbf7d81a2e964d9c707e53478407974/500x500-000000-80-0-0.jpg',
       listeners: '9.1M monthly',
     ),
     (
       id: '4325950',
       name: 'Santhosh Narayanan',
-      imageUrl: 'https://cdn-images.dzcdn.net/images/artist/74004fed94dddf9ae2d7c83084eaf1ad/500x500-000000-80-0-0.jpg',
+      imageUrl:
+          'https://cdn-images.dzcdn.net/images/artist/74004fed94dddf9ae2d7c83084eaf1ad/500x500-000000-80-0-0.jpg',
       listeners: '5.7M monthly',
     ),
   ];
 
   String _cleanTrackTitle(String title) {
     var cleaned = title
-        .replaceAll(RegExp(r'\s*\([^)]*(From|Soundtrack|OST|Version|Audio|feat|ft\.)[^)]*\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*\[[^\]]*(From|Soundtrack|OST|Version|Audio|feat|ft\.)[^\]]*\]', caseSensitive: false), '')
+        .replaceAll(
+            RegExp(
+                r'\s*\([^)]*(From|Soundtrack|OST|Version|Audio|feat|ft\.)[^)]*\)',
+                caseSensitive: false),
+            '')
+        .replaceAll(
+            RegExp(
+                r'\s*\[[^\]]*(From|Soundtrack|OST|Version|Audio|feat|ft\.)[^\]]*\]',
+                caseSensitive: false),
+            '')
         .trim();
     return cleaned.isNotEmpty ? cleaned : title;
   }
@@ -177,9 +195,11 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
   }
 
   void _playFeaturedSpotlight(List<MediaSong> localSongs) {
-    final match = localSongs.where((s) =>
-        s.title.toLowerCase().contains('kannukulla') ||
-        s.artist.toLowerCase().contains('abhyankkar')).firstOrNull;
+    final match = localSongs
+        .where((s) =>
+            s.title.toLowerCase().contains('kannukulla') ||
+            s.artist.toLowerCase().contains('abhyankkar'))
+        .firstOrNull;
 
     final Track trackToPlay;
     if (match != null) {
@@ -348,7 +368,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
   }
 
   // ── Editorial Hero Spotlight Banner ───────────────────────────────────
-  Widget _buildFeaturedHeaderBanner(BuildContext context, List<MediaSong> localSongs) {
+  Widget _buildFeaturedHeaderBanner(
+      BuildContext context, List<MediaSong> localSongs) {
     return MouseRegion(
       onEnter: (_) => setState(() => _isBannerHovered = true),
       onExit: (_) => setState(() => _isBannerHovered = false),
@@ -416,7 +437,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
 
               // Banner Content Row
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
                 child: Row(
                   children: [
                     // Left Column: Editorial Details & Play Actions
@@ -427,12 +449,15 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                         children: [
                           // Overline Badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 9, vertical: 3.5),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE5A96A).withValues(alpha: 0.18),
+                              color: const Color(0xFFE5A96A)
+                                  .withValues(alpha: 0.18),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: const Color(0xFFE5A96A).withValues(alpha: 0.35),
+                                color: const Color(0xFFE5A96A)
+                                    .withValues(alpha: 0.35),
                                 width: 1.0,
                               ),
                             ),
@@ -501,7 +526,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                 onTap: () => _playFeaturedSpotlight(localSongs),
                                 borderRadius: BorderRadius.circular(16),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 7),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [
@@ -512,7 +538,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFFE5A96A).withValues(alpha: 0.30),
+                                        color: const Color(0xFFE5A96A)
+                                            .withValues(alpha: 0.30),
                                         blurRadius: 10,
                                         offset: const Offset(0, 2),
                                       ),
@@ -555,7 +582,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                 },
                                 borderRadius: BorderRadius.circular(16),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 7),
                                   decoration: BoxDecoration(
                                     color: const Color(0x33282330),
                                     borderRadius: BorderRadius.circular(16),
@@ -627,7 +655,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.60),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.60),
                                       blurRadius: 14,
                                       offset: const Offset(4, 4),
                                     ),
@@ -738,7 +767,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
               borderRadius: BorderRadius.circular(16),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 140),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? const Color(0x38E5A96A)
@@ -753,7 +783,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: const Color(0xFFE5A96A).withValues(alpha: 0.15),
+                            color:
+                                const Color(0xFFE5A96A).withValues(alpha: 0.15),
                             blurRadius: 10,
                             offset: const Offset(0, 2),
                           ),
@@ -780,12 +811,14 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
   }
 
   // ── Section 2: Popular Artists Row ────────────────────────────────────
-  Widget _buildPopularArtistsRow(BuildContext context, List<MediaSong> localSongs) {
+  Widget _buildPopularArtistsRow(
+      BuildContext context, List<MediaSong> localSongs) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
         const gap = 16.0;
-        final cardWidth = (((totalWidth - (5 * gap)) / 6) * 1.06).clamp(136.0, 178.0);
+        final cardWidth =
+            (((totalWidth - (5 * gap)) / 6) * 1.06).clamp(136.0, 178.0);
         final avatarSize = (cardWidth * 0.72).clamp(96.0, 120.0);
 
         return SizedBox(
@@ -805,7 +838,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                   if (_hoveredArtistId == artist.id) _hoveredArtistId = null;
                 }),
                 child: InkWell(
-                  onTap: () => _onArtistSelected(artist.id, artist.name, artist.imageUrl),
+                  onTap: () => _onArtistSelected(
+                      artist.id, artist.name, artist.imageUrl),
                   borderRadius: BorderRadius.circular(16),
                   child: SizedBox(
                     width: cardWidth,
@@ -835,13 +869,15 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.45),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.45),
                                       blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),
                                     if (isHovered)
                                       BoxShadow(
-                                        color: const Color(0xFFE5A96A).withValues(alpha: 0.25),
+                                        color: const Color(0xFFE5A96A)
+                                            .withValues(alpha: 0.25),
                                         blurRadius: 16,
                                         spreadRadius: 1,
                                       ),
@@ -851,8 +887,10 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                   child: MieeArtworkImage(
                                     explicitUrl: artist.imageUrl,
                                     fit: BoxFit.cover,
-                                    placeholder: _buildArtistMonogram(artist.name, avatarSize),
-                                    errorWidget: _buildArtistMonogram(artist.name, avatarSize),
+                                    placeholder: _buildArtistMonogram(
+                                        artist.name, avatarSize),
+                                    errorWidget: _buildArtistMonogram(
+                                        artist.name, avatarSize),
                                   ),
                                 ),
                               ),
@@ -869,7 +907,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                     child: Material(
                                       color: Colors.transparent,
                                       child: InkWell(
-                                        onTap: () => _playArtistTracks(artist.name, localSongs),
+                                        onTap: () => _playArtistTracks(
+                                            artist.name, localSongs),
                                         customBorder: const CircleBorder(),
                                         child: Container(
                                           width: 32,
@@ -886,7 +925,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.50),
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.50),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 2),
                                               ),
@@ -954,7 +994,12 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
   }
 
   Widget _buildArtistMonogram(String name, double size) {
-    final initials = name.trim().split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join();
+    final initials = name
+        .trim()
+        .split(' ')
+        .map((p) => p.isNotEmpty ? p[0] : '')
+        .take(2)
+        .join();
     return Container(
       width: size,
       height: size,
@@ -1130,7 +1175,7 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
               icon: const Icon(Icons.notifications_none_rounded),
               iconSize: 18,
               color: const Color(0xFFA8A29E),
-              onPressed: () {},
+              onPressed: () => NotificationSheet.show(context),
               tooltip: 'Notifications',
               constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
               padding: EdgeInsets.zero,
@@ -1172,11 +1217,13 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
             ),
           ),
           child: ClipOval(
-            child: (userProfile?.avatarUrl != null && userProfile!.avatarUrl!.isNotEmpty)
+            child: (userProfile?.avatarUrl != null &&
+                    userProfile!.avatarUrl!.isNotEmpty)
                 ? Image.network(
                     userProfile.avatarUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildAvatarInitial(userProfile),
+                    errorBuilder: (_, __, ___) =>
+                        _buildAvatarInitial(userProfile),
                   )
                 : _buildAvatarInitial(userProfile),
           ),
@@ -1252,7 +1299,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
         const gap = 16.0;
-        final cardWidth = (((totalWidth - (5 * gap)) / 6) * 1.06).clamp(136.0, 178.0);
+        final cardWidth =
+            (((totalWidth - (5 * gap)) / 6) * 1.06).clamp(136.0, 178.0);
 
         return SizedBox(
           height: cardWidth + 54,
@@ -1263,7 +1311,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
             separatorBuilder: (_, __) => const SizedBox(width: gap),
             itemBuilder: (context, index) {
               final item = items[index];
-              return _buildContinueListeningCard(context, item, items, index, cardWidth);
+              return _buildContinueListeningCard(
+                  context, item, items, index, cardWidth);
             },
           ),
         );
@@ -1461,7 +1510,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
     );
   }
 
-  List<DailyMix> _resolveFullDailyMixes(List<DailyMix> existing, List<MediaSong> localSongs) {
+  List<DailyMix> _resolveFullDailyMixes(
+      List<DailyMix> existing, List<MediaSong> localSongs) {
     final mixes = List<DailyMix>.from(existing);
 
     final curatedDefinitions = [
@@ -1550,7 +1600,8 @@ class _DesktopDashboardViewState extends ConsumerState<DesktopDashboardView> {
                 child: Image.asset(
                   'assets/images/mix_cover_${(index % 6) + 1}.png',
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildAbstractMixPlaceholder(index),
+                  errorBuilder: (_, __, ___) =>
+                      _buildAbstractMixPlaceholder(index),
                 ),
               ),
             ),

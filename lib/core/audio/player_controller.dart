@@ -88,6 +88,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _hasMoreArtistTracks = hasMore;
   }
 
+  String? _lastRecordedTrackKey;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<Duration>? _bufferedSub;
@@ -325,7 +326,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
                 : state.duration,
           );
           _persistQueueSnapshot();
-          _recordRecentlyPlayed(track);
           _analyticsTracker.onTrackChanged(track);
         }
       }
@@ -370,6 +370,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
         clearErrorMessage: isHealthy,
         clearLoadingTrackId: clearLoading,
       );
+      if (status == PlaybackStatus.playing && state.currentTrack != null) {
+        final current = state.currentTrack!;
+        final trackKey =
+            '${_normalizeTrackId(current.id)}|${current.title.trim().toLowerCase()}|${current.artist.trim().toLowerCase()}';
+        if (_lastRecordedTrackKey != trackKey) {
+          _lastRecordedTrackKey = trackKey;
+          _recordRecentlyPlayed(current);
+        }
+      }
       _analyticsTracker.onPlaybackStatusChanged(status, state.currentTrack);
 
       // ── Completion handling ───────────────────────────────────────────────

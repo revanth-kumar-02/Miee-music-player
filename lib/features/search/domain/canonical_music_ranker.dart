@@ -44,7 +44,8 @@ class CanonicalMusicRanker {
       return false;
     }
 
-    final artistLower = (video.canonicalArtist ?? video.channelTitle).toLowerCase();
+    final artistLower =
+        (video.canonicalArtist ?? video.channelTitle).toLowerCase();
     final albumLower = (video.albumName ?? '').toLowerCase();
     final titleLower = video.title.toLowerCase();
 
@@ -74,7 +75,9 @@ class CanonicalMusicRanker {
 
     // 3. Specific tribute soloists (e.g. Caitlin De Ville's "Covers Collection")
     if (artistLower.contains('caitlin de ville') &&
-        (albumLower.contains('cover') || titleLower.contains('cover') || albumLower.isEmpty)) {
+        (albumLower.contains('cover') ||
+            titleLower.contains('cover') ||
+            albumLower.isEmpty)) {
       return true;
     }
 
@@ -104,14 +107,17 @@ class CanonicalMusicRanker {
     final unicodeAlphaNum = RegExp(r'[^\p{L}\p{N}]', unicode: true);
     final normQuery = cleanQuery.replaceAll(unicodeAlphaNum, '');
 
-    final titleLower = (video.canonicalTitle ?? video.title).trim().toLowerCase();
+    final titleLower =
+        (video.canonicalTitle ?? video.title).trim().toLowerCase();
     final normTitle = titleLower.replaceAll(unicodeAlphaNum, '');
 
-    final artistLower = (video.canonicalArtist ?? video.channelTitle).trim().toLowerCase();
+    final artistLower =
+        (video.canonicalArtist ?? video.channelTitle).trim().toLowerCase();
     final normArtist = artistLower.replaceAll(unicodeAlphaNum, '');
 
     // 1. Exact Title Match & Full Query Coverage
-    if (titleLower == cleanQuery || (normTitle.isNotEmpty && normTitle == normQuery)) {
+    if (titleLower == cleanQuery ||
+        (normTitle.isNotEmpty && normTitle == normQuery)) {
       score += 250.0;
     } else if (titleLower.startsWith(cleanQuery)) {
       score += 100.0;
@@ -119,7 +125,8 @@ class CanonicalMusicRanker {
       score += 50.0;
     }
 
-    if (QueryRelevanceEvaluator.hasFullQueryCoverage(video, query: cleanQuery)) {
+    if (QueryRelevanceEvaluator.hasFullQueryCoverage(video,
+        query: cleanQuery)) {
       score += 300.0;
     }
 
@@ -128,20 +135,25 @@ class CanonicalMusicRanker {
       final canArtistLower = canonicalArtist.trim().toLowerCase();
       final normCanArtist = canArtistLower.replaceAll(unicodeAlphaNum, '');
 
-      if (artistLower == canArtistLower || (normArtist.isNotEmpty && normArtist == normCanArtist)) {
+      if (artistLower == canArtistLower ||
+          (normArtist.isNotEmpty && normArtist == normCanArtist)) {
         score += 400.0;
-      } else if (artistLower.contains(canArtistLower) || canArtistLower.contains(artistLower)) {
+      } else if (artistLower.contains(canArtistLower) ||
+          canArtistLower.contains(artistLower)) {
         score += 200.0;
       }
     }
 
     // Explicit Artist in User Query (e.g. "Shape of You Caitlin De Ville")
-    if (artistLower.isNotEmpty && (cleanQuery.contains(artistLower) || (normArtist.length >= 4 && normQuery.contains(normArtist)))) {
+    if (artistLower.isNotEmpty &&
+        (cleanQuery.contains(artistLower) ||
+            (normArtist.length >= 4 && normQuery.contains(normArtist)))) {
       score += 450.0;
     }
 
     // 3. Performing Artist Prominence (Fan counts & Curated catalog)
-    final curated = DeezerArtistRepository.findCuratedByName(video.canonicalArtist ?? video.channelTitle);
+    final curated = DeezerArtistRepository.findCuratedByName(
+        video.canonicalArtist ?? video.channelTitle);
     if (curated != null) {
       score += 250.0;
     }
@@ -149,7 +161,9 @@ class CanonicalMusicRanker {
     ArtistModel? matchingArtist;
     for (final pa in prominentArtists) {
       final pLower = pa.name.trim().toLowerCase();
-      if (artistLower == pLower || artistLower.contains(pLower) || pLower.contains(artistLower)) {
+      if (artistLower == pLower ||
+          artistLower.contains(pLower) ||
+          pLower.contains(artistLower)) {
         matchingArtist = pa;
         break;
       }
@@ -167,15 +181,56 @@ class CanonicalMusicRanker {
       }
     }
 
-    // 4. Heavy Penalty for Unrequested Tribute / Cover / Karaoke Bands
+    // 4. Heavy Penalty for Unrequested Tribute / Cover / Karaoke Bands & Derivative Edits
     if (isTributeOrCover(video, intent: intent)) {
       score -= 600.0;
     }
 
+    final editType = SearchDeduplicator.detectEditType(video, intent);
+    if (editType != EditType.none) {
+      switch (editType) {
+        case EditType.slowedReverb:
+        case EditType.spedUpNightcore:
+        case EditType.mashupRemake:
+        case EditType.audioModified:
+        case EditType.statusVideo:
+        case EditType.fanEdit:
+        case EditType.fourKEdit:
+        case EditType.promoTeaser:
+        case EditType.karaokeVersion:
+        case EditType.nonMusicEntertainment:
+          score -= 550.0;
+          break;
+        case EditType.coverSong:
+        case EditType.compilationMix:
+        case EditType.documentaryMaking:
+          score -= 400.0;
+          break;
+        case EditType.livePerformance:
+        case EditType.instrumentalVersion:
+        case EditType.unrequestedRemix:
+          score -= 120.0;
+          break;
+        case EditType.none:
+          break;
+      }
+    }
+
+    // Boost official artist / Topic / VEVO channels
+    final channelLower =
+        (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+    if (channelLower.endsWith('- topic') ||
+        channelLower.contains('vevo') ||
+        channelLower.contains('official')) {
+      score += 180.0;
+    }
+
     // 5. Version Intent Alignment
-    final isLive = titleLower.contains('live') || (video.albumName?.toLowerCase().contains('live') ?? false);
+    final isLive = titleLower.contains('live') ||
+        (video.albumName?.toLowerCase().contains('live') ?? false);
     final isRemix = titleLower.contains('remix');
-    final isAcoustic = titleLower.contains('acoustic') || titleLower.contains('unplugged');
+    final isAcoustic =
+        titleLower.contains('acoustic') || titleLower.contains('unplugged');
 
     if (isLive) {
       if (intent.wantsLive) {
@@ -208,7 +263,8 @@ class CanonicalMusicRanker {
       score += 100.0; // Verified commercial catalogue
     }
 
-    if (video.highResArtworkUrl != null && video.highResArtworkUrl!.isNotEmpty) {
+    if (video.highResArtworkUrl != null &&
+        video.highResArtworkUrl!.isNotEmpty) {
       score += 40.0;
     }
 
@@ -254,8 +310,12 @@ class CanonicalMusicRanker {
 
     for (final item in scored) {
       final v = item.video;
-      final normT = (v.canonicalTitle ?? v.title).toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-      final normA = (v.canonicalArtist ?? v.channelTitle).toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final normT = (v.canonicalTitle ?? v.title)
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final normA = (v.canonicalArtist ?? v.channelTitle)
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '');
       final key = '$normT::$normA';
 
       if (key.isNotEmpty && seenPairs.add(key)) {
