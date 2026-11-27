@@ -111,13 +111,16 @@ class CanonicalMusicRanker {
         (video.canonicalTitle ?? video.title).trim().toLowerCase();
     final normTitle = titleLower.replaceAll(unicodeAlphaNum, '');
 
-    final artistLower =
-        (video.canonicalArtist ?? video.channelTitle).trim().toLowerCase();
-    final normArtist = artistLower.replaceAll(unicodeAlphaNum, '');
+    final rawArtistField = (video.canonicalArtist ?? video.channelTitle).trim();
+    final artistLower = rawArtistField.toLowerCase();
+    final hasVerifiedArtist = video.canonicalArtist != null &&
+        video.canonicalArtist!.trim().isNotEmpty;
 
     // 1. Exact Title Match & Full Query Coverage
-    if (titleLower == cleanQuery ||
-        (normTitle.isNotEmpty && normTitle == normQuery)) {
+    final isExactTitle = titleLower == cleanQuery ||
+        (normTitle.isNotEmpty && normTitle == normQuery);
+    final isStrongTitle = isExactTitle || titleLower.startsWith(cleanQuery);
+    if (isExactTitle) {
       score += 250.0;
     } else if (titleLower.startsWith(cleanQuery)) {
       score += 100.0;
@@ -128,27 +131,58 @@ class CanonicalMusicRanker {
     if (QueryRelevanceEvaluator.hasFullQueryCoverage(video,
         query: cleanQuery)) {
       score += 300.0;
+    } else if (!isStrongTitle) {
+      // Weak substring/partial-token match penalty
+      score -= 100.0;
     }
 
-    // 2. Canonical Artist Match from Global Popularity (e.g. Apple Music / Curated #1)
+    // 2. Canonical / Main / Featured Artist Alignment
+    bool matchedExpectedArtist = false;
     if (canonicalArtist != null && canonicalArtist.isNotEmpty) {
-      final canArtistLower = canonicalArtist.trim().toLowerCase();
-      final normCanArtist = canArtistLower.replaceAll(unicodeAlphaNum, '');
+      final credited =
+          QueryRelevanceEvaluator.extractCreditedArtists(rawArtistField);
+      final primaryCredited =
+          credited.isNotEmpty ? credited.first : rawArtistField;
 
-      if (artistLower == canArtistLower ||
-          (normArtist.isNotEmpty && normArtist == normCanArtist)) {
-        score += 400.0;
-      } else if (artistLower.contains(canArtistLower) ||
-          canArtistLower.contains(artistLower)) {
-        score += 200.0;
+      if (QueryRelevanceEvaluator.matchesCreditedArtist(
+        primaryCredited,
+        canonicalArtist,
+      )) {
+        matchedExpectedArtist = true;
+        score += 420.0;
+      } else if (QueryRelevanceEvaluator.matchesCreditedArtist(
+        rawArtistField,
+        canonicalArtist,
+        titleOrCredits: video.rawTitle ?? video.title,
+      )) {
+        matchedExpectedArtist = true;
+        score += 340.0;
+      } else {
+        // Exact/strong title attributed to unrelated artist receives penalty
+        score -= 420.0;
       }
     }
 
-    // Explicit Artist in User Query (e.g. "Shape of You Caitlin De Ville")
-    if (artistLower.isNotEmpty &&
-        (cleanQuery.contains(artistLower) ||
-            (normArtist.length >= 4 && normQuery.contains(normArtist)))) {
-      score += 450.0;
+    // Explicit Artist in User Query (e.g. "Shape of You Ed Sheeran" or "Lana Del Rey")
+    if (artistLower.isNotEmpty) {
+      final credited =
+          QueryRelevanceEvaluator.extractCreditedArtists(rawArtistField);
+      final queryMatchesCredited = credited.any((c) {
+        final cNorm = c.trim().toLowerCase();
+        final cCompact = cNorm.replaceAll(unicodeAlphaNum, '');
+        return (cNorm.length >= 3 && cleanQuery.contains(cNorm)) ||
+            (cCompact.length >= 4 && normQuery.contains(cCompact)) ||
+            QueryRelevanceEvaluator.expandArtistAliases(cNorm)
+                .any((a) => a.length >= 4 && cleanQuery.contains(a));
+      });
+      if (queryMatchesCredited) {
+        matchedExpectedArtist = true;
+        score += 450.0;
+      }
+    }
+
+    if (!hasVerifiedArtist && !matchedExpectedArtist) {
+      score -= 80.0;
     }
 
     // 3. Performing Artist Prominence (Fan counts & Curated catalog)

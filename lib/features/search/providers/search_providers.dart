@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../media/providers/media_providers.dart';
 import '../data/search_repository.dart';
+import '../domain/artist_classifier.dart';
 import '../domain/search_state.dart';
 import '../domain/search_diagnostics.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
@@ -24,6 +25,7 @@ class SearchNotifier extends StateNotifier<SearchState> {
   Timer? _debounceTimer;
   Timer? _suggestionDebounceTimer;
   CancelToken? _activeSearchCancelToken;
+  CancelToken? _activeSuggestionCancelToken;
   int _searchRequestId = 0;
 
   SearchNotifier(this._repo, this._ref) : super(const SearchState()) {
@@ -45,6 +47,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
     _suggestionDebounceTimer?.cancel();
     _activeSearchCancelToken?.cancel('Superseded by new query');
     _activeSearchCancelToken = null;
+    _activeSuggestionCancelToken?.cancel('Superseded by new query');
+    _activeSuggestionCancelToken = null;
 
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
@@ -151,6 +155,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
     _suggestionDebounceTimer =
         Timer(const Duration(milliseconds: 120), () async {
       if (currentReqId != _searchRequestId) return;
+      final suggestionCancelToken = CancelToken();
+      _activeSuggestionCancelToken = suggestionCancelToken;
       try {
         final liveMusic = await _repo.getLiveMusicSuggestions(
           query: trimmed,
@@ -158,8 +164,10 @@ class SearchNotifier extends StateNotifier<SearchState> {
           localArtists: instantLocalArtists,
           localAlbums: instantLocalAlbums,
           localPlaylists: instantLocalPlaylists,
+          cancelToken: suggestionCancelToken,
         );
-        if (currentReqId == _searchRequestId) {
+        if (currentReqId == _searchRequestId &&
+            !suggestionCancelToken.isCancelled) {
           state = state.copyWith(
             liveSuggestions: liveMusic,
             isSuggestionsLoading: false,
@@ -186,6 +194,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
     _suggestionDebounceTimer?.cancel();
     _activeSearchCancelToken?.cancel('Superseded by immediate search');
     _activeSearchCancelToken = null;
+    _activeSuggestionCancelToken?.cancel('Superseded by immediate search');
+    _activeSuggestionCancelToken = null;
 
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
@@ -384,10 +394,20 @@ class SearchNotifier extends StateNotifier<SearchState> {
 
     final existingArtists = List<ArtistModel>.from(state.onlineArtists);
 
-    // Extract potential artist tokens from top songs
+    // Extract verified artist names from top song results (never raw random uploaders)
     final candidateNames = <String>[];
     for (final video in youtube.take(5)) {
-      final artistName = (video.canonicalArtist ?? video.channelTitle).trim();
+      final hasVerifiedArtist = video.canonicalArtist != null &&
+          video.canonicalArtist!.trim().isNotEmpty;
+      final channelIsTopicOrCurated = video.channelTitle
+              .toLowerCase()
+              .endsWith('- topic') ||
+          DeezerArtistRepository.findCuratedByName(video.channelTitle) != null;
+      if (!hasVerifiedArtist && !channelIsTopicOrCurated) continue;
+      final artistName = (video.canonicalArtist ??
+              video.channelTitle.replaceAll(
+                  RegExp(r'\s*-\s*topic$', caseSensitive: false), ''))
+          .trim();
       if (artistName.isEmpty) continue;
 
       // Retain full artist name as top candidate (preserves bands like "She & Him", "Simon & Garfunkel")
@@ -431,8 +451,14 @@ class SearchNotifier extends StateNotifier<SearchState> {
           final online = await _repo.artistRepository.searchArtists(name);
           if (online.isNotEmpty) {
             final top = online.first;
-            if (top.fanCount > 100 ||
-                DeezerArtistRepository.findCuratedByName(top.name) != null) {
+            if (ArtistClassifier.isLegitimateMusicArtist(
+                  top.name,
+                  fanCount: top.fanCount,
+                  query: query,
+                ) &&
+                (top.fanCount > 100 ||
+                    DeezerArtistRepository.findCuratedByName(top.name) !=
+                        null)) {
               if (!resolvedArtists.any((a) => a.id == top.id)) {
                 resolvedArtists.add(top);
               }
@@ -480,6 +506,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
   void dispose() {
     _debounceTimer?.cancel();
     _suggestionDebounceTimer?.cancel();
+    _activeSearchCancelToken?.cancel('Disposed');
+    _activeSuggestionCancelToken?.cancel('Disposed');
     super.dispose();
   }
 }

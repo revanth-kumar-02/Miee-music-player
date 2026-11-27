@@ -1,3 +1,4 @@
+import '../../onboarding/domain/artist_model.dart';
 import '../../youtube/domain/youtube_model.dart';
 import 'search_deduplicator.dart';
 
@@ -115,20 +116,139 @@ class QueryRelevanceEvaluator {
     }
     // For longer tokens (>= 4 chars), allow word-boundary matching
     final pattern = RegExp(
-      r'(^|\s|[^\p{L}\p{N}\p{M}])' + RegExp.escape(token) + r'($|\s|[^\p{L}\p{N}\p{M}])',
+      r'(^|\s|[^\p{L}\p{N}\p{M}])' +
+          RegExp.escape(token) +
+          r'($|\s|[^\p{L}\p{N}\p{M}])',
       unicode: true,
     );
     return pattern.hasMatch(candidateCombined);
   }
 
-  /// Evaluates whether [candidate] has sufficient semantic relevance to [query].
-  ///
-  /// Returns `true` if the candidate matches the query's primary entities, or `false`
-  /// if it is an unrelated fallback result (e.g., partial-keyword catalog hits).
+  /// Known artist spelling variants and canonical aliases for multilingual/global artists.
+  static final Map<String, Set<String>> _artistAliasGroups = {
+    'arrahman': {
+      'a r rahman',
+      'ar rahman',
+      'a r rehman',
+      'ar rehman',
+      'rahman'
+    },
+    'anirudhravichander': {'anirudh ravichander', 'anirudh'},
+    'yuvanshankarraja': {'yuvan shankar raja', 'yuvan', 'ysr'},
+    'spbalasubrahmanyam': {
+      's p balasubrahmanyam',
+      'sp balasubrahmanyam',
+      'spb'
+    },
+    'ilaiyaraaja': {'ilaiyaraaja', 'ilaiyaraja', 'ilayaraja'},
+    'saiabhyankkar': {'sai abhyankkar', 'sai abhyankar'},
+    'santhoshnarayanan': {'santhosh narayanan', 'sana'},
+    'arijitsingh': {'arijit singh', 'arijit'},
+    'shreyaghoshal': {'shreya ghoshal'},
+    'harrisjayaraj': {'harris jayaraj'},
+    'gvprakashkumar': {'g v prakash kumar', 'gv prakash kumar', 'gv prakash'},
+  };
+
+  static String _normArtistKey(String input) => input
+      .toLowerCase()
+      .replaceAll(RegExp(r'\s*-\s*topic\s*$', caseSensitive: false), '')
+      .replaceAll(RegExp(r'[\.\,\-\–\—]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  static String _compactAlphaNum(String input) => input
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+
+  static Set<String> expandArtistAliases(String artistName) {
+    final norm = _normArtistKey(artistName);
+    final compact = _compactAlphaNum(norm);
+    final result = <String>{
+      if (norm.isNotEmpty) norm,
+      if (compact.isNotEmpty) compact
+    };
+    for (final entry in _artistAliasGroups.entries) {
+      if (entry.key == compact ||
+          entry.value.any((a) => a == norm || _compactAlphaNum(a) == compact)) {
+        result.add(entry.key);
+        result.addAll(entry.value);
+        result.addAll(entry.value.map(_compactAlphaNum));
+      }
+    }
+    return result;
+  }
+
+  /// Splits featured and collaborating artist strings into individual credited artists,
+  /// always keeping the intact full artist name first (preserves bands like "She & Him").
+  static List<String> extractCreditedArtists(String artistField) {
+    final clean = artistField.trim();
+    if (clean.isEmpty) return const [];
+    final credits = <String>[clean];
+    final splitRegex = RegExp(
+      r'\s*(?:,|/|&|\||\bfeat\.?\b|\bft\.?\b|\bfeaturing\b|\bwith\b|\bx\b|\bvs\.?)\s*',
+      caseSensitive: false,
+    );
+    if (splitRegex.hasMatch(clean)) {
+      for (final part in clean.split(splitRegex)) {
+        final trimmed = part.trim();
+        if (trimmed.isNotEmpty && !credits.contains(trimmed)) {
+          credits.add(trimmed);
+        }
+      }
+    }
+    return credits;
+  }
+
+  /// Checks whether [candidateArtistField] matches [expectedArtist] via exact match,
+  /// normalized match, alias expansion, or collaborating/featured credit match.
+  static bool matchesCreditedArtist(
+    String candidateArtistField,
+    String expectedArtist, {
+    String? titleOrCredits,
+  }) {
+    final cleanExpected = _normArtistKey(expectedArtist);
+    if (cleanExpected.isEmpty) return false;
+    final expectedAliases = expandArtistAliases(cleanExpected);
+
+    final creditedList = extractCreditedArtists(candidateArtistField);
+    for (final credit in creditedList) {
+      final normCredit = _normArtistKey(credit);
+      final compactCredit = _compactAlphaNum(normCredit);
+      if (normCredit.isEmpty) continue;
+      if (expectedAliases.contains(normCredit) ||
+          (compactCredit.isNotEmpty &&
+              expectedAliases.contains(compactCredit))) {
+        return true;
+      }
+    }
+
+    // Check explicit featured/collaboration credits embedded in song title
+    // (e.g. "Song (feat. ArtistName)", "Song - Movie | Music: ArtistName")
+    if (titleOrCredits != null && titleOrCredits.trim().isNotEmpty) {
+      final titleNorm = _normArtistKey(titleOrCredits);
+      for (final alias in expectedAliases) {
+        if (alias.length < 3) continue;
+        final escaped = RegExp.escape(alias);
+        final creditContextPattern = RegExp(
+          '(?:\\b(?:feat\\.?|ft\\.?|featuring|with|by|music|composer|singer|singers)\\b[^\\|\\)]*\\b$escaped\\b|\\b$escaped\\b\\s*(?:,|&|x|\\|))',
+          caseSensitive: false,
+        );
+        if (creditContextPattern.hasMatch(titleNorm)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /// Evaluates whether [candidate] has sufficient semantic relevance to [query],
+  /// enforcing artist relevance whenever [expectedArtist] is targeted by the query.
   static bool isCandidateRelevant(
     YouTubeVideo candidate, {
     required String query,
     QueryIntent? intent,
+    String? expectedArtist,
   }) {
     final cleanQuery = query.trim().toLowerCase();
     if (cleanQuery.isEmpty) return true;
@@ -137,12 +257,38 @@ class QueryRelevanceEvaluator {
     if (queryTokens.isEmpty) return true;
 
     // Filter query tokens into core tokens (excluding generic collection words)
-    final coreTokens = queryTokens.where((t) => !collectionStopWords.contains(t)).toList();
+    final coreTokens =
+        queryTokens.where((t) => !collectionStopWords.contains(t)).toList();
     final effectiveTokens = coreTokens.isNotEmpty ? coreTokens : queryTokens;
 
-    final candidateTitle = (candidate.canonicalTitle ?? candidate.title).toLowerCase();
-    final candidateArtist = (candidate.canonicalArtist ?? candidate.channelTitle).toLowerCase();
+    final candidateTitle =
+        (candidate.canonicalTitle ?? candidate.title).toLowerCase();
+    final candidateArtist =
+        (candidate.canonicalArtist ?? candidate.channelTitle).toLowerCase();
+    final candidateRawArtist =
+        (candidate.rawChannelTitle ?? candidate.channelTitle).toLowerCase();
+    final candidateRawTitle =
+        (candidate.rawTitle ?? candidate.title).toLowerCase();
     final candidateAlbum = (candidate.albumName ?? '').toLowerCase();
+
+    // Strict artist gate when caller identified an explicit artist target for this query:
+    // Matching title tokens alone cannot override an unrelated artist.
+    if (expectedArtist != null && expectedArtist.trim().isNotEmpty) {
+      final artistMatched = matchesCreditedArtist(
+            candidateArtist,
+            expectedArtist,
+            titleOrCredits: candidateRawTitle,
+          ) ||
+          (candidateRawArtist != candidateArtist &&
+              matchesCreditedArtist(
+                candidateRawArtist,
+                expectedArtist,
+                titleOrCredits: candidateRawTitle,
+              ));
+      if (!artistMatched) {
+        return false;
+      }
+    }
 
     final candidateTokens = {
       ..._tokenize(candidateTitle),
@@ -150,24 +296,24 @@ class QueryRelevanceEvaluator {
       ..._tokenize(candidateAlbum),
     };
 
-    final candidateCombined = '$candidateTitle $candidateArtist $candidateAlbum';
+    final candidateCombined =
+        '$candidateTitle $candidateArtist $candidateAlbum';
 
     // 1. Exact or substring match of entire query in title/artist
-    if (candidateTitle.contains(cleanQuery) || candidateArtist.contains(cleanQuery)) {
+    if (candidateTitle.contains(cleanQuery) ||
+        candidateArtist.contains(cleanQuery)) {
       return true;
     }
 
     // 2. Exact match of core entity
     final coreEntity = extractCoreEntity(cleanQuery);
     if (coreEntity.isNotEmpty &&
-        (candidateTitle.contains(coreEntity) || candidateArtist.contains(coreEntity))) {
+        (candidateTitle.contains(coreEntity) ||
+            candidateArtist.contains(coreEntity))) {
       return true;
     }
 
     // 3. Token containment check
-    // If the query has multiple core tokens (e.g. "om", "tamil"), at least 1 significant core token
-    // must be present in the candidate. If language marker is present in query, candidate should not
-    // completely contradict it.
     int matchCount = 0;
     for (final token in effectiveTokens) {
       if (_matchesToken(token, candidateTokens, candidateCombined)) {
@@ -175,19 +321,22 @@ class QueryRelevanceEvaluator {
       }
     }
 
-    // If query has language marker (e.g. "tamil"), check if candidate explicitly contains it
-    // or if the core entity matches.
-    final queryHasLanguage = effectiveTokens.any((t) => languageMarkers.contains(t));
+    // If query has language marker (e.g. "tamil"), require strong coverage of non-language tokens
+    final queryHasLanguage =
+        effectiveTokens.any((t) => languageMarkers.contains(t));
     if (queryHasLanguage && effectiveTokens.length > 1) {
-      // Must match at least the non-language entity token (e.g. "om")
-      final nonLangTokens = effectiveTokens.where((t) => !languageMarkers.contains(t)).toList();
-      final hasNonLangMatch = nonLangTokens.any((t) =>
-          _matchesToken(t, candidateTokens, candidateCombined));
-
-      if (!hasNonLangMatch) {
-        return false;
+      final nonLangTokens =
+          effectiveTokens.where((t) => !languageMarkers.contains(t)).toList();
+      if (nonLangTokens.isEmpty) return true;
+      int nonLangMatches = 0;
+      for (final t in nonLangTokens) {
+        if (_matchesToken(t, candidateTokens, candidateCombined)) {
+          nonLangMatches++;
+        }
       }
-      return true;
+      final required =
+          nonLangTokens.length == 1 ? 1 : (nonLangTokens.length * 0.65).ceil();
+      return nonLangMatches >= required;
     }
 
     // For single-word queries, direct token match or substring match required
@@ -199,13 +348,10 @@ class QueryRelevanceEvaluator {
     }
 
     // For multi-token queries (>= 2 effective tokens):
-    // If the query contains an entity prefix/subject (the first core token),
-    // and the candidate matches only trailing words while COMPLETELY missing the entity prefix
-    // (e.g. query "om first strike" matching "first strike" by "Luis M" but missing "om"),
-    // the candidate is an unrelated catalogue homonym and must be rejected.
     if (effectiveTokens.length >= 2) {
       final firstToken = effectiveTokens.first;
-      final hasFirstToken = _matchesToken(firstToken, candidateTokens, candidateCombined);
+      final hasFirstToken =
+          _matchesToken(firstToken, candidateTokens, candidateCombined);
 
       // If the candidate has 100% full query coverage, it is unconditionally relevant
       if (matchCount >= effectiveTokens.length) {
@@ -213,12 +359,13 @@ class QueryRelevanceEvaluator {
       }
 
       // If missing the leading entity token, reject unless it's a generic collection stopword
+      // or the candidate explicitly matches expectedArtist / alias
       if (!hasFirstToken && !collectionStopWords.contains(firstToken)) {
         return false;
       }
 
-      // Require at least 50% of effective tokens
-      return matchCount >= (effectiveTokens.length / 2).ceil();
+      // Require >= 65% of effective tokens (prevents 1-of-2 partial token collisions)
+      return matchCount >= (effectiveTokens.length * 0.65).ceil();
     }
 
     return matchCount >= (effectiveTokens.length / 2).ceil();
@@ -260,20 +407,62 @@ class QueryRelevanceEvaluator {
   }
 
   /// Validates whether a candidate artist is genuinely relevant to the query.
+  /// Avoids raw short-substring collisions while supporting full names, multi-artist
+  /// credits, and known artist aliases.
   static bool isArtistRelevant(String artistName, {required String query}) {
-    final cleanQuery = query.trim().toLowerCase();
-    final artistLower = artistName.trim().toLowerCase();
+    final cleanQuery = _normArtistKey(query);
+    final artistNorm = _normArtistKey(artistName);
 
-    if (cleanQuery.isEmpty || artistLower.isEmpty) return false;
-    if (artistLower.contains(cleanQuery) || cleanQuery.contains(artistLower)) return true;
+    if (cleanQuery.isEmpty || artistNorm.isEmpty) return false;
+    if (matchesCreditedArtist(artistName, cleanQuery)) return true;
 
     final queryTokens = _tokenize(cleanQuery);
-    final coreTokens = queryTokens.where((t) => !collectionStopWords.contains(t)).toList();
-    final artistTokens = _tokenize(artistLower);
+    final coreTokens =
+        queryTokens.where((t) => !collectionStopWords.contains(t)).toList();
+    final effectiveTokens = coreTokens.isNotEmpty ? coreTokens : queryTokens;
+    if (effectiveTokens.isEmpty) return false;
 
-    for (final t in coreTokens) {
-      if (artistTokens.contains(t)) return true;
+    final artistTokens = _tokenize(artistNorm).toSet();
+
+    // Check exact/alias token match when query is a single word (never substring/prefix collision like "Aria" -> "Ariana")
+    if (effectiveTokens.length == 1) {
+      final qTok = effectiveTokens.first;
+      return artistTokens.contains(qTok);
     }
+
+    // For multi-word queries (e.g. "Lana Del Rey"), require all core tokens
+    // to appear in artistTokens (or query itself contains the artist's full name)
+    final allInArtist = effectiveTokens.every((t) => artistTokens.contains(t));
+    if (allInArtist) return true;
+
+    final artistCore = artistTokens.where((t) => t.length >= 2).toList();
+    if (artistCore.isNotEmpty &&
+        artistCore.every((t) => effectiveTokens.contains(t))) {
+      return true;
+    }
+
     return false;
+  }
+
+  /// Identifies if [query] directly targets a specific verified artist from [artists]
+  /// (or curated catalog), returning that canonical artist name if matched.
+  static String? detectTargetedArtist(
+    String query,
+    List<ArtistModel> artists,
+  ) {
+    final cleanQuery = _normArtistKey(query);
+    if (cleanQuery.isEmpty || cleanQuery.length < 3) return null;
+    if (isCollectionQuery(cleanQuery)) return null;
+
+    final queryAliases = expandArtistAliases(cleanQuery);
+    for (final artist in artists) {
+      final normArtist = _normArtistKey(artist.name);
+      final compactArtist = _compactAlphaNum(normArtist);
+      if (queryAliases.contains(normArtist) ||
+          (compactArtist.isNotEmpty && queryAliases.contains(compactArtist))) {
+        return artist.name;
+      }
+    }
+    return null;
   }
 }
