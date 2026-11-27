@@ -78,7 +78,8 @@ class ArtworkQuery {
       return id;
     }
     if (fallbackThumbnailUrl != null) {
-      final match = RegExp(r'\/vi\/([a-zA-Z0-9_-]{11})\/').firstMatch(fallbackThumbnailUrl!);
+      final match = RegExp(r'\/vi\/([a-zA-Z0-9_-]{11})\/')
+          .firstMatch(fallbackThumbnailUrl!);
       if (match != null) return match.group(1);
     }
     return null;
@@ -94,11 +95,16 @@ class ArtworkQuery {
     if (lower.startsWith('http://img.youtube.com/') ||
         lower.startsWith('https://img.youtube.com/')) {
       return trimmed
-          .replaceFirst(RegExp(r'^http://img\.youtube\.com/', caseSensitive: false), 'https://i.ytimg.com/')
-          .replaceFirst(RegExp(r'^https://img\.youtube\.com/', caseSensitive: false), 'https://i.ytimg.com/');
+          .replaceFirst(
+              RegExp(r'^http://img\.youtube\.com/', caseSensitive: false),
+              'https://i.ytimg.com/')
+          .replaceFirst(
+              RegExp(r'^https://img\.youtube\.com/', caseSensitive: false),
+              'https://i.ytimg.com/');
     }
     if (lower.startsWith('http://i.ytimg.com/')) {
-      return trimmed.replaceFirst(RegExp(r'^http://', caseSensitive: false), 'https://');
+      return trimmed.replaceFirst(
+          RegExp(r'^http://', caseSensitive: false), 'https://');
     }
     return trimmed;
   }
@@ -136,8 +142,10 @@ class ArtworkQuery {
           item.highResArtworkUrl!.isNotEmpty &&
           !item.highResArtworkUrl!.contains('ytimg.com') &&
           !item.highResArtworkUrl!.contains('youtube.com');
-      final highRes = albumArtworkUrl ?? (isHighRes ? _sanitizeFallbackUrl(item.highResArtworkUrl) : null);
-      String? fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.thumbnailUrl);
+      final highRes = albumArtworkUrl ??
+          (isHighRes ? _sanitizeFallbackUrl(item.highResArtworkUrl) : null);
+      String? fallback =
+          cleanExplicit ?? _sanitizeFallbackUrl(item.thumbnailUrl);
       if (fallback == null || fallback.isEmpty) {
         fallback = 'https://i.ytimg.com/vi/${item.id}/hqdefault.jpg';
       }
@@ -157,32 +165,39 @@ class ArtworkQuery {
 
     if (item is Track) {
       final isYt = item.isYoutube;
-      final albumArt = albumArtworkUrl ??
+      final candidateAlbumArt = albumArtworkUrl ??
           ((item.albumArtworkUrl != null &&
                   item.albumArtworkUrl!.isNotEmpty &&
                   !item.albumArtworkUrl!.contains('ytimg.com') &&
                   !item.albumArtworkUrl!.contains('youtube.com'))
               ? _sanitizeFallbackUrl(item.albumArtworkUrl)
-              : ((item.imageUrl.isNotEmpty &&
-                      !item.imageUrl.contains('ytimg.com') &&
-                      !item.imageUrl.contains('youtube.com') &&
-                      (item.imageUrl.contains('mzstatic.com') ||
-                          item.imageUrl.contains('dzcdn.net') ||
-                          item.imageUrl.contains('archive.org')))
-                  ? _sanitizeFallbackUrl(item.imageUrl)
-                  : null));
+              : ((item.resolvedArtworkUrl != null &&
+                      item.resolvedArtworkUrl!.isNotEmpty &&
+                      !item.resolvedArtworkUrl!.contains('ytimg.com') &&
+                      !item.resolvedArtworkUrl!.contains('youtube.com'))
+                  ? _sanitizeFallbackUrl(item.resolvedArtworkUrl)
+                  : ((item.imageUrl.isNotEmpty &&
+                          !item.imageUrl.contains('ytimg.com') &&
+                          !item.imageUrl.contains('youtube.com') &&
+                          (item.imageUrl.contains('mzstatic.com') ||
+                              item.imageUrl.contains('dzcdn.net') ||
+                              item.imageUrl.contains('archive.org')))
+                      ? _sanitizeFallbackUrl(item.imageUrl)
+                      : null)));
 
-      final fallback = cleanExplicit ?? _sanitizeFallbackUrl(item.youtubeThumbnailUrl);
+      final fallback =
+          cleanExplicit ?? _sanitizeFallbackUrl(item.youtubeThumbnailUrl);
 
       return ArtworkQuery(
         id: item.id,
         title: item.title,
         artist: item.artist,
         album: album ?? item.albumName,
-        albumArtworkUrl: albumArt,
+        albumArtworkUrl: candidateAlbumArt,
         durationMs: _parseDurationString(item.duration),
         localFilePath: item.localFilePath,
-        localArtworkPath: item.embeddedArtworkPath ?? ((item.localFilePath != null && !isYt) ? item.imageUrl : null),
+        localArtworkPath: item.embeddedArtworkPath ??
+            ((item.localFilePath != null && !isYt) ? item.imageUrl : null),
         fallbackThumbnailUrl: fallback,
         source: isYt ? 'youtube' : 'local',
       );
@@ -286,7 +301,8 @@ class ArtworkQuery {
   /// This bridges YouTube search representations and authoritative studio album artwork.
   String get canonicalKey {
     if (isPlaylist) {
-      final norm = _normalize(album != null && album!.isNotEmpty ? album! : title);
+      final norm =
+          _normalize(album != null && album!.isNotEmpty ? album! : title);
       return 'art_canon_playlist_$norm';
     }
     final normArtist = _normalize(artist);
@@ -306,7 +322,8 @@ class ArtworkQuery {
           RegExp(r'\b([a-z])\.\s*([a-z])\.\s*'),
           (m) => '${m[1]}${m[2]} ',
         ) // collapse paired initials: 'a. r.' -> 'ar '
-        .replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\s]', unicode: true), '') // preserve Unicode letters, marks & digits
+        .replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\s]', unicode: true),
+            '') // preserve Unicode letters, marks & digits
         .replaceAll(RegExp(r'\s+'), ' ') // collapse whitespace
         .trim();
   }
@@ -338,5 +355,6 @@ class ArtworkQuery {
   int get hashCode => cacheKey.hashCode;
 
   @override
-  String toString() => 'ArtworkQuery(id: "$id", title: "$title", artist: "$artist", isYoutube: $isYoutube)';
+  String toString() =>
+      'ArtworkQuery(id: "$id", title: "$title", artist: "$artist", isYoutube: $isYoutube)';
 }

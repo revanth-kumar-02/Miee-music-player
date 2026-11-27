@@ -274,7 +274,13 @@ class RecommendationService {
     final title = raw.toLowerCase();
     final durationSec = _parseDurationSeconds(video.duration);
 
-    // 1. Spoken-word, interview, podcast, behind-the-scenes
+    // 1. Spoken-word, interview, podcast, behind-the-scenes, editorial storytelling
+    final editorialClipRegex = RegExp(
+      r'\b(shares\s+the|shares\s+his|shares\s+her|talks\s+about|speaks\s+about|'
+      r'opens\s+up|reveals\b.*\bstory|story\s+behind|creator\s+commentary|'
+      r'artist\s+discussion|sneak\s+peek|special\s+glimpse|first\s+glimpse)\b',
+      caseSensitive: false,
+    );
     if (title.contains('podcast') ||
         title.contains('episode #') ||
         title.contains('interview with') ||
@@ -286,6 +292,7 @@ class RecommendationService {
         title.contains('making of') ||
         title.contains('behind the scenes') ||
         title.contains('audio commentary') ||
+        editorialClipRegex.hasMatch(raw) ||
         RegExp(r'\bep\.?\s*\d+\b', caseSensitive: false).hasMatch(title)) {
       return false;
     }
@@ -339,7 +346,7 @@ class RecommendationService {
       return false;
     }
 
-    // 4c. Implausibly short clips (< 20s) unless explicitly tagged as intro/interlude/skit/prelude/outro/theme
+    // 4c. Implausibly short clips (< 20s) and ambiguous short clips (< 65s) without explicit music evidence
     final isShortForm = title.contains('intro') ||
         title.contains('interlude') ||
         title.contains('skit') ||
@@ -348,6 +355,24 @@ class RecommendationService {
         title.contains('theme');
     if (durationSec > 0 && durationSec < 20 && !isShortForm) {
       return false;
+    }
+    if (durationSec > 0 && durationSec < 65) {
+      final channelLower =
+          (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+      final hasMusicalEvidence = isShortForm ||
+          channelLower.endsWith('- topic') ||
+          title.contains('song') ||
+          title.contains('audio') ||
+          title.contains('lyrical') ||
+          title.contains('ost') ||
+          title.contains('bgm') ||
+          title.contains('acoustic') ||
+          title.contains('live') ||
+          title.contains('remix') ||
+          title.contains('instrumental');
+      if (!hasMusicalEvidence) {
+        return false;
+      }
     }
 
     // 5. Long-form video heuristics: require legitimate musical genre indicators
@@ -811,11 +836,25 @@ class RecommendationService {
     final queueKeys = currentQueue
         .map((t) => SearchDeduplicator.computeRecordingKey(t))
         .toSet();
+    final queueBaseKeys = currentQueue
+        .map((t) => SearchDeduplicator.computeLanguageAgnosticRecordingKey(t))
+        .toSet();
     final queueIds = currentQueue.map((t) => _normalizeTrackId(t.id)).toSet();
 
     // Include currentTrack key and ID to prevent immediate duplicate
     queueKeys.add(SearchDeduplicator.computeRecordingKey(currentTrack));
+    queueBaseKeys.add(
+        SearchDeduplicator.computeLanguageAgnosticRecordingKey(currentTrack));
     queueIds.add(_normalizeTrackId(currentTrack.id));
+
+    final currentRawTitle =
+        (currentTrack is Track && currentTrack.rawTitle != null)
+            ? currentTrack.rawTitle!
+            : currentTrack.title;
+    final seedLanguage = MusicLanguageService.detectLanguage(
+      currentRawTitle,
+      artist: currentTrack.artist,
+    );
 
     final currentArtist = currentTrack.artist.trim();
     final currentArtistNorm = SearchDeduplicator.normalizeArtist(currentArtist);
@@ -837,14 +876,19 @@ class RecommendationService {
         <({MusicItem track, double score, String artistNorm, String reason})>[];
     final seenPoolIds = <String>{};
     final seenPoolKeys = <String>{};
+    final seenPoolBaseKeys = <String>{};
 
     bool isValidCandidate(MusicItem track) {
       final key = SearchDeduplicator.computeRecordingKey(track);
+      final baseKey =
+          SearchDeduplicator.computeLanguageAgnosticRecordingKey(track);
       final normId = _normalizeTrackId(track.id);
 
       if (queueKeys.contains(key) ||
+          queueBaseKeys.contains(baseKey) ||
           queueIds.contains(normId) ||
           seenPoolKeys.contains(key) ||
+          seenPoolBaseKeys.contains(baseKey) ||
           seenPoolIds.contains(normId)) {
         QueueDiagnostics.logDuplicateRejected(
           track: track,
@@ -910,8 +954,11 @@ class RecommendationService {
       if (!isValidCandidate(track)) return;
 
       final key = SearchDeduplicator.computeRecordingKey(track);
+      final baseKey =
+          SearchDeduplicator.computeLanguageAgnosticRecordingKey(track);
       final normId = _normalizeTrackId(track.id);
       seenPoolKeys.add(key);
+      seenPoolBaseKeys.add(baseKey);
       seenPoolIds.add(normId);
 
       final candArtistNorm = SearchDeduplicator.normalizeArtist(track.artist);
@@ -922,18 +969,30 @@ class RecommendationService {
         score += 15.0;
       }
 
+      // Seed-track language alignment: prefer matching language, penalize conflicting language.
+      final candRawTitle = (track is Track && track.rawTitle != null)
+          ? track.rawTitle!
+          : track.title;
+      final candLang = MusicLanguageService.detectLanguage(
+        candRawTitle,
+        artist: track.artist,
+      );
+      if (seedLanguage != 'Unknown' && candLang != 'Unknown') {
+        if (candLang.toLowerCase() == seedLanguage.toLowerCase()) {
+          score += 25.0;
+        } else {
+          score -= 35.0;
+        }
+      }
+
       // Secondary language tie-breaker from user profile.
-      if (preferredLanguages.isNotEmpty) {
-        final lang = MusicLanguageService.detectLanguage(
-            '${track.title} ${track.artist}');
-        if (lang.isNotEmpty) {
-          final langIdx = preferredLanguages
-              .indexWhere((l) => l.toLowerCase() == lang.toLowerCase());
-          if (langIdx == 0) {
-            score += 15.0;
-          } else if (langIdx > 0) {
-            score += 8.0;
-          }
+      if (preferredLanguages.isNotEmpty && candLang != 'Unknown') {
+        final langIdx = preferredLanguages
+            .indexWhere((l) => l.toLowerCase() == candLang.toLowerCase());
+        if (langIdx == 0) {
+          score += 10.0;
+        } else if (langIdx > 0) {
+          score += 5.0;
         }
       }
 
@@ -1043,11 +1102,10 @@ class RecommendationService {
     // Sort deterministically by relevance score descending
     scoredPool.sort((a, b) => b.score.compareTo(a.score));
 
-    // Apply per-artist diversity cap (max 2 per normalized artist) on primary pass
+    // Apply strict per-artist diversity cap (max 2 per normalized artist).
+    // Never backfill same-artist deferred candidates beyond this cap.
     const int maxTracksPerArtist = 2;
     final artistCounts = <String, int>{};
-    final deferred =
-        <({MusicItem track, double score, String artistNorm, String reason})>[];
 
     for (final entry in scoredPool) {
       if (upcoming.length >= limit) break;
@@ -1055,15 +1113,82 @@ class RecommendationService {
       if (entry.artistNorm.isEmpty || count < maxTracksPerArtist) {
         artistCounts[entry.artistNorm] = count + 1;
         upcoming.add(entry.track);
-      } else {
-        deferred.add(entry);
       }
     }
 
-    // Backfill remaining slots only if diverse candidates didn't fill [limit]
-    for (final entry in deferred) {
-      if (upcoming.length >= limit) break;
-      upcoming.add(entry.track);
+    // If diverse candidates didn't reach [limit], perform bounded related-artist
+    // discovery (max 2 related artists) instead of repeating the same artist.
+    if (upcoming.length < limit &&
+        currentArtist.isNotEmpty &&
+        currentArtist.toLowerCase() != 'unknown' &&
+        currentArtist.toLowerCase() != 'various artists') {
+      try {
+        final matchedArtists = await _artistRepo
+            .searchArtists(currentArtist,
+                language: seedLanguage != 'Unknown' ? seedLanguage : null)
+            .timeout(const Duration(seconds: 3), onTimeout: () => const []);
+        final primaryArtist = matchedArtists.firstOrNull;
+        if (primaryArtist != null) {
+          final related = await _artistRepo
+              .getRelatedArtists(primaryArtist.id)
+              .timeout(const Duration(seconds: 3), onTimeout: () => const []);
+          final relatedCandidates = related
+              .where((a) =>
+                  SearchDeduplicator.normalizeArtist(a.name) !=
+                  currentArtistNorm)
+              .take(2)
+              .toList();
+          if (relatedCandidates.isNotEmpty) {
+            final relatedBatches = await Future.wait(
+              relatedCandidates.map((rel) => _youtubeRepo
+                  .getArtistTracks(
+                    rel.name,
+                    page: 1,
+                    limit: 4,
+                    preferredLanguages: preferredLanguages,
+                  )
+                  .catchError((_) => <YouTubeVideo>[])),
+            );
+            final relatedPool = <({
+              MusicItem track,
+              double score,
+              String artistNorm,
+            })>[];
+            for (var idx = 0; idx < relatedCandidates.length; idx++) {
+              final rel = relatedCandidates[idx];
+              for (final v in relatedBatches[idx]) {
+                if (!isLegitimateSong(v)) continue;
+                final track = v.toTrack(reliableArtist: rel.name);
+                if (!isValidCandidate(track)) continue;
+                final key = SearchDeduplicator.computeRecordingKey(track);
+                final baseKey =
+                    SearchDeduplicator.computeLanguageAgnosticRecordingKey(
+                        track);
+                final normId = _normalizeTrackId(track.id);
+                seenPoolKeys.add(key);
+                seenPoolBaseKeys.add(baseKey);
+                seenPoolIds.add(normId);
+                relatedPool.add((
+                  track: track,
+                  score: 60.0,
+                  artistNorm: SearchDeduplicator.normalizeArtist(track.artist),
+                ));
+              }
+            }
+            for (final entry in relatedPool) {
+              if (upcoming.length >= limit) break;
+              final count = artistCounts[entry.artistNorm] ?? 0;
+              if (entry.artistNorm.isEmpty || count < maxTracksPerArtist) {
+                artistCounts[entry.artistNorm] = count + 1;
+                upcoming.add(entry.track);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint(
+            '[RecommendationService] Related-artist diversity expansion failed: $e');
+      }
     }
 
     // STRICT POLICY: Never fallback to unrelated trending chart songs or arbitrary curated artists!

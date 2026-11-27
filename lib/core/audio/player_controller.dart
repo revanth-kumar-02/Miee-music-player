@@ -151,6 +151,25 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     // Attach dynamic queue replenishment hook to audio handler
     _handler.onQueueApproachingEnd = () => expandQueueIfNeeded();
+    _handler.onPlaybackSourceResolved = (trackId, resolvedVideoId) {
+      final normTarget = _normalizeTrackId(trackId);
+      final idx = _queueManager.queue
+          .indexWhere((t) => _normalizeTrackId(t.id) == normTarget);
+      if (idx >= 0) {
+        final existing = _queueManager.queue[idx];
+        if (existing is Track && existing.sourceId != resolvedVideoId) {
+          final updated = existing.copyWith(sourceId: resolvedVideoId);
+          _queueManager.replaceTrackAt(idx, updated);
+          final isCurrent = state.currentTrack != null &&
+              _normalizeTrackId(state.currentTrack!.id) == normTarget;
+          state = state.copyWith(
+            currentTrack: isCurrent ? updated : state.currentTrack,
+            queueVersion: state.queueVersion + 1,
+          );
+          _persistQueueSnapshot();
+        }
+      }
+    };
 
     _analyticsTracker = PlaybackAnalyticsTracker(
       historyRepo: _ref.read(listeningHistoryRepositoryProvider),
@@ -470,6 +489,13 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     _queueManager.setQueue(finalQueue, startIndex: finalStartIndex);
     _persistQueueSnapshot();
+    state = state.copyWith(
+      queueVersion: state.queueVersion + 1,
+      queueGenerationStatus: finalQueue.length > 1
+          ? QueueGenerationStatus.ready
+          : QueueGenerationStatus.idle,
+      clearQueueGenerationError: true,
+    );
     QueueDiagnostics.logQueueCreation(
       reason: playingFrom ?? 'Direct setQueue',
       tracks: finalQueue,
@@ -479,6 +505,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
     final track = _queueManager.currentTrack;
     if (track != null) {
       playTrack(track, playingFrom: playingFrom);
+      if (finalQueue.length <= 2 && state.repeatMode != RepeatMode.one) {
+        unawaited(expandQueueIfNeeded());
+      }
     }
   }
 
@@ -544,7 +573,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _queueManager.addTracks(freshTracks);
     await _handler.appendTracks(freshTracks);
     _persistQueueSnapshot();
-    state = state.copyWith(currentTrack: _queueManager.currentTrack);
+    state = state.copyWith(
+      currentTrack: _queueManager.currentTrack,
+      queueVersion: state.queueVersion + 1,
+      queueGenerationStatus: QueueGenerationStatus.ready,
+      clearQueueGenerationError: true,
+    );
     debugLog(
         '[Queue] Appended ${freshTracks.length} diverse upcoming tracks to Next Up');
   }
@@ -599,6 +633,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _expandingCompleter = completer;
     _isExpandingQueue = true;
     final token = _queueGenerationToken;
+    state = state.copyWith(
+      queueGenerationStatus: QueueGenerationStatus.loading,
+      clearQueueGenerationError: true,
+    );
 
     debugLog(
         '[QueueExpansion] Reached queue end ($remaining tracks remaining). Expanding queue via Autoplay...');
@@ -664,6 +702,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
         final currentKeys = _queueManager.queue
             .map((t) => SearchDeduplicator.computeRecordingKey(t))
             .toSet();
+        final currentBaseKeys = _queueManager.queue
+            .map((t) =>
+                SearchDeduplicator.computeLanguageAgnosticRecordingKey(t))
+            .toSet();
 
         final currentBaseTitle = SearchDeduplicator.normalizeBaseTitle(
           current.title,
@@ -677,6 +719,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
         for (final t in upcoming) {
           final normId = _normalizeTrackId(t.id);
           final recKey = SearchDeduplicator.computeRecordingKey(t);
+          final baseKey =
+              SearchDeduplicator.computeLanguageAgnosticRecordingKey(t);
 
           if (currentNormIds.contains(normId)) {
             QueueDiagnostics.logDuplicateRejected(
@@ -691,7 +735,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
             continue;
           }
 
-          if (currentKeys.contains(recKey)) {
+          if (currentKeys.contains(recKey) ||
+              currentBaseKeys.contains(baseKey)) {
             QueueDiagnostics.logDuplicateRejected(
               track: t,
               duplicateReason: 'Recording key already in queue ($recKey)',
@@ -714,6 +759,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
           currentNormIds.add(normId);
           currentKeys.add(recKey);
+          currentBaseKeys.add(baseKey);
           freshTracks.add(t);
         }
 
@@ -722,7 +768,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
           _queueManager.addTracks(freshTracks);
           await _handler.appendTracks(freshTracks);
           _persistQueueSnapshot();
-          state = state.copyWith(currentTrack: _queueManager.currentTrack);
+          state = state.copyWith(
+            currentTrack: _queueManager.currentTrack,
+            queueVersion: state.queueVersion + 1,
+            queueGenerationStatus: QueueGenerationStatus.ready,
+            clearQueueGenerationError: true,
+          );
           for (int i = 0; i < freshTracks.length; i++) {
             final t = freshTracks[i];
             QueueDiagnostics.logTrackInsertion(
@@ -739,11 +790,28 @@ class PlayerController extends StateNotifier<PlaybackState> {
           debugLog(
               '[QueueExpansion] Successfully appended ${freshTracks.length} fresh tracks. Total queue size: ${_queueManager.queue.length}');
         } else {
+          state = state.copyWith(
+            queueGenerationStatus: _queueManager.queue.length > 1
+                ? QueueGenerationStatus.ready
+                : QueueGenerationStatus.empty,
+          );
           debugLog('[QueueExpansion] All candidates were already in queue.');
         }
+      } else {
+        state = state.copyWith(
+          queueGenerationStatus: _queueManager.queue.length > 1
+              ? QueueGenerationStatus.ready
+              : QueueGenerationStatus.empty,
+        );
       }
     } catch (e) {
       debugLog('[QueueExpansion] Dynamic queue expansion failed: $e');
+      if (token == _queueGenerationToken) {
+        state = state.copyWith(
+          queueGenerationStatus: QueueGenerationStatus.error,
+          queueGenerationError: 'Unable to load upcoming recommendations',
+        );
+      }
     } finally {
       _isExpandingQueue = false;
       _expandingCompleter = null;
@@ -1092,6 +1160,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
         currentTrack: resolvedTrack,
         loadingTrackId: resolvedTrack.isYoutube ? resolvedTrack.id : null,
         clearLoadingTrackId: !resolvedTrack.isYoutube,
+        queueVersion: resolvedTrack.id != originalTrackId
+            ? state.queueVersion + 1
+            : state.queueVersion,
       );
 
       if (resolvedTrack.id != originalTrackId) {
@@ -1407,7 +1478,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
     } else {
       _queueManager.disableShuffle();
     }
-    state = state.copyWith(isShuffleEnabled: isShuffle);
+    state = state.copyWith(
+      isShuffleEnabled: isShuffle,
+      queueVersion: state.queueVersion + 1,
+    );
     await _handler.syncQueueOrder(
       _queueManager.queue,
       _queueManager.currentIndex,
@@ -1449,6 +1523,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _queueManager.addTrack(track);
     await _handler.appendTrack(track);
     _persistQueueSnapshot();
+    state = state.copyWith(
+      queueVersion: state.queueVersion + 1,
+      queueGenerationStatus: _queueManager.queue.length > 1
+          ? QueueGenerationStatus.ready
+          : state.queueGenerationStatus,
+    );
     QueueDiagnostics.logTrackInsertion(
       track: track,
       reason: 'User explicitly added to queue',
@@ -1476,6 +1556,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _queueManager.insertTrack(insertIndex, track);
     await _handler.insertTrack(insertIndex, track);
     _persistQueueSnapshot();
+    state = state.copyWith(
+      queueVersion: state.queueVersion + 1,
+      queueGenerationStatus: QueueGenerationStatus.ready,
+    );
     QueueDiagnostics.logTrackInsertion(
       track: track,
       reason: 'User explicitly selected play next',
@@ -1503,9 +1587,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
       clearQueue();
     } else {
       final current = _queueManager.currentTrack;
-      if (state.currentTrack != current) {
-        state = state.copyWith(currentTrack: current);
-      }
+      state = state.copyWith(
+        currentTrack: current,
+        queueVersion:
+            removedTrack != null ? state.queueVersion + 1 : state.queueVersion,
+      );
     }
   }
 
@@ -1518,7 +1604,10 @@ class PlayerController extends StateNotifier<PlaybackState> {
       newIndex: newIndex,
       queueLength: _queueManager.queue.length,
     );
-    state = state.copyWith(currentTrack: _queueManager.currentTrack);
+    state = state.copyWith(
+      currentTrack: _queueManager.currentTrack,
+      queueVersion: state.queueVersion + 1,
+    );
   }
 
   void clearQueue() {
@@ -1532,6 +1621,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
       status: PlaybackStatus.idle,
       position: Duration.zero,
       duration: Duration.zero,
+      queueVersion: state.queueVersion + 1,
+      queueGenerationStatus: QueueGenerationStatus.idle,
+      clearQueueGenerationError: true,
     );
   }
 

@@ -27,6 +27,11 @@ class QueuePage extends ConsumerWidget {
         ref.watch(playerControllerProvider.select((s) => s.currentTrack));
     final isPlaying = ref.watch(playerControllerProvider
         .select((s) => s.status == PlaybackStatus.playing));
+    ref.watch(playerControllerProvider.select((s) => s.queueVersion));
+    final queueGenStatus = ref
+        .watch(playerControllerProvider.select((s) => s.queueGenerationStatus));
+    final queueGenError = ref
+        .watch(playerControllerProvider.select((s) => s.queueGenerationError));
     final controller = ref.read(playerControllerProvider.notifier);
     final queueManager = ref.watch(queueManagerProvider);
 
@@ -38,8 +43,10 @@ class QueuePage extends ConsumerWidget {
         ? queueList.sublist(activeIndex + 1)
         : queueList;
 
-    // Real Now Playing background cover URL
-    final coverUrl = currentTrack?.imageUrl;
+    // Real Now Playing background cover URL (null if empty so resolver isn't overridden)
+    final coverUrl = (currentTrack != null && currentTrack.imageUrl.isNotEmpty)
+        ? currentTrack.imageUrl
+        : null;
 
     return PopScope(
       canPop: false,
@@ -233,6 +240,78 @@ class QueuePage extends ConsumerWidget {
                                   isUppercase: true,
                                 ),
                                 AppSpacing.heightMd,
+                              ] else if (currentTrack != null &&
+                                  queueGenStatus ==
+                                      QueueGenerationStatus.loading) ...[
+                                const SectionHeader(
+                                  title: 'Next Up',
+                                  isUppercase: true,
+                                ),
+                                AppSpacing.heightMd,
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: AppSpacing.md),
+                                  child: Row(
+                                    children: [
+                                      const SizedBox(
+                                        width: 16.0,
+                                        height: 16.0,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.0,
+                                        ),
+                                      ),
+                                      AppSpacing.widthSm,
+                                      Text(
+                                        'Finding related tracks...',
+                                        style:
+                                            AppTypography.bodyMedium.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else if (currentTrack != null &&
+                                  queueGenStatus ==
+                                      QueueGenerationStatus.error) ...[
+                                const SectionHeader(
+                                  title: 'Next Up',
+                                  isUppercase: true,
+                                ),
+                                AppSpacing.heightMd,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        queueGenError ??
+                                            'Unable to load recommendations',
+                                        style:
+                                            AppTypography.bodyMedium.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          controller.expandQueueIfNeeded(),
+                                      child: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              ] else if (currentTrack != null &&
+                                  queueGenStatus ==
+                                      QueueGenerationStatus.empty) ...[
+                                const SectionHeader(
+                                  title: 'Next Up',
+                                  isUppercase: true,
+                                ),
+                                AppSpacing.heightSm,
+                                Text(
+                                  'No additional related tracks found',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
                               ],
                             ],
                           ),
@@ -268,7 +347,9 @@ class QueuePage extends ConsumerWidget {
                                   Expanded(
                                     child: SongTile(
                                       musicItem: track,
-                                      imageUrl: track.imageUrl,
+                                      imageUrl: track.imageUrl.isNotEmpty
+                                          ? track.imageUrl
+                                          : null,
                                       title: track.title,
                                       artist: track.artist,
                                       duration: track.duration,
@@ -386,7 +467,8 @@ class QueuePage extends ConsumerWidget {
           ),
           child: SongTile(
             musicItem: currentTrack,
-            imageUrl: currentTrack.imageUrl,
+            imageUrl:
+                currentTrack.imageUrl.isNotEmpty ? currentTrack.imageUrl : null,
             title: currentTrack.displayTitle,
             artist: currentTrack.artist,
             duration: currentTrack.duration,

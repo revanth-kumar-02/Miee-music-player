@@ -157,6 +157,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   /// to dynamically replenish upcoming tracks without interrupting playback.
   Future<void> Function()? onQueueApproachingEnd;
 
+  /// Callback invoked when the handler resolves an alternate validated playback
+  /// source video ID for a track while preserving its recording identity.
+  void Function(String trackId, String resolvedVideoId)?
+      onPlaybackSourceResolved;
+
   /// Rolling two-track audio preloader for upcoming queue items.
   final NextTrackPreloader _preloader;
 
@@ -1516,6 +1521,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             resolved.url.isEmpty ||
             !YouTubeAudioService().isUrlValid(resolved.url)) &&
         rawT.isNotEmpty) {
+      final originalVideoId = videoId;
       final excludedIds = <String>{if (videoId.isNotEmpty) videoId};
       for (var attempt = 0; attempt < 2; attempt++) {
         debugPrint(
@@ -1535,7 +1541,15 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             !PlaybackSourceResolver.isDurationCompatible(
               targetDurationStr: canonicalDur,
               candidateDurationStr: fallbackCandidate.duration,
-            )) {
+            ) ||
+            _sourceResolver.selectBestCandidate(
+                  [fallbackCandidate],
+                  title: rawT,
+                  artist: rawA,
+                  durationStr: canonicalDur,
+                  album: albumName,
+                ) ==
+                null) {
           break;
         }
         debugPrint(
@@ -1552,6 +1566,15 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         if (resolved != null &&
             resolved.url.isNotEmpty &&
             YouTubeAudioService().isUrlValid(resolved.url)) {
+          if (videoId != originalVideoId) {
+            if (track is Track &&
+                _currentIndex >= 0 &&
+                _currentIndex < _queue.length &&
+                _queue[_currentIndex].id == track.id) {
+              _queue[_currentIndex] = track.copyWith(sourceId: videoId);
+            }
+            onPlaybackSourceResolved?.call(track.id, videoId);
+          }
           break;
         }
       }

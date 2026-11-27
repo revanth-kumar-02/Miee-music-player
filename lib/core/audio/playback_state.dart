@@ -18,6 +18,15 @@ enum RepeatMode {
   all,
 }
 
+/// Lifecycle state for automatic upcoming-queue recommendation generation.
+enum QueueGenerationStatus {
+  idle,
+  loading,
+  ready,
+  empty,
+  error,
+}
+
 /// Utility to compare two track IDs while normalizing optional `youtube_` prefixes.
 bool isSameTrackId(String? a, String? b) {
   if (a == null || b == null) return false;
@@ -44,6 +53,15 @@ class PlaybackState {
   /// Null if no track is actively resolving or if playback has begun / failed.
   final String? loadingTrackId;
 
+  /// Monotonically incremented whenever the queue list or ordering changes.
+  final int queueVersion;
+
+  /// Current status of background/automatic queue recommendation generation.
+  final QueueGenerationStatus queueGenerationStatus;
+
+  /// Error message if automatic queue generation failed.
+  final String? queueGenerationError;
+
   const PlaybackState({
     required this.status,
     this.position = Duration.zero,
@@ -56,6 +74,9 @@ class PlaybackState {
     this.volume = 1.0,
     this.playingFrom,
     this.loadingTrackId,
+    this.queueVersion = 0,
+    this.queueGenerationStatus = QueueGenerationStatus.idle,
+    this.queueGenerationError,
   });
 
   /// Factory constructor for initial empty state.
@@ -81,6 +102,10 @@ class PlaybackState {
     String? playingFrom,
     String? loadingTrackId,
     bool clearLoadingTrackId = false,
+    int? queueVersion,
+    QueueGenerationStatus? queueGenerationStatus,
+    String? queueGenerationError,
+    bool clearQueueGenerationError = false,
   }) {
     return PlaybackState(
       status: status ?? this.status,
@@ -96,6 +121,12 @@ class PlaybackState {
       playingFrom: playingFrom ?? this.playingFrom,
       loadingTrackId:
           clearLoadingTrackId ? null : (loadingTrackId ?? this.loadingTrackId),
+      queueVersion: queueVersion ?? this.queueVersion,
+      queueGenerationStatus:
+          queueGenerationStatus ?? this.queueGenerationStatus,
+      queueGenerationError: clearQueueGenerationError
+          ? null
+          : (queueGenerationError ?? this.queueGenerationError),
     );
   }
 }

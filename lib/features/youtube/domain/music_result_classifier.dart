@@ -86,7 +86,8 @@ class MusicResultClassifier {
 
     // 0. Verified Music Catalogue Signal:
     // Tracks identified via official MusicBrainz or Apple iTunes catalogue are confirmed studio releases.
-    if (video.metadataProvider == 'musicbrainz' || video.metadataProvider == 'itunes') {
+    if (video.metadataProvider == 'musicbrainz' ||
+        video.metadataProvider == 'itunes') {
       return makeVerdict(
         MusicTrackConfidence.officialMusic,
         true,
@@ -351,7 +352,9 @@ class MusicResultClassifier {
     }
 
     // Check for laughter emojis (😂, 🤣, 😆) in titles
-    if (rawTitle.contains('😂') || rawTitle.contains('🤣') || rawTitle.contains('😆')) {
+    if (rawTitle.contains('😂') ||
+        rawTitle.contains('🤣') ||
+        rawTitle.contains('😆')) {
       if (!_isOfficialMusicLabel(channelLower)) {
         return makeVerdict(
           MusicTrackConfidence.rejected,
@@ -363,7 +366,10 @@ class MusicResultClassifier {
     }
 
     // Wrestling / Combat Sports Entertainment Promos & Shows (e.g. WWE: Voices, Smackdown highlights)
-    if (RegExp(r'\b(wwe:|wwe\s|smackdown|raw highlights|wrestlemania|royal rumble|aew dynamite|ufc \d+|mma fight)\b', caseSensitive: false).hasMatch(titleLower)) {
+    if (RegExp(
+            r'\b(wwe:|wwe\s|smackdown|raw highlights|wrestlemania|royal rumble|aew dynamite|ufc \d+|mma fight)\b',
+            caseSensitive: false)
+        .hasMatch(titleLower)) {
       if (!_isExplicitQueryMatch('wwe', queryLower) &&
           !_isExplicitQueryMatch('wrestling', queryLower) &&
           !_isExplicitQueryMatch('ufc', queryLower)) {
@@ -408,8 +414,10 @@ class MusicResultClassifier {
     }
 
     // Check episodic regex (e.g. "Ep 12", "Ep. 45", "Episode 10")
-    final episodeRegex = RegExp(r'\b(ep|episode)\.?\s*#?\s*\d+\b', caseSensitive: false);
-    if (episodeRegex.hasMatch(rawTitle) && !_isLegitimateMusicalSuite(titleLower)) {
+    final episodeRegex =
+        RegExp(r'\b(ep|episode)\.?\s*#?\s*\d+\b', caseSensitive: false);
+    if (episodeRegex.hasMatch(rawTitle) &&
+        !_isLegitimateMusicalSuite(titleLower)) {
       return makeVerdict(
         MusicTrackConfidence.rejected,
         false,
@@ -581,7 +589,8 @@ class MusicResultClassifier {
       r'[\(\[\{\|\-]?\s*\b(scene|scenes|film\s+clip|movie\s+clip|deleted\s+scene)\b',
       caseSensitive: false,
     ).hasMatch(titleLower);
-    if (isSceneOrClip && !(query != null && query.toLowerCase().contains('scene'))) {
+    if (isSceneOrClip &&
+        !(query != null && query.toLowerCase().contains('scene'))) {
       return makeVerdict(
         MusicTrackConfidence.rejected,
         false,
@@ -627,7 +636,10 @@ class MusicResultClassifier {
             titleLower.contains('audio') ||
             titleLower.contains('song') ||
             titleLower.contains('lyric');
-        if ((pattern == 'song promo' || pattern == 'special promo' || pattern == 'title glimpse' || pattern == 'official glimpse') &&
+        if ((pattern == 'song promo' ||
+                pattern == 'special promo' ||
+                pattern == 'title glimpse' ||
+                pattern == 'official glimpse') &&
             isOfficialAudioRelease) {
           continue;
         }
@@ -655,7 +667,10 @@ class MusicResultClassifier {
         _hasExplicitMusicKeyword(titleLower) ||
         (query != null && query.toLowerCase().contains(titleLower));
 
-    if (durationSec > 0 && durationSec < 25 && !isExplicitShortFormTrack && !isMusicSource) {
+    if (durationSec > 0 &&
+        durationSec < 25 &&
+        !isExplicitShortFormTrack &&
+        !isMusicSource) {
       return makeVerdict(
         MusicTrackConfidence.rejected,
         false,
@@ -815,7 +830,8 @@ class MusicResultClassifier {
     // Standard songs are typically 1.5 to 7.0 minutes.
     // Classical music, full concerts, DJ sets, OSTs, and extended mixes are legitimate long music.
     final isLongMusic = _hasPositiveMusicIndicator(titleLower, channelLower);
-    final isVerifiedChannel = _isOfficialMusicLabel(channelLower) || _isVerifiedMusicArtist(channelLower);
+    final isVerifiedChannel = _isOfficialMusicLabel(channelLower) ||
+        _isVerifiedMusicArtist(channelLower);
 
     if (durationSec > 540 && !isLongMusic && !isVerifiedChannel) {
       return makeVerdict(
@@ -863,7 +879,8 @@ class MusicResultClassifier {
         titleLower.contains('original score') ||
         titleLower.contains('original soundtrack') ||
         titleLower.contains('soundtrack') ||
-        RegExp(r'\b(theme|ost|bgm|score|instrumental)\b', caseSensitive: false).hasMatch(titleLower) ||
+        RegExp(r'\b(theme|ost|bgm|score|instrumental)\b', caseSensitive: false)
+            .hasMatch(titleLower) ||
         titleLower.contains('original soundtrack') ||
         titleLower.contains('visualizer')) {
       score += 40;
@@ -893,7 +910,9 @@ class MusicResultClassifier {
     }
 
     // Signal: Musical collaboration / credit markers (+20 points)
-    if (RegExp(r'\b(feat\.?|ft\.?|prod\.?|with|singers?:|composer:|music:)\b', caseSensitive: false).hasMatch(rawTitle)) {
+    if (RegExp(r'\b(feat\.?|ft\.?|prod\.?|with|singers?:|composer:|music:)\b',
+            caseSensitive: false)
+        .hasMatch(rawTitle)) {
       score += 20;
       hasMusicIndicator = true;
     }
@@ -919,7 +938,8 @@ class MusicResultClassifier {
     final hasSoundtrackPattern = titleLower.contains('(from ') ||
         titleLower.contains('[from ') ||
         titleLower.contains('{from ') ||
-        RegExp(r'\bfrom\s+["\u201C\u201D\u2018\u2019]', caseSensitive: false).hasMatch(rawTitle);
+        RegExp(r'\bfrom\s+["\u201C\u201D\u2018\u2019]', caseSensitive: false)
+            .hasMatch(rawTitle);
     if (hasSoundtrackPattern) {
       score += 35;
       hasMusicIndicator = true;
@@ -973,7 +993,10 @@ class MusicResultClassifier {
           isExplicitShortFormTrack ||
           (query != null && query.toLowerCase().contains(titleLower));
 
-      if (isVeryShortClip && !isMusicSource && !titleLower.contains('song') && !titleLower.contains('intro')) {
+      if (isVeryShortClip &&
+          !isMusicSource &&
+          !titleLower.contains('song') &&
+          !titleLower.contains('intro')) {
         return makeVerdict(
           MusicTrackConfidence.rejected,
           false,
@@ -984,10 +1007,14 @@ class MusicResultClassifier {
 
       // If video has zero musical indicators and is from an unverified channel:
       // Strictly reject if it actually matches creator/vlog/scene archetypes or is an extreme duration.
-      if (!hasMusicIndicator && !isMusicLabelChannel && !isVerifiedArtistChannel) {
+      if (!hasMusicIndicator &&
+          !isMusicLabelChannel &&
+          !isVerifiedArtistChannel) {
         final hasCreatorArchetype = _hasCreatorChannelArchetype(channelLower) ||
             _hasCreatorTitleArchetype(rawTitle, video.rawTitle ?? video.title);
-        if (hasCreatorArchetype || durationSec > 540 || (durationSec > 0 && durationSec < 25)) {
+        if (hasCreatorArchetype ||
+            durationSec > 540 ||
+            (durationSec > 0 && durationSec < 25)) {
           return makeVerdict(
             MusicTrackConfidence.rejected,
             false,
@@ -1009,11 +1036,13 @@ class MusicResultClassifier {
   /// Convenience helper: returns true if the video is classified as acceptable music.
   static bool isValidMusicTrack(YouTubeVideo video, {String? query}) {
     final verdict = classify(video, query: query, enableLogging: false);
-    if (!verdict.isMusic || verdict.confidence == MusicTrackConfidence.rejected) {
+    if (!verdict.isMusic ||
+        verdict.confidence == MusicTrackConfidence.rejected) {
       return false;
     }
     if (verdict.confidence == MusicTrackConfidence.uncertain) {
-      final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+      final channelLower =
+          (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
       final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
       if (_hasCreatorChannelArchetype(channelLower) ||
           _hasCreatorTitleArchetype(rawTitle, video.rawTitle ?? video.title)) {
@@ -1026,23 +1055,37 @@ class MusicResultClassifier {
   /// Returns true if the video is verified as a legitimate individual music track,
   /// rejecting compilations, jukeboxes, scene clips, and uncertain candidates lacking musical indicators.
   static bool isValidIndividualSong(YouTubeVideo video, {String? query}) {
+    final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
+    final channelLower =
+        (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+    if (_isEditorialOrSpokenClip(
+      rawTitle: rawTitle,
+      channelLower: channelLower,
+      durationSec: _parseDurationSeconds(video.duration),
+    )) {
+      return false;
+    }
+
     final verdict = classify(
       video,
       query: query,
       forIndividualPlayback: true,
       enableLogging: false,
     );
-    if (!verdict.isMusic || verdict.confidence == MusicTrackConfidence.rejected) {
+    if (!verdict.isMusic ||
+        verdict.confidence == MusicTrackConfidence.rejected) {
       return false;
     }
     if (verdict.confidence == MusicTrackConfidence.uncertain) {
       final rawTitle = (video.rawTitle ?? video.title).toLowerCase();
-      final channelLower = (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
+      final channelLower =
+          (video.rawChannelTitle ?? video.channelTitle).toLowerCase();
       final titleL = (video.rawTitle ?? video.title).toLowerCase();
       final hasSoundtrack = titleL.contains('(from ') ||
           titleL.contains('[from ') ||
           titleL.contains('{from ') ||
-          RegExp(r'\bfrom\s+["\u201C\u201D\u2018\u2019]', caseSensitive: false).hasMatch(video.rawTitle ?? video.title);
+          RegExp(r'\bfrom\s+["\u201C\u201D\u2018\u2019]', caseSensitive: false)
+              .hasMatch(video.rawTitle ?? video.title);
       final hasPositiveProof = _hasExplicitMusicKeyword(rawTitle) ||
           _isOfficialMusicLabel(channelLower) ||
           _isVerifiedMusicArtist(channelLower) ||
@@ -1055,6 +1098,58 @@ class MusicResultClassifier {
     return true;
   }
 
+  /// Contextually detects editorial, storytelling, interview, or promotional spoken-word
+  /// clips (including short clips uploaded by music labels like "Lyricist X shares the...").
+  static bool _isEditorialOrSpokenClip({
+    required String rawTitle,
+    required String channelLower,
+    required int durationSec,
+  }) {
+    final hasExplicitSongFormat = rawTitle.contains('official audio') ||
+        rawTitle.contains('official music video') ||
+        rawTitle.contains('full song') ||
+        rawTitle.contains('full audio') ||
+        rawTitle.contains('lyrical video') ||
+        rawTitle.contains('lyric video') ||
+        channelLower.endsWith('- topic');
+
+    if (hasExplicitSongFormat) return false;
+
+    final editorialPattern = RegExp(
+      r'\b(shares\s+the|shares\s+his|shares\s+her|talks\s+about|speaks\s+about|'
+      r'opens\s+up|story\s+behind|creator\s+commentary|artist\s+discussion|'
+      r'sneak\s+peek|special\s+glimpse|first\s+glimpse|making\s+story)\b',
+      caseSensitive: false,
+    );
+    if (editorialPattern.hasMatch(rawTitle)) {
+      return true;
+    }
+
+    // Ambiguous short clips (< 65s) even on music label channels must carry
+    // explicit musical recording evidence (not just a spoken promo/teaser/story).
+    if (durationSec > 0 && durationSec < 65) {
+      final hasShortMusicEvidence = rawTitle.contains('song') ||
+          rawTitle.contains('audio') ||
+          rawTitle.contains('lyrical') ||
+          rawTitle.contains('intro') ||
+          rawTitle.contains('interlude') ||
+          rawTitle.contains('prelude') ||
+          rawTitle.contains('outro') ||
+          rawTitle.contains('theme') ||
+          rawTitle.contains('ost') ||
+          rawTitle.contains('bgm') ||
+          rawTitle.contains('acoustic') ||
+          rawTitle.contains('live') ||
+          rawTitle.contains('remix') ||
+          rawTitle.contains('instrumental');
+      if (!hasShortMusicEvidence) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /// Filters out rejected non-music videos and ranks results with official music prioritized.
   static List<YouTubeVideo> filterAndRankMusicTracks(
     List<YouTubeVideo> videos, {
@@ -1064,7 +1159,8 @@ class MusicResultClassifier {
   }) {
     if (videos.isEmpty) return const [];
 
-    final classified = <({YouTubeVideo video, MusicTrackClassification verdict})>[];
+    final classified =
+        <({YouTubeVideo video, MusicTrackClassification verdict})>[];
     for (final v in videos) {
       final verdict = classify(
         v,
@@ -1072,8 +1168,11 @@ class MusicResultClassifier {
         forIndividualPlayback: individualOnly,
         enableLogging: false,
       );
-      if (verdict.isMusic && verdict.confidence != MusicTrackConfidence.rejected) {
-        if (!individualOnly || verdict.confidence != MusicTrackConfidence.uncertain || verdict.musicScore >= 35) {
+      if (verdict.isMusic &&
+          verdict.confidence != MusicTrackConfidence.rejected) {
+        if (!individualOnly ||
+            verdict.confidence != MusicTrackConfidence.uncertain ||
+            verdict.musicScore >= 35) {
           classified.add((video: v, verdict: verdict));
         }
       }
@@ -1117,7 +1216,8 @@ class MusicResultClassifier {
   /// Detects whether a channel matches universal non-music creator / vlogger / entertainment archetypes.
   /// This protects against both established influencers and new / growing creators without needing hardcoded names.
   static bool _hasCreatorChannelArchetype(String channelLower) {
-    if (_isOfficialMusicLabel(channelLower) || _isVerifiedMusicArtist(channelLower)) return false;
+    if (_isOfficialMusicLabel(channelLower) ||
+        _isVerifiedMusicArtist(channelLower)) return false;
 
     final creatorWords = [
       'vlog',
@@ -1442,8 +1542,11 @@ class MusicResultClassifier {
       }
     }
 
-        // Character mashups / AMV edit titles (e.g. "BATMAN ft:- One Sun One Moon", "Spiderman x Song")
-    if (RegExp(r'\b(batman|spiderman|superman|iron\s*man|anime|amv|goku|naruto|luffy)\b.*\b(ft\.?|x|vs\.?)\b', caseSensitive: false).hasMatch(rawTitle)) {
+    // Character mashups / AMV edit titles (e.g. "BATMAN ft:- One Sun One Moon", "Spiderman x Song")
+    if (RegExp(
+            r'\b(batman|spiderman|superman|iron\s*man|anime|amv|goku|naruto|luffy)\b.*\b(ft\.?|x|vs\.?)\b',
+            caseSensitive: false)
+        .hasMatch(rawTitle)) {
       return true;
     }
 
@@ -1460,7 +1563,11 @@ class MusicResultClassifier {
     if (video.rawViewCount != null) return video.rawViewCount;
     final viewStr = video.viewCount;
     if (viewStr.isEmpty) return null;
-    final clean = viewStr.toLowerCase().replaceAll('views', '').replaceAll(',', '').trim();
+    final clean = viewStr
+        .toLowerCase()
+        .replaceAll('views', '')
+        .replaceAll(',', '')
+        .trim();
     if (clean.isEmpty || clean.contains('no views')) return null;
     if (clean.endsWith('b')) {
       final val = double.tryParse(clean.replaceAll('b', '')) ?? 0.0;
@@ -1481,9 +1588,30 @@ class MusicResultClassifier {
 
     // Reject fan/status/edit channels
     const fanIndicators = [
-      'fan', 'editz', 'edits', 'status', 'reels', 'shorts', 'update', 'updates',
-      'army', 'club', 'cover', 'tribute', 'lyrics', 'zone', 'vibes', 'creation',
-      'beatz', 'beats', 'mashup', 'remix', 'world', 'hub', 'unplugged', 'scene',
+      'fan',
+      'editz',
+      'edits',
+      'status',
+      'reels',
+      'shorts',
+      'update',
+      'updates',
+      'army',
+      'club',
+      'cover',
+      'tribute',
+      'lyrics',
+      'zone',
+      'vibes',
+      'creation',
+      'beatz',
+      'beats',
+      'mashup',
+      'remix',
+      'world',
+      'hub',
+      'unplugged',
+      'scene',
     ];
     for (final fi in fanIndicators) {
       if (RegExp(r'\b' + RegExp.escape(fi) + r'\b').hasMatch(channelLower)) {
@@ -1714,7 +1842,8 @@ class MusicResultClassifier {
   }
 
   /// Checks if long video has legitimate musical cues (concert, symphony, classical recital, extended mix, etc.).
-  static bool _hasPositiveMusicIndicator(String titleLower, String channelLower) {
+  static bool _hasPositiveMusicIndicator(
+      String titleLower, String channelLower) {
     final musicIndicators = [
       'symphony',
       'orchestra',
@@ -1814,7 +1943,8 @@ class MusicResultClassifier {
     return queryLower.contains(term);
   }
 
-  static int parseDurationSeconds(String durationStr) => _parseDurationSeconds(durationStr);
+  static int parseDurationSeconds(String durationStr) =>
+      _parseDurationSeconds(durationStr);
 
   static int _parseDurationSeconds(String durationStr) {
     if (durationStr.isEmpty) return 0;
