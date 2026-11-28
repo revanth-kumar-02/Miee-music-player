@@ -104,12 +104,53 @@ class QueryRelevanceEvaluator {
   ///
   /// Prevents short tokens (<= 3 chars such as 'om', 'dj', 'in', 'on') from
   /// matching substrings of unrelated words (e.g., 'om' inside 'from', 'tom', 'homeland').
+  /// Generates conservative phonetic/transliteration keys for Romanized
+  /// multilingual song tokens (e.g. "paathi" <-> "pathi", "naan" <-> "naa")
+  /// while preserving strict isolation for short tokens (< 3 chars).
+  static Set<String> transliterationKeys(String token) {
+    final t = token.trim().toLowerCase();
+    if (t.isEmpty) return const {};
+    final keys = <String>{t};
+    if (t.length < 3) return keys;
+
+    // Indic long-vowel nasal ending: "naan" <-> "naa", "thaan" <-> "thaa"
+    if (t.endsWith('aan') && t.length >= 4) {
+      keys.add(t.substring(0, t.length - 1));
+    } else if (t.endsWith('aa') && t.length >= 3) {
+      keys.add('${t}n');
+    }
+
+    // Collapse consecutive doubled letters (e.g. "paathi" -> "pathi",
+    // "vaanam" -> "vanam") only for tokens >= 4 chars whose collapsed form >= 3 chars.
+    if (t.length >= 4) {
+      final collapsed = t.replaceAllMapped(
+        RegExp(r'([\p{L}\p{N}])\1+', unicode: true),
+        (m) => m.group(1)!,
+      );
+      if (collapsed.length >= 3) {
+        keys.add(collapsed);
+        if (t.endsWith('aan') && collapsed.endsWith('an')) {
+          keys.add('${collapsed.substring(0, collapsed.length - 1)}a');
+        }
+      }
+    }
+
+    return keys;
+  }
+
   static bool _matchesToken(
     String token,
     Set<String> candidateTokens,
     String candidateCombined,
   ) {
     if (candidateTokens.contains(token)) return true;
+    final tokenKeys = transliterationKeys(token);
+    for (final cand in candidateTokens) {
+      final candKeys = transliterationKeys(cand);
+      if (tokenKeys.any(candKeys.contains)) {
+        return true;
+      }
+    }
     if (token.length <= 3) {
       // Short tokens must match as whole tokens to avoid accidental sub-word matches
       return false;
@@ -349,12 +390,30 @@ class QueryRelevanceEvaluator {
 
     // For multi-token queries (>= 2 effective tokens):
     if (effectiveTokens.length >= 2) {
-      final firstToken = effectiveTokens.first;
+      // Deduplicate repeated chorus words (e.g. "pathi nee pathi naa" -> ['pathi', 'nee', 'naa'])
+      final uniqueTokens = <String>[];
+      for (final t in effectiveTokens) {
+        if (!uniqueTokens.contains(t)) {
+          uniqueTokens.add(t);
+        }
+      }
+      int uniqueMatchCount = 0;
+      for (final t in uniqueTokens) {
+        if (_matchesToken(t, candidateTokens, candidateCombined)) {
+          uniqueMatchCount++;
+        }
+      }
+
+      if (uniqueTokens.length == 1) {
+        return uniqueMatchCount >= 1;
+      }
+
+      final firstToken = uniqueTokens.first;
       final hasFirstToken =
           _matchesToken(firstToken, candidateTokens, candidateCombined);
 
       // If the candidate has 100% full query coverage, it is unconditionally relevant
-      if (matchCount >= effectiveTokens.length) {
+      if (uniqueMatchCount >= uniqueTokens.length) {
         return true;
       }
 
@@ -365,7 +424,7 @@ class QueryRelevanceEvaluator {
       }
 
       // Require >= 65% of effective tokens (prevents 1-of-2 partial token collisions)
-      return matchCount >= (effectiveTokens.length * 0.65).ceil();
+      return uniqueMatchCount >= (uniqueTokens.length * 0.65).ceil();
     }
 
     return matchCount >= (effectiveTokens.length / 2).ceil();

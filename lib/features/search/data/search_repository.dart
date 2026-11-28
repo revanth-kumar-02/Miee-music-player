@@ -885,6 +885,12 @@ class SearchRepository {
 
     final future = youtubeRepository
         .searchPlaylists(cleanQuery)
+        .then(
+          (items) => MusicResultClassifier.filterAndRankMusicPlaylists(
+            items,
+            query: cleanQuery,
+          ),
+        )
         .catchError((_) => <OnlinePlaylist>[]);
     _inFlightPlaylistSearches[cacheKey] = future;
     try {

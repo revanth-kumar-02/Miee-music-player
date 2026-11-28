@@ -21,6 +21,7 @@ import 'package:Miee/features/search/domain/online_playlist.dart';
 import 'package:Miee/features/search/domain/query_relevance_evaluator.dart';
 import 'package:Miee/features/search/providers/search_providers.dart';
 import 'package:Miee/features/youtube/data/youtube_repository.dart';
+import 'package:Miee/features/youtube/domain/music_result_classifier.dart';
 import 'package:Miee/features/youtube/domain/youtube_model.dart';
 
 class _StubYouTubeRepo extends YouTubeRepository {
@@ -629,6 +630,158 @@ void main() {
       expect(state.query, equals('Rahman'));
       expect(state.youtubeResults.any((v) => v.id == 'stale123456'), isFalse);
       expect(state.youtubeResults.any((v) => v.id == 'fresh123456'), isTrue);
+    });
+  });
+
+  group('Transliteration Song Relevance & TV Serial Playlist Filtering', () {
+    test(
+        'Query "pathi nee pathi naa" matches and prioritizes Paathi Nee Paathi Naa(n) over scattered partial collisions',
+        () async {
+      final itunes = _StubItunesService()
+        ..songs = const [
+          ItunesSong(
+            trackId: 101,
+            trackName: 'Paathi Nee Paathi Naan (From "Nitham Oru Vaanam")',
+            artistName: 'krithika Nelson & Gopi Sundar',
+            collectionName: 'Nitham Oru Vaanam',
+            artworkUrl100: 'https://example.com/paathi_100x100bb.jpg',
+            trackTimeMillis: 217000,
+          ),
+          ItunesSong(
+            trackId: 102,
+            trackName: 'Aa Aa Bharathada Pathi-Naa Heccha Nee Heccha',
+            artistName: 'Basavaraj & Ramana',
+            collectionName: 'Thayi Seva',
+            artworkUrl100: 'https://example.com/aa_100x100bb.jpg',
+            trackTimeMillis: 514000,
+          ),
+        ];
+      final ytRepo = _StubYouTubeRepo()
+        ..searchResponses = {
+          'pathi nee pathi naa': const [
+            YouTubeVideo(
+              id: '3ltpLmIgFvY',
+              title: 'Paathi Nee Paathi Naa',
+              channelTitle: 'Zee Music South',
+              rawTitle:
+                  'Paathi Nee Paathi Naa - Full Video | Nitham Oru Vaanam | Ashok Selvan & Shivatmika | Gopi Sundar',
+              rawChannelTitle: 'Zee Music South',
+              thumbnailUrl: 'https://i.ytimg.com/vi/3ltpLmIgFvY/hqdefault.jpg',
+              duration: '3:37',
+              viewCount: '5M',
+            ),
+          ],
+        };
+
+      final repo = SearchRepository(
+        youtubeRepository: ytRepo,
+        artistRepository: _StubArtistRepo(),
+        itunesMetadataService: itunes,
+        musicBrainzService: _StubMusicBrainzService(),
+      );
+
+      final results = await repo.searchYouTube('pathi nee pathi naa');
+      expect(results, isNotEmpty);
+      expect(
+        results.any(
+            (v) => v.title.toLowerCase().contains('paathi nee paathi naa')),
+        isTrue,
+      );
+      expect(
+        results.first.title.toLowerCase(),
+        contains('paathi nee paathi naa'),
+      );
+      final paathiIdx = results.indexWhere(
+          (v) => v.title.toLowerCase().contains('paathi nee paathi naa'));
+      final bharathadaIdx = results
+          .indexWhere((v) => v.title.toLowerCase().contains('bharathada'));
+      if (bharathadaIdx != -1) {
+        expect(paathiIdx, lessThan(bharathadaIdx));
+      }
+    });
+
+    test(
+        'Playlist filter rejects TV serial webisodes, drama scenes, and off-topic playlists while keeping music playlists',
+        () {
+      const rawPlaylists = [
+        OnlinePlaylist(
+          id: 'PL_SERIAL_1',
+          title: 'Nee Pathi Naan Paathi - Webisodes - Zee Tamil',
+          author: 'Playlist',
+          thumbnailUrl: '',
+          trackCount: 176,
+        ),
+        OnlinePlaylist(
+          id: 'PL_SERIAL_2',
+          title: 'Nee Pathi Naan Paathi - Best Scenes - Zee Tamil',
+          author: 'Playlist',
+          thumbnailUrl: '',
+          trackCount: 106,
+        ),
+        OnlinePlaylist(
+          id: 'PL_MUSIC_1',
+          title: 'pathi nee pathi naan',
+          author: 'Playlist',
+          thumbnailUrl: '',
+          trackCount: 28,
+        ),
+        OnlinePlaylist(
+          id: 'PL_UNRELATED_1',
+          title: 'Sammatham tanthidden',
+          author: 'Playlist',
+          thumbnailUrl: '',
+          trackCount: 33,
+        ),
+        OnlinePlaylist(
+          id: 'PL_SHOW_1',
+          title: 'Best Of John Jerome | Super Singer 10',
+          author: 'Playlist',
+          thumbnailUrl: '',
+          trackCount: 40,
+        ),
+        OnlinePlaylist(
+          id: 'PL_MUSIC_2',
+          title: 'Nee pathi naan pathi',
+          author: 'Playlist',
+          thumbnailUrl: '',
+          trackCount: 13,
+        ),
+        OnlinePlaylist(
+          id: 'PL_MUSIC_3',
+          title: 'paathi nee',
+          author: 'Playlist',
+          thumbnailUrl: '',
+          trackCount: 25,
+        ),
+      ];
+
+      final filtered = MusicResultClassifier.filterAndRankMusicPlaylists(
+        rawPlaylists,
+        query: 'pathi nee pathi naa',
+      );
+
+      final ids = filtered.map((p) => p.id).toList();
+      expect(ids, isNot(contains('PL_SERIAL_1')));
+      expect(ids, isNot(contains('PL_SERIAL_2')));
+      expect(ids, isNot(contains('PL_UNRELATED_1')));
+      expect(ids, isNot(contains('PL_SHOW_1')));
+      expect(ids, containsAll(['PL_MUSIC_1', 'PL_MUSIC_2', 'PL_MUSIC_3']));
+      expect(ids.first, equals('PL_MUSIC_1'));
+
+      // Explicitly preserves legitimate drama soundtrack (OST) playlists
+      expect(
+        MusicResultClassifier.isValidMusicPlaylist(
+          const OnlinePlaylist(
+            id: 'PL_OST',
+            title: 'Goblin K-Drama OST Songs',
+            author: 'Playlist',
+            thumbnailUrl: '',
+            trackCount: 16,
+          ),
+          query: 'goblin ost',
+        ),
+        isTrue,
+      );
     });
   });
 }

@@ -116,14 +116,50 @@ class CanonicalMusicRanker {
     final hasVerifiedArtist = video.canonicalArtist != null &&
         video.canonicalArtist!.trim().isNotEmpty;
 
-    // 1. Exact Title Match & Full Query Coverage
+    // 1. Exact Title Match, Phonetic Phrase Alignment & Full Query Coverage
     final isExactTitle = titleLower == cleanQuery ||
         (normTitle.isNotEmpty && normTitle == normQuery);
-    final isStrongTitle = isExactTitle || titleLower.startsWith(cleanQuery);
+
+    final queryWords = cleanQuery
+        .split(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    final coreTitleLower =
+        titleLower.replaceAll(RegExp(r'\s*[\(\[\{].*$'), '').trim();
+    final titleCoreWords =
+        (coreTitleLower.isNotEmpty ? coreTitleLower : titleLower)
+            .split(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true))
+            .where((w) => w.isNotEmpty)
+            .toList();
+
+    bool wordsPhoneticallyMatch(String a, String b) {
+      if (a == b) return true;
+      final aKeys = QueryRelevanceEvaluator.transliterationKeys(a);
+      final bKeys = QueryRelevanceEvaluator.transliterationKeys(b);
+      return aKeys.any(bKeys.contains);
+    }
+
+    final hasPhoneticPrefix = queryWords.isNotEmpty &&
+        titleCoreWords.length >= queryWords.length &&
+        List.generate(
+          queryWords.length,
+          (i) => wordsPhoneticallyMatch(queryWords[i], titleCoreWords[i]),
+        ).every((matched) => matched);
+    final isPhoneticExactCore =
+        hasPhoneticPrefix && titleCoreWords.length == queryWords.length;
+
+    final isStrongTitle = isExactTitle ||
+        titleLower.startsWith(cleanQuery) ||
+        isPhoneticExactCore ||
+        hasPhoneticPrefix;
     if (isExactTitle) {
       score += 250.0;
+    } else if (isPhoneticExactCore) {
+      score += 220.0;
     } else if (titleLower.startsWith(cleanQuery)) {
       score += 100.0;
+    } else if (hasPhoneticPrefix) {
+      score += 130.0;
     } else if (titleLower.contains(cleanQuery)) {
       score += 50.0;
     }
@@ -134,6 +170,13 @@ class CanonicalMusicRanker {
     } else if (!isStrongTitle) {
       // Weak substring/partial-token match penalty
       score -= 100.0;
+    }
+
+    // Penalize unrelated long titles whose words scatter or follow extra leading words
+    if (!isStrongTitle &&
+        queryWords.length >= 2 &&
+        titleCoreWords.length >= queryWords.length + 3) {
+      score -= 120.0;
     }
 
     // 2. Canonical / Main / Featured Artist Alignment

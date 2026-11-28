@@ -980,14 +980,18 @@ class YouTubeRepository {
       }
     }
 
-    if (playlists.isNotEmpty) {
+    final filteredPlaylists = MusicResultClassifier.filterAndRankMusicPlaylists(
+      playlists,
+      query: cleanQuery,
+    );
+    if (filteredPlaylists.isNotEmpty) {
       if (_playlistSearchCache.length >= _maxCacheSize) {
         _playlistSearchCache.remove(_playlistSearchCache.keys.first);
       }
-      _playlistSearchCache[cacheKey] = playlists;
+      _playlistSearchCache[cacheKey] = filteredPlaylists;
     }
 
-    return playlists;
+    return filteredPlaylists;
   }
 
   /// Fetches the actual videos belonging to an online YouTube playlist.

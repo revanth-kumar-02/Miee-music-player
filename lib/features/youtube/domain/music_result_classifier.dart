@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'youtube_model.dart';
+import '../../search/domain/online_playlist.dart';
+import '../../search/domain/query_relevance_evaluator.dart';
 
 /// Level of confidence that a YouTube result represents a genuine, playable music track.
 enum MusicTrackConfidence {
@@ -1960,5 +1962,262 @@ class MusicResultClassifier {
       return h * 3600 + m * 60 + s;
     }
     return 0;
+  }
+
+  /// Validates whether an [OnlinePlaylist] is a genuine music playlist rather
+  /// than a TV serial, drama episode archive, reality show, podcast, or off-topic
+  /// non-music playlist.
+  static bool isValidMusicPlaylist(OnlinePlaylist playlist, {String? query}) {
+    final titleLower = playlist.title.trim().toLowerCase();
+    final authorLower = playlist.author.trim().toLowerCase();
+    final combined = '$titleLower $authorLower';
+    final queryLower = (query ?? '').trim().toLowerCase();
+
+    if (titleLower.isEmpty || playlist.trackCount <= 0) {
+      return false;
+    }
+
+    final hasExplicitMusicCue = _hasExplicitMusicKeyword(titleLower) ||
+        titleLower.contains('hits') ||
+        titleLower.contains('melody') ||
+        titleLower.contains('melodies') ||
+        titleLower.contains('playlist') ||
+        titleLower.contains('lofi') ||
+        titleLower.contains('lo-fi') ||
+        titleLower.contains('jukebox') ||
+        titleLower.contains('mashup') ||
+        titleLower.contains('classical') ||
+        titleLower.contains('ghazal') ||
+        titleLower.contains('qawwali') ||
+        titleLower.contains('devotional') ||
+        titleLower.contains('bhajan');
+
+    // Definite non-music serial / episode / webisode / broadcast show patterns
+    const hardNonMusicPlaylistPatterns = [
+      'webisode',
+      'webisodes',
+      'serial',
+      'telefilm',
+      'natok',
+      'tv show',
+      'reality show',
+      'bigg boss',
+      'cooku with comali',
+      'precap',
+      'precaps',
+      'mahasangamam',
+      'maha sangamam',
+      'full episode',
+      'full episodes',
+      'all episodes',
+      'latest episode',
+      'today episode',
+      'episodes',
+      'best scenes',
+      'best scene',
+      'emotional scene',
+      'emotional scenes',
+      'romance scene',
+      'romance scenes',
+      'drama scene',
+      'drama scenes',
+      'serial scene',
+      'serial scenes',
+      'comedy scene',
+      'comedy scenes',
+      'movie scene',
+      'movie scenes',
+      'film scenes',
+      'action scenes',
+      'deleted scenes',
+      'short film',
+      'short films',
+      'web series',
+      'gameplay',
+      'walkthrough',
+      'playthrough',
+      'unboxing',
+      'tutorial',
+      'tutorials',
+      'lecture',
+      'lectures',
+      'full course',
+      'crash course',
+      'podcast',
+      'podcasts',
+      'audiobook',
+      'standup comedy',
+      'stand-up comedy',
+      'roast',
+      'prank',
+      'vlog',
+      'vlogs',
+      'news live',
+      'match highlights',
+    ];
+
+    for (final pattern in hardNonMusicPlaylistPatterns) {
+      if (combined.contains(pattern) && !queryLower.contains(pattern)) {
+        return false;
+      }
+    }
+
+    // Episodic numbering (e.g. "Episode 145", "Ep 12")
+    if (RegExp(r'\b(ep|episode)\.?\s*#?\s*\d+\b', caseSensitive: false)
+            .hasMatch(playlist.title) &&
+        !_isLegitimateMusicalSuite(titleLower)) {
+      return false;
+    }
+
+    // Drama / Season markers rejected unless carrying explicit music cues (e.g. "K-Drama OST")
+    final hasDramaOrShowMarker = RegExp(
+      r'\b(drama|kdrama|k-drama|cdrama|c-drama|season\s+\d+|super\s+singer|sa\s+re\s+ga\s+ma|indian\s+idol)\b',
+      caseSensitive: false,
+    ).hasMatch(combined);
+    if (hasDramaOrShowMarker &&
+        !hasExplicitMusicCue &&
+        !queryLower.contains('drama')) {
+      return false;
+    }
+
+    // Broadcast TV network tags in playlist titles without music cues strongly
+    // identify TV serial archives (e.g. "Zee Tamil", "Star Vijay", "Sun TV").
+    const tvBroadcastMarkers = [
+      'zee tamil',
+      'zee telugu',
+      'zee tv',
+      'zee marathi',
+      'zee kannada',
+      'zee bangla',
+      'zee keralam',
+      'zee5',
+      'star vijay',
+      'vijay tv',
+      'vijay television',
+      'star maa',
+      'star plus',
+      'star jalsha',
+      'star pravah',
+      'colors tv',
+      'colors tamil',
+      'colors kannada',
+      'colors marathi',
+      'sun tv',
+      'gemini tv',
+      'surya tv',
+      'udaya tv',
+      'asianet',
+      'mazhavil manorama',
+      'flowers tv',
+      'sony tv',
+      'sab tv',
+      'sony sab',
+      'dangal tv',
+    ];
+    for (final tv in tvBroadcastMarkers) {
+      if (combined.contains(tv) && !hasExplicitMusicCue) {
+        return false;
+      }
+    }
+
+    // Large episode/clip dumps lacking explicit music cues (e.g. 100+ clip playlists)
+    if (playlist.trackCount >= 80 &&
+        !hasExplicitMusicCue &&
+        RegExp(r'\b(scenes?|promos?|highlights?|clips?|moments?|tv|show|part\s*\d+)\b',
+                caseSensitive: false)
+            .hasMatch(titleLower)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Filters non-music and off-topic playlists and ranks relevant music playlists.
+  static List<OnlinePlaylist> filterAndRankMusicPlaylists(
+    List<OnlinePlaylist> playlists, {
+    String? query,
+    int maxResults = 25,
+  }) {
+    if (playlists.isEmpty) return const [];
+
+    final valid =
+        playlists.where((p) => isValidMusicPlaylist(p, query: query)).toList();
+    if (valid.isEmpty) return const [];
+
+    final cleanQuery = (query ?? '').trim().toLowerCase();
+    if (cleanQuery.isEmpty) {
+      return valid.take(maxResults).toList();
+    }
+
+    final coreQuery = QueryRelevanceEvaluator.extractCoreEntity(cleanQuery);
+    final rawTokens = coreQuery
+        .split(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true))
+        .where((t) => t.isNotEmpty)
+        .toList();
+    final queryTokens = <String>[];
+    for (final t in rawTokens) {
+      if (!queryTokens.contains(t)) {
+        queryTokens.add(t);
+      }
+    }
+
+    final scored = <({OnlinePlaylist playlist, int score, int index})>[];
+
+    for (int i = 0; i < valid.length; i++) {
+      final p = valid[i];
+      final titleLower = p.title.trim().toLowerCase();
+      final titleTokens = titleLower
+          .split(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true))
+          .where((t) => t.isNotEmpty)
+          .toSet();
+
+      int matchedCount = 0;
+      if (queryTokens.isNotEmpty) {
+        for (final qTok in queryTokens) {
+          final qKeys = QueryRelevanceEvaluator.transliterationKeys(qTok);
+          final hit = titleTokens.any((cTok) {
+            if (cTok == qTok) return true;
+            final cKeys = QueryRelevanceEvaluator.transliterationKeys(cTok);
+            return qKeys.any(cKeys.contains);
+          });
+          if (hit) matchedCount++;
+        }
+
+        final minRequired =
+            queryTokens.length == 1 ? 1 : (queryTokens.length * 0.5).ceil();
+        if (matchedCount < minRequired) {
+          continue;
+        }
+      }
+
+      int score = matchedCount * 100;
+      if (queryTokens.isNotEmpty && matchedCount >= queryTokens.length) {
+        score += 150;
+      }
+      if (titleLower == cleanQuery) {
+        score += 200;
+      } else if (titleLower.startsWith(cleanQuery)) {
+        score += 100;
+      }
+      if (_hasExplicitMusicKeyword(titleLower) ||
+          titleLower.contains('hits') ||
+          titleLower.contains('playlist') ||
+          titleLower.contains('jukebox')) {
+        score += 30;
+      }
+      if (p.trackCount >= 5 && p.trackCount <= 80) {
+        score += 20;
+      }
+
+      scored.add((playlist: p, score: score, index: i));
+    }
+
+    scored.sort((a, b) {
+      final diff = b.score.compareTo(a.score);
+      if (diff != 0) return diff;
+      return a.index.compareTo(b.index);
+    });
+
+    return scored.map((e) => e.playlist).take(maxResults).toList();
   }
 }
