@@ -14,6 +14,12 @@ import '../../recommendations/domain/music_language_service.dart';
 import 'youtube_data_source.dart';
 import 'web_music_discovery_source.dart';
 
+enum _ExplodeFailureKind {
+  redirectOrAbuse,
+  structural,
+  transient,
+}
+
 /// Repository responsible for searching YouTube via YouTube Data API v3,
 /// falling back to WebMusicDiscoverySource on web (to respect browser CORS),
 /// or falling back to YoutubeExplode on native platforms when no API key is configured.
@@ -30,17 +36,27 @@ class YouTubeRepository {
   static const int _maxCacheSize = 50;
 
   /// Circuit breaker state for structural YoutubeExplode InnerTube parse failures
-  /// (e.g. NoSuchMethodError: getT). Transient network errors do not trip it.
+  /// (e.g. NoSuchMethodError: getT) and redirect/anti-abuse blocks (`google_abuse`,
+  /// `Redirect limit exceeded`, HTTP 429).
   final Duration explodeCircuitCooldown;
+  final Duration explodeRedirectCooldown;
+  final Duration explodeRetryDelay;
+  final Duration webDiscoveryCooldown;
   final DateTime Function() _now;
   final Future<List<YouTubeVideo>> Function(String query, {int page})?
       _explodeSearchOverride;
   DateTime? _explodeCircuitOpenUntil;
+  DateTime? _webDiscoveryOpenUntil;
 
   /// Whether the YoutubeExplode search circuit breaker is currently open.
   bool get isExplodeCircuitOpen =>
       _explodeCircuitOpenUntil != null &&
       _now().isBefore(_explodeCircuitOpenUntil!);
+
+  /// Whether the fallback discovery circuit breaker is currently open.
+  bool get isWebDiscoveryCircuitOpen =>
+      _webDiscoveryOpenUntil != null &&
+      _now().isBefore(_webDiscoveryOpenUntil!);
 
   /// Active search lists to support continuous pagination across batches
   final Map<String, yte.VideoSearchList> _activeSearchLists = {};
@@ -51,6 +67,9 @@ class YouTubeRepository {
     YouTubeDataSource? dataSource,
     WebMusicDiscoverySource? webDiscoverySource,
     this.explodeCircuitCooldown = const Duration(minutes: 5),
+    this.explodeRedirectCooldown = const Duration(minutes: 3),
+    this.explodeRetryDelay = const Duration(milliseconds: 250),
+    this.webDiscoveryCooldown = const Duration(seconds: 30),
     DateTime Function()? now,
     Future<List<YouTubeVideo>> Function(String query, {int page})?
         explodeSearchOverride,
@@ -170,13 +189,22 @@ class YouTubeRepository {
 
         // Fallback to WebMusicDiscoverySource if Explode returned 0 candidates or circuit is open
         if (results.isEmpty) {
-          try {
+          if (isWebDiscoveryCircuitOpen) {
             debugPrint(
-                'YouTubeRepository: Falling back to WebMusicDiscoverySource for "$cleanQuery"');
-            results = await _webDiscoverySource.searchVideos(cleanQuery);
-          } catch (e) {
-            debugPrint(
-                'YouTubeRepository: WebMusicDiscoverySource fallback failed: $e');
+                '[YouTubeRepository] WebMusicDiscoverySource circuit open; skipping duplicate failing fallback for "$cleanQuery"');
+          } else {
+            if (_webDiscoveryOpenUntil != null) {
+              _webDiscoveryOpenUntil = null;
+            }
+            try {
+              debugPrint(
+                  'YouTubeRepository: Falling back to WebMusicDiscoverySource for "$cleanQuery"');
+              results = await _webDiscoverySource.searchVideos(cleanQuery);
+            } catch (e) {
+              _webDiscoveryOpenUntil = _now().add(webDiscoveryCooldown);
+              debugPrint(
+                  'YouTubeRepository: WebMusicDiscoverySource fallback failed ($e); cooling down ${webDiscoveryCooldown.inSeconds}s');
+            }
           }
         }
       }
@@ -423,87 +451,129 @@ class YouTubeRepository {
     return deduplicated.take(limit).toList();
   }
 
+  _ExplodeFailureKind _classifyExplodeFailure(Object error) {
+    if (error is NoSuchMethodError ||
+        error is TypeError ||
+        error is FormatException) {
+      return _ExplodeFailureKind.structural;
+    }
+    final msg = error.toString().toLowerCase();
+    if (msg.contains('redirect limit exceeded') ||
+        msg.contains('google_abuse') ||
+        msg.contains('too many redirects') ||
+        msg.contains('status code: 429') ||
+        msg.contains('429 too many requests') ||
+        msg.contains('sorry/index')) {
+      return _ExplodeFailureKind.redirectOrAbuse;
+    }
+    return _ExplodeFailureKind.transient;
+  }
+
+  void _recordExplodeFailure(Object error, _ExplodeFailureKind kind) {
+    if (kind == _ExplodeFailureKind.structural) {
+      _explodeCircuitOpenUntil = _now().add(explodeCircuitCooldown);
+      debugPrint(
+          '[YouTubeRepository] Structural Explode parse error ($error); opening circuit for ${explodeCircuitCooldown.inSeconds}s');
+    } else if (kind == _ExplodeFailureKind.redirectOrAbuse) {
+      _explodeCircuitOpenUntil = _now().add(explodeRedirectCooldown);
+      debugPrint(
+          '[YouTubeRepository] YouTube redirect/anti-abuse failure ($error); opening Explode cooldown for ${explodeRedirectCooldown.inSeconds}s');
+    } else {
+      debugPrint('[YouTubeRepository] _searchWithExplode transient error: $error');
+    }
+  }
+
   Future<List<YouTubeVideo>> _searchWithExplode(String cleanQuery,
       {int page = 1}) async {
-    if (_explodeSearchOverride != null) {
-      try {
+    Future<List<YouTubeVideo>> runAttempt() async {
+      if (_explodeSearchOverride != null) {
         return await _explodeSearchOverride!(cleanQuery, page: page);
-      } catch (e) {
-        if (e is NoSuchMethodError || e is TypeError || e is FormatException) {
-          _explodeCircuitOpenUntil = _now().add(explodeCircuitCooldown);
-          debugPrint(
-              '[YouTubeRepository] Structural Explode failure ($e); circuit open for ${explodeCircuitCooldown.inSeconds}s');
-        } else {
-          debugPrint(
-              '[YouTubeRepository] _searchWithExplode transient error: $e');
-        }
-        return const [];
       }
+      return await _runNativeExplodeSearch(cleanQuery, page: page);
     }
 
+    const maxAttempts = 2;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await runAttempt();
+      } catch (e) {
+        final kind = _classifyExplodeFailure(e);
+        if (kind != _ExplodeFailureKind.transient || attempt >= maxAttempts) {
+          _recordExplodeFailure(e, kind);
+          return const [];
+        }
+        debugPrint(
+            '[YouTubeRepository] Transient Explode failure ($e); backing off ${explodeRetryDelay.inMilliseconds}ms before retry ${attempt + 1}/$maxAttempts');
+        if (explodeRetryDelay > Duration.zero) {
+          await Future<void>.delayed(explodeRetryDelay);
+        }
+      }
+    }
+    return const [];
+  }
+
+  Future<List<YouTubeVideo>> _runNativeExplodeSearch(
+    String cleanQuery, {
+    required int page,
+  }) async {
     final candidateVideos = <YouTubeVideo>[];
     final seenVideoIds = <String>{};
 
-    try {
-      if (page <= 1) {
-        final searchList = await _yt.search.search(cleanQuery);
-        _activeSearchLists[cleanQuery] = searchList;
+    if (page <= 1) {
+      final searchList = await _yt.search.search(cleanQuery);
+      _activeSearchLists[cleanQuery] = searchList;
 
-        for (final video in searchList) {
-          if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
+      for (final video in searchList) {
+        if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) {
+          continue;
+        }
+        final candidate = _processVideo(video, cleanQuery);
+        if (MusicResultClassifier.isValidMusicTrack(candidate,
+            query: cleanQuery)) {
+          candidateVideos.add(candidate);
+        }
+      }
+    } else {
+      // Page > 1 continuation:
+      if (_activeSearchLists.containsKey(cleanQuery)) {
+        try {
+          final nextList = await _activeSearchLists[cleanQuery]!.nextPage();
+          if (nextList != null && nextList.isNotEmpty) {
+            _activeSearchLists[cleanQuery] = nextList;
+            for (final video in nextList) {
+              if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) {
+                continue;
+              }
+              final candidate = _processVideo(video, cleanQuery);
+              if (MusicResultClassifier.isValidMusicTrack(candidate,
+                  query: cleanQuery)) {
+                candidateVideos.add(candidate);
+              }
+            }
+          }
+        } catch (e) {
+          final kind = _classifyExplodeFailure(e);
+          if (kind != _ExplodeFailureKind.transient) rethrow;
+          debugPrint('[YouTubeRepository] Pagination nextPage() error: $e');
+        }
+      }
+
+      // If pagination list was empty or exhausted, use query variant
+      if (candidateVideos.isEmpty) {
+        final variantQuery = _getQueryVariantForPage(cleanQuery, page);
+        debugPrint(
+            '[YouTubeRepository] Using continuation query variant: "$variantQuery"');
+        final variantList = await _yt.search.search(variantQuery);
+        for (final video in variantList) {
+          if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value)) {
             continue;
-          final candidate = _processVideo(video, cleanQuery);
+          }
+          final candidate = _processVideo(video, variantQuery);
           if (MusicResultClassifier.isValidMusicTrack(candidate,
-              query: cleanQuery)) {
+              query: variantQuery)) {
             candidateVideos.add(candidate);
           }
         }
-      } else {
-        // Page > 1 continuation:
-        if (_activeSearchLists.containsKey(cleanQuery)) {
-          try {
-            final nextList = await _activeSearchLists[cleanQuery]!.nextPage();
-            if (nextList != null && nextList.isNotEmpty) {
-              _activeSearchLists[cleanQuery] = nextList;
-              for (final video in nextList) {
-                if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
-                  continue;
-                final candidate = _processVideo(video, cleanQuery);
-                if (MusicResultClassifier.isValidMusicTrack(candidate,
-                    query: cleanQuery)) {
-                  candidateVideos.add(candidate);
-                }
-              }
-            }
-          } catch (e) {
-            debugPrint('[YouTubeRepository] Pagination nextPage() error: $e');
-          }
-        }
-
-        // If pagination list was empty or exhausted, use query variant
-        if (candidateVideos.isEmpty) {
-          final variantQuery = _getQueryVariantForPage(cleanQuery, page);
-          debugPrint(
-              '[YouTubeRepository] Using continuation query variant: "$variantQuery"');
-          final variantList = await _yt.search.search(variantQuery);
-          for (final video in variantList) {
-            if (video.id.value.isEmpty || !seenVideoIds.add(video.id.value))
-              continue;
-            final candidate = _processVideo(video, variantQuery);
-            if (MusicResultClassifier.isValidMusicTrack(candidate,
-                query: variantQuery)) {
-              candidateVideos.add(candidate);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      if (e is NoSuchMethodError || e is TypeError || e is FormatException) {
-        _explodeCircuitOpenUntil = _now().add(explodeCircuitCooldown);
-        debugPrint(
-            '[YouTubeRepository] Structural Explode parse error ($e); opening circuit for ${explodeCircuitCooldown.inSeconds}s');
-      } else {
-        debugPrint('[YouTubeRepository] _searchWithExplode error: $e');
       }
     }
 
@@ -951,7 +1021,7 @@ class YouTubeRepository {
 
     final playlists = <OnlinePlaylist>[];
 
-    if (!kIsWeb) {
+    if (!kIsWeb && !isExplodeCircuitOpen) {
       try {
         final searchResults = await _yt.search.searchContent(
           cleanQuery,
@@ -976,6 +1046,10 @@ class YouTubeRepository {
           }
         }
       } catch (e) {
+        final kind = _classifyExplodeFailure(e);
+        if (kind != _ExplodeFailureKind.transient) {
+          _recordExplodeFailure(e, kind);
+        }
         debugPrint('YouTubeRepository: searchPlaylists error: $e');
       }
     }

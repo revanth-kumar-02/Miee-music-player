@@ -182,9 +182,21 @@ class PlayerController extends StateNotifier<PlaybackState> {
     );
 
     // ── Position stream ───────────────────────────────────────────────────────
-    // Only auto-recover from error state if the player is actively playing
-    // and the position event belongs to the currently selected track.
+    // Ignore stale position events emitted while loading/recovering a different
+    // track or while an outgoing track is still unwinding.
     _positionSub = _handler.positionStream.listen((pos) {
+      if (_handler.isLoadingTrack ||
+          _handler.isRecovering ||
+          state.status == PlaybackStatus.loading) {
+        return;
+      }
+      final currentTrack = state.currentTrack;
+      final loadedId = _handler.loadedAudioTrackId;
+      if (currentTrack != null &&
+          ((loadedId != null && !isSameTrackId(loadedId, currentTrack.id)) ||
+              (currentTrack.isYoutube && loadedId == null))) {
+        return;
+      }
       if (state.status == PlaybackStatus.error &&
           _handler.isPlaying &&
           pos > Duration.zero) {
@@ -194,23 +206,26 @@ class PlayerController extends StateNotifier<PlaybackState> {
             ? _handler.currentQueue[_handler.currentIndex]
             : null;
         if (currentHandlerTrack != null &&
-            state.currentTrack != null &&
+            currentTrack != null &&
             _normalizeTrackId(currentHandlerTrack.id) ==
-                _normalizeTrackId(state.currentTrack!.id)) {
+                _normalizeTrackId(currentTrack.id) &&
+            loadedId != null &&
+            isSameTrackId(loadedId, currentTrack.id)) {
           debugLog(
               '[Playback] Position > 0 for active track while in error state — auto-recovering UI');
           state = state.copyWith(
             status: PlaybackStatus.playing,
             clearErrorMessage: true,
           );
+        } else {
+          return;
         }
+      } else if (state.status == PlaybackStatus.error) {
+        return;
       }
-      // Guard against transient zero-position emits during buffering, loading, error, or player recovery
+      // Guard against transient zero-position emits during buffering or transitions
       if (pos == Duration.zero && state.position > Duration.zero) {
-        if (state.status == PlaybackStatus.loading ||
-            state.status == PlaybackStatus.buffering ||
-            state.status == PlaybackStatus.error ||
-            _handler.isLoadingTrack) {
+        if (state.status == PlaybackStatus.buffering) {
           return;
         }
       }
@@ -355,6 +370,27 @@ class PlayerController extends StateNotifier<PlaybackState> {
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
 
+      final currentTrack = state.currentTrack;
+      final loadedId = _handler.loadedAudioTrackId;
+      final isForActiveLoadedTrack = currentTrack != null &&
+          loadedId != null &&
+          isSameTrackId(loadedId, currentTrack.id);
+
+      // Discard stale ready/completed events emitted while loading or belonging
+      // to an outgoing track before the new source has been prepared.
+      if ((_handler.isLoadingTrack || _handler.isRecovering) &&
+          (processingState == ProcessingState.ready ||
+              processingState == ProcessingState.completed)) {
+        return;
+      }
+      if (currentTrack != null &&
+          currentTrack.isYoutube &&
+          !isForActiveLoadedTrack &&
+          (processingState == ProcessingState.ready ||
+              processingState == ProcessingState.completed)) {
+        return;
+      }
+
       PlaybackStatus status;
       switch (processingState) {
         case ProcessingState.idle:
@@ -389,13 +425,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
         clearErrorMessage: isHealthy,
         clearLoadingTrackId: clearLoading,
       );
-      if (status == PlaybackStatus.playing && state.currentTrack != null) {
-        final current = state.currentTrack!;
+      if (status == PlaybackStatus.playing &&
+          currentTrack != null &&
+          isForActiveLoadedTrack &&
+          !_handler.isLoadingTrack) {
         final trackKey =
-            '${_normalizeTrackId(current.id)}|${current.title.trim().toLowerCase()}|${current.artist.trim().toLowerCase()}';
+            '${_normalizeTrackId(currentTrack.id)}|${currentTrack.title.trim().toLowerCase()}|${currentTrack.artist.trim().toLowerCase()}';
         if (_lastRecordedTrackKey != trackKey) {
           _lastRecordedTrackKey = trackKey;
-          _recordRecentlyPlayed(current);
+          _recordRecentlyPlayed(currentTrack);
         }
       }
       _analyticsTracker.onPlaybackStatusChanged(status, state.currentTrack);
@@ -505,9 +543,6 @@ class PlayerController extends StateNotifier<PlaybackState> {
     final track = _queueManager.currentTrack;
     if (track != null) {
       playTrack(track, playingFrom: playingFrom);
-      if (finalQueue.length <= 2 && state.repeatMode != RepeatMode.one) {
-        unawaited(expandQueueIfNeeded());
-      }
     }
   }
 
@@ -921,12 +956,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     );
 
     final isOnline = track.isYoutube || kIsWeb;
-    final isSameTrack = state.currentTrack != null &&
-        isSameTrackId(state.currentTrack!.id, track.id);
+    final isSameLoadedTrack = state.currentTrack != null &&
+        isSameTrackId(state.currentTrack!.id, track.id) &&
+        _handler.loadedAudioTrackId != null &&
+        isSameTrackId(_handler.loadedAudioTrackId, track.id);
     final resumePos = initialPosition ??
-        (isSameTrack && state.position > Duration.zero
+        (isSameLoadedTrack && state.position > Duration.zero
             ? state.position
-            : (isSameTrack && _handler.lastValidPosition > Duration.zero
+            : (isSameLoadedTrack && _handler.lastValidPosition > Duration.zero
                 ? _handler.lastValidPosition
                 : Duration.zero));
 
@@ -1179,11 +1216,22 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (token != _playRequestToken) return;
       await _handler.play();
       if (token != _playRequestToken) return;
-      _recordRecentlyPlayed(resolvedTrack);
+      final actuallyPlaying = _handler.isPlaying &&
+          _handler.loadedAudioTrackId != null &&
+          isSameTrackId(_handler.loadedAudioTrackId, resolvedTrack.id);
+      if (actuallyPlaying) {
+        final trackKey =
+            '${_normalizeTrackId(resolvedTrack.id)}|${resolvedTrack.title.trim().toLowerCase()}|${resolvedTrack.artist.trim().toLowerCase()}';
+        if (_lastRecordedTrackKey != trackKey) {
+          _lastRecordedTrackKey = trackKey;
+          _recordRecentlyPlayed(resolvedTrack);
+        }
+      }
       _enrichActiveTrackArtwork(resolvedTrack, token);
-      // Proactively populate upcoming tracks when starting a short/1-track queue
-      // (e.g., from Search) so playback continues seamlessly when the track ends.
-      if (_queueManager.queue.length <= 2 &&
+      // Proactively populate upcoming tracks AFTER active audio has started
+      // so queue expansion does not contend with primary stream resolution.
+      if (actuallyPlaying &&
+          _queueManager.queue.length <= 2 &&
           state.repeatMode != RepeatMode.one) {
         unawaited(expandQueueIfNeeded());
       }
@@ -1734,8 +1782,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
         _handler.updateActiveMediaItemArtwork(
             item.id, updatedTrack.effectiveArtworkUrl);
 
-        // 4. Update Recently Played repository
-        _recordRecentlyPlayed(updatedTrack);
+        // 4. Update Recently Played repository only if the track is genuinely playing
+        if (state.status == PlaybackStatus.playing &&
+            _handler.loadedAudioTrackId != null &&
+            isSameTrackId(_handler.loadedAudioTrackId, item.id)) {
+          _recordRecentlyPlayed(updatedTrack);
+        }
 
         // 5. Persist queue snapshot
         _persistQueueSnapshot();

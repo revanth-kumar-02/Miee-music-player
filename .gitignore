@@ -62,3 +62,10 @@ build_debug.txt
 # Node / Playwright
 node_modules/
 .chrome_data/
+
+# QA test screenshots, evidence dumps, and generated report markdown files
+qa_evidence/
+screenshots/
+test/**/screenshots/
+e2e/screenshots/
+/MIEE_*.md

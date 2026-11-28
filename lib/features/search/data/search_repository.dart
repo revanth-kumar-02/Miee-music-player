@@ -317,9 +317,21 @@ class SearchRepository {
       final hasFullCoverage = candidatePool.any(
           (c) => QueryRelevanceEvaluator.hasFullQueryCoverage(c, query: clean));
 
-      // If candidatePool has no candidates matching the full query context,
+      // Check whether discovery already returned at least one prominent/curated
+      // original artist match so an obscure 0-fan iTunes cover doesn't shadow it.
+      final hasProminentMatch = candidatePool.any((c) {
+        final art = (c.canonicalArtist ?? c.channelTitle).trim();
+        if (art.isEmpty) return false;
+        if (DeezerArtistRepository.findCuratedByName(art) != null) return true;
+        return artists.any((pa) =>
+            pa.fanCount >= 5000 &&
+            QueryRelevanceEvaluator.matchesCreditedArtist(art, pa.name));
+      });
+
+      // If candidatePool lacks full query coverage OR lacks prominent/enough matches,
       // query YouTube to discover authentic verified recordings matching the complete user query.
       if (!hasFullCoverage ||
+          !hasProminentMatch ||
           (targetedArtist != null && candidatePool.length < 3)) {
         try {
           final ytVideos = await youtubeRepository.search(clean);
@@ -337,17 +349,37 @@ class SearchRepository {
       }
 
       if (candidatePool.isNotEmpty) {
-        // Pick canonicalArtist from targetedArtist first, else corroborated fullMatchCandidate
+        // Pick canonicalArtist ONLY from explicit targetedArtist or a prominent/curated
+        // full-coverage artist (never lock an obscure cover act as canonicalArtist).
         YouTubeVideo? fullMatchCandidate;
         for (final c in candidatePool) {
-          if (QueryRelevanceEvaluator.hasFullQueryCoverage(c, query: clean)) {
+          if (!QueryRelevanceEvaluator.hasFullQueryCoverage(c, query: clean)) {
+            continue;
+          }
+          final art = (c.canonicalArtist ?? c.channelTitle).trim();
+          final isProminent = art.isNotEmpty &&
+              (DeezerArtistRepository.findCuratedByName(art) != null ||
+                  artists.any((pa) =>
+                      pa.fanCount >= 5000 &&
+                      QueryRelevanceEvaluator.matchesCreditedArtist(
+                          art, pa.name)));
+          if (isProminent) {
             fullMatchCandidate = c;
             break;
           }
+          fullMatchCandidate ??= c;
         }
-        final String? canonicalArtist = targetedArtist ??
-            fullMatchCandidate?.canonicalArtist ??
-            (hasFullCoverage ? candidatePool.first.canonicalArtist : null);
+        final fullMatchArtist = fullMatchCandidate?.canonicalArtist;
+        final fullMatchIsProminent = fullMatchArtist != null &&
+            fullMatchArtist.trim().isNotEmpty &&
+            (DeezerArtistRepository.findCuratedByName(fullMatchArtist) !=
+                    null ||
+                artists.any((pa) =>
+                    pa.fanCount >= 5000 &&
+                    QueryRelevanceEvaluator.matchesCreditedArtist(
+                        fullMatchArtist, pa.name)));
+        final String? canonicalArtist =
+            targetedArtist ?? (fullMatchIsProminent ? fullMatchArtist : null);
 
         // Rank using CanonicalMusicRanker: prioritizes canonical studio recordings,
         // elevates prominent performing artists, and heavily penalizes unrequested tribute/cover acts

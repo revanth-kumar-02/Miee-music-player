@@ -30,13 +30,19 @@ class WebMusicDiscoverySource {
 
   /// In-memory cache for discovery searches (bounded to 50 entries)
   final Map<String, List<YouTubeVideo>> _cache = {};
+  final Map<String, Future<List<YouTubeVideo>>> _inFlight = {};
   static const int _maxCacheSize = 50;
 
   /// Cache for resolved audio preview stream URLs (title+artist -> url)
   final Map<String, String> _streamCache = {};
 
-  /// Searches for verified individual songs matching [query].
-  Future<List<YouTubeVideo>> searchVideos(String query, {int limit = 25}) async {
+  /// Searches for verified individual songs matching [query], deduplicating
+  /// concurrent requests and applying a bounded backoff retry for transient errors.
+  Future<List<YouTubeVideo>> searchVideos(
+    String query, {
+    int limit = 25,
+    Duration retryDelay = const Duration(milliseconds: 250),
+  }) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return [];
 
@@ -46,16 +52,54 @@ class WebMusicDiscoverySource {
       return _cache[cacheKey]!;
     }
 
-    try {
-      return await _fetchFromProvider(cleanQuery, limit: limit, cacheKey: cacheKey);
-    } catch (e) {
-      debugPrint('[WebMusicDiscovery] First attempt failed ($e), retrying once...');
+    if (_inFlight.containsKey(cacheKey)) {
+      return await _inFlight[cacheKey]!;
+    }
+
+    final future = () async {
       try {
-        return await _fetchFromProvider(cleanQuery, limit: limit, cacheKey: cacheKey);
-      } catch (e2) {
-        debugPrint('[WebMusicDiscovery] Retry also failed: $e2');
-        rethrow;
+        return await _fetchFromProvider(
+          cleanQuery,
+          limit: limit,
+          cacheKey: cacheKey,
+        );
+      } on DioException catch (e) {
+        final code = e.response?.statusCode ?? 0;
+        if (code == 400 || code == 403 || code == 404) {
+          rethrow;
+        }
+        debugPrint(
+            '[WebMusicDiscovery] First attempt failed ($e), backing off ${retryDelay.inMilliseconds}ms before retry...');
+        if (retryDelay > Duration.zero) {
+          await Future<void>.delayed(retryDelay);
+        }
+        return await _fetchFromProvider(
+          cleanQuery,
+          limit: limit,
+          cacheKey: cacheKey,
+        );
+      } catch (e) {
+        debugPrint(
+            '[WebMusicDiscovery] First attempt failed ($e), backing off ${retryDelay.inMilliseconds}ms before retry...');
+        if (retryDelay > Duration.zero) {
+          await Future<void>.delayed(retryDelay);
+        }
+        return await _fetchFromProvider(
+          cleanQuery,
+          limit: limit,
+          cacheKey: cacheKey,
+        );
       }
+    }();
+
+    _inFlight[cacheKey] = future;
+    try {
+      return await future;
+    } catch (e2) {
+      debugPrint('[WebMusicDiscovery] Search failed after bounded retry: $e2');
+      rethrow;
+    } finally {
+      _inFlight.remove(cacheKey);
     }
   }
 

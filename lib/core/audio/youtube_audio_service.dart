@@ -122,6 +122,38 @@ class YouTubeAudioService {
   final Map<String, _CachedStream> _urlCache = {};
   final Map<String, Future<ResolvedYouTubeStream?>> _inFlight = {};
   final Map<String, YouTubeVideo> _queryCandidateCache = {};
+  final Map<String, DateTime> _failedVideoIds = {};
+  static const Duration _failedVideoTtl = Duration(minutes: 5);
+
+  /// Records [videoIdOrUrl] as recently failed so alternate resolution paths
+  /// avoid re-selecting the same failing video ID.
+  void markVideoFailed(String videoIdOrUrl) {
+    final videoId = _extractVideoId(videoIdOrUrl);
+    if (videoId == null || videoId.isEmpty) return;
+    _failedVideoIds[videoId] = DateTime.now().add(_failedVideoTtl);
+    _urlCache.remove(videoId);
+  }
+
+  /// Returns true if [videoIdOrUrl] recently failed stream resolution or playback.
+  bool isVideoRecentlyFailed(String videoIdOrUrl) {
+    final videoId = _extractVideoId(videoIdOrUrl);
+    if (videoId == null || videoId.isEmpty) return false;
+    final exp = _failedVideoIds[videoId];
+    if (exp == null) return false;
+    if (DateTime.now().isAfter(exp)) {
+      _failedVideoIds.remove(videoId);
+      return false;
+    }
+    return true;
+  }
+
+  /// Returns all currently active recently-failed YouTube video IDs.
+  Set<String> getRecentlyFailedVideoIds() {
+    if (_failedVideoIds.isEmpty) return const {};
+    final now = DateTime.now();
+    _failedVideoIds.removeWhere((_, exp) => now.isAfter(exp));
+    return _failedVideoIds.keys.toSet();
+  }
 
   // ── youtube_explode_dart client ───────────────────────────────────────────
   YoutubeExplode _yt = YoutubeExplode();
@@ -216,7 +248,7 @@ class YouTubeAudioService {
     }
 
     final future = _resolveStream(videoId, title: title, artist: artist).timeout(
-      const Duration(seconds: 25),
+      const Duration(seconds: 22),
       onTimeout: () {
         debugPrint('[YouTubeAudioService] Overall stream resolution timed out for $videoId');
         return null;
@@ -303,6 +335,7 @@ class YouTubeAudioService {
   void clearCache() {
     _urlCache.clear();
     _queryCandidateCache.clear();
+    _failedVideoIds.clear();
     debugPrint('[StreamCache] Cache cleared');
   }
 
@@ -663,7 +696,7 @@ class YouTubeAudioService {
       final manifest = await _fetchManifest(
         videoId,
         [kVisionOsClient],
-        const Duration(seconds: 12),
+        const Duration(seconds: 8),
       );
       final streamUrl = manifest != null ? _selectBestAudioUrl(manifest) : null;
       if (streamUrl != null && streamUrl.isNotEmpty) {
@@ -689,7 +722,7 @@ class YouTubeAudioService {
       final manifest = await _fetchManifest(
         videoId,
         [kAndroidSdklessClient],
-        const Duration(seconds: 7),
+        const Duration(seconds: 6),
       );
       final streamUrl = manifest != null ? _selectBestAudioUrl(manifest) : null;
       if (streamUrl != null && streamUrl.isNotEmpty) {
@@ -722,7 +755,7 @@ class YouTubeAudioService {
       final manifest = await _fetchManifest(
         videoId,
         null,
-        const Duration(seconds: 7),
+        const Duration(seconds: 6),
       );
       final streamUrl = manifest != null ? _selectBestAudioUrl(manifest) : null;
       if (streamUrl != null && streamUrl.isNotEmpty) {

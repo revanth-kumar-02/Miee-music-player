@@ -162,6 +162,15 @@ class ArtworkResolver {
     if (query.albumArtworkUrl != null &&
         query.albumArtworkUrl!.isNotEmpty &&
         query.albumArtworkUrl!.startsWith('http')) {
+      if (!forceRefresh) {
+        final existing = cache.get(key);
+        if (existing != null &&
+            existing.imageUrl == query.albumArtworkUrl &&
+            (!cacheImagesLocally ||
+                ArtworkCache.hasValidLocalFile(existing.localCachedPath))) {
+          return existing;
+        }
+      }
       final src = query.albumArtworkUrl!.contains('dzcdn.net')
           ? ArtworkSource.deezer
           : ArtworkSource.itunes;

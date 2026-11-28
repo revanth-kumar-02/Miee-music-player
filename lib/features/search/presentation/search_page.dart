@@ -25,7 +25,6 @@ import '../../onboarding/domain/artist_model.dart';
 import '../../onboarding/data/artist_discovery_repository.dart';
 import '../../artwork/domain/artwork_query.dart';
 import '../../artwork/presentation/miee_artwork_image.dart';
-import '../data/playback_source_resolver.dart';
 
 /// Recreated Miee Search Screen matching the reference design:
 /// - Cocoa Plum sidebar + Vanilla Cream canvas
@@ -45,7 +44,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   late final ScrollController _scrollController;
   late final TextEditingController _searchController;
   String _searchQuery = '';
-  int _playTapToken = 0;
 
   final List<String> _filters = const [
     'All',
@@ -132,38 +130,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         isSameTrackId(s.loadingTrackId, playableVideo.id)));
     if (isLoading) return;
 
-    final tapToken = ++_playTapToken;
-
-    // If audio playback source (YouTube video ID) is not yet resolved:
-    if (!PlaybackSourceResolver.isValidYouTubeVideoId(playableVideo.id)) {
-      final resolvedId = await PlaybackSourceResolver().resolveVideoId(
-        title: playableVideo.canonicalTitle ?? playableVideo.title,
-        artist: playableVideo.canonicalArtist ?? playableVideo.channelTitle,
-        durationStr: playableVideo.duration,
-        album: playableVideo.albumName,
-      );
-      if (!mounted || tapToken != _playTapToken) return;
-      if (resolvedId != null &&
-          PlaybackSourceResolver.isValidYouTubeVideoId(resolvedId)) {
-        playableVideo = playableVideo.copyWith(id: resolvedId);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('No authentic playback source found for this recording.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-    }
-
     final targetTrack = playableVideo.toTrack();
     final playerNotifier = ref.read(playerControllerProvider.notifier);
 
-    // Play the selected track as the queue's current item.
-    // Separation of Search and Queue: search results must not become the playback queue.
-    // Intelligent queue replenishment will seed context-aware upcoming recommendations from this track.
+    // Delegate immediately to PlayerController so UI enters loading state on tap,
+    // deduplicates rapid taps, and resolves + validates playback source atomically.
     playerNotifier.selectTrack(
       targetTrack,
       [targetTrack],
@@ -174,6 +145,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<PlaybackState>(playerControllerProvider, (prev, next) {
+      if (next.status == PlaybackStatus.error &&
+          next.errorMessage != null &&
+          next.errorMessage!.isNotEmpty &&
+          (prev?.errorMessage != next.errorMessage ||
+              prev?.status != PlaybackStatus.error)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(next.errorMessage!),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+    });
     final searchState = ref.watch(searchNotifierProvider);
     final localSongs = ref.watch(songsProvider);
     final localAlbums = ref.watch(albumsProvider);

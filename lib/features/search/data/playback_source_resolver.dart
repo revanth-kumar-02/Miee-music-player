@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import '../../../core/network/network_request_coordinator.dart';
+import '../../recommendations/domain/music_language_service.dart';
 import '../../youtube/domain/youtube_metadata_cleaner.dart';
 import '../../youtube/domain/youtube_model.dart';
 import '../../youtube/data/youtube_repository.dart';
+import '../domain/query_relevance_evaluator.dart';
 
 /// Playback Source Resolver.
 ///
@@ -39,6 +41,27 @@ class PlaybackSourceResolver {
 
   /// In-flight request deduplication map to prevent redundant parallel searches.
   final Map<String, Future<YouTubeVideo?>> _inFlightResolutions = {};
+
+  /// Session-scoped temporarily failed video IDs (e.g. broken stream / PlayerException)
+  /// so subsequent resolution attempts avoid selecting the same broken video ID again.
+  final Map<String, DateTime> _failedVideoIds = {};
+  static const Duration _failedVideoTtl = Duration(minutes: 5);
+
+  /// Records a [videoId] as failed for the current resolution TTL and evicts any
+  /// cached recording pointing to it.
+  void markVideoFailed(String videoId) {
+    final cleanId = videoId.trim();
+    if (!isValidYouTubeVideoId(cleanId)) return;
+    _failedVideoIds[cleanId] = DateTime.now().add(_failedVideoTtl);
+    _resolvedCandidateCache.removeWhere((_, v) => v.id == cleanId);
+  }
+
+  Set<String> _activeFailedVideoIds() {
+    if (_failedVideoIds.isEmpty) return const {};
+    final now = DateTime.now();
+    _failedVideoIds.removeWhere((_, expiry) => now.isAfter(expiry));
+    return _failedVideoIds.keys.toSet();
+  }
 
   /// Minimum acceptable candidate score required before returning a resolved recording.
   static const int _minAcceptableScore = 30;
@@ -215,9 +238,14 @@ class PlaybackSourceResolver {
       targetDurationSec: targetSec,
     );
 
+    final effectiveExcludeIds = <String>{
+      ...excludeVideoIds,
+      ..._activeFailedVideoIds(),
+    };
+
     if (_resolvedCandidateCache.containsKey(cacheKey)) {
       final cached = _resolvedCandidateCache[cacheKey]!;
-      if (!excludeVideoIds.contains(cached.id)) {
+      if (!effectiveExcludeIds.contains(cached.id)) {
         debugPrint(
             '[PlaybackSourceResolver] Cache HIT for $cacheKey -> ${cached.id}');
         return cached;
@@ -226,7 +254,8 @@ class PlaybackSourceResolver {
           '[PlaybackSourceResolver] Cache SKIPPED for $cacheKey (excluded ${cached.id})');
     }
 
-    if (excludeVideoIds.isEmpty && _inFlightResolutions.containsKey(cacheKey)) {
+    if (effectiveExcludeIds.isEmpty &&
+        _inFlightResolutions.containsKey(cacheKey)) {
       return await _inFlightResolutions[cacheKey]!;
     }
 
@@ -235,21 +264,21 @@ class PlaybackSourceResolver {
       cleanArtist: cleanArtist,
       targetSec: targetSec,
       album: cleanAlbum,
-      excludeVideoIds: excludeVideoIds,
+      excludeVideoIds: effectiveExcludeIds,
     ).whenComplete(() {
-      if (excludeVideoIds.isEmpty) {
+      if (effectiveExcludeIds.isEmpty) {
         _inFlightResolutions.remove(cacheKey);
       }
     });
 
-    if (excludeVideoIds.isEmpty) {
+    if (effectiveExcludeIds.isEmpty) {
       _inFlightResolutions[cacheKey] = future;
     }
     final resolved = await future;
 
     if (resolved != null &&
         isValidYouTubeVideoId(resolved.id) &&
-        !excludeVideoIds.contains(resolved.id)) {
+        !effectiveExcludeIds.contains(resolved.id)) {
       if (_resolvedCandidateCache.length >= _maxCacheSize) {
         _resolvedCandidateCache.remove(_resolvedCandidateCache.keys.first);
       }
@@ -872,20 +901,104 @@ class PlaybackSourceResolver {
             RegExp(r'\b8d\b', caseSensitive: false).hasMatch(titleLower))) {
       score -= 80;
     }
+    if (!normTitle.contains('audio edit') &&
+        !normTitle.contains('re-edit') &&
+        (titleLower.contains('audio edit') ||
+            titleLower.contains('(edit)') ||
+            titleLower.contains('[edit]'))) {
+      score -= 75;
+    }
     if (!isExplicitRemix && _containsWordOrToken(titleLower, 'remix')) {
       score -= 40;
     } else if (isExplicitRemix && _containsWordOrToken(titleLower, 'remix')) {
       score += 40;
     }
 
+    // 6. Language & Dubbing Consistency Check:
+    // Penalize unrequested regional dub markers (e.g. "[Telugu]", "(Hindi Version)")
+    // or explicit language conflicts with the canonical track artist/metadata so a
+    // dubbed version does not silently replace the requested recording.
+    final explicitLanguageConflict = _detectUnrequestedLanguageConflict(
+      cleanTitle: cleanTitle,
+      cleanArtist: cleanArtist,
+      album: album,
+      rawCandidateTitle: rawCandTitle,
+      rawCandidateChannel: rawCandChannel,
+    );
+    if (explicitLanguageConflict) {
+      score -= 180;
+    }
+
     // Require either artist or channel or title alignment when no label channel verified
     if (!artistMatchedChannel &&
         !artistMatchedTitle &&
         !_isKnownLabel(channelLower)) {
-      score -= 25;
+      score -= 45;
     }
 
     return CandidateScore(score: score, titleScore: titleScore);
+  }
+
+  bool _detectUnrequestedLanguageConflict({
+    required String cleanTitle,
+    required String cleanArtist,
+    String? album,
+    required String rawCandidateTitle,
+    required String rawCandidateChannel,
+  }) {
+    final targetContext =
+        '${cleanTitle.toLowerCase()} ${(album ?? '').toLowerCase()} ${cleanArtist.toLowerCase()}';
+    const languages = [
+      'tamil',
+      'telugu',
+      'hindi',
+      'malayalam',
+      'kannada',
+      'punjabi',
+      'bengali',
+      'marathi',
+      'english',
+    ];
+
+    final requestedLangs = <String>{};
+    for (final lang in languages) {
+      if (RegExp('\\b$lang\\b', caseSensitive: false).hasMatch(targetContext)) {
+        requestedLangs.add(lang);
+      }
+    }
+
+    final targetArtistLang =
+        MusicLanguageService.detectLanguage(cleanTitle, artist: cleanArtist)
+            .toLowerCase();
+    if (targetArtistLang != 'unknown') {
+      requestedLangs.add(targetArtistLang);
+    }
+
+    final candLower = rawCandidateTitle.toLowerCase();
+    for (final lang in languages) {
+      if (requestedLangs.contains(lang)) continue;
+
+      final isBracketedOrDub = RegExp(
+        '(\\[\\s*$lang\\b|\\(\\s*$lang\\b|\\b$lang\\s+(?:version|ver|dub|dubbed|song|audio|video)\\b|[\\-\\–\\|]\\s*$lang\\s*\$)',
+        caseSensitive: false,
+      ).hasMatch(candLower);
+      if (isBracketedOrDub) {
+        // Explicit bracketed dubbing/version tag in another language when unrequested
+        // is always a mismatch unless it matches the artist's known sole language.
+        return true;
+      }
+
+      if (targetArtistLang != 'unknown') {
+        final candDetected = MusicLanguageService.detectLanguage(
+          rawCandidateTitle,
+          channelTitle: rawCandidateChannel,
+        ).toLowerCase();
+        if (candDetected == lang && candDetected != targetArtistLang) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /// Evaluates requested song title identity solely against the candidate's
@@ -937,8 +1050,14 @@ class PlaybackSourceResolver {
     final expandedCandTokens = _expandInitials(candTokens);
     final expandedTargetTokens = _expandInitials(targetTokens);
 
+    // 1b. Exact transliteration / phonetic core match (e.g. "Paathi Nee Paathi Naan" vs "Paathi Nee Paathi Naa")
+    if (candTokens.length == targetTokens.length &&
+        _containsOrderedSubsequencePhonetically(candTokens, targetTokens)) {
+      return 78;
+    }
+
     // 2. Contiguous ordered word-boundary phrase match inside candidate song title
-    if (_containsOrderedSubsequence(candTokens, targetTokens)) {
+    if (_containsOrderedSubsequencePhonetically(candTokens, targetTokens)) {
       // Guard against Mashups/Medleys/Conflicting Parts (e.g. "Part 2" vs "Part 1", "Side B" vs "Side A")
       if (_hasConflictingQualifier(targetTokenSet, candTokenSet)) {
         return -70;
@@ -946,7 +1065,7 @@ class PlaybackSourceResolver {
       // Check how many non-packaging extra words candidate introduces
       final extraTokens = candTokenSet
           .where((t) =>
-              !expandedTargetTokens.contains(t) &&
+              !expandedTargetTokens.any((wt) => _tokensPhoneticallyMatch(wt, t)) &&
               !_packagingDescriptors.contains(t) &&
               !_glueStopWords.contains(t))
           .toList();
@@ -966,9 +1085,11 @@ class PlaybackSourceResolver {
       return -90;
     }
 
-    // 4. Whole-token overlap evaluation (NEVER substring .contains())
-    final matchedTokens =
-        targetTokenSet.where((w) => expandedCandTokens.contains(w)).toSet();
+    // 4. Whole-token overlap evaluation (with conservative Tamil/Indic transliteration folding)
+    final matchedTokens = targetTokenSet
+        .where((w) =>
+            expandedCandTokens.any((c) => _tokensPhoneticallyMatch(w, c)))
+        .toSet();
 
     if (matchedTokens.isEmpty) {
       // Last-chance check for Indian YouTube titles formatted as "Movie | Song Name | Artist"
@@ -986,14 +1107,19 @@ class PlaybackSourceResolver {
     // 5. Album / Artist Overlap Compensation Guard:
     // If target shares a word with the album or artist name (e.g. "Dude" inside "Who Is This Dude?"),
     // matching ONLY that album/artist token while missing all distinctive song words MUST be rejected.
+    // Never treat tokens of a self-titled single (where target == album) as non-song filler.
     final albumTokens = album != null
         ? _tokenizeTitle(extractCoreTitle(album)).toSet()
         : const <String>{};
+    final isSingleNamedAfterTrack = albumTokens.isNotEmpty &&
+        targetTokenSet.every((t) =>
+            albumTokens.any((a) => _tokensPhoneticallyMatch(t, a)));
     final artistTokens = _tokenizeTitle(cleanArtist).toSet();
 
     final nonAlbumNonGlueMatched = matchedTokens.where((t) =>
-        !albumTokens.contains(t) &&
-        !artistTokens.contains(t) &&
+        (isSingleNamedAfterTrack ||
+            !albumTokens.any((a) => _tokensPhoneticallyMatch(a, t))) &&
+        !artistTokens.any((ar) => _tokensPhoneticallyMatch(ar, t)) &&
         !_glueStopWords.contains(t));
 
     if (ratio < 1.0 && nonAlbumNonGlueMatched.isEmpty) {
@@ -1122,6 +1248,31 @@ class PlaybackSourceResolver {
       }
     }
     return expanded;
+  }
+
+  static bool _tokensPhoneticallyMatch(String a, String b) {
+    if (a == b) return true;
+    final aKeys = QueryRelevanceEvaluator.transliterationKeys(a);
+    final bKeys = QueryRelevanceEvaluator.transliterationKeys(b);
+    return aKeys.any(bKeys.contains);
+  }
+
+  static bool _containsOrderedSubsequencePhonetically(
+    List<String> container,
+    List<String> target,
+  ) {
+    if (target.isEmpty || container.length < target.length) return false;
+    for (int i = 0; i <= container.length - target.length; i++) {
+      bool match = true;
+      for (int j = 0; j < target.length; j++) {
+        if (!_tokensPhoneticallyMatch(container[i + j], target[j])) {
+          match = false;
+          break;
+        }
+      }
+      if (match) return true;
+    }
+    return false;
   }
 
   static bool _containsOrderedSubsequence(
@@ -1277,6 +1428,7 @@ class PlaybackSourceResolver {
   void clearCache() {
     _resolvedCandidateCache.clear();
     _inFlightResolutions.clear();
+    _failedVideoIds.clear();
   }
 }
 

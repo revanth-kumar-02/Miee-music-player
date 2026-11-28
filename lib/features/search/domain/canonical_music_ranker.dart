@@ -124,8 +124,10 @@ class CanonicalMusicRanker {
         .split(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true))
         .where((w) => w.isNotEmpty)
         .toList();
-    final coreTitleLower =
-        titleLower.replaceAll(RegExp(r'\s*[\(\[\{].*$'), '').trim();
+    final coreTitleLower = titleLower
+        .replaceAll(RegExp(r'\s*[\(\[\{].*$'), '')
+        .replaceAll(RegExp(r'[\?\!\.\,\;\:\-\–\—]+\s*$'), '')
+        .trim();
     final titleCoreWords =
         (coreTitleLower.isNotEmpty ? coreTitleLower : titleLower)
             .split(RegExp(r'[^\p{L}\p{N}\p{M}]+', unicode: true))

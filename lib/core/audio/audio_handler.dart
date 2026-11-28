@@ -1026,6 +1026,19 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       mediaItem.add(currentItem.copyWith(duration: activeDur));
     }
 
+    // Report buffered/loading zero-or-initial position instead of leaking an
+    // outgoing track's paused _player.position while transitioning/unloaded.
+    final trackPositionValid = hasLoadedActiveTrack;
+    final effectiveUpdatePosition = trackPositionValid
+        ? (_player.position > Duration.zero
+            ? _player.position
+            : (_lastValidPosition > Duration.zero
+                ? _lastValidPosition
+                : Duration.zero))
+        : (_lastValidPosition > Duration.zero
+            ? _lastValidPosition
+            : Duration.zero);
+
     playbackState.add(
       PlaybackState(
         controls: controls,
@@ -1033,12 +1046,8 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         systemActions: systemActions,
         processingState: audioProcessingState,
         playing: isPlaying,
-        updatePosition: _player.position > Duration.zero
-            ? _player.position
-            : (_lastValidPosition > Duration.zero
-                ? _lastValidPosition
-                : Duration.zero),
-        bufferedPosition: _player.bufferedPosition,
+        updatePosition: effectiveUpdatePosition,
+        bufferedPosition: trackPositionValid ? _player.bufferedPosition : Duration.zero,
         speed: _player.speed,
         queueIndex: _currentIndex,
         repeatMode: repeatMode,
@@ -1436,8 +1445,11 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
             ? track.duration
             : null;
 
-    // If ID is from discovery metadata catalog (e.g. wm_..., itunes_..., mb_...) or non-11-char ID,
-    // resolve via shared PlaybackSourceResolver with canonical title, artist, album, and duration.
+    // If track does not have a valid 11-char videoId (e.g. wm_..., itunes_..., mb_...),
+    // resolve via shared PlaybackSourceResolver excluding recently failed video IDs.
+    final audioService = YouTubeAudioService();
+    final excludedIds = <String>{...audioService.getRecentlyFailedVideoIds()};
+
     if (!PlaybackSourceResolver.isValidYouTubeVideoId(videoId)) {
       debugPrint(
           '[AudioHandler] Resolving YouTube video ID via PlaybackSourceResolver for "$rawT" by "$rawA" (dur=${canonicalDur ?? "unknown"})');
@@ -1446,6 +1458,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         artist: rawA,
         durationStr: canonicalDur,
         album: albumName,
+        excludeVideoIds: excludedIds,
       );
       if (token != _activeLoadToken) return;
       if (resolvedCandidate != null &&
@@ -1464,68 +1477,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     }
 
-    debugPrint(
-        '[AudioHandler] Loading YouTube track: videoId=$videoId ("${track.title}", token=$token)');
-
-    PlaybackDiagnostics().recordStreamResolutionStart(track.id);
-    ResolvedYouTubeStream? resolved =
-        await YouTubeAudioService().getAudioStream(
-      videoId,
-      title: track.title,
-      artist: track.artist,
-    );
-
-    if (token != _activeLoadToken) {
-      debugPrint(
-          '[AudioHandler] Discarding stale YouTube resolution for $videoId ($token vs $_activeLoadToken)');
-      return;
-    }
-
-    if (resolved == null ||
-        resolved.url.isEmpty ||
-        !YouTubeAudioService().isUrlValid(resolved.url)) {
-      debugPrint(
-          '[AudioHandler] Initial resolution failed for $videoId, retrying fresh (attempt 2/2)');
-      resolved = await YouTubeAudioService().getAudioStream(
-        videoId,
-        forceRefresh: true,
-        title: track.title,
-        artist: track.artist,
-      );
-      if (token != _activeLoadToken) return;
-    }
-
-    // Web fallback: resolve full stream via WebMusicDiscoverySource
-    if ((resolved == null ||
-            resolved.url.isEmpty ||
-            !YouTubeAudioService().isUrlValid(resolved.url)) &&
-        kIsWeb) {
-      debugPrint(
-          '[AudioHandler] Falling back to WebMusicDiscoverySource for "${track.title}"');
-      final webUrl = await WebMusicDiscoverySource()
-          .resolveStreamForTrack(track.title, track.artist);
-      if (token != _activeLoadToken) return;
-      if (webUrl != null && webUrl.isNotEmpty) {
-        resolved = ResolvedYouTubeStream(
-          url: webUrl,
-          userAgent: YouTubeAudioService.inferUserAgentForUrl(webUrl),
-          clientName: 'WEB_DISCOVERY',
-        );
+    Future<({String videoId, ResolvedYouTubeStream stream})?>
+        findAndResolveAlternate({required String failedVideoId}) async {
+      if (failedVideoId.isNotEmpty) {
+        excludedIds.add(failedVideoId);
+        audioService.markVideoFailed(failedVideoId);
+        _sourceResolver.markVideoFailed(failedVideoId);
       }
-    }
-
-    // Fallback: If direct stream resolution for this videoId failed (e.g. video deleted, cipher error, or geo-restricted),
-    // attempt verified search fallback using PlaybackSourceResolver to locate an authentic matching upload
-    // of the exact same song (never substituting a different song from the same album/artist).
-    if ((resolved == null ||
-            resolved.url.isEmpty ||
-            !YouTubeAudioService().isUrlValid(resolved.url)) &&
-        rawT.isNotEmpty) {
-      final originalVideoId = videoId;
-      final excludedIds = <String>{if (videoId.isNotEmpty) videoId};
+      if (rawT.isEmpty) return null;
       for (var attempt = 0; attempt < 2; attempt++) {
         debugPrint(
-            '[AudioHandler] Direct stream for $videoId failed. Attempting validated PlaybackSourceResolver fallback #${attempt + 1} for "$rawT" by "$rawA" (excluding: $excludedIds)');
+            '[AudioHandler] Stream for $failedVideoId failed. Seeking alternate verified upload #${attempt + 1} for "$rawT" by "$rawA" (excluding: $excludedIds)');
         final fallbackCandidate = await _sourceResolver.resolveCandidate(
           title: rawT,
           artist: rawA,
@@ -1533,7 +1495,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           album: albumName,
           excludeVideoIds: excludedIds,
         );
-        if (token != _activeLoadToken) return;
+        if (token != _activeLoadToken) return null;
         if (fallbackCandidate == null ||
             !PlaybackSourceResolver.isValidYouTubeVideoId(
                 fallbackCandidate.id) ||
@@ -1552,36 +1514,90 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
                 null) {
           break;
         }
-        debugPrint(
-            '[AudioHandler] Resolved alternate verified video ID ${fallbackCandidate.id} for "${track.title}"');
-        excludedIds.add(fallbackCandidate.id);
-        videoId = fallbackCandidate.id;
-        resolved = await YouTubeAudioService().getAudioStream(
-          videoId,
+        final altId = fallbackCandidate.id;
+        excludedIds.add(altId);
+        final altStream = await audioService.getAudioStream(
+          altId,
           forceRefresh: true,
           title: track.title,
           artist: track.artist,
         );
-        if (token != _activeLoadToken) return;
-        if (resolved != null &&
-            resolved.url.isNotEmpty &&
-            YouTubeAudioService().isUrlValid(resolved.url)) {
-          if (videoId != originalVideoId) {
-            if (track is Track &&
-                _currentIndex >= 0 &&
-                _currentIndex < _queue.length &&
-                _queue[_currentIndex].id == track.id) {
-              _queue[_currentIndex] = track.copyWith(sourceId: videoId);
-            }
-            onPlaybackSourceResolved?.call(track.id, videoId);
-          }
-          break;
+        if (token != _activeLoadToken) return null;
+        if (altStream != null &&
+            altStream.url.isNotEmpty &&
+            audioService.isUrlValid(altStream.url)) {
+          _bindResolvedSourceId(track, altId);
+          return (videoId: altId, stream: altStream);
         }
+        audioService.markVideoFailed(altId);
+        _sourceResolver.markVideoFailed(altId);
       }
+      return null;
     }
+
+    debugPrint(
+        '[AudioHandler] Loading YouTube track: videoId=$videoId ("${track.title}", token=$token)');
+
+    PlaybackDiagnostics().recordStreamResolutionStart(track.id);
+    ResolvedYouTubeStream? resolved = await audioService.getAudioStream(
+      videoId,
+      title: track.title,
+      artist: track.artist,
+    );
+
+    if (token != _activeLoadToken) {
+      debugPrint(
+          '[AudioHandler] Discarding stale YouTube resolution for $videoId ($token vs $_activeLoadToken)');
+      return;
+    }
+
     if (resolved == null ||
         resolved.url.isEmpty ||
-        !YouTubeAudioService().isUrlValid(resolved.url)) {
+        !audioService.isUrlValid(resolved.url)) {
+      debugPrint(
+          '[AudioHandler] Initial resolution failed for $videoId, retrying fresh (attempt 2/2)');
+      resolved = await audioService.getAudioStream(
+        videoId,
+        forceRefresh: true,
+        title: track.title,
+        artist: track.artist,
+      );
+      if (token != _activeLoadToken) return;
+    }
+
+    // Web fallback: resolve full stream via WebMusicDiscoverySource
+    if ((resolved == null ||
+            resolved.url.isEmpty ||
+            !audioService.isUrlValid(resolved.url)) &&
+        kIsWeb) {
+      debugPrint(
+          '[AudioHandler] Falling back to WebMusicDiscoverySource for "${track.title}"');
+      final webUrl = await WebMusicDiscoverySource()
+          .resolveStreamForTrack(track.title, track.artist);
+      if (token != _activeLoadToken) return;
+      if (webUrl != null && webUrl.isNotEmpty) {
+        resolved = ResolvedYouTubeStream(
+          url: webUrl,
+          userAgent: YouTubeAudioService.inferUserAgentForUrl(webUrl),
+          clientName: 'WEB_DISCOVERY',
+        );
+      }
+    }
+
+    if (resolved == null ||
+        resolved.url.isEmpty ||
+        !audioService.isUrlValid(resolved.url)) {
+      final alt = await findAndResolveAlternate(failedVideoId: videoId);
+      if (token != _activeLoadToken) return;
+      if (alt != null) {
+        videoId = alt.videoId;
+        resolved = alt.stream;
+      }
+    }
+
+    if (resolved == null ||
+        resolved.url.isEmpty ||
+        !audioService.isUrlValid(resolved.url)) {
       PlaybackDiagnostics()
           .recordError(track.id, 'Unable to resolve audio stream');
       throw Exception(
@@ -1616,21 +1632,45 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           '[Playback] PlayerException on first load (code=${pe.code}): ${pe.message}');
       debugPrint(
           '[StreamCache] Invalidating and re-resolving for $videoId (retry 1/$_kMaxYouTubeRetries)');
-      YouTubeAudioService().invalidateCache(videoId);
+      audioService.invalidateCache(videoId);
 
-      final fresh = await YouTubeAudioService()
-          .getAudioStream(videoId, forceRefresh: true);
+      final fresh = await audioService.getAudioStream(videoId, forceRefresh: true);
       if (token != _activeLoadToken) return;
 
+      bool loadedAfterRetry = false;
       if (fresh != null &&
           fresh.url.isNotEmpty &&
-          YouTubeAudioService().isUrlValid(fresh.url)) {
-        await _setAudioSourceUrl(
-          fresh.url,
-          userAgent: fresh.userAgent,
-          clientName: fresh.clientName,
-          initialPosition: initialPosition,
-        );
+          audioService.isUrlValid(fresh.url)) {
+        try {
+          await _setAudioSourceUrl(
+            fresh.url,
+            userAgent: fresh.userAgent,
+            clientName: fresh.clientName,
+            initialPosition: initialPosition,
+          );
+          loadedAfterRetry = true;
+        } on PlayerException catch (pe2) {
+          debugPrint(
+              '[Playback] Same-video retry failed for $videoId (${pe2.code}): ${pe2.message}');
+        }
+      }
+
+      if (!loadedAfterRetry) {
+        final alt = await findAndResolveAlternate(failedVideoId: videoId);
+        if (token != _activeLoadToken) return;
+        if (alt != null) {
+          videoId = alt.videoId;
+          await _setAudioSourceUrl(
+            alt.stream.url,
+            userAgent: alt.stream.userAgent,
+            clientName: alt.stream.clientName,
+            initialPosition: initialPosition,
+          );
+          loadedAfterRetry = true;
+        }
+      }
+
+      if (loadedAfterRetry) {
         if (token != _activeLoadToken) {
           try {
             await _player.stop();
@@ -1640,7 +1680,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
         _loadedAudioTrackId = track.id;
         PlaybackDiagnostics().recordPlayerLoadEnd(track.id, success: true);
         debugPrint(
-            '[Playback] YouTube audio source loaded on retry for $videoId');
+            '[Playback] YouTube audio source loaded on recovery for $videoId');
       } else {
         _loadedAudioTrackId = null;
         PlaybackDiagnostics()
@@ -1805,6 +1845,10 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       ),
       initialPosition: initialPosition,
     );
+    if ((initialPosition == null || initialPosition == Duration.zero) &&
+        _player.position > const Duration(seconds: 2)) {
+      await _player.seek(Duration.zero);
+    }
 
     if (_crossfadeEnabled) {
       await _player.setVolume(0.1);
@@ -2071,6 +2115,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  void _bindResolvedSourceId(MusicItem track, String resolvedVideoId) {
+    _resolvedVideoIdByTrackId[track.id] = resolvedVideoId;
+    if (track is Track &&
+        _currentIndex >= 0 &&
+        _currentIndex < _queue.length &&
+        _queue[_currentIndex].id == track.id) {
+      _queue[_currentIndex] = track.copyWith(sourceId: resolvedVideoId);
+    }
+    onPlaybackSourceResolved?.call(track.id, resolvedVideoId);
+  }
 
   String _resolveEffectiveVideoId(MusicItem track) {
     final extracted = _extractYouTubeVideoId(track.id);
