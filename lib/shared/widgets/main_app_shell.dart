@@ -1223,7 +1223,17 @@ class _MainAppShellState extends ConsumerState<MainAppShell> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: DiscreteWaveformScrubber(
-                            progress: progress,
+                            key: ValueKey(track.id),
+                            trackKey: track.id,
+                            customRatios: DiscreteWaveformScrubber.ratiosForTrack(
+                              track.id,
+                              title: track.title,
+                              artist: track.artist,
+                            ),
+                            progress: (playback.status == pb.PlaybackStatus.loading ||
+                                    playback.loadingTrackId != null)
+                                ? 0.0
+                                : progress,
                             isPlaying: isPlaying,
                             height: 20,
                             barWidth: 2.8,
@@ -1704,7 +1714,17 @@ class DesktopNowPlayingPanel extends ConsumerWidget {
                 Column(
                   children: [
                     DiscreteWaveformScrubber(
-                      progress: progress,
+                      key: ValueKey(track.id),
+                      trackKey: track.id,
+                      customRatios: DiscreteWaveformScrubber.ratiosForTrack(
+                        track.id,
+                        title: track.title,
+                        artist: track.artist,
+                      ),
+                      progress: (playback.status == pb.PlaybackStatus.loading ||
+                              playback.loadingTrackId != null)
+                          ? 0.0
+                          : progress,
                       isPlaying: isPlaying,
                       height: 32,
                       barWidth: 3.0,

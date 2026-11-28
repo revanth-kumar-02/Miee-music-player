@@ -187,14 +187,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     _positionSub = _handler.positionStream.listen((pos) {
       if (_handler.isLoadingTrack ||
           _handler.isRecovering ||
-          state.status == PlaybackStatus.loading) {
+          state.status == PlaybackStatus.loading ||
+          state.loadingTrackId != null) {
         return;
       }
       final currentTrack = state.currentTrack;
       final loadedId = _handler.loadedAudioTrackId;
       if (currentTrack != null &&
-          ((loadedId != null && !isSameTrackId(loadedId, currentTrack.id)) ||
-              (currentTrack.isYoutube && loadedId == null))) {
+          (loadedId == null || !isSameTrackId(loadedId, currentTrack.id))) {
         return;
       }
       if (state.status == PlaybackStatus.error &&
@@ -238,19 +238,20 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (dur != null && dur > Duration.zero) {
         // Never allow lingering durations from an unloading/unverified previous
         // track to overwrite the newly selected track's canonical duration.
-        if (_handler.isLoadingTrack || _handler.isRecovering) {
+        if (_handler.isLoadingTrack ||
+            _handler.isRecovering ||
+            state.status == PlaybackStatus.loading) {
           return;
         }
+        final loadedId = _handler.loadedAudioTrackId;
         if (state.loadingTrackId != null &&
-            (_handler.loadedAudioTrackId == null ||
-                !isSameTrackId(
-                    _handler.loadedAudioTrackId, state.loadingTrackId))) {
+            (loadedId == null ||
+                !isSameTrackId(loadedId, state.loadingTrackId))) {
           return;
         }
         if (state.currentTrack != null &&
-            _handler.loadedAudioTrackId != null &&
-            !isSameTrackId(
-                _handler.loadedAudioTrackId, state.currentTrack!.id)) {
+            (loadedId == null ||
+                !isSameTrackId(loadedId, state.currentTrack!.id))) {
           return;
         }
 
@@ -298,6 +299,18 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
     // ── Buffered position stream ──────────────────────────────────────────────
     _bufferedSub = _handler.bufferedPositionStream.listen((buf) {
+      if (_handler.isLoadingTrack ||
+          _handler.isRecovering ||
+          state.status == PlaybackStatus.loading ||
+          state.loadingTrackId != null) {
+        return;
+      }
+      final currentTrack = state.currentTrack;
+      final loadedId = _handler.loadedAudioTrackId;
+      if (currentTrack != null &&
+          (loadedId == null || !isSameTrackId(loadedId, currentTrack.id))) {
+        return;
+      }
       state = state.copyWith(bufferedPosition: buf);
     });
 
@@ -306,6 +319,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
       debugLog('[Playback] Error received in controller: $errorMsg');
       state = state.copyWith(
         status: PlaybackStatus.error,
+        position: Duration.zero,
+        bufferedPosition: Duration.zero,
         errorMessage: errorMsg,
         clearLoadingTrackId: true,
       );
@@ -318,6 +333,12 @@ class PlayerController extends StateNotifier<PlaybackState> {
         // clobbering a newer track selection currently resolving in playTrack.
         if (state.loadingTrackId != null &&
             !isSameTrackId(mediaItem.id, state.loadingTrackId)) {
+          return;
+        }
+        if (!_handler.isLoadingTrack &&
+            state.status == PlaybackStatus.loading &&
+            state.currentTrack != null &&
+            !isSameTrackId(mediaItem.id, state.currentTrack!.id)) {
           return;
         }
         final queueList = _queueManager.queue;
@@ -352,12 +373,26 @@ class PlayerController extends StateNotifier<PlaybackState> {
               }
             }
           }
+          final isTrackSwitch = state.currentTrack == null ||
+              !isSameTrackId(state.currentTrack!.id, track.id);
+          final nextDuration = (mediaItem.duration != null &&
+                  mediaItem.duration! > Duration.zero)
+              ? mediaItem.duration!
+              : (isTrackSwitch
+                  ? _parseNonPlaceholderDuration(track.duration)
+                  : state.duration);
           state = state.copyWith(
             currentTrack: track,
-            duration: (mediaItem.duration != null &&
-                    mediaItem.duration! > Duration.zero)
-                ? mediaItem.duration
-                : state.duration,
+            position: isTrackSwitch ? Duration.zero : state.position,
+            bufferedPosition:
+                isTrackSwitch ? Duration.zero : state.bufferedPosition,
+            duration: nextDuration,
+            status: (isTrackSwitch && _handler.isLoadingTrack)
+                ? PlaybackStatus.loading
+                : state.status,
+            loadingTrackId: (isTrackSwitch && _handler.isLoadingTrack)
+                ? track.id
+                : state.loadingTrackId,
           );
           _persistQueueSnapshot();
           _analyticsTracker.onTrackChanged(track);
@@ -376,18 +411,31 @@ class PlayerController extends StateNotifier<PlaybackState> {
           loadedId != null &&
           isSameTrackId(loadedId, currentTrack.id);
 
-      // Discard stale ready/completed events emitted while loading or belonging
-      // to an outgoing track before the new source has been prepared.
+      // Discard stale events emitted while loading or belonging to an outgoing
+      // track before the new source has finished preparing.
       if ((_handler.isLoadingTrack || _handler.isRecovering) &&
-          (processingState == ProcessingState.ready ||
+          (processingState == ProcessingState.buffering ||
+              processingState == ProcessingState.ready ||
               processingState == ProcessingState.completed)) {
         return;
       }
-      if (currentTrack != null &&
-          currentTrack.isYoutube &&
+      if (state.loadingTrackId != null &&
           !isForActiveLoadedTrack &&
-          (processingState == ProcessingState.ready ||
+          processingState != ProcessingState.loading) {
+        return;
+      }
+      if (currentTrack != null &&
+          !isForActiveLoadedTrack &&
+          (processingState == ProcessingState.buffering ||
+              processingState == ProcessingState.ready ||
               processingState == ProcessingState.completed)) {
+        return;
+      }
+      if (state.status == PlaybackStatus.error &&
+          processingState == ProcessingState.idle &&
+          loadedId == null &&
+          state.errorMessage != null &&
+          state.errorMessage!.isNotEmpty) {
         return;
       }
 
@@ -938,6 +986,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
             '[Playback] Rejected playback of non-music content: "$rawT" by "$rawA"');
         state = state.copyWith(
           status: PlaybackStatus.error,
+          position: Duration.zero,
+          bufferedPosition: Duration.zero,
           clearLoadingTrackId: true,
           errorMessage: 'This video is not a recognized music track.',
         );
@@ -955,8 +1005,9 @@ class PlayerController extends StateNotifier<PlaybackState> {
       isYoutube: track.isYoutube,
     );
 
-    final isOnline = track.isYoutube || kIsWeb;
     final isSameLoadedTrack = state.currentTrack != null &&
+        state.status != PlaybackStatus.completed &&
+        state.status != PlaybackStatus.error &&
         isSameTrackId(state.currentTrack!.id, track.id) &&
         _handler.loadedAudioTrackId != null &&
         isSameTrackId(_handler.loadedAudioTrackId, track.id);
@@ -971,9 +1022,11 @@ class PlayerController extends StateNotifier<PlaybackState> {
     state = state.copyWith(
       status: PlaybackStatus.loading,
       currentTrack: track,
-      loadingTrackId: isOnline ? track.id : null,
-      clearLoadingTrackId: !isOnline,
+      loadingTrackId: track.id,
       position: resumePos,
+      bufferedPosition: (isSameLoadedTrack && resumePos > Duration.zero)
+          ? state.bufferedPosition
+          : Duration.zero,
       duration: _parseNonPlaceholderDuration(track.duration),
       playingFrom: playingFrom ?? state.playingFrom,
       clearErrorMessage: true,
@@ -1058,6 +1111,8 @@ class PlayerController extends StateNotifier<PlaybackState> {
               '[Playback] Pre-validation failed: PlaybackSourceResolver found no matching recording for "$rawT" by "$rawA"');
           state = state.copyWith(
             status: PlaybackStatus.error,
+            position: Duration.zero,
+            bufferedPosition: Duration.zero,
             clearLoadingTrackId: true,
             errorMessage:
                 'No authentic playback source found for this recording.',
@@ -1110,7 +1165,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
       if (token != _playRequestToken) return;
       state = state.copyWith(
         currentTrack: track,
-        loadingTrackId: isOnline ? track.id : null,
+        loadingTrackId: track.id,
       );
     }
 
@@ -1138,7 +1193,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
     try {
       final resolvedTrack = await _resolveSource(track);
       await fadeOutFuture;
-      if (token != _playRequestToken) {
+      if (!mounted || token != _playRequestToken) {
         debugLog(
             '[Playback] Superseded by newer track selection (token $token vs $_playRequestToken)');
         return;
@@ -1195,8 +1250,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
 
       state = state.copyWith(
         currentTrack: resolvedTrack,
-        loadingTrackId: resolvedTrack.isYoutube ? resolvedTrack.id : null,
-        clearLoadingTrackId: !resolvedTrack.isYoutube,
+        loadingTrackId: resolvedTrack.id,
         queueVersion: resolvedTrack.id != originalTrackId
             ? state.queueVersion + 1
             : state.queueVersion,
@@ -1236,16 +1290,18 @@ class PlayerController extends StateNotifier<PlaybackState> {
         unawaited(expandQueueIfNeeded());
       }
     } catch (e) {
-      if (token != _playRequestToken) return;
+      if (!mounted || token != _playRequestToken) return;
       debugLog('[Playback] playTrack failed: $e');
-      try {
-        await _handler.stop();
-      } catch (_) {}
       state = state.copyWith(
         status: PlaybackStatus.error,
+        position: Duration.zero,
+        bufferedPosition: Duration.zero,
         clearLoadingTrackId: true,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
       );
+      try {
+        await _handler.stop();
+      } catch (_) {}
     }
   }
 
@@ -1369,11 +1425,21 @@ class PlayerController extends StateNotifier<PlaybackState> {
   }
 
   Future<void> play() async {
-    final resumePos = state.position > Duration.zero
-        ? state.position
-        : (_handler.lastValidPosition > Duration.zero
-            ? _handler.lastValidPosition
-            : null);
+    final trackMatchesLast = state.currentTrack != null &&
+        (_handler.loadedAudioTrackId != null
+            ? isSameTrackId(
+                _handler.loadedAudioTrackId, state.currentTrack!.id)
+            : (_handler.lastTrackId == null ||
+                isSameTrackId(_handler.lastTrackId, state.currentTrack!.id)));
+    final isResumableStatus = state.status != PlaybackStatus.completed &&
+        state.status != PlaybackStatus.error;
+    final resumePos = (trackMatchesLast && isResumableStatus)
+        ? (state.position > Duration.zero
+            ? state.position
+            : (_handler.lastValidPosition > Duration.zero
+                ? _handler.lastValidPosition
+                : null))
+        : null;
 
     if (_handler.isLoadingTrack) {
       await _handler.play();
@@ -1470,12 +1536,14 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
 
     if (nextTrack != null) {
-      await playTrack(nextTrack);
+      await playTrack(nextTrack, initialPosition: Duration.zero);
     } else if (state.repeatMode == RepeatMode.all &&
         _queueManager.queue.isNotEmpty) {
       _queueManager.setIndex(0);
       final firstTrack = _queueManager.currentTrack;
-      if (firstTrack != null) await playTrack(firstTrack);
+      if (firstTrack != null) {
+        await playTrack(firstTrack, initialPosition: Duration.zero);
+      }
     } else if (!_handler.isRoomListener) {
       // Reached queue end in non-repeat mode: attempt replenishment before stopping
       await expandQueueIfNeeded();
@@ -1486,7 +1554,7 @@ class PlayerController extends StateNotifier<PlaybackState> {
         expandedTrack = _queueManager.next();
       }
       if (expandedTrack != null) {
-        await playTrack(expandedTrack);
+        await playTrack(expandedTrack, initialPosition: Duration.zero);
       }
     }
   }
@@ -1505,13 +1573,15 @@ class PlayerController extends StateNotifier<PlaybackState> {
     }
 
     if (prevTrack != null) {
-      await playTrack(prevTrack);
+      await playTrack(prevTrack, initialPosition: Duration.zero);
     } else if (state.repeatMode == RepeatMode.all &&
         _queueManager.queue.isNotEmpty) {
       final lastIdx = _queueManager.queue.length - 1;
       _queueManager.setIndex(lastIdx);
       final lastTrack = _queueManager.currentTrack;
-      if (lastTrack != null) await playTrack(lastTrack);
+      if (lastTrack != null) {
+        await playTrack(lastTrack, initialPosition: Duration.zero);
+      }
     } else {
       await seek(Duration.zero);
     }

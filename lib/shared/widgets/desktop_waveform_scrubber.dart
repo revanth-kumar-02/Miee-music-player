@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../app/theme/web_colors.dart';
 
@@ -14,6 +15,39 @@ class DiscreteWaveformScrubber extends StatefulWidget {
   final double barSpacing;
   final Color? playedColor;
   final Color? unplayedColor;
+  final String? trackKey;
+  final List<double>? customRatios;
+
+  static List<double> ratiosForTrack(
+    String? trackId, {
+    String? title,
+    String? artist,
+    int count = 60,
+  }) {
+    final seedInput =
+        '${trackId ?? ''}|${(title ?? '').trim().toLowerCase()}|${(artist ?? '').trim().toLowerCase()}';
+    if (seedInput == '||') {
+      return _DiscreteWaveformScrubberState._barRatios;
+    }
+    var hash = 0x811c9dc5;
+    for (var i = 0; i < seedInput.length; i++) {
+      hash ^= seedInput.codeUnitAt(i);
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    final rng = math.Random(hash);
+    final phaseA = rng.nextDouble() * math.pi * 2;
+    final phaseB = rng.nextDouble() * math.pi * 2;
+    final freqA = 0.18 + rng.nextDouble() * 0.14;
+    final freqB = 0.45 + rng.nextDouble() * 0.25;
+    return List<double>.generate(count, (i) {
+      final env = math.sin((i / math.max(1, count - 1)) * math.pi);
+      final wave = 0.5 +
+          0.26 * math.sin(i * freqA + phaseA) +
+          0.22 * math.cos(i * freqB + phaseB);
+      final jitter = (rng.nextDouble() - 0.5) * 0.24;
+      return ((wave * (0.55 + 0.45 * env)) + jitter).clamp(0.22, 0.98);
+    });
+  }
 
   const DiscreteWaveformScrubber({
     super.key,
@@ -25,6 +59,8 @@ class DiscreteWaveformScrubber extends StatefulWidget {
     this.barSpacing = 2.5,
     this.playedColor,
     this.unplayedColor,
+    this.trackKey,
+    this.customRatios,
   });
 
   @override
@@ -44,6 +80,14 @@ class _DiscreteWaveformScrubberState extends State<DiscreteWaveformScrubber> {
 
   double? _dragFraction;
 
+  @override
+  void didUpdateWidget(DiscreteWaveformScrubber oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.trackKey != widget.trackKey) {
+      _dragFraction = null;
+    }
+  }
+
   void _handleSeek(double localX, double totalWidth) {
     if (totalWidth <= 0) return;
     final fraction = (localX / totalWidth).clamp(0.0, 1.0);
@@ -56,11 +100,12 @@ class _DiscreteWaveformScrubberState extends State<DiscreteWaveformScrubber> {
     final effectiveProgress = (_dragFraction ?? widget.progress).clamp(0.0, 1.0);
     final activeColor = widget.playedColor ?? MieeWebColors.waveformPlayed;
     final inactiveColor = widget.unplayedColor ?? MieeWebColors.waveformNeutral;
+    final ratios = widget.customRatios ?? _barRatios;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
-        final count = _barRatios.length;
+        final count = ratios.length;
         final activeIndex = (effectiveProgress * count).round();
 
         return MouseRegion(
@@ -80,7 +125,7 @@ class _DiscreteWaveformScrubberState extends State<DiscreteWaveformScrubber> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: List.generate(count, (index) {
                   final isPlayed = index < activeIndex;
-                  final barHeight = (_barRatios[index] * widget.height).clamp(4.0, widget.height);
+                  final barHeight = (ratios[index] * widget.height).clamp(4.0, widget.height);
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 90),

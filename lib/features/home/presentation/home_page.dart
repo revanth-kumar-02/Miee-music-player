@@ -750,10 +750,16 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                         // Live Mini Waveform
                         WaveformWidget(
+                          key: ValueKey(featuredSong.id),
                           height: 16,
                           barCount: 22,
                           isPlaying: isThisTrackPlaying,
                           activeProgress: activeProgress,
+                          customHeights: WaveformWidget.heightsForTrack(
+                            featuredSong.id,
+                            title: featuredSong.title,
+                            artist: featuredSong.artist,
+                          ),
                           activeColor: Colors.white,
                           inactiveColor: Colors.white.withValues(alpha: 0.35),
                           onScrub: (val) {

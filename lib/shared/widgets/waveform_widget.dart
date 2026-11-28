@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 
@@ -8,6 +9,40 @@ import '../../app/theme/app_colors.dart';
 /// Supports smooth playback progress coloring, interactive tap/drag scrubbing,
 /// and subtle live oscillation when audio is playing.
 class WaveformWidget extends StatefulWidget {
+  /// Generates a deterministic per-track amplitude bar curve so every recording
+  /// renders a distinct waveform silhouette across switches without extra I/O.
+  static List<double> heightsForTrack(
+    String? trackId, {
+    String? title,
+    String? artist,
+    int count = 48,
+  }) {
+    final seedInput =
+        '${trackId ?? ''}|${(title ?? '').trim().toLowerCase()}|${(artist ?? '').trim().toLowerCase()}';
+    if (seedInput == '||') {
+      return _WaveformWidgetState._defaultHeights;
+    }
+    var hash = 0x811c9dc5;
+    for (var i = 0; i < seedInput.length; i++) {
+      hash ^= seedInput.codeUnitAt(i);
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    final rng = math.Random(hash);
+    final phaseA = rng.nextDouble() * math.pi * 2;
+    final phaseB = rng.nextDouble() * math.pi * 2;
+    final freqA = 0.22 + rng.nextDouble() * 0.16;
+    final freqB = 0.55 + rng.nextDouble() * 0.25;
+
+    return List<double>.generate(count, (i) {
+      final env = math.sin((i / math.max(1, count - 1)) * math.pi);
+      final wave = 0.5 +
+          0.28 * math.sin(i * freqA + phaseA) +
+          0.22 * math.cos(i * freqB + phaseB);
+      final jitter = (rng.nextDouble() - 0.5) * 0.24;
+      final norm = ((wave * (0.55 + 0.45 * env)) + jitter).clamp(0.08, 1.0);
+      return 8.0 + norm * 58.0;
+    });
+  }
   /// Whether audio is actively playing.
   final bool isPlaying;
 
@@ -208,6 +243,7 @@ class _WaveformPainter extends CustomPainter {
     return oldDelegate.activeProgress != activeProgress ||
         oldDelegate.activeColor != activeColor ||
         oldDelegate.inactiveColor != inactiveColor ||
-        oldDelegate.targetBarCount != targetBarCount;
+        oldDelegate.targetBarCount != targetBarCount ||
+        !listEquals(oldDelegate.baseHeights, baseHeights);
   }
 }

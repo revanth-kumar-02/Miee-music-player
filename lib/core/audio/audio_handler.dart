@@ -1029,13 +1029,17 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
     // Report buffered/loading zero-or-initial position instead of leaking an
     // outgoing track's paused _player.position while transitioning/unloaded.
     final trackPositionValid = hasLoadedActiveTrack;
+    final hasQueueTrack = _currentIndex >= 0 && _currentIndex < _queue.length;
+    final matchesLastTrack = !hasQueueTrack ||
+        _lastTrackId == null ||
+        isSameTrackId(_lastTrackId, _queue[_currentIndex].id);
     final effectiveUpdatePosition = trackPositionValid
         ? (_player.position > Duration.zero
             ? _player.position
             : (_lastValidPosition > Duration.zero
                 ? _lastValidPosition
                 : Duration.zero))
-        : (_lastValidPosition > Duration.zero
+        : (matchesLastTrack && _lastValidPosition > Duration.zero
             ? _lastValidPosition
             : Duration.zero);
 
@@ -1232,13 +1236,19 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
           return false;
         }
 
-        // Restore position if specified and not already prepared at startPos
-        if (_lastValidPosition > Duration.zero &&
-            (_player.position - _lastValidPosition).abs() >
-                const Duration(seconds: 1)) {
+        // Restore position if specified, or enforce 0:00 if a new track kept
+        // residual non-zero player position after setAudioSource.
+        if (_lastValidPosition > Duration.zero) {
+          if ((_player.position - _lastValidPosition).abs() >
+              const Duration(seconds: 1)) {
+            debugPrint(
+                '[Playback] Restoring position to ${_lastValidPosition.inSeconds}s for "${track.title}"');
+            await _player.seek(_lastValidPosition);
+          }
+        } else if (_player.position > Duration.zero) {
           debugPrint(
-              '[Playback] Restoring position to ${_lastValidPosition.inSeconds}s for "${track.title}"');
-          await _player.seek(_lastValidPosition);
+              '[Playback] Resetting residual position (${_player.position.inMilliseconds}ms) to 0:00 for "${track.title}"');
+          await _player.seek(Duration.zero);
         }
 
         if (token != _activeLoadToken) {
@@ -1846,7 +1856,7 @@ class MieeAudioHandler extends BaseAudioHandler with SeekHandler {
       initialPosition: initialPosition,
     );
     if ((initialPosition == null || initialPosition == Duration.zero) &&
-        _player.position > const Duration(seconds: 2)) {
+        _player.position > Duration.zero) {
       await _player.seek(Duration.zero);
     }
 

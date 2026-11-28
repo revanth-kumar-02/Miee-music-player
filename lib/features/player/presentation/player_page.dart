@@ -636,13 +636,20 @@ class PlayerPage extends ConsumerWidget {
         ref.watch(playerControllerProvider.select((s) => s.position));
     final duration =
         ref.watch(playerControllerProvider.select((s) => s.duration));
+    final loadingTrackId =
+        ref.watch(playerControllerProvider.select((s) => s.loadingTrackId));
     final playbackError =
         ref.watch(playerControllerProvider.select((s) => s.errorMessage));
     final playbackStatus =
         ref.watch(playerControllerProvider.select((s) => s.status));
     final hasTrack = currentTrack != null;
-    final progress = (duration.inMilliseconds > 0)
-        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+    final isActivelyLoadingNewTrack =
+        playbackStatus == PlaybackStatus.loading || loadingTrackId != null;
+    final displayPosition =
+        isActivelyLoadingNewTrack ? Duration.zero : position;
+    final progress = (duration.inMilliseconds > 0 && !isActivelyLoadingNewTrack)
+        ? (displayPosition.inMilliseconds / duration.inMilliseconds)
+            .clamp(0.0, 1.0)
         : 0.0;
     final queueManager = ref.watch(queueManagerProvider);
     final queueList = queueManager.queue;
@@ -1145,11 +1152,21 @@ class PlayerPage extends ConsumerWidget {
                             Column(
                               children: [
                                 DiscreteWaveformScrubber(
+                                  key: ValueKey(currentTrack?.id ?? 'no_track'),
+                                  trackKey: currentTrack?.id,
+                                  customRatios: hasTrack
+                                      ? DiscreteWaveformScrubber.ratiosForTrack(
+                                          currentTrack.id,
+                                          title: currentTrack.title,
+                                          artist: currentTrack.artist,
+                                        )
+                                      : null,
                                   progress: progress,
                                   isPlaying: isPlaying,
                                   height: scrubberHeight,
                                   onSeek: (val) {
                                     if (hasTrack &&
+                                        !isActivelyLoadingNewTrack &&
                                         duration.inMilliseconds > 0) {
                                       final ms = (val * duration.inMilliseconds)
                                           .toInt();
@@ -1165,7 +1182,7 @@ class PlayerPage extends ConsumerWidget {
                                   children: [
                                     Text(
                                       hasTrack
-                                          ? _formatTimeDuration(position)
+                                          ? _formatTimeDuration(displayPosition)
                                           : '0:00',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: isCompactHeight ? 12 : 12.5,
@@ -1943,6 +1960,15 @@ class _WaveformProgressSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentTrack = ref.watch(
+      playerControllerProvider.select((s) => s.currentTrack),
+    );
+    final status = ref.watch(
+      playerControllerProvider.select((s) => s.status),
+    );
+    final loadingTrackId = ref.watch(
+      playerControllerProvider.select((s) => s.loadingTrackId),
+    );
     final position = ref.watch(
       playerControllerProvider.select((s) => s.position),
     );
@@ -1950,8 +1976,13 @@ class _WaveformProgressSection extends ConsumerWidget {
       playerControllerProvider.select((s) => s.duration),
     );
 
-    final progress = (duration.inMilliseconds > 0)
-        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+    final isLoadingNewTrack =
+        status == PlaybackStatus.loading || loadingTrackId != null;
+    final effectivePosition =
+        (!hasTrack || isLoadingNewTrack) ? Duration.zero : position;
+    final progress = (duration.inMilliseconds > 0 && !isLoadingNewTrack)
+        ? (effectivePosition.inMilliseconds / duration.inMilliseconds)
+            .clamp(0.0, 1.0)
         : 0.0;
 
     return Center(
@@ -1961,14 +1992,24 @@ class _WaveformProgressSection extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             WaveformWidget(
+              key: ValueKey(currentTrack?.id ?? 'no_track'),
               height: 32.0,
               barCount: 32,
-              isPlaying: isPlaying,
+              isPlaying: isPlaying && !isLoadingNewTrack,
               activeProgress: progress,
+              customHeights: currentTrack != null
+                  ? WaveformWidget.heightsForTrack(
+                      currentTrack.id,
+                      title: currentTrack.title,
+                      artist: currentTrack.artist,
+                    )
+                  : null,
               activeColor: AppColors.electricCobalt,
               inactiveColor: AppColors.paleConcrete,
               onScrub: (val) {
-                if (hasTrack && duration.inMilliseconds > 0) {
+                if (hasTrack &&
+                    !isLoadingNewTrack &&
+                    duration.inMilliseconds > 0) {
                   final seekPos = Duration(
                     milliseconds: (val * duration.inMilliseconds).toInt(),
                   );
@@ -1981,7 +2022,7 @@ class _WaveformProgressSection extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  hasTrack ? _formatDuration(position) : '1:24',
+                  hasTrack ? _formatDuration(effectivePosition) : '0:00',
                   style: GoogleFonts.geist(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
@@ -1991,7 +2032,7 @@ class _WaveformProgressSection extends ConsumerWidget {
                 Text(
                   hasTrack && duration.inMilliseconds > 0
                       ? _formatDuration(duration)
-                      : '3:56',
+                      : '--:--',
                   style: GoogleFonts.geist(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
